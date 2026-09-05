@@ -554,9 +554,11 @@ export function prospettoDettagliato(
         formato: "euro",
         formula: `Accantoni il ${percentuale(p.percentualeImpostata, 0)} dei ricavi, cioè ${euro(p.accantonamentoAnnuo)}; da mettere da parte ce ne sono ${euro(p.fabbisognoDaAccantonare)}.`,
         nota:
-          p.scostamentoAccantonamento < 0
-            ? `Non basta: porta la percentuale almeno al ${Math.ceil(p.percentualeTeoricaAccantonamento * 100)}%.`
-            : "Copri il fabbisogno stimato con un margine.",
+          p.scostamentoAccantonamento >= 0
+            ? "Copri il fabbisogno stimato con un margine."
+            : p.accantonamentoSufficiente
+              ? `Mancano ${euro(-p.scostamentoAccantonamento)}, dentro la tolleranza di ${euro(p.tolleranzaAccantonamento)}: la percentuale va bene com'è.`
+              : `Non basta: porta la percentuale almeno al ${Math.ceil(p.percentualeTeoricaAccantonamento * 100)}%.`,
       },
     ],
   });

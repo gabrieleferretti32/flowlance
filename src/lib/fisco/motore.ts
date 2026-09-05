@@ -215,6 +215,10 @@ export type Prospetto = {
    * già subite e il credito riportato dall'anno prima. Sono imposta già pagata.
    */
   fabbisognoDaAccantonare: number;
+  /** Sotto questo scarto l'accantonamento si considera a posto. */
+  tolleranzaAccantonamento: number;
+  /** Se la percentuale impostata basta, tolleranza compresa. */
+  accantonamentoSufficiente: boolean;
   scostamentoAccantonamento: number;
   accantonamentoMensile: number;
 
@@ -649,7 +653,6 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   );
   const nettoDisponibile = round2(ricaviRilevanti - costiNettiACarico - caricoTotale);
 
-  const accantonamentoAnnuo = round2(ricaviRilevanti * imp.percentualeAccantonamento);
   /*
     Quanto mettere da parte non si misura sul carico, si misura su quello che
     uscirà davvero dal conto. Le ritenute sono imposta già pagata — trattenuta
@@ -666,6 +669,18 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     nonNegativo(caricoTotale - ritenuteSubite - creditoAnnoPrecedente),
   );
   const percentualeDaAccantonare = rapporto(fabbisognoDaAccantonare, ricaviRilevanti);
+  const accantonamentoAnnuo = round2(ricaviRilevanti * imp.percentualeAccantonamento);
+  const scostamentoAccantonamento = round2(accantonamentoAnnuo - fabbisognoDaAccantonare);
+  /*
+    Quando lo scarto è dentro la tolleranza, l'accantonamento si considera a
+    posto. Senza una soglia la card chiedeva di alzare la percentuale di un
+    punto intero — quasi quattrocento euro l'anno sui ricavi del dataset — per
+    coprire uno scarto di ventotto euro: un consiglio più caro del problema.
+  */
+  const tolleranza = round2(
+    Math.max(par.tolleranzaAccantonamento.minimo, fabbisognoDaAccantonare * par.tolleranzaAccantonamento.quota),
+  );
+  const accantonamentoSufficiente = scostamentoAccantonamento >= -tolleranza;
 
   // — F · Saldo e acconti ————————————————————————————
   const totaleDovuto = somma(imposteNetteASaldo, contributiCompetenza);
@@ -796,7 +811,9 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     percentualeImpostata: imp.percentualeAccantonamento,
     accantonamentoAnnuo,
     fabbisognoDaAccantonare,
-    scostamentoAccantonamento: round2(accantonamentoAnnuo - fabbisognoDaAccantonare),
+    scostamentoAccantonamento,
+    tolleranzaAccantonamento: tolleranza,
+    accantonamentoSufficiente,
     accantonamentoMensile: round2(fabbisognoDaAccantonare / 12),
 
     totaleDovuto,

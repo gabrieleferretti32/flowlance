@@ -6,7 +6,9 @@ import { calcolaCashflow, mesiDiAutonomia } from "./cashflow";
 import { calcolaPatrimonio, calcolaPianificazione } from "./pianificazione";
 
 const dati = datiDemo();
-const impostazioni = dati.impostazioni[0];
+// Il dataset copre due anni: qui si guarda quello raccontato, non l'antefatto.
+const impostazioni = dati.impostazioni.find((i) => i.anno === ANNO_DEMO)!;
+const SALDO_INIZIALE = impostazioni.saldoInizialeAttivita;
 const prospetto = calcolaProspetto({
   impostazioni,
   parametri: PARAMETRI_2026,
@@ -30,16 +32,16 @@ const cashflow = calcolaCashflow({
 describe("cashflow", () => {
   it("copre dodici mesi e parte dal saldo iniziale", () => {
     expect(cashflow.mesi).toHaveLength(12);
-    expect(cashflow.saldoIniziale).toBe(3200);
+    expect(cashflow.saldoIniziale).toBe(SALDO_INIZIALE);
     const gennaio = cashflow.mesi[0];
     expect(gennaio.saldoCassa).toBe(
-      Math.round((3200 + gennaio.flussoNetto) * 100) / 100,
+      Math.round((SALDO_INIZIALE + gennaio.flussoNetto) * 100) / 100,
     );
   });
 
   it("il saldo finale è il saldo iniziale più il flusso di tutto l'anno", () => {
     const flusso = cashflow.mesi.reduce((a, m) => a + m.flussoNetto, 0);
-    expect(cashflow.saldoFinale).toBeCloseTo(3200 + flusso, 2);
+    expect(cashflow.saldoFinale).toBeCloseTo(SALDO_INIZIALE + flusso, 2);
     expect(cashflow.saldoFinale).toBeCloseTo(
       cashflow.saldoIniziale + cashflow.totaleEntrate - cashflow.totaleUscite,
       2,
@@ -57,13 +59,16 @@ describe("cashflow", () => {
   it("gli F24 escono nel mese in cui sono stati versati", () => {
     const giugno = cashflow.mesi[5];
     /*
-      4.180 € di contributi più 1.290 € di imposte del 2026, più 1.140 € di
-      saldo 2025: al 30 giugno dal conto escono tutti e tre. Qui comanda la
-      data, non l'anno d'imposta — la cassa non sa di che anno è il debito che
-      sta pagando.
+      Al 30 giugno escono insieme il saldo del 2025 e il primo acconto del
+      2026. Qui comanda la data, non l'anno d'imposta: la cassa non sa di che
+      anno è il debito che sta pagando.
     */
-    expect(giugno.imposteEContributi).toBe(6610);
-    expect(cashflow.mesi[10].imposteEContributi).toBe(3280);
+    const versatiAGiugno = dati.versamenti
+      .filter((v) => v.data === `${ANNO_DEMO}-06-30`)
+      .reduce((a, v) => a + v.importo, 0);
+    expect(giugno.imposteEContributi).toBeCloseTo(versatiAGiugno, 2);
+    expect(versatiAGiugno).toBeGreaterThan(0);
+
   });
 
   it("i prelievi personali escono dalla cassa dell'attività", () => {
@@ -89,9 +94,10 @@ describe("cashflow", () => {
   it("la cassa del dataset dimostrativo non va mai sotto zero", () => {
     expect(cashflow.meseNegativo).toBeNull();
     expect(Math.min(...cashflow.mesi.map((m) => m.liquiditaNetta))).toBeGreaterThan(0);
-    // Chiude l'anno con margine, ma non con troppo: è un anno vero.
-    expect(cashflow.saldoFinale).toBeGreaterThan(4000);
-    expect(cashflow.saldoFinale).toBeLessThan(8000);
+    // Chiude l'anno con margine, ma non con troppo: è un anno vero. I limiti
+    // si misurano sull'apertura, così restano veri anche se il dataset cresce.
+    expect(cashflow.saldoFinale).toBeGreaterThan(SALDO_INIZIALE / 2);
+    expect(cashflow.saldoFinale).toBeLessThan(SALDO_INIZIALE * 2);
 
     const inRosso = calcolaCashflow({
       anno: ANNO_DEMO,

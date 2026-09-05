@@ -25,6 +25,20 @@ import { usePreferenze } from "@/lib/stato/preferenze";
 import { coloreDaNome, data as fmtData, euro, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
+/**
+ * La copertura, arrotondata per difetto.
+ *
+ * Arrotondando per eccesso il 99,76 % diventava «100 %» sopra una nota che
+ * diceva «mancano 28,64 €»: il numero grande e la riga sotto si
+ * contraddicevano. Per difetto non succede mai, e nell'ultimo punto — dove la
+ * differenza fra «ci sei» e «quasi» conta — si mostra il decimale.
+ */
+function coperturaScritta(copertura: number): string {
+  const decimali = copertura >= 0.99 && copertura < 1 ? 1 : 0;
+  const passo = 10 ** (decimali + 2);
+  return percentuale(Math.floor(copertura * passo) / passo, decimali);
+}
+
 export function Cruscotto() {
   const anno = usePreferenze((s) => s.periodo.anno);
   const [oggi] = React.useState(() => new Date().toISOString().slice(0, 10));
@@ -349,7 +363,7 @@ export function Cruscotto() {
           <Kpi
             taglia="kpiSm"
             etichetta="Copertura dell'accantonamento"
-            valore={copertura === null ? "—" : percentuale(copertura, 0)}
+            valore={copertura === null ? "—" : coperturaScritta(copertura)}
             nota={
               copertura === null
                 ? "niente da mettere da parte: ritenute e crediti coprono già il carico"
@@ -357,10 +371,16 @@ export function Cruscotto() {
             }
             sotto={
               p.scostamentoAccantonamento < 0 ? (
-                <p className="text-[#B8791A]">
-                  mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
-                  {Math.ceil(p.percentualeTeoricaAccantonamento * 100)}%
-                </p>
+                p.accantonamentoSufficiente ? (
+                  <p className="text-inchiostro-tenue">
+                    mancano {euro(-p.scostamentoAccantonamento)}: dentro la tolleranza, va bene così
+                  </p>
+                ) : (
+                  <p className="text-[#B8791A]">
+                    mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
+                    {Math.ceil(p.percentualeTeoricaAccantonamento * 100)}%
+                  </p>
+                )
               ) : undefined
             }
           />

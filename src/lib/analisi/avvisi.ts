@@ -80,7 +80,9 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
   }
 
   // — Accantonamento ————————————————————————————————
-  if (p.ricaviRilevanti > 0 && p.scostamentoAccantonamento < 0) {
+  // Sotto la tolleranza non si avvisa: un avviso che chiede di alzare la
+  // percentuale per coprire trenta euro costa più del buco che segnala.
+  if (p.ricaviRilevanti > 0 && p.scostamentoAccantonamento < 0 && !p.accantonamentoSufficiente) {
     const minima = Math.ceil(p.percentualeTeoricaAccantonamento * 100);
     avvisi.push({
       id: "accantonamento",

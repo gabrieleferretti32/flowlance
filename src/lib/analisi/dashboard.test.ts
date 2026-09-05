@@ -14,7 +14,9 @@ import {
 } from "./dashboard";
 
 const dati = datiDemo();
-const impostazioni = dati.impostazioni[0] ?? impostazioniPredefinite(PARAMETRI_2026);
+// Il dataset copre due anni: qui interessa quello raccontato, non l'antefatto.
+const impostazioni =
+  dati.impostazioni.find((i) => i.anno === ANNO_DEMO) ?? impostazioniPredefinite(PARAMETRI_2026);
 const prospetto = calcolaProspetto({
   impostazioni,
   parametri: PARAMETRI_2026,
@@ -222,7 +224,9 @@ describe("scaduto per fascia", () => {
 
 describe("giorni medi di incasso", () => {
   it("considera solo le fatture già incassate", () => {
-    expect(giorniMediIncasso(prospetto.fattureCalcolate)).toBe(35);
+    // 34 e non 35 da quando il dataset ha anche l'anno prima: la media si fa
+    // su tutte le fatture dell'archivio, non su quelle dell'anno guardato.
+    expect(giorniMediIncasso(prospetto.fattureCalcolate)).toBe(34);
   });
 
   it("senza incassi non inventa uno zero", () => {

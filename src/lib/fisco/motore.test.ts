@@ -358,6 +358,33 @@ describe("accantonamento e ritenute", () => {
     expect(p.fabbisognoDaAccantonare).toBe(7_907.67);
   });
 
+  it("uno scarto dentro la tolleranza non è un problema da segnalare", () => {
+    /*
+      Su 40.000 € di ricavi il fabbisogno è 17.907,67: la tolleranza è il 2 %,
+      cioè 358,15 €. Accantonando il 44 % si mettono da parte 17.600, ne
+      mancano 307,67 — meno della tolleranza. Chiedere un punto percentuale in
+      più costerebbe 400 € l'anno per coprirne 308.
+    */
+    const p = scenario({ ritenutaAttiva: false, percentualeAccantonamento: 0.44 });
+    expect(p.tolleranzaAccantonamento).toBe(358.15);
+    expect(p.scostamentoAccantonamento).toBe(-307.67);
+    expect(p.accantonamentoSufficiente).toBe(true);
+  });
+
+  it("uno scarto oltre la tolleranza resta un problema", () => {
+    const p = scenario({ ritenutaAttiva: false, percentualeAccantonamento: 0.3 });
+    expect(p.scostamentoAccantonamento).toBeLessThan(-p.tolleranzaAccantonamento);
+    expect(p.accantonamentoSufficiente).toBe(false);
+  });
+
+  it("su cifre piccole la tolleranza è un importo, non una percentuale", () => {
+    // Il 2 % di poche centinaia di euro sarebbe qualche euro: sotto quella
+    // soglia si darebbero consigli per niente.
+    const p = scenario({ ritenutaAttiva: false }, [], 17_500);
+    expect(p.fabbisognoDaAccantonare).toBeLessThan(1_000);
+    expect(p.tolleranzaAccantonamento).toBe(100);
+  });
+
   it("il carico totale e il netto disponibile non si muovono", () => {
     // Sono corretti per competenza e rispondono a un'altra domanda.
     const senza = scenario({ ritenutaAttiva: false });

@@ -160,6 +160,9 @@ dichiarazioni fiscali. Non considera altri redditi che in regime ordinario
 concorrono a formare il reddito complessivo e possono spostare lo scaglione
 IRPEF. I numeri definitivi restano quelli del commercialista.
 
+L'elenco completo di quello che il motore non calcola o semplifica sta in
+[`APPROSSIMAZIONI.md`](APPROSSIMAZIONI.md), con la ragione di ogni scelta.
+
 ## Font
 
 Inter e Plus Jakarta Sans arrivano da npm e sono serviti dal progetto: nessuna

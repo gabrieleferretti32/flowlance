@@ -141,6 +141,10 @@ export const PARAMETRI_2026: ParametriAnno = {
     comunale: { quota: 0.3, rate: 1 },
   },
 
+  // 100 € o il 2 % del fabbisogno: sotto quello scarto l'accantonamento va
+  // bene com'è, e chiedere di alzare la percentuale costerebbe più del buco.
+  tolleranzaAccantonamento: { minimo: 100, quota: 0.02 },
+
   sogliaVistoCompensazione: 5_000,
   sogliaAcconti: 51.65,
   sogliaAccontoUnico: 257.52,

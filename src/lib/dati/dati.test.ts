@@ -10,7 +10,17 @@ import {
   serializzaBackup,
   FORMATI_STORICI,
 } from "./backup";
+import { catenaAnni } from "@/lib/analisi/anno";
+import { scadenzeAnno } from "@/lib/fisco/scadenze";
 import { ANNO_DEMO, datiDemo } from "./demo";
+
+/** La data in cui il dataset dimostrativo è ambientato. */
+const OGGI_DEMO = "2026-09-05";
+
+/** Le impostazioni dell'anno raccontato: il dataset ne ha anche per l'anno prima. */
+function impostazioniDemo() {
+  return datiDemo().impostazioni.find((i) => i.anno === ANNO_DEMO)!;
+}
 import { DatabaseFinanze, VERSIONE_SCHEMA } from "./db";
 import { DexieAdapter } from "./dexie-adapter";
 import { MemoriaAdapter } from "./memoria-adapter";
@@ -57,7 +67,7 @@ describe.each(implementazioni)("StorageAdapter · %s", (_nome, crea) => {
   });
 
   it("indicizza le impostazioni per anno, non per identificatore", async () => {
-    const [impostazioni] = datiDemo().impostazioni;
+    const impostazioni = impostazioniDemo();
     await adapter.impostazioni.salva(impostazioni);
     await adapter.impostazioni.salva({ ...impostazioni, anno: 2027 });
     expect(await adapter.impostazioni.conta()).toBe(2);
@@ -252,11 +262,14 @@ describe("dataset dimostrativo", () => {
   });
 
   it("descrive un anno plausibile", () => {
-    const emesso = dati.fatture.reduce((a, f) => a + f.imponibile, 0);
+    // Il dataset copre due anni: l'anno raccontato e il suo antefatto.
+    const fattureAnno = dati.fatture.filter((f) => f.dataEmissione.startsWith(String(ANNO_DEMO)));
+    const emesso = fattureAnno.reduce((a, f) => a + f.imponibile, 0);
     expect(emesso).toBe(46_050);
-    expect(dati.fatture).toHaveLength(24);
+    expect(fattureAnno).toHaveLength(24);
     expect(dati.clienti).toHaveLength(7);
-    expect(dati.movimentiPersonali).toHaveLength(12);
+    expect(dati.movimentiPersonali.filter((m) => m.anno === ANNO_DEMO)).toHaveLength(12);
+    expect(dati.movimentiPersonali.filter((m) => m.anno === ANNO_DEMO - 1)).toHaveLength(12);
   });
 
   it("ha identificatori univoci e riferimenti validi", () => {
@@ -291,9 +304,8 @@ describe("dataset dimostrativo", () => {
   });
 
   it("attraversa il motore fiscale producendo numeri sensati", () => {
-    const [impostazioni] = dati.impostazioni;
     const p = calcolaProspetto({
-      impostazioni,
+      impostazioni: impostazioniDemo(),
       parametri: PARAMETRI_2026,
       fatture: dati.fatture,
       costi: dati.costi,
@@ -311,7 +323,10 @@ describe("dataset dimostrativo", () => {
     expect(p.nettoDisponibile).toBeGreaterThan(0);
     // Ci sono F24 registrati: il motore deduce i contributi per cassa.
     expect(p.fonteContributiDedotti).toBe("versamenti");
-    expect(p.contributiDedotti).toBe(6690);
+    // Contributi usciti dal conto nel 2026: la quota contributiva del saldo
+    // 2025 più quella del primo acconto 2026. Si deducono per cassa, quindi
+    // conta la data di pagamento e non l'anno d'imposta.
+    expect(p.contributiDedotti).toBe(5779.27);
   });
 });
 
@@ -347,7 +362,7 @@ describe("versioni dello schema", () => {
     if (!esito.ok) return;
     expect(esito.avvisi.some((a) => a.includes("più vecchio"))).toBe(true);
     expect(esito.backup.dati.spunte).toEqual([]);
-    expect(esito.backup.dati.fatture).toHaveLength(24);
+    expect(esito.backup.dati.fatture).toHaveLength(dati.fatture.length);
   });
 
   it("le spunte sopravvivono al giro completo di export e import", async () => {
@@ -373,5 +388,91 @@ describe("versioni dello schema", () => {
       "saldo-e-primo-acconto",
       "secondo-acconto",
     ]);
+  });
+});
+
+/*
+  Il dataset dimostrativo racconta due anni, e devono raccontare la stessa
+  storia: quello che è uscito dal conto a giugno 2026 dev'essere il saldo che
+  il 2025 doveva davvero, e gli acconti del 2026 devono essere quelli che il
+  motore calcola sul 2025 con il metodo storico.
+
+  Non è pignoleria: la demo è il primo prospetto che qualcuno vede, e un
+  documento in cui i numeri non si inseguono fa dubitare di tutto il resto.
+*/
+describe("dataset dimostrativo · i due anni si raccontano allo stesso modo", () => {
+  const d = datiDemo();
+  const catena = catenaAnni(
+    {
+      impostazioni: d.impostazioni,
+      fatture: d.fatture,
+      note: d.note,
+      costi: d.costi,
+      versamenti: d.versamenti,
+      movimentiAttivita: d.movimentiAttivita,
+      movimentiPersonali: d.movimentiPersonali,
+      chiusure: d.chiusure,
+    },
+    ANNO_DEMO,
+    OGGI_DEMO,
+  );
+  const prima = catena.get(ANNO_DEMO - 1)!;
+  const anno = catena.get(ANNO_DEMO)!;
+  const perAnno = (a: number) =>
+    d.versamenti.filter((v) => v.annoImposta === a).reduce((s, v) => s + v.importo, 0);
+
+  it("l'anno prima ha ricavi e un carico suo", () => {
+    expect(prima.prospetto.ricaviRilevanti).toBeGreaterThan(0);
+    expect(prima.prospetto.totaleDovuto).toBeGreaterThan(0);
+  });
+
+  it("il saldo dell'anno prima è dovuto davvero, e non torna indietro come credito", () => {
+    // Versato per il 2025 = dovuto dal 2025: niente eccedenza, niente riporto.
+    expect(perAnno(ANNO_DEMO - 1)).toBeCloseTo(prima.prospetto.totaleDovuto, 2);
+    expect(prima.prospetto.saldoResiduo).toBe(0);
+    expect(prima.riportoInUscita.creditoImposte).toBe(0);
+    expect(anno.prospetto.creditoAnnoPrecedente).toBe(0);
+    // E una parte di quel saldo è uscita nel 2026: è il caso che il campo
+    // `annoImposta` esiste per gestire.
+    expect(anno.prospetto.versamentiAltriAnni).toBeGreaterThan(0);
+  });
+
+  it("gli acconti versati nel 2026 sono quelli che il 2025 dice, al centesimo", () => {
+    expect(perAnno(ANNO_DEMO)).toBeCloseTo(prima.prospetto.acconti.primo, 2);
+    expect(anno.prospetto.giaVersato).toBeCloseTo(prima.prospetto.acconti.primo, 2);
+  });
+
+  it("nessun versamento è datato nel futuro del dataset", () => {
+    // Un F24 di novembre in un dataset datato settembre sarebbe già pagato nel
+    // prospetto e ancora da pagare nello scadenzario, sulla stessa schermata.
+    for (const v of d.versamenti) expect(v.data <= OGGI_DEMO).toBe(true);
+  });
+
+  it("lo scadenzario di giugno mostra un importo, non uno zero", () => {
+    const scadenze = scadenzeAnno(
+      anno.impostazioni,
+      anno.parametri,
+      anno.prospetto,
+      anno.iva,
+      prima.prospetto,
+    );
+    const giugno = scadenze.find((s) => s.id === "saldo-e-primo-acconto")!;
+    expect(giugno.importo).toBeGreaterThan(0);
+    expect(giugno.nota).toBeUndefined();
+  });
+
+  it("il saldo iniziale dichiarato per il 2026 è quello che il 2025 lascia", () => {
+    // Nella catena comanda il riporto, ma un saldo iniziale scritto in archivio
+    // che dice un'altra cosa è un dato che contraddice la schermata.
+    expect(impostazioniDemo().saldoInizialeAttivita).toBeCloseTo(prima.cashflow.saldoFinale, 2);
+    expect(anno.cashflow.saldoIniziale).toBeCloseTo(prima.cashflow.saldoFinale, 2);
+  });
+
+  it("la cassa non va mai sotto zero, in nessuno dei due anni", () => {
+    // Un dataset dimostrativo che chiude in rosso somiglia a un errore di
+    // calcolo, e il primo sospetto cade sul motore.
+    for (const a of [prima, anno]) {
+      for (const m of a.cashflow.mesi) expect(m.saldoCassa).toBeGreaterThan(0);
+    }
   });
 });

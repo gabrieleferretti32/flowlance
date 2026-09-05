@@ -127,6 +127,15 @@ export type ParametriAnno = {
    * l'IRPEF. `null` dove l'acconto non esiste.
    */
   accontoAddizionali: { regionale: RegolaAcconto | null; comunale: RegolaAcconto | null };
+  /**
+   * Quanto può mancare all'accantonamento prima di dire che non basta.
+   *
+   * Non è una regola di legge: è una regola di prodotto, e sta qui con le
+   * altre perché è un numero che si ritocca, non una costante sparsa nel
+   * codice. Il maggiore fra un importo minimo e una quota del fabbisogno:
+   * su cifre piccole conta l'importo, su cifre grandi la percentuale.
+   */
+  tolleranzaAccantonamento: { minimo: number; quota: number };
   /** Sotto questa soglia di imposta dovuta non si versano acconti. */
   sogliaAcconti: number;
   /** Sotto questa soglia l'acconto è unico, a novembre. */

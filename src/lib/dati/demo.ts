@@ -29,6 +29,8 @@ import type {
 } from "./tipi";
 
 export const ANNO_DEMO = 2026;
+/** L'anno prima: l'antefatto da cui vengono saldo e acconti del 2026. */
+const ANNO_PRIMA = ANNO_DEMO - 1;
 
 function iso(mese: number, giorno: number, anno = ANNO_DEMO): string {
   return `${anno}-${String(mese).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
@@ -371,13 +373,94 @@ function costruisciMovimentiAttivita(): MovimentoAttivita[] {
   deve mostrare che non lo scomputa: 1.140 € usciti dal conto nel 2026 che
   non abbassano di un centesimo il dovuto del 2026.
 */
+/*
+  Saldo e acconti che escono nel 2026, presi dal 2025.
+
+  Non sono numeri scelti: sono quello che il motore calcola sul 2025 di questo
+  stesso dataset — saldo residuo e acconti con il metodo storico — e un test li
+  ricontrolla a ogni esecuzione. Se il 2025 cambia e questi restano indietro,
+  il test fallisce invece di lasciare in giro una demo che non torna.
+*/
+const SALDO_ANNO_PRIMA = { imposte: 793, contributi: 3_013.76 };
+const ACCONTI = { primoImposte: 1_357.2, primoContributi: 2_765.51 };
+
 const VERSAMENTI: VersamentoF24[] = [
-  { id: "f24-00", data: iso(6, 30), tipo: "imposte", importo: 1140, annoImposta: ANNO_DEMO - 1 },
-  { id: "f24-01", data: iso(6, 30), tipo: "contributi", importo: 4180, annoImposta: ANNO_DEMO },
-  { id: "f24-02", data: iso(6, 30), tipo: "imposte", importo: 1290, annoImposta: ANNO_DEMO },
-  { id: "f24-03", data: iso(11, 30), tipo: "contributi", importo: 2510, annoImposta: ANNO_DEMO },
-  { id: "f24-04", data: iso(11, 30), tipo: "imposte", importo: 770, annoImposta: ANNO_DEMO },
+  // Acconti per il 2025, versati dentro il 2025.
+  { id: "f24-2025-1i", data: iso(6, 30, ANNO_PRIMA), tipo: "imposte", importo: 1_200, annoImposta: ANNO_PRIMA },
+  { id: "f24-2025-1c", data: iso(6, 30, ANNO_PRIMA), tipo: "contributi", importo: 1_800, annoImposta: ANNO_PRIMA },
+  { id: "f24-2025-2i", data: iso(11, 30, ANNO_PRIMA), tipo: "imposte", importo: 1_400, annoImposta: ANNO_PRIMA },
+  { id: "f24-2025-2c", data: iso(11, 30, ANNO_PRIMA), tipo: "contributi", importo: 2_100, annoImposta: ANNO_PRIMA },
+  // Il 30 giugno del 2026 escono insieme il saldo del 2025 e il primo acconto
+  // del 2026: è il giorno in cui l'anno di cassa e l'anno d'imposta si
+  // separano, e senza `annoImposta` finivano tutti e due sul 2026.
+  { id: "f24-saldo-i", data: iso(6, 30), tipo: "imposte", importo: SALDO_ANNO_PRIMA.imposte, annoImposta: ANNO_PRIMA },
+  { id: "f24-saldo-c", data: iso(6, 30), tipo: "contributi", importo: SALDO_ANNO_PRIMA.contributi, annoImposta: ANNO_PRIMA },
+  { id: "f24-01i", data: iso(6, 30), tipo: "imposte", importo: ACCONTI.primoImposte, annoImposta: ANNO_DEMO },
+  { id: "f24-01c", data: iso(6, 30), tipo: "contributi", importo: ACCONTI.primoContributi, annoImposta: ANNO_DEMO },
+  /*
+    Il secondo acconto non c'è, e non è una dimenticanza: il dataset è datato 5
+    settembre, e un F24 del 30 novembre sarebbe un versamento nel futuro. Il
+    prospetto lo direbbe già pagato e lo scadenzario ancora da pagare, sulla
+    stessa schermata.
+  */
 ];
+
+/*
+  L'anno prima, per intero.
+
+  Serve a far funzionare le due cose che senza un anno precedente non si
+  vedono: il saldo che si versa a giugno dell'anno dopo, e gli acconti che si
+  calcolano sui numeri dell'anno chiuso. Con un 2025 vuoto il dataset mostrava
+  un utente che aveva pagato acconti che l'app stessa dichiarava non dovuti, e
+  un saldo versato che tornava indietro come credito: la funzione sembrava
+  girare a vuoto proprio nel documento che deve dimostrarla.
+
+  È tenuto scarno di proposito — quattro fatture, un costo al mese, i prelievi —
+  perché il dataset racconta il 2026: il 2025 è il suo antefatto, non una
+  seconda demo.
+*/
+const FATTURE_ANNO_PRIMA: Fattura[] = [
+  { mese: 1, giorno: 15, cliente: "cli-alfa", descrizione: "Consulenza strategica primo trimestre" },
+  { mese: 4, giorno: 15, cliente: "cli-beta", descrizione: "Progetto riposizionamento" },
+  { mese: 7, giorno: 15, cliente: "cli-gamma", descrizione: "Retainer terzo trimestre" },
+  { mese: 10, giorno: 15, cliente: "cli-alfa", descrizione: "Consulenza strategica quarto trimestre" },
+].map((s, i) => ({
+  id: `fat-${ANNO_PRIMA}-${String(i + 1).padStart(2, "0")}`,
+  dataEmissione: iso(s.mese, s.giorno, ANNO_PRIMA),
+  numero: `${ANNO_PRIMA}/${String(i + 1).padStart(3, "0")}`,
+  clienteId: s.cliente,
+  descrizione: s.descrizione,
+  tipoRicavo: "progetto" as const,
+  imponibile: 8_500,
+  // Incassate tutte dentro l'anno: il 2025 serve come antefatto chiuso, e una
+  // fattura a cavallo sposterebbe i ricavi del 2026 senza aggiungere niente.
+  dataIncasso: iso(s.mese + 1, 12, ANNO_PRIMA),
+}));
+
+const COSTI_ANNO_PRIMA: Costo[] = Array.from({ length: 12 }, (_, i) => ({
+  id: `cos-${ANNO_PRIMA}-${String(i + 1).padStart(2, "0")}`,
+  dataDocumento: iso(i + 1, 5, ANNO_PRIMA),
+  fornitore: "Spazio Comune",
+  categoria: "Affitto e utenze ufficio",
+  descrizione: "Postazione in coworking",
+  natura: "fisso" as const,
+  imponibile: 500,
+  aliquotaIva: 0.22,
+  percentualeDeducibilita: 1,
+  percentualeDetraibilitaIva: 1,
+  dataPagamento: iso(i + 1, 5, ANNO_PRIMA),
+}));
+
+const MOVIMENTI_PERSONALI_ANNO_PRIMA: MovimentoPersonale[] = Array.from({ length: 12 }, (_, i) => ({
+  id: `mp-${ANNO_PRIMA}-${String(i + 1).padStart(2, "0")}`,
+  anno: ANNO_PRIMA,
+  mese: i + 1,
+  prelievi: 1_500,
+  altreEntrate: 0,
+  speseFisse: 900,
+  speseVariabili: 500,
+  risparmio: 80,
+}));
 
 const PATRIMONIO: VocePatrimonio[] = [
   { id: "pat-01", tipo: "attivo", categoria: "Investimenti finanziari", descrizione: "Piano di accumulo ETF", valore: 8400 },
@@ -391,10 +474,28 @@ export function datiDemo(): Dati {
   return {
     impostazioni: [
       {
+        // L'anno prima ha le stesse impostazioni: cambia l'anno, non il
+        // mestiere. Il saldo iniziale è quello del 2025 — il 2026 non usa più
+        // il proprio, perché apre con quello che gli lascia la chiusura.
+        ...impostazioniPredefinite(PARAMETRI_2026),
+        anno: ANNO_PRIMA,
+        nome: "Studio di consulenza",
+        dataAperturaPiva: "2021-03-01",
+        saldoInizialeAttivita: 6_000,
+        saldoInizialePersonale: 1800,
+        tariffaOraria: 80,
+        nettoDesiderato: 40_000,
+        costiFissiAnnui: 12_000,
+      },
+      {
         ...impostazioniPredefinite(PARAMETRI_2026),
         nome: "Studio di consulenza",
         dataAperturaPiva: "2021-03-01",
-        saldoInizialeAttivita: 3200,
+        // Quello che il 2025 lascia in cassa il 31 dicembre. Nella catena degli
+        // anni questo campo non viene nemmeno letto — comanda il riporto — ma
+        // scriverci un numero diverso significherebbe lasciare in archivio un
+        // dato che contraddice quello che l'app mostra. Un test lo tiene legato.
+        saldoInizialeAttivita: 8188,
         saldoInizialePersonale: 1800,
         tariffaOraria: 80,
         nettoDesiderato: 40_000,
@@ -402,7 +503,7 @@ export function datiDemo(): Dati {
       },
     ],
     clienti: CLIENTI,
-    fatture: costruisciFatture(),
+    fatture: [...FATTURE_ANNO_PRIMA, ...costruisciFatture()],
     // Una nota di credito nel dataset: serve a vedere subito com'è fatta la
     // schermata e come compare la voce separata nel prospetto e nell'IVA.
     note: [
@@ -418,8 +519,8 @@ export function datiDemo(): Dati {
         riconciliazioni: [{ fatturaId: "fat-016", imponibile: 400 }],
       },
     ],
-    costi: costruisciCosti(),
-    movimentiPersonali: costruisciMovimentiPersonali(),
+    costi: [...COSTI_ANNO_PRIMA, ...costruisciCosti()],
+    movimentiPersonali: [...MOVIMENTI_PERSONALI_ANNO_PRIMA, ...costruisciMovimentiPersonali()],
     movimentiAttivita: costruisciMovimentiAttivita(),
     versamenti: VERSAMENTI,
     patrimonio: PATRIMONIO,
