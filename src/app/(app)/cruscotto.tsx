@@ -152,8 +152,9 @@ export function Cruscotto() {
     conImporto.length > 0 ? round2(conImporto.reduce((a, s) => a + (s.importo ?? 0), 0)) : null;
   // Quanto del fabbisogno copre la percentuale impostata. `null` quando non
   // c'è niente da coprire: una percentuale su zero non vuol dire niente.
-  const copertura =
-    p.fabbisognoDaAccantonare > 0 ? p.accantonamentoAnnuo / p.fabbisognoDaAccantonare : null;
+  // Anno contro anno: la percentuale impostata lavora su tutti i ricavi e ha
+  // già finanziato i versamenti fatti. Contro il residuo mostrava il 154 %.
+  const copertura = p.fabbisognoAnnuo > 0 ? p.accantonamentoAnnuo / p.fabbisognoAnnuo : null;
 
   return (
     <Guscio titolo={titolo} descrizione={descrizione}>
@@ -299,9 +300,9 @@ export function Cruscotto() {
         >
           <Kpi
             taglia="kpiSm"
-            etichetta="Da accantonare al mese"
+            etichetta="Quota mensile del fabbisogno"
             valore={euro(p.accantonamentoMensile)}
-            nota="imposte e contributi, su un conto separato"
+            nota="quello che resta da versare, diviso dodici"
             sotto={
               // Il carico dell'anno è un altro numero, più alto: se una parte è
               // già stata versata o trattenuta, va detto qui, dove si guarda
@@ -370,7 +371,7 @@ export function Cruscotto() {
             nota={
               copertura === null
                 ? "niente da mettere da parte: ritenute e crediti coprono già il carico"
-                : `il ${percentuale(p.percentualeImpostata, 0)} dei ricavi fa ${euro(p.accantonamentoAnnuo)} sui ${euro(p.fabbisognoDaAccantonare)} da coprire`
+                : `il ${percentuale(p.percentualeImpostata, 0)} dei ricavi fa ${euro(p.accantonamentoAnnuo)} sui ${euro(p.fabbisognoAnnuo)} che l'anno costa`
             }
             sotto={
               p.scostamentoAccantonamento < 0 ? (

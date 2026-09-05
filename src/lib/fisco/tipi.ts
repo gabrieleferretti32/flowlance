@@ -90,8 +90,19 @@ export type ParametriAnno = {
 
   aliquotaGestioneSeparata: number;
   massimaleGestioneSeparata: number;
-  minimaleAccreditoGestioneSeparata: number;
-  minimaleArtigiani: number;
+  /**
+   * Il minimale di reddito annuo, uno solo.
+   *
+   * È la stessa costante di legge per due usi diversi: sotto questa soglia
+   * l'anno non si accredita per intero nella Gestione Separata, e sopra questa
+   * soglia gli artigiani e i commercianti pagano il contributo percentuale
+   * sull'eccedenza. L'INPS lo pubblica una volta e lo rivaluta ogni anno.
+   *
+   * Erano due campi, e nel 2026 se n'è aggiornato uno solo: la Gestione
+   * Separata leggeva 18.808 € e gli artigiani 18.555 €, cioè il valore
+   * dell'anno prima. Due copie della stessa costante divergono sempre.
+   */
+  minimaleAnnuo: number;
   aliquotaEccedenzaArtigiani: number;
 
   aliquotaIvaOrdinaria: number;

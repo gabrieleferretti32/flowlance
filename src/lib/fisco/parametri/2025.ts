@@ -39,10 +39,6 @@ export const PARAMETRI_2025: ParametriAnno = {
   // massimale no — si rivalutano ogni anno con l'indice ISTAT.
   aliquotaGestioneSeparata: 0.2607,
   massimaleGestioneSeparata: 120_607,
-  minimaleAccreditoGestioneSeparata: 18_555,
-
-  // Artigiani e commercianti 2025: stesso minimale di reddito della Gestione
-  // Separata, per coincidenza dell'anno e non per regola.
-  minimaleArtigiani: 18_555,
+  minimaleAnnuo: 18_555,
   aliquotaEccedenzaArtigiani: 0.2448,
 };

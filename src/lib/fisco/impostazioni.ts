@@ -42,9 +42,11 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
     gestione: "separata",
     aliquotaGestioneSeparata: par.aliquotaGestioneSeparata,
     massimaleGs: par.massimaleGestioneSeparata,
-    minimaleGs: par.minimaleAccreditoGestioneSeparata,
+    minimaleGs: par.minimaleAnnuo,
     contributiFissi: 4600,
-    minimaleArtigiani: par.minimaleArtigiani,
+    // Stessa costante del minimale della Gestione Separata: la legge ne
+    // pubblica una sola, e nel modello arriva da un campo solo.
+    minimaleArtigiani: par.minimaleAnnuo,
     aliquotaEccedenza: par.aliquotaEccedenzaArtigiani,
     aliquotaSoggettivaCassa: 0.15,
     aliquotaIntegrativaCassa: 0.04,

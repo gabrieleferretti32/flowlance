@@ -514,6 +514,36 @@ describe("prospetto dettagliato", () => {
     );
   });
 
+  it("lo scostamento confronta due grandezze annuali, non una annuale e una residua", () => {
+    /*
+      Il 30 % dei ricavi accumula su tutto l'anno e ha già finanziato quello
+      che è stato versato a giugno: confrontarlo con quello che resta da
+      versare dichiarava un margine che non c'era.
+    */
+    const imp = impostazioniForfettario();
+    const p = calcolaProspetto({
+      impostazioni: imp, parametri: par, fatture: FATTURE_FIXTURE, costi: COSTI_FIXTURE,
+      versamenti: [
+        { id: "v", data: "2026-06-30", tipo: "imposte", importo: 800, annoImposta: 2026 },
+      ],
+      oggi: OGGI_FIXTURE,
+    });
+    // Il versato abbassa il residuo ma non quello che l'anno costa.
+    expect(p.fabbisognoDaAccantonare).toBe(round2(p.fabbisognoAnnuo - 800));
+    expect(p.fabbisognoAnnuo).toBe(p.totaleDovuto);
+    expect(p.scostamentoAccantonamento).toBe(
+      round2(p.accantonamentoAnnuo - p.fabbisognoAnnuo),
+    );
+    const sezioni = prospettoDettagliato(p, imp, par);
+    expect(riga(sezioni, "scostamento")?.formula).toContain(euro(p.fabbisognoAnnuo));
+    // La quota mensile resta sul residuo, ed è un'altra domanda: l'etichetta
+    // non promette più una rata mensile da mettere via.
+    expect(riga(sezioni, "accantonamento-mensile")?.etichetta).toBe("Quota mensile del fabbisogno");
+    expect(riga(sezioni, "accantonamento-mensile")?.valore).toBe(
+      round2(p.fabbisognoDaAccantonare / 12),
+    );
+  });
+
   it("con la ritenuta attiva e nessuna trattenuta, lo zero è scritto", () => {
     /*
       Su carta non si può chiedere all'app perché una voce manchi: chi applica

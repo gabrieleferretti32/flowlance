@@ -221,6 +221,13 @@ export type Prospetto = {
    * già subite e il credito riportato dall'anno prima. Sono imposta già pagata.
    */
   fabbisognoDaAccantonare: number;
+  /**
+   * Quanto costa l'anno intero, versamenti già fatti compresi: è il termine di
+   * confronto della percentuale impostata, che sull'anno intero lavora anche
+   * lei. `fabbisognoDaAccantonare` è la stessa cosa al netto di quello che è
+   * già uscito — le due righe rispondono a due domande diverse.
+   */
+  fabbisognoAnnuo: number;
   /** Sotto questo scarto l'accantonamento si considera a posto. */
   tolleranzaAccantonamento: number;
   /** Se la percentuale impostata basta, tolleranza compresa. */
@@ -742,9 +749,27 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     giusti, e rispondono a un'altra domanda.
   */
   const fabbisognoDaAccantonare = round2(nonNegativo(saldoResiduo - creditoImposta));
-  const percentualeDaAccantonare = rapporto(fabbisognoDaAccantonare, ricaviRilevanti);
+  /*
+    Il fabbisogno dell'anno intero, che è un'altra domanda ancora.
+
+    «Da accantonare al mese» guarda quello che resta da versare. La percentuale
+    impostata, invece, lavora su tutti i ricavi dell'anno e ha già finanziato i
+    versamenti fatti: confrontarla con il residuo metteva un lato lordo contro
+    un lato netto e dichiarava un margine che non c'era — 4.184,92 € invece di
+    62,21 € sui numeri del dataset.
+
+    Quindi il confronto si fa sull'anno intero da tutte e due le parti: quello
+    che la percentuale impostata produce in dodici mesi contro quello che i dodici
+    mesi costano. Ritenute e crediti restano fuori da entrambi i lati — non
+    sono denaro da mettere da parte — ma i versamenti già fatti sì: sono
+    esattamente ciò che l'accantonamento serviva a coprire.
+  */
+  const fabbisognoAnnuo = round2(
+    nonNegativo(totaleDovuto - creditoAnnoPrecedente - creditoImposta),
+  );
+  const percentualeDaAccantonare = rapporto(fabbisognoAnnuo, ricaviRilevanti);
   const accantonamentoAnnuo = round2(ricaviRilevanti * imp.percentualeAccantonamento);
-  const scostamentoAccantonamento = round2(accantonamentoAnnuo - fabbisognoDaAccantonare);
+  const scostamentoAccantonamento = round2(accantonamentoAnnuo - fabbisognoAnnuo);
   /*
     Quando lo scarto è dentro la tolleranza, l'accantonamento si considera a
     posto. Senza una soglia la card chiedeva di alzare la percentuale di un
@@ -752,7 +777,7 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     coprire uno scarto di ventotto euro: un consiglio più caro del problema.
   */
   const tolleranza = round2(
-    Math.max(par.tolleranzaAccantonamento.minimo, fabbisognoDaAccantonare * par.tolleranzaAccantonamento.quota),
+    Math.max(par.tolleranzaAccantonamento.minimo, fabbisognoAnnuo * par.tolleranzaAccantonamento.quota),
   );
   const accantonamentoSufficiente = scostamentoAccantonamento >= -tolleranza;
 
@@ -855,6 +880,7 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     percentualeImpostata: imp.percentualeAccantonamento,
     accantonamentoAnnuo,
     fabbisognoDaAccantonare,
+    fabbisognoAnnuo,
     scostamentoAccantonamento,
     tolleranzaAccantonamento: tolleranza,
     accantonamentoSufficiente,

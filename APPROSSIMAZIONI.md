@@ -125,24 +125,34 @@ le fatture dell'archivio, non solo quelle dell'anno selezionato. Su un archivio
 di un anno solo non si nota; su tre anni la media diventa una media di vita, non
 dell'anno.
 
-## Da verificare
+## Valori di legge copiati nelle impostazioni
 
-**Minimale di reddito artigiani e commercianti 2026.** In `parametri/2026.ts`
-vale 18.555 €, che è il valore del 2025. La pagina INPS sui contributi 2026
-indica 18.808 €, come il minimale della Gestione Separata dello stesso anno.
-Non l'ho cambiato perché non sono riuscito ad aprire `inps.it` per leggere la
-circolare parola per parola: va confrontato con la Circolare INPS n. 14 del 9
-febbraio 2026. Se il valore giusto è 18.808, cambia il contributo di chiunque
-lavori in gestione artigiani o commercianti.
+**Le impostazioni di un anno conservano i parametri con cui sono nate.**
+Aliquote, minimali e massimali vengono copiati dai parametri dell'anno nel
+momento in cui la riga di impostazioni viene creata, e da lì in poi restano
+quelli. Un anno nuovo riparte dai parametri aggiornati — porta avanti solo le
+scelte dell'utente — ma una riga già in archivio non si aggiorna da sola
+quando si corregge un parametro. Chi ha un archivio creato prima di una
+correzione va servito da una migrazione, che non c'è.
 
 ## Domande aperte di prodotto
 
-**Il ÷ 12 dell'accantonamento mensile.** «Da accantonare al mese» divide per
+**Il ÷ 12 della quota mensile.** «Quota mensile del fabbisogno» divide per
 dodici quello che resta da versare, anche a settembre, quando i mesi rimasti
-sono quattro. È semplice e sbagliato dalla metà dell'anno in poi. Le alternative
-— dividere per i mesi che mancano alla prossima scadenza, o per quelli che
-mancano a fine anno — sono più giuste e più difficili da leggere. Decisione
-rimandata.
+sono quattro. L'etichetta ora dice quello che il numero è — una quota, non una
+rata da mettere via ogni mese — ma la domanda vera resta senza risposta: *sono
+in pari o sono indietro?*
+
+Per rispondere serve **l'accantonato reale**, che nel modello non c'è: il
+`accantonamentoCumulato` del cashflow è una simulazione — la percentuale
+impostata applicata agli incassi, meno i versamenti — e confrontarla con la
+percentuale impostata vorrebbe dire confrontare il piano con se stesso. Il
+Patrimonio ha voci libere, senza un modo di marcare un conto come dedicato
+alle imposte.
+
+Servirebbe una cosa sola: poter dire che una voce di patrimonio *è* il conto
+delle tasse. Da lì il confronto diventa reale — «dovresti averne da parte X, ne
+hai Y» — e smette di saltare a ogni versamento.
 
 ## Scadenzario
 

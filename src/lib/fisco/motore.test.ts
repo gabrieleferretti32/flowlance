@@ -584,9 +584,24 @@ describe("casi limite", () => {
     const imp = { ...impostazioniForfettario(), gestione: "artigiani" as const };
     // Sotto il minimale si versano solo i contributi fissi.
     expect(contributiPrevidenziali(10_000, imp).artigiani).toBe(4600);
-    expect(contributiPrevidenziali(28_555, imp).artigiani).toBe(
+    // Il minimale si legge dalle impostazioni, non si riscrive qui: è un valore
+    // di legge che cambia ogni anno, e un numero fisso nel test avrebbe
+    // continuato a passare anche col parametro sbagliato.
+    expect(contributiPrevidenziali(imp.minimaleArtigiani + 10_000, imp).artigiani).toBe(
       round2(4600 + 10_000 * imp.aliquotaEccedenza),
     );
+  });
+
+  it("il minimale annuo è una costante sola, letta da due formule", () => {
+    /*
+      Nel 2026 se n'era aggiornata una copia e non l'altra: la Gestione
+      Separata leggeva 18.808 € e gli artigiani 18.555 €, cioè il valore del
+      2025. Ora è un campo solo nei parametri, e questo test lo tiene tale.
+    */
+    const imp = impostazioniForfettario();
+    expect(imp.minimaleGs).toBe(par.minimaleAnnuo);
+    expect(imp.minimaleArtigiani).toBe(par.minimaleAnnuo);
+    expect(par.minimaleAnnuo).toBe(18_808);
   });
 
   it("il superamento degli 85.000 € tiene dentro l'anno e fa uscire dal successivo", () => {

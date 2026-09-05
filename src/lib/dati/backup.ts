@@ -9,6 +9,7 @@
  * scartati. Nel database non deve finire nulla che si possa ricalcolare.
  */
 import { VERSIONE_SCHEMA } from "./db";
+import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
 import type { ScaglioneIrpef } from "@/lib/fisco/tipi";
 import {
   COLLEZIONI,
@@ -293,6 +294,15 @@ const convalidaMovimentoAttivita: Convalida<Dati["movimentiAttivita"][number]> =
   };
 };
 
+/*
+  Il minimale di reddito annuo, per i backup che non ce l'hanno.
+
+  È lo stesso valore per l'accredito della Gestione Separata e per l'eccedenza
+  di artigiani e commercianti: due default diversi erano il modo più rapido di
+  far divergere una costante sola.
+*/
+const MINIMALE_PREDEFINITO = PARAMETRI_2026.minimaleAnnuo;
+
 const convalidaVersamento: Convalida<Dati["versamenti"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "versamenti", i, errori);
   if (!id) return null;
@@ -437,9 +447,9 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
     gestione,
     aliquotaGestioneSeparata: fraZeroEUno(riga.aliquotaGestioneSeparata, 0.2607),
     massimaleGs: numero(riga.massimaleGs, 122_295),
-    minimaleGs: numero(riga.minimaleGs, 18_808),
+    minimaleGs: numero(riga.minimaleGs, MINIMALE_PREDEFINITO),
     contributiFissi: numero(riga.contributiFissi),
-    minimaleArtigiani: numero(riga.minimaleArtigiani, 18_555),
+    minimaleArtigiani: numero(riga.minimaleArtigiani, MINIMALE_PREDEFINITO),
     aliquotaEccedenza: fraZeroEUno(riga.aliquotaEccedenza, 0.2448),
     aliquotaSoggettivaCassa: fraZeroEUno(riga.aliquotaSoggettivaCassa, 0.15),
     aliquotaIntegrativaCassa: fraZeroEUno(riga.aliquotaIntegrativaCassa, 0.04),

@@ -88,8 +88,9 @@ export const PARAMETRI_2026: ParametriAnno = {
 
   aliquotaGestioneSeparata: 0.2607,
   massimaleGestioneSeparata: 122_295,
-  minimaleAccreditoGestioneSeparata: 18_808,
-  minimaleArtigiani: 18_555,
+  // Minimale di reddito annuo 2026: uno solo, per l'accredito della Gestione
+  // Separata e per l'eccedenza di artigiani e commercianti.
+  minimaleAnnuo: 18_808,
   aliquotaEccedenzaArtigiani: 0.2448,
 
   aliquotaIvaOrdinaria: 0.22,

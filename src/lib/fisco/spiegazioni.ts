@@ -541,7 +541,12 @@ export function prospettoDettagliato(
       },
       {
         id: "accantonamento-mensile",
-        etichetta: "Da accantonare al mese",
+        // Non «da accantonare al mese»: dodicesimi di quello che resta da
+        // versare non sono una rata da mettere via ogni mese — a settembre i
+        // mesi rimasti sono quattro, non dodici. L'etichetta dice quello che il
+        // numero è davvero, finché non ci sarà l'accantonato dichiarato con cui
+        // fare il confronto vero.
+        etichetta: "Quota mensile del fabbisogno",
         valore: p.accantonamentoMensile,
         formato: "euro",
         formula: `${euro(p.fabbisognoDaAccantonare)} ÷ 12, da spostare su un conto separato dedicato alle imposte.`,
@@ -552,7 +557,11 @@ export function prospettoDettagliato(
         etichetta: "Scostamento sull'accantonamento impostato",
         valore: p.scostamentoAccantonamento,
         formato: "euro",
-        formula: `Accantoni il ${percentuale(p.percentualeImpostata, 0)} dei ricavi, cioè ${euro(p.accantonamentoAnnuo)}; da mettere da parte ce ne sono ${euro(p.fabbisognoDaAccantonare)}.`,
+        // Due lati sulla stessa base: quello che la percentuale produce in
+        // dodici mesi contro quello che i dodici mesi costano. Confrontarla
+        // col residuo — già alleggerito dai versamenti che quella stessa
+        // percentuale ha finanziato — dichiarava un margine che non c'era.
+        formula: `Accantoni il ${percentuale(p.percentualeImpostata, 0)} dei ricavi, cioè ${euro(p.accantonamentoAnnuo)} in un anno; l'anno costa ${euro(p.fabbisognoAnnuo)}.`,
         nota:
           p.scostamentoAccantonamento >= 0
             ? "Copri il fabbisogno stimato con un margine."
