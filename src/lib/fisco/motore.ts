@@ -55,6 +55,12 @@ export type IngressoMotore = {
    * ritenute superiori alle imposte). Si scomputa dal saldo e dagli acconti.
    */
   creditoAnnoPrecedente?: number;
+  /**
+   * Gli acconti che l'anno precedente ha calcolato *per questo anno*: sono le
+   * due rate di giugno e novembre, e quello che se ne versa riduce il saldo.
+   * `null` al primo anno di attività, dove un anno prima non c'è.
+   */
+  accontiDelPrecedente?: Acconti | null;
   /** Data di riferimento per stati e ritardi. Iniettata: il motore resta puro. */
   oggi: string;
 };
@@ -234,6 +240,13 @@ export type Prospetto = {
   /** Versato nell'anno ma riferito ad altri anni d'imposta: non scomputa qui. */
   versamentiAltriAnni: number;
   saldoResiduo: number;
+  /**
+   * Quanto del saldo residuo se ne andrà con gli acconti *di quest'anno*,
+   * ancora da versare. Sta dentro `saldoResiduo`, non si somma.
+   */
+  accontiAncoraDaVersare: number;
+  /** Quello che resta a giugno dell'anno dopo, dopo gli acconti di novembre. */
+  saldoDopoAcconti: number;
   acconti: Acconti;
   rataRateizzazione: number;
   rataRateizzazioneConInteressi: number;
@@ -653,35 +666,6 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   );
   const nettoDisponibile = round2(ricaviRilevanti - costiNettiACarico - caricoTotale);
 
-  /*
-    Quanto mettere da parte non si misura sul carico, si misura su quello che
-    uscirà davvero dal conto. Le ritenute sono imposta già pagata — trattenuta
-    dal committente al momento dell'incasso, quel denaro non è mai arrivato — e
-    il credito riportato dall'anno prima è denaro già versato. Chiedere di
-    accantonarli di nuovo significa mettere da parte due volte la stessa
-    imposta: con la ritenuta al 20 % è un quinto dei compensi immobilizzato per
-    niente.
-
-    Il carico totale e il netto disponibile restano quelli di competenza: sono
-    giusti, e rispondono a un'altra domanda.
-  */
-  const fabbisognoDaAccantonare = round2(
-    nonNegativo(caricoTotale - ritenuteSubite - creditoAnnoPrecedente),
-  );
-  const percentualeDaAccantonare = rapporto(fabbisognoDaAccantonare, ricaviRilevanti);
-  const accantonamentoAnnuo = round2(ricaviRilevanti * imp.percentualeAccantonamento);
-  const scostamentoAccantonamento = round2(accantonamentoAnnuo - fabbisognoDaAccantonare);
-  /*
-    Quando lo scarto è dentro la tolleranza, l'accantonamento si considera a
-    posto. Senza una soglia la card chiedeva di alzare la percentuale di un
-    punto intero — quasi quattrocento euro l'anno sui ricavi del dataset — per
-    coprire uno scarto di ventotto euro: un consiglio più caro del problema.
-  */
-  const tolleranza = round2(
-    Math.max(par.tolleranzaAccantonamento.minimo, fabbisognoDaAccantonare * par.tolleranzaAccantonamento.quota),
-  );
-  const accantonamentoSufficiente = scostamentoAccantonamento >= -tolleranza;
-
   // — F · Saldo e acconti ————————————————————————————
   const totaleDovuto = somma(imposteNetteASaldo, contributiCompetenza);
   /*
@@ -739,7 +723,67 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     par,
     creditoAnnoPrecedente - creditoSuSaldo,
   );
-  const daRateizzare = saldoResiduo + acconti.primoDaVersare;
+  /*
+    Quanto mettere da parte non si misura sul carico: si misura su quello che
+    deve ancora uscire dal conto, che è esattamente il saldo residuo calcolato
+    qui sopra. Ritenute, credito riportato e versamenti già fatti per questo
+    anno d'imposta sono la stessa cosa — imposta di quest'anno già uscita — e
+    chiedere di accantonarli di nuovo significa metterla da parte due volte.
+
+    Due righe dello stesso prospetto che rispondono alla stessa domanda devono
+    dare lo stesso numero: se divergono, una delle due è sbagliata.
+
+    L'unico scarto possibile dal saldo residuo è il credito d'imposta maturato
+    quest'anno — le ritenute che hanno superato le imposte — che si compensa in
+    F24 su quello stesso saldo: non è denaro da mettere da parte. Quando c'è, il
+    prospetto lo mostra due righe più su, e la differenza si legge.
+
+    Il carico totale e il netto disponibile restano quelli di competenza: sono
+    giusti, e rispondono a un'altra domanda.
+  */
+  const fabbisognoDaAccantonare = round2(nonNegativo(saldoResiduo - creditoImposta));
+  const percentualeDaAccantonare = rapporto(fabbisognoDaAccantonare, ricaviRilevanti);
+  const accantonamentoAnnuo = round2(ricaviRilevanti * imp.percentualeAccantonamento);
+  const scostamentoAccantonamento = round2(accantonamentoAnnuo - fabbisognoDaAccantonare);
+  /*
+    Quando lo scarto è dentro la tolleranza, l'accantonamento si considera a
+    posto. Senza una soglia la card chiedeva di alzare la percentuale di un
+    punto intero — quasi quattrocento euro l'anno sui ricavi del dataset — per
+    coprire uno scarto di ventotto euro: un consiglio più caro del problema.
+  */
+  const tolleranza = round2(
+    Math.max(par.tolleranzaAccantonamento.minimo, fabbisognoDaAccantonare * par.tolleranzaAccantonamento.quota),
+  );
+  const accantonamentoSufficiente = scostamentoAccantonamento >= -tolleranza;
+
+  /*
+    Gli acconti *di questo anno* — quelli calcolati sui numeri dell'anno prima e
+    dovuti a giugno e novembre di quest'anno — non sono una voce a parte: sono
+    un anticipo sul dovuto, e quello che versi a novembre non lo verserai a
+    giugno dell'anno dopo. Stanno dentro il saldo residuo finché non li paghi.
+
+    Senza questa distinzione il prospetto diceva «saldo 7.680,08 € al 30 giugno
+    2027» mentre lo scadenzario diceva «secondo acconto 4.801,30 € al 30
+    novembre 2026», e chi leggeva le due righe le sommava trovando più del
+    dovuto.
+
+    Quale parte del già versato sia acconto e quale saldo non si sa — servirebbe
+    la natura del singolo F24 — quindi si scomputa il versato dagli acconti
+    dovuti: è l'ordine in cui si versa, e l'approssimazione è dichiarata.
+  */
+  const accontiDovutiPerLAnno = somma(
+    ingresso.accontiDelPrecedente?.primo ?? 0,
+    ingresso.accontiDelPrecedente?.secondo ?? 0,
+  );
+  const accontiAncoraDaVersare = round2(
+    Math.min(nonNegativo(accontiDovutiPerLAnno - giaVersato), saldoResiduo),
+  );
+  const saldoDopoAcconti = round2(saldoResiduo - accontiAncoraDaVersare);
+
+  // A giugno si rateizza quello che resta dopo l'acconto di novembre, più il
+  // primo acconto dell'anno nuovo: non il saldo lordo, che quell'acconto lo
+  // comprende ancora.
+  const daRateizzare = saldoDopoAcconti + acconti.primoDaVersare;
   const rataRateizzazione = round2(daRateizzare / par.rateRateizzazione);
   // Interesse semplice crescente sulle rate successive alla prima.
   const rateMedieConInteressi =
@@ -821,6 +865,8 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     versamentiSenzaAnno,
     versamentiAltriAnni,
     saldoResiduo,
+    accontiAncoraDaVersare,
+    saldoDopoAcconti,
     acconti,
     rataRateizzazione,
     rataRateizzazioneConInteressi,

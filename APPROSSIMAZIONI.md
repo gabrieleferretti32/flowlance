@@ -88,6 +88,16 @@ l'app non chiede quale.
 versamento trimestrale del bollo compare nello scadenzario senza importo quando
 riguarda un trimestre di un anno che l'archivio non copre.
 
+## Versamenti
+
+**Non si sa se un F24 è un acconto o un saldo.** Il versamento porta l'anno
+d'imposta, non la sua natura. Per capire quanta parte degli acconti dell'anno
+è ancora da versare, l'app scomputa dal totale degli acconti dovuti tutto
+quello che risulta versato per quell'anno — è l'ordine in cui si versa, ma
+resta una deduzione. Chi versasse il saldo prima degli acconti vedrebbe gli
+acconti calare invece del saldo. Il campo `natura` sul versamento chiuderebbe
+la questione, ed è rimandato.
+
 ## Ritenute e note di credito
 
 **Uno storno non riconciliato non abbassa la base delle ritenute.** Una nota di
@@ -98,10 +108,11 @@ qualcun altro. Il prospetto lo scrive nella riga delle ritenute.
 
 ## Anni e parametri
 
-**Solo il 2026 ha parametri censiti; il 2027 li eredita.** Un anno senza
-parametri propri usa quelli dell'anno censito più vicino, e l'app lo dichiara:
-banner «parametri provvisori» e export del prospetto bloccato. Vale anche per
-gli anni *precedenti* al primo censito — nel dataset dimostrativo, il 2025.
+**Censiti il 2025 e il 2026; il 2027 eredita dal 2026 in attesa della sua
+Legge di Bilancio.** Un anno senza parametri propri usa quelli dell'anno censito
+più vicino, e l'app lo dichiara: banner «parametri provvisori» e export del
+prospetto bloccato. Vale anche per gli anni *precedenti* al primo censito: chi
+importa uno storico del 2023 lo vedrà calcolato con le aliquote del 2025.
 
 **Acconti col solo metodo storico.** Il metodo previsionale — pagare meno
 perché l'anno prossimo si guadagnerà meno — non è implementato. È una scelta di
@@ -113,6 +124,25 @@ prudenza: sbagliare la previsione costa sanzioni.
 le fatture dell'archivio, non solo quelle dell'anno selezionato. Su un archivio
 di un anno solo non si nota; su tre anni la media diventa una media di vita, non
 dell'anno.
+
+## Da verificare
+
+**Minimale di reddito artigiani e commercianti 2026.** In `parametri/2026.ts`
+vale 18.555 €, che è il valore del 2025. La pagina INPS sui contributi 2026
+indica 18.808 €, come il minimale della Gestione Separata dello stesso anno.
+Non l'ho cambiato perché non sono riuscito ad aprire `inps.it` per leggere la
+circolare parola per parola: va confrontato con la Circolare INPS n. 14 del 9
+febbraio 2026. Se il valore giusto è 18.808, cambia il contributo di chiunque
+lavori in gestione artigiani o commercianti.
+
+## Domande aperte di prodotto
+
+**Il ÷ 12 dell'accantonamento mensile.** «Da accantonare al mese» divide per
+dodici quello che resta da versare, anche a settembre, quando i mesi rimasti
+sono quattro. È semplice e sbagliato dalla metà dell'anno in poi. Le alternative
+— dividere per i mesi che mancano alla prossima scadenza, o per quelli che
+mancano a fine anno — sono più giuste e più difficili da leggere. Decisione
+rimandata.
 
 ## Scadenzario
 

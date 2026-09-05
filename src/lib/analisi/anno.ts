@@ -8,7 +8,7 @@
  * l'interfaccia sia i test: se il test provasse un percorso diverso da quello
  * dell'app, non proverebbe niente.
  */
-import { calcolaProspetto, type Prospetto } from "@/lib/fisco/motore";
+import { calcolaProspetto, type Acconti, type Prospetto } from "@/lib/fisco/motore";
 import { calcolaIva, type LiquidazioneIva } from "@/lib/fisco/iva";
 import {
   calcolaRiporto,
@@ -131,6 +131,13 @@ export function calcolaAnno(
   archivio: ArchivioPerAnni,
   riportoInIngresso: Riporto | null,
   oggi: string,
+  /**
+   * Gli acconti che l'anno prima ha calcolato per questo: si versano a giugno e
+   * novembre di quest'anno e riducono il suo saldo. Non passano dal riporto —
+   * il riporto conserva quello che avanza, non quello che si deve ancora — e
+   * arrivano perciò come argomento a sé, dalla catena che ha in mano entrambi.
+   */
+  accontiDelPrecedente: Acconti | null = null,
 ): AnnoCalcolato {
   const parametri = parametriDi(anno);
   // L'anno va forzato: per un anno senza parametri propri `parametriDi` ricade
@@ -153,6 +160,7 @@ export function calcolaAnno(
     versamenti: archivio.versamenti,
     impostazioniPerAnno: archivio.impostazioni,
     creditoAnnoPrecedente: entrata.creditoImposte,
+    accontiDelPrecedente,
     oggi,
   });
 
@@ -210,11 +218,13 @@ export function catenaAnni(
 ): Map<number, AnnoCalcolato> {
   const risultato = new Map<number, AnnoCalcolato>();
   let precedente: Riporto | null = null;
+  let accontiPrecedenti: Acconti | null = null;
 
   for (const anno of anniDaCalcolare(archivio, annoRichiesto)) {
-    const calcolato = calcolaAnno(anno, archivio, precedente, oggi);
+    const calcolato = calcolaAnno(anno, archivio, precedente, oggi, accontiPrecedenti);
     risultato.set(anno, calcolato);
     precedente = calcolato.riportoInUscita;
+    accontiPrecedenti = calcolato.prospetto.acconti;
   }
 
   return risultato;

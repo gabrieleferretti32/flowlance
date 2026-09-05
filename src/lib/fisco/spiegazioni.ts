@@ -614,16 +614,45 @@ export function prospettoDettagliato(
 
   acconti.push({
     id: "saldo",
-    etichetta: "Saldo residuo da versare",
+    etichetta: `Ancora da versare per il ${p.anno}`,
     valore: p.saldoResiduo,
     formato: "euro",
-    // L'anno va scritto. «A giugno» in un documento del 2026 si legge come
-    // giugno 2026, e il saldo del 2026 si versa a giugno 2027.
     formula:
-      (p.creditoAnnoPrecedente > 0
+      p.creditoAnnoPrecedente > 0
         ? `${euro(p.totaleDovuto)} − ${euro(p.giaVersato)} già versati − ${euro(p.creditoUtilizzatoSuSaldo)} di credito, mai sotto zero.`
-        : `${euro(p.totaleDovuto)} − ${euro(p.giaVersato)} già versati, mai sotto zero.`) +
-      ` Si versa entro il 30 giugno ${prossimo}.`,
+        : `${euro(p.totaleDovuto)} − ${euro(p.giaVersato)} già versati, mai sotto zero.`,
+    nota:
+      p.accontiAncoraDaVersare > 0
+        ? `Non esce tutto insieme: una parte se ne va con l'acconto di novembre, il resto a giugno ${prossimo}. Le due righe qui sotto dicono quanto e quando.`
+        : undefined,
+    totale: true,
+  });
+
+  /*
+    L'acconto di quest'anno non è una voce a parte: è un anticipo sul dovuto di
+    quest'anno, e sta dentro il saldo residuo finché non lo versi. Senza queste
+    due righe il prospetto diceva «saldo 7.680,08 € a giugno 2027» e lo
+    scadenzario «secondo acconto 4.801,30 € a novembre 2026»: chi le leggeva
+    tutte e due le sommava, e trovava più del dovuto.
+  */
+  if (p.accontiAncoraDaVersare > 0) {
+    acconti.push({
+      id: "acconti-in-corso",
+      etichetta: `di cui acconti per il ${p.anno}, entro il 30 novembre ${p.anno}`,
+      valore: p.accontiAncoraDaVersare,
+      formato: "euro",
+      formula: `Calcolati sui numeri del ${p.anno - 1}, col metodo storico. Sono un anticipo sul dovuto di quest'anno: quello che versi a novembre non lo verserai a giugno.`,
+    });
+  }
+  acconti.push({
+    id: "saldo-finale",
+    etichetta: `Saldo, entro il 30 giugno ${prossimo}`,
+    valore: p.saldoDopoAcconti,
+    formato: "euro",
+    formula:
+      p.accontiAncoraDaVersare > 0
+        ? `${euro(p.saldoResiduo)} meno ${euro(p.accontiAncoraDaVersare)} di acconti da versare entro novembre.`
+        : `Quello che resta del ${p.anno} si versa entro il 30 giugno ${prossimo}.`,
   });
 
   /*
@@ -701,7 +730,7 @@ export function prospettoDettagliato(
       etichetta: `Rata mensile, rateizzando in ${par.rateRateizzazione} rate`,
       valore: p.rataRateizzazioneConInteressi,
       formato: "euro",
-      formula: `${euro(p.saldoResiduo + p.acconti.primo)} fra saldo e primo acconto, in ${par.rateRateizzazione} rate da giugno a novembre ${prossimo}, con interessi dello ${percentuale(par.interesseRateizzazioneMensile, 2)} al mese.`,
+      formula: `${euro(p.saldoDopoAcconti + p.acconti.primo)} fra saldo e primo acconto, in ${par.rateRateizzazione} rate da giugno a novembre ${prossimo}, con interessi dello ${percentuale(par.interesseRateizzazioneMensile, 2)} al mese.`,
       nota: `Senza interessi la rata sarebbe ${euro(p.rataRateizzazione)}.`,
     });
   }
@@ -785,13 +814,19 @@ function notaFabbisogno(p: Prospetto): string {
   if (p.ritenuteSubite > 0) {
     scomputi.push(`${euro(p.ritenuteSubite)} di ritenute già trattenute dai committenti`);
   }
+  if (p.giaVersato > 0) {
+    scomputi.push(`${euro(p.giaVersato)} già versati con F24 per il ${p.anno}`);
+  }
   if (p.creditoAnnoPrecedente > 0) {
     scomputi.push(`${euro(p.creditoAnnoPrecedente)} di credito riportato dal ${p.anno - 1}`);
   }
-  if (scomputi.length === 0) {
-    return "Non hai ritenute né crediti a copertura: da mettere da parte c'è tutto il carico dell'anno.";
+  if (p.creditoImposta > 0) {
+    scomputi.push(`${euro(p.creditoImposta)} di credito d'imposta da compensare`);
   }
-  return `Il carico dell'anno è ${euro(p.caricoTotale)}, ma ${elenco(scomputi)} sono imposta già pagata: non vanno accantonati una seconda volta.`;
+  if (scomputi.length === 0) {
+    return "Non hai ritenute, versamenti né crediti a copertura: da mettere da parte c'è tutto il carico dell'anno.";
+  }
+  return `Il carico dell'anno è ${euro(p.caricoTotale)}, ma ${elenco(scomputi)}: è imposta di quest'anno già uscita dal conto, o già coperta, e non va accantonata una seconda volta. Resta quello che la sezione F chiama «ancora da versare».`;
 }
 
 /**

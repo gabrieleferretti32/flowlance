@@ -303,9 +303,12 @@ export function Cruscotto() {
             valore={euro(p.accantonamentoMensile)}
             nota="imposte e contributi, su un conto separato"
             sotto={
-              p.ritenuteSubite > 0 || p.creditoAnnoPrecedente > 0 ? (
+              // Il carico dell'anno è un altro numero, più alto: se una parte è
+              // già stata versata o trattenuta, va detto qui, dove si guarda
+              // quanto mettere da parte.
+              p.caricoTotale > p.fabbisognoDaAccantonare ? (
                 <p className="text-inchiostro-tenue">
-                  al netto di quello che è già coperto
+                  su {euro(p.caricoTotale)} di carico, il resto è già coperto
                 </p>
               ) : undefined
             }

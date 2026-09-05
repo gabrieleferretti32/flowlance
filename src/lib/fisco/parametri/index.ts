@@ -1,4 +1,5 @@
 import type { ParametriAnno } from "../tipi";
+import { PARAMETRI_2025 } from "./2025";
 import { PARAMETRI_2026 } from "./2026";
 import { PARAMETRI_2027 } from "./2027";
 
@@ -7,6 +8,7 @@ import { PARAMETRI_2027 } from "./2027";
  * `parametri/2027.ts` e aggiungere una riga qui.
  */
 export const PARAMETRI_PER_ANNO: Record<number, ParametriAnno> = {
+  2025: PARAMETRI_2025,
   2026: PARAMETRI_2026,
   2027: PARAMETRI_2027,
 };
@@ -41,4 +43,4 @@ export function parametriProvvisori(anno: number): boolean {
   return parametriDi(anno).provvisorio;
 }
 
-export { PARAMETRI_2026, PARAMETRI_2027 };
+export { PARAMETRI_2025, PARAMETRI_2026, PARAMETRI_2027 };

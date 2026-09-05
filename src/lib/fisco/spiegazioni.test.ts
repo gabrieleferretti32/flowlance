@@ -7,7 +7,7 @@ import {
   impostazioniOrdinario,
 } from "./fixture";
 import { round2 } from "./aritmetica";
-import { calcolaProspetto } from "./motore";
+import { calcolaAcconti, calcolaProspetto } from "./motore";
 import { PARAMETRI_2026 } from "./parametri/2026";
 import { euro, percentuale } from "@/lib/format";
 import {
@@ -372,7 +372,10 @@ describe("prospetto dettagliato", () => {
     // «A giugno» su un prospetto 2026 si legge giugno 2026, e il saldo del
     // 2026 si versa a giugno 2027.
     const { sezioni } = sezioniDi(impostazioniForfettario());
-    expect(riga(sezioni, "saldo")?.formula).toContain("30 giugno 2027");
+    // Il saldo si è diviso in due righe: quello che esce a novembre come
+    // acconto e quello che resta per giugno.
+    expect(riga(sezioni, "saldo")?.etichetta).toContain("2026");
+    expect(riga(sezioni, "saldo-finale")?.etichetta).toContain("30 giugno 2027");
     expect(riga(sezioni, "primo-acconto")?.formula).toContain("30 giugno 2027");
     expect(riga(sezioni, "primo-acconto")?.etichetta).toContain("2027");
     expect(riga(sezioni, "secondo-acconto")?.formula).toContain("30 novembre 2027");
@@ -451,6 +454,64 @@ describe("prospetto dettagliato", () => {
     const altri = riga(sezioni, "versamenti-altri-anni")!;
     expect(altri.valore).toBe(1_140);
     expect(altri.formula).toContain("non scomputa");
+  });
+
+  it("il saldo si divide fra l'acconto di novembre e quello che resta a giugno", () => {
+    /*
+      Il difetto: «saldo 7.680,08 € al 30 giugno 2027» in una schermata e
+      «secondo acconto 4.801,30 € al 30 novembre 2026» nell'altra, senza che
+      nessuna delle due dicesse che il secondo sta dentro il primo.
+    */
+    const imp = impostazioniForfettario();
+    const acconti = calcolaAcconti(
+      { imposta: 1_200, addizionaleComunale: 0, contributi: { base: 0, regola: null } },
+      par,
+    );
+    const p = calcolaProspetto({
+      impostazioni: imp, parametri: par, fatture: FATTURE_FIXTURE, costi: COSTI_FIXTURE,
+      accontiDelPrecedente: acconti, oggi: OGGI_FIXTURE,
+    });
+    // Acconti dovuti per l'anno 1.200, niente versato: tutti ancora da versare.
+    expect(p.accontiAncoraDaVersare).toBe(1_200);
+    expect(p.saldoDopoAcconti).toBe(round2(p.saldoResiduo - 1_200));
+
+    const sezioni = prospettoDettagliato(p, imp, par);
+    expect(riga(sezioni, "saldo")?.valore).toBe(p.saldoResiduo);
+    expect(riga(sezioni, "acconti-in-corso")?.valore).toBe(1_200);
+    expect(riga(sezioni, "saldo-finale")?.valore).toBe(p.saldoDopoAcconti);
+    // Le due voci si sommano nel totale, e la nota lo dice invece di lasciarlo
+    // dedurre: è il punto in cui prima si sommava due volte.
+    expect(riga(sezioni, "saldo")?.nota).toContain("acconto di novembre");
+  });
+
+  it("gli acconti già versati non ricompaiono fra quelli da versare", () => {
+    const imp = impostazioniForfettario();
+    const acconti = calcolaAcconti(
+      { imposta: 1_200, addizionaleComunale: 0, contributi: { base: 0, regola: null } },
+      par,
+    );
+    const p = calcolaProspetto({
+      impostazioni: imp, parametri: par, fatture: FATTURE_FIXTURE, costi: COSTI_FIXTURE,
+      accontiDelPrecedente: acconti,
+      versamenti: [
+        { id: "v", data: "2026-06-30", tipo: "imposte", importo: 500, annoImposta: 2026 },
+      ],
+      oggi: OGGI_FIXTURE,
+    });
+    expect(p.giaVersato).toBe(500);
+    expect(p.accontiAncoraDaVersare).toBe(700);
+    expect(riga(prospettoDettagliato(p, imp, par), "acconti-in-corso")?.valore).toBe(700);
+  });
+
+  it("l'accantonamento e il «ancora da versare» sono lo stesso numero", () => {
+    // Due righe dello stesso prospetto che rispondono alla stessa domanda.
+    const { sezioni, prospetto } = sezioniDi(impostazioniForfettario());
+    expect(prospetto.creditoImposta).toBe(0);
+    expect(prospetto.fabbisognoDaAccantonare).toBe(prospetto.saldoResiduo);
+    expect(riga(sezioni, "saldo")?.valore).toBe(prospetto.fabbisognoDaAccantonare);
+    expect(riga(sezioni, "accantonamento-mensile")?.valore).toBe(
+      round2(prospetto.saldoResiduo / 12),
+    );
   });
 
   it("con la ritenuta attiva e nessuna trattenuta, lo zero è scritto", () => {
