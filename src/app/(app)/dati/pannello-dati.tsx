@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Database, Download, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
+import { Database, Download, RotateCcw, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardInterna, CardSottotitolo, CardTitolo } from "@/components/ui/card";
 import { Etichetta } from "@/components/ui/etichetta";
@@ -23,7 +23,11 @@ import { Guscio } from "@/components/guscio/guscio";
 import { archivio } from "@/lib/dati/archivio";
 import { analizzaBackup } from "@/lib/dati/backup";
 import { esportaBackup } from "@/lib/dati/azioni";
-import { ANNO_DEMO, datiDemo } from "@/lib/dati/demo";
+import { ANNO_DEMO } from "@/lib/dati/demo";
+import { DATASET, datasetDi, type IdDataset } from "@/lib/dati/dataset";
+import { SceltaDataset } from "@/components/dati/scelta-dataset";
+import { promemoriaDopoExport } from "@/lib/dati/promemoria-backup";
+import { useStatoBackup } from "@/lib/stato/backup";
 import { scegliFile } from "@/lib/dati/file";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { COLLEZIONI, type Dati, type IstantaneaArchivio, type NomeCollezione } from "@/lib/dati/tipi";
@@ -107,9 +111,20 @@ export function PannelloDati() {
     [rileggiIstantanea],
   );
 
-  async function caricaDemo() {
-    await conIstantanea("Dataset dimostrativo caricato", "demo", undefined, async () => {
-      await archivio().scriviTutto(datiDemo(), "sostituisci");
+  /**
+   * Carica uno dei dataset di esempio.
+   *
+   * Il promemoria del backup viene segnato come appena fatto: quei documenti
+   * non sono lavoro dell'utente, e chiedergli di metterli al sicuro è l'avviso
+   * che gli insegna a ignorare gli avvisi.
+   */
+  async function caricaEsempio(id: IdDataset) {
+    const scelto = datasetDi(id);
+    await conIstantanea(`${scelto.nome}: dati caricati`, "demo", scelto.nome, async () => {
+      const precedente = await archivio().leggiTutto();
+      const nuovi = scelto.dati(precedente);
+      await archivio().scriviTutto(nuovi, "sostituisci");
+      useStatoBackup.getState().segna(promemoriaDopoExport(nuovi));
       setAvvisi([]);
     });
   }
@@ -315,13 +330,10 @@ export function PannelloDati() {
         <Card className="mt-6">
           <Vuoto
             icona={Database}
-            titolo="L'archivio è vuoto. Carica il dataset dimostrativo per vedere l'app piena, oppure importa un backup."
+            titolo="L'archivio è vuoto. Carica uno dei dataset di esempio per vedere l'app piena, oppure importa un backup."
             azione={
-              <div className="flex flex-wrap justify-center gap-2">
-                <Button scrive onClick={caricaDemo} disabled={inCorso}>
-                  <Sparkles className="size-4" aria-hidden />
-                  Carica il dataset dimostrativo
-                </Button>
+              <div className="mx-auto max-w-lg space-y-4 text-left">
+                <SceltaDataset onScegli={(id) => void caricaEsempio(id)} disabilitato={inCorso} />
                 <Button scrive variante="contorno" onClick={importa} disabled={inCorso}>
                   Importa un backup
                 </Button>
@@ -382,9 +394,19 @@ export function PannelloDati() {
                     </CardSottotitolo>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button scrive variante="contorno" taglia="sm" onClick={caricaDemo} disabled={inCorso}>
-                      Ricarica il dataset dimostrativo
-                    </Button>
+                    {DATASET.map((d) => (
+                      <Button
+                        key={d.id}
+                        scrive
+                        variante="contorno"
+                        taglia="sm"
+                        title={d.sommario}
+                        onClick={() => void caricaEsempio(d.id)}
+                        disabled={inCorso}
+                      >
+                        Carica «{d.nome}»
+                      </Button>
+                    ))}
                     <Button scrive variante="pericolo" taglia="sm" onClick={svuota} disabled={inCorso}>
                       <Trash2 className="size-4" aria-hidden />
                       Svuota

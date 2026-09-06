@@ -39,7 +39,7 @@ import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
-import { datiDemoConservando } from "./demo";
+import { datasetDi, DATASET_PREDEFINITO, type IdDataset } from "./dataset";
 import type {
   Cliente,
   Costo,
@@ -737,19 +737,30 @@ export async function esportaBackup(): Promise<void> {
 }
 
 /**
- * Carica il dataset dimostrativo dal percorso di primo avvio.
+ * Carica uno dei dataset di esempio dal percorso di primo avvio.
  *
- * Sostituisce i documenti ma non la configurazione: le risposte appena date
- * restano, e le schermate si popolano con le regole scelte da chi guarda.
- * L'archivio precedente viene tenuto da parte per l'annullamento.
+ * Cosa sopravvive al caricamento lo dice il dataset, non questa funzione: il
+ * dimostrativo conserva le risposte appena date in configurazione, la vetrina
+ * no, perché regime e aliquote sono la storia che racconta.
+ *
+ * Il promemoria del backup viene segnato come se l'archivio fosse appena stato
+ * esportato. Non è un trucco per nascondere un avviso: quei documenti non sono
+ * lavoro dell'utente, e dirgli «non hai mai fatto un backup» di dati inventati
+ * è il modo più rapido di insegnargli a ignorare l'avviso quando conterà.
  */
-export async function caricaDatasetDimostrativo(): Promise<void> {
+export async function caricaDataset(id: IdDataset = DATASET_PREDEFINITO): Promise<void> {
+  const scelto = datasetDi(id);
   const precedente = await archivio().leggiTutto();
-  await archivio().scriviTutto(
-    datiDemoConservando(precedente, { impostazioni: true, percorsi: true }),
-    "sostituisci",
-  );
-  toast.conferma("Dati dimostrativi caricati", async () => {
+  const promemoriaPrecedente = useStatoBackup.getState().promemoria;
+  const nuovi = scelto.dati(precedente);
+  await archivio().scriviTutto(nuovi, "sostituisci");
+  useStatoBackup.getState().segna(promemoriaDopoExport(nuovi));
+  toast.conferma(`${scelto.nome}: dati caricati`, async () => {
     await archivio().scriviTutto(precedente, "sostituisci");
+    // Torna indietro anche il promemoria: rimetterne uno nuovo direbbe che il
+    // backup dell'archivio vero è appena stato fatto, e non è vero.
+    const stato = useStatoBackup.getState();
+    if (promemoriaPrecedente) stato.segna(promemoriaPrecedente);
+    else stato.dimentica();
   });
 }

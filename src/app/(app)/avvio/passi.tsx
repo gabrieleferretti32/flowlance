@@ -2,13 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Calculator, Check, Search, Sparkles, Upload } from "lucide-react";
+import { ArrowRight, Calculator, Check, Search, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardInterna } from "@/components/ui/card";
 import { Chip } from "@/components/ui/chip";
 import { Etichetta } from "@/components/ui/etichetta";
 import { Input } from "@/components/ui/input";
 import { Segmenti } from "@/components/ui/segmenti";
+import { SceltaDataset } from "@/components/dati/scelta-dataset";
+import type { IdDataset } from "@/lib/dati/dataset";
 import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
 import {
   Select,
@@ -527,14 +529,14 @@ export function PartenzaConDati({
   onDemo,
 }: {
   archivioVuoto: boolean;
-  onDemo: () => void;
+  onDemo: (id: IdDataset) => void;
 }) {
   return (
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
-        <CardInterna className="flex flex-col gap-2 p-4">
+        <CardInterna className="flex flex-col gap-3 p-4">
           <p className="text-corpo font-medium">Voglio vedere com&apos;è fatta</p>
-          <p className="flex-1 text-etichetta text-inchiostro-tenue">
+          <p className="text-etichetta text-inchiostro-tenue">
             Un anno intero di fatture, costi e movimenti inventati: le schermate si
             riempiono e si capisce cosa aspettarsi da ognuna. Si svuota in un clic da{" "}
             <Link href="/dati" className="underline underline-offset-2">
@@ -542,16 +544,16 @@ export function PartenzaConDati({
             </Link>
             .
           </p>
+          {/* Due dataset, e la differenza non è di colore: il primo lascia in
+              piedi le risposte appena date, il secondo racconta un ordinario
+              suo — regime, regione e aliquote comprese. */}
+          <SceltaDataset onScegli={onDemo} />
           {!archivioVuoto && (
             <p className="text-micro text-[#B8791A]">
-              Attenzione: l&apos;archivio non è vuoto. I dati dimostrativi prendono il posto
+              Attenzione: l&apos;archivio non è vuoto. I dati di esempio prendono il posto
               di quelli che ci sono adesso — si torna indietro con Annulla, subito dopo.
             </p>
           )}
-          <Button scrive variante="contorno" className="self-start" onClick={onDemo}>
-            <Sparkles className="size-4" aria-hidden />
-            Carica i dati dimostrativi
-          </Button>
         </CardInterna>
 
         <CardInterna className="flex flex-col gap-2 p-4">

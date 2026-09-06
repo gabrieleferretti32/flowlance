@@ -325,15 +325,6 @@ con un tocco — ma è un secondo passo, e va conosciuto. L'alternativa sarebbe
 non tenere niente e rendere lo svuotamento irreversibile, che su un gesto che
 si può premere per sbaglio è peggio.
 
-## Regione e comune non finiscono sul prospetto
-
-La schermata Parametri registra in quale regione e in quale comune si vive: è
-quello che rende verificabile un'aliquota dichiarata — «0,8 %» senza il nome
-del comune è un numero che nessuno può ricontrollare. Il posto dove
-servirebbero davvero è il prospetto stampato, che va da un'altra persona, e lì
-non ci sono ancora: il documento riporta le aliquote, non a quale delibera si
-riferiscono.
-
 ## I pulsanti principali sono alti 40 px, non 44
 
 Sotto la soglia consigliata per il tocco, sopra la soglia in cui si sbaglia:
@@ -348,8 +339,23 @@ che sotto i 1024 è l'unica navigazione che esiste, e i quattro «Come si calcol
 del prospetto, che erano 30×30 su una schermata che si consulta.
 
 Restano più piccoli anche, e non sono stati toccati: i selettori a segmenti di
-Configurazione e Import da CSV (34 px), «Ricarica il dataset dimostrativo» e
+Configurazione e Import da CSV (34 px), i pulsanti dei dataset di esempio e
 «Svuota» in Dati e backup (32 px), e il segmento stretto del semaforo fiscale
 sul cruscotto (29 px di larghezza — è largo quanto la quota che rappresenta, e
 allargarlo vorrebbe dire mentire sulla proporzione; da questa fase risponde
 anche al tocco, non solo al passaggio del mouse).
+
+## Le due aliquote territoriali del dataset da vetrina sono da ricontrollare
+
+Il dataset da vetrina (`src/lib/dati/vetrina.ts`) è quello che finisce negli
+screenshot: persone, clienti e importi sono inventati, e non c'è niente da
+verificare. Le due addizionali no — dicono «Emilia-Romagna» e «Bologna», cioè
+un territorio vero, e le aliquote scritte lì sono la ricostruzione di una
+delibera, non un dato che l'app conosce.
+
+Non è un'approssimazione del motore: il motore calcola giusto quello che gli si
+dà. È un rischio di pubblicazione, ed è l'unico posto del prodotto in cui un
+numero plausibile e sbagliato potrebbe uscire con sopra il nome di una regione
+vera. Prima di pubblicare uno screenshot che le mostra — la schermata Parametri
+e il prospetto stampato sono le due — vanno ricontrollate sulla delibera
+dell'anno, o sostituite con quelle di un altro territorio.

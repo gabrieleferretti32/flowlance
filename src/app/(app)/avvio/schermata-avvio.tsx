@@ -12,7 +12,7 @@ import { Guscio } from "@/components/guscio/guscio";
 import { AvvisoParametri } from "@/components/fisco/avviso-parametri";
 import {
   aggiornaImpostazioni,
-  caricaDatasetDimostrativo,
+  caricaDataset,
   completaPercorso,
   ripartiPercorso,
   segnaPasso,
@@ -429,7 +429,7 @@ function CorpoPasso({
     return <ConfrontoDeiRegimi calcolo={calcolo} precedente={precedente} />;
   }
   if (passo.id === "partenza") {
-    return <PartenzaConDati archivioVuoto={archivioVuoto} onDemo={() => void caricaDatasetDimostrativo()} />;
+    return <PartenzaConDati archivioVuoto={archivioVuoto} onDemo={(id) => void caricaDataset(id)} />;
   }
 
   return (
