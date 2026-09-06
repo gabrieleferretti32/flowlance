@@ -6,8 +6,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Search } from "lucide-react";
 import { archivio } from "@/lib/dati/archivio";
 import { useAnniDisponibili, useDati } from "@/lib/dati/hooks";
-import { creaBackup, nomeFileBackup, serializzaBackup } from "@/lib/dati/backup";
-import { scaricaTesto } from "@/lib/dati/file";
+import { esportaBackup } from "@/lib/dati/azioni";
 import { tratti } from "@/lib/comandi/fuzzy";
 import {
   cerca,
@@ -120,9 +119,9 @@ export function Paletta() {
         return;
       }
       case "esportaBackup": {
-        const contenuto = await archivio().leggiTutto();
-        scaricaTesto(nomeFileBackup(), serializzaBackup(creaBackup(contenuto)));
-        toast.conferma("Backup esportato");
+        // La stessa funzione della schermata Dati e della scheda sul cruscotto:
+        // la data dell'ultimo backup la scrive lei, per tutte e tre.
+        await esportaBackup();
         return;
       }
     }

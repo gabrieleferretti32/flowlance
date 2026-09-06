@@ -32,6 +32,10 @@ import {
   type StatoPercorso,
 } from "@/lib/onboarding/percorso";
 import { archivio } from "./archivio";
+import { creaBackup, nomeFileBackup, serializzaBackup } from "./backup";
+import { scaricaTesto } from "./file";
+import { promemoriaDopoExport } from "./promemoria-backup";
+import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
@@ -711,6 +715,25 @@ export async function ripristinaParametro(anno: number, campo: CampoUtente): Pro
   await archivio().impostazioni.salva(
     senzaDichiarazione(attuali, campo, predefinite[campo]),
   );
+}
+
+/**
+ * Esporta l'archivio, e segna che è stato fatto.
+ *
+ * Una funzione sola perché le strade sono tre — la schermata Dati, la palette,
+ * la scheda sul cruscotto — e la data va scritta da tutte. Se una sola
+ * dimenticasse di scriverla, l'app continuerebbe a chiedere un backup appena
+ * fatto: un avviso che compare quando non serve è un avviso che si impara a
+ * ignorare, e a quel punto non serve più nemmeno quando serve.
+ *
+ * Non è bloccata dalla sola lettura, come `leggiTutto`: i dati dell'utente non
+ * sono in ostaggio della licenza.
+ */
+export async function esportaBackup(): Promise<void> {
+  const contenuto = await archivio().leggiTutto();
+  scaricaTesto(nomeFileBackup(), serializzaBackup(creaBackup(contenuto)));
+  useStatoBackup.getState().segna(promemoriaDopoExport(contenuto));
+  toast.conferma("Backup esportato");
 }
 
 /**

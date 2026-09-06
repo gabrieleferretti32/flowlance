@@ -44,6 +44,11 @@ export function conSolaLettura(
   return {
     ...protetti,
     importazioni: depositoProtetto(base.importazioni, "importazioni", bloccato),
+    // Protetta come le altre: l'istantanea nasce da un import, e ripristinarla
+    // riscrive l'archivio. Entrambe le cose sono scritture, e a licenza scaduta
+    // non si scrive. Chi ha una licenza scaduta e un import sbagliato alle
+    // spalle ha comunque l'export, che non si blocca mai.
+    istantanee: depositoProtetto(base.istantanee, "istantanee", bloccato),
     get nome() {
       return base.nome;
     },

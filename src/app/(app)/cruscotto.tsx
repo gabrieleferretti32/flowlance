@@ -15,6 +15,7 @@ import { Guscio } from "@/components/guscio/guscio";
 import { InvitoPercorso } from "@/components/guscio/invito-percorso";
 import { andamentoMensile, giorniMediIncasso, portafoglioClienti } from "@/lib/analisi/dashboard";
 import { generaAvvisi, type Avviso } from "@/lib/analisi/avvisi";
+import { PromemoriaBackup } from "@/components/dati/promemoria-backup";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
@@ -160,6 +161,9 @@ export function Cruscotto() {
     <Guscio titolo={titolo} descrizione={descrizione}>
       <div className="space-y-6">
         <InvitoPercorso anno={anno} oggi={oggi} />
+        {/* Sopra tutto: se questi dati non escono da qui, il resto della
+            schermata è lavoro che si può perdere in un pomeriggio. */}
+        <PromemoriaBackup />
 
         <SemaforoFiscale
           totale={p.incassatoLordo}

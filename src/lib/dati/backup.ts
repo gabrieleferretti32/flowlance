@@ -40,7 +40,24 @@ export type Backup = {
 
 export type RisultatoAnalisi =
   | { ok: true; backup: Backup; avvisi: string[] }
-  | { ok: false; errori: string[] };
+  | {
+      ok: false;
+      errori: string[];
+      /**
+       * Il file è sbagliato riga per riga, non nella sua natura.
+       *
+       * L'import è tutto-o-niente di proposito: un archivio che sembra completo
+       * e non lo è produce calcoli fiscali sbagliati in silenzio, che è molto
+       * peggio di un rifiuto. Ma il rifiuto va detto per quello che è — «tre
+       * righe su millecinquecento non vanno» — perché il file resta un file di
+       * testo, le righe sono indicate una per una, e chi ha perso l'archivio
+       * può correggerle e riprovare invece di darsi per vinto.
+       *
+       * Falso quando non c'è niente da correggere: un file troncato, un JSON
+       * che non è un backup, o un backup di una versione futura.
+       */
+      recuperabile: boolean;
+    };
 
 export function creaBackup(dati: Dati, adesso = new Date()): Backup {
   return {
@@ -491,17 +508,22 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
   try {
     radice = JSON.parse(testoGrezzo);
   } catch {
-    return { ok: false, errori: ["Il file non è JSON valido."] };
+    return {
+      ok: false,
+      recuperabile: false,
+      errori: [
+        "Il file non è JSON valido: probabilmente è stato troncato durante una copia o un trasferimento.",
+      ],
+    };
   }
   if (!oggetto(radice)) {
-    return { ok: false, errori: ["Il file non contiene un oggetto di backup."] };
+    return { ok: false, recuperabile: false, errori: ["Il file non contiene un oggetto di backup."] };
   }
   if (typeof radice.formato !== "string" || !FORMATI_ACCETTATI.includes(radice.formato)) {
     return {
       ok: false,
-      errori: [
-        "Questo file non è un backup di Flowlance: manca il marcatore di formato.",
-      ],
+      recuperabile: false,
+      errori: ["Questo file non è un backup di Flowlance: manca il marcatore di formato."],
     };
   }
 
@@ -510,6 +532,7 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
   if (versione > VERSIONE_SCHEMA) {
     return {
       ok: false,
+      recuperabile: false,
       errori: [
         `Il file è stato creato con una versione più recente dell'app (schema ${versione}, qui ${VERSIONE_SCHEMA}). Aggiorna l'app prima di importarlo.`,
       ],
@@ -541,7 +564,9 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
   dati.chiusure = convalidaElenco(contenuto.chiusure, "chiusure", convalidaChiusura, errori);
   dati.percorsi = convalidaElenco(contenuto.percorsi, "percorsi", convalidaPercorso, errori);
 
-  if (errori.length > 0) return { ok: false, errori };
+  // Qui gli errori sono di riga: il file è un backup vero, con dentro dei
+  // guasti localizzati. Si dice, perché si può rimediare.
+  if (errori.length > 0) return { ok: false, errori, recuperabile: true };
 
   // Le fatture che puntano a un cliente inesistente restano importabili: meglio
   // un dato orfano visibile che un import respinto in blocco.

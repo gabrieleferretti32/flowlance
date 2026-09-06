@@ -7,7 +7,7 @@
  * Per i test esiste anche un adapter in memoria: la stessa suite gira su
  * entrambi, così l'interfaccia resta un contratto vero e non una decorazione.
  */
-import type { Dati, Importazione, NomeCollezione } from "./tipi";
+import type { Dati, Importazione, IstantaneaArchivio, NomeCollezione } from "./tipi";
 
 /** Una collezione di entità con chiave `K`. */
 export interface Deposito<T, K extends string | number = string> {
@@ -53,6 +53,12 @@ export interface StorageAdapter {
    * modifiche che lì non sono mai state fatte.
    */
   readonly importazioni: Deposito<Importazione>;
+  /**
+   * L'archivio com'era prima dell'ultimo import di backup. Fuori da
+   * `COLLEZIONI` per la stessa ragione: una rete di sicurezza che viaggia
+   * dentro un file e atterra su un altro archivio non è una rete.
+   */
+  readonly istantanee: Deposito<IstantaneaArchivio>;
 
   /** Legge tutto, in una sola transazione dove la tecnologia lo consente. */
   leggiTutto(): Promise<Dati>;

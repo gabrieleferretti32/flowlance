@@ -12,8 +12,21 @@ import type {
   SpuntaAdempimento,
   VocePatrimonio,
   Importazione,
+  IstantaneaArchivio,
   NotaCredito,
 } from "./tipi";
+
+/**
+ * La versione dello schema, che è due cose in una: la versione del database e
+ * quella del formato di backup.
+ *
+ * 7 per due ragioni insieme. I dati sono cambiati — le impostazioni portano
+ * regione, comune e la marcatura dei parametri ereditati — e un backup scritto
+ * oggi non è leggibile per intero da una versione precedente, che li
+ * scarterebbe in silenzio: meglio che si rifiuti dicendo di aggiornare. E c'è
+ * una tabella nuova, `istantanee`, che nel backup non entra ma nel database sì.
+ */
+export const VERSIONE_SCHEMA = 7;
 
 /**
  * Lo schema IndexedDB.
@@ -23,8 +36,6 @@ import type {
  * liquidazione IVA) e il cliente (concentrazione del portafoglio).
  * Nessun campo derivato è indicizzato, perché nessun campo derivato è salvato.
  */
-export const VERSIONE_SCHEMA = 6;
-
 export class DatabaseFinanze extends Dexie {
   impostazioni!: EntityTable<Impostazioni, "anno">;
   clienti!: EntityTable<Cliente, "id">;
@@ -39,6 +50,7 @@ export class DatabaseFinanze extends Dexie {
   chiusure!: EntityTable<ChiusuraAnno, "anno">;
   percorsi!: EntityTable<StatoPercorso, "id">;
   importazioni!: EntityTable<Importazione, "id">;
+  istantanee!: EntityTable<IstantaneaArchivio, "id">;
 
   // Il nome del database resta quello originale anche dopo il rename del
   // progetto in Flowlance: in IndexedDB il nome È la chiave dell'archivio,
@@ -85,6 +97,12 @@ export class DatabaseFinanze extends Dexie {
     // nessuno storno, nessun effetto su ricavi e IVA.
     this.version(6).stores({
       note: "id, dataDocumento, dataRimborso, clienteId, numero",
+    });
+    // Versione 7: l'archivio com'era prima dell'ultimo import di backup. Una
+    // riga sola, e nessuna migrazione: chi non ha mai importato la trova vuota,
+    // cioè «niente da ripristinare», che è lo stato di sempre.
+    this.version(7).stores({
+      istantanee: "id, creataIl",
     });
   }
 }

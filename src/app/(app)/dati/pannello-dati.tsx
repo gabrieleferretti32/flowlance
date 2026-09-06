@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Database, Download, Sparkles, Trash2, Upload } from "lucide-react";
+import { Database, Download, RotateCcw, Sparkles, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardInterna, CardSottotitolo, CardTitolo } from "@/components/ui/card";
 import { Etichetta } from "@/components/ui/etichetta";
@@ -21,12 +21,22 @@ import { toast } from "@/components/ui/toast";
 import { Vuoto } from "@/components/ui/vuoto";
 import { Guscio } from "@/components/guscio/guscio";
 import { archivio } from "@/lib/dati/archivio";
-import { analizzaBackup, creaBackup, nomeFileBackup, serializzaBackup } from "@/lib/dati/backup";
+import { analizzaBackup } from "@/lib/dati/backup";
+import { esportaBackup } from "@/lib/dati/azioni";
 import { ANNO_DEMO, datiDemo } from "@/lib/dati/demo";
-import { scaricaTesto, scegliFileTesto } from "@/lib/dati/file";
+import { scegliFile } from "@/lib/dati/file";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
-import { COLLEZIONI, type NomeCollezione } from "@/lib/dati/tipi";
-import { euro, percentuale } from "@/lib/format";
+import { COLLEZIONI, type Dati, type IstantaneaArchivio, type NomeCollezione } from "@/lib/dati/tipi";
+import { confrontaPerImport, type ConfrontoImport } from "@/lib/dati/confronto-import";
+import {
+  documentiDi,
+  istantaneaDisponibile,
+  ripristinaIstantanea,
+  salvaIstantanea,
+  scartaIstantanea,
+} from "@/lib/dati/istantanee";
+import { DialogoConfermaImport } from "./conferma-import";
+import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
 
 const ETICHETTE: Record<NomeCollezione, string> = {
   impostazioni: "Impostazioni per anno",
@@ -51,62 +61,129 @@ export function PannelloDati() {
   const calcolo = useCalcoloAnno(ANNO_DEMO, oggi);
   const [avvisi, setAvvisi] = React.useState<string[]>([]);
   const [errori, setErrori] = React.useState<string[]>([]);
+  const [recuperabile, setRecuperabile] = React.useState(false);
   const [inCorso, setInCorso] = React.useState(false);
 
   const vuoto = dati ? COLLEZIONI.every((c) => dati[c].length === 0) : false;
 
-  /** Rende annullabile un'operazione distruttiva ripristinando l'istantanea precedente. */
-  const conRipristino = React.useCallback(
-    async (messaggio: string, azione: () => Promise<void>) => {
+  const [istantanea, setIstantanea] = React.useState<IstantaneaArchivio | undefined>();
+  const [daConfermare, setDaConfermare] = React.useState<
+    { confronto: ConfrontoImport; dati: Dati; avvisi: string[]; nomeFile: string } | null
+  >(null);
+
+  const rileggiIstantanea = React.useCallback(() => {
+    void istantaneaDisponibile().then(setIstantanea);
+  }, []);
+  React.useEffect(rileggiIstantanea, [rileggiIstantanea, dati]);
+
+  /**
+   * Sostituisce l'archivio, dopo averne messo da parte una copia.
+   *
+   * La copia sta nel database, non in memoria: di un archivio sostituito per
+   * sbaglio ci si accorge riaprendo l'app, non nei tre secondi e mezzo in cui
+   * un toast è a schermo. Il toast resta per dire che è successo, l'annulla no:
+   * la strada per tornare indietro è la scheda qui sopra, che non scade.
+   */
+  const conIstantanea = React.useCallback(
+    async (
+      messaggio: string,
+      causa: IstantaneaArchivio["causa"],
+      dettaglio: string | undefined,
+      azione: () => Promise<void>,
+    ) => {
       setInCorso(true);
       setErrori([]);
       try {
-        const istantanea = await archivio().leggiTutto();
+        await salvaIstantanea(await archivio().leggiTutto(), causa, dettaglio);
         await azione();
-        toast.conferma(messaggio, async () => {
-          await archivio().scriviTutto(istantanea, "sostituisci");
-          toast.conferma("Ripristinato lo stato precedente");
-        });
+        toast.conferma(messaggio);
       } catch (errore) {
         setErrori([errore instanceof Error ? errore.message : "Operazione non riuscita."]);
       } finally {
         setInCorso(false);
+        rileggiIstantanea();
       }
     },
-    [],
+    [rileggiIstantanea],
   );
 
   async function caricaDemo() {
-    await conRipristino("Dataset dimostrativo caricato", async () => {
+    await conIstantanea("Dataset dimostrativo caricato", "demo", undefined, async () => {
       await archivio().scriviTutto(datiDemo(), "sostituisci");
       setAvvisi([]);
     });
   }
 
   async function esporta() {
-    const contenuto = await archivio().leggiTutto();
-    scaricaTesto(nomeFileBackup(), serializzaBackup(creaBackup(contenuto)));
-    toast.conferma("Backup esportato");
+    await esportaBackup();
   }
 
+  /**
+   * Sceglie il file, lo legge, e **si ferma** se c'è qualcosa da perdere.
+   *
+   * Su un archivio vuoto non si ferma: è il gesto di chi ha cambiato computer,
+   * e una domanda in più a chi è già in difficoltà è solo attrito. Quando
+   * invece l'archivio contiene qualcosa, il file non entra finché l'utente non
+   * ha letto cosa sparisce — «Importa» ed «Esporta» sono due pulsanti accanto.
+   */
   async function importa() {
-    const testo = await scegliFileTesto();
-    if (testo === null) return;
-    const esito = analizzaBackup(testo);
+    const scelto = await scegliFile();
+    if (scelto === null) return;
+    const esito = analizzaBackup(scelto.testo);
     if (!esito.ok) {
       setErrori(esito.errori);
+      setRecuperabile(esito.recuperabile);
       setAvvisi([]);
       toast.errore("Il file non è stato importato");
       return;
     }
-    setAvvisi(esito.avvisi);
-    await conRipristino("Backup importato", async () => {
-      await archivio().scriviTutto(esito.backup.dati, "sostituisci");
+    setErrori([]);
+    const attuale = await archivio().leggiTutto();
+    const confronto = confrontaPerImport(attuale, esito.backup.dati, esito.backup.esportatoIl);
+    if (confronto.archivioVuoto) {
+      setAvvisi(esito.avvisi);
+      await conIstantanea("Backup importato", "import", scelto.nome, async () => {
+        await archivio().scriviTutto(esito.backup.dati, "sostituisci");
+      });
+      return;
+    }
+    setDaConfermare({
+      confronto,
+      dati: esito.backup.dati,
+      avvisi: esito.avvisi,
+      nomeFile: scelto.nome,
     });
   }
 
+  async function confermaImport() {
+    if (!daConfermare) return;
+    const { dati: entranti, avvisi: nuoviAvvisi, nomeFile } = daConfermare;
+    setDaConfermare(null);
+    setAvvisi(nuoviAvvisi);
+    await conIstantanea("Backup importato", "import", nomeFile, async () => {
+      await archivio().scriviTutto(entranti, "sostituisci");
+    });
+  }
+
+  async function ripristina() {
+    setInCorso(true);
+    try {
+      if (await ripristinaIstantanea()) toast.conferma("Archivio ripristinato");
+      setAvvisi([]);
+    } finally {
+      setInCorso(false);
+      rileggiIstantanea();
+    }
+  }
+
+  async function scarta() {
+    await scartaIstantanea();
+    rileggiIstantanea();
+    toast.conferma("Copia di sicurezza eliminata");
+  }
+
   async function svuota() {
-    await conRipristino("Archivio svuotato", async () => {
+    await conIstantanea("Archivio svuotato", "svuota", undefined, async () => {
       await archivio().svuota();
       setAvvisi([]);
     });
@@ -136,6 +213,44 @@ export function PannelloDati() {
       }
     >
       <div className="mx-auto max-w-5xl">
+      {/*
+        La rete sotto l'ultima sostituzione. Non è un toast e non scade: di un
+        archivio sostituito per sbaglio ci si accorge riaprendo l'app, e la
+        strada per tornare indietro deve essere ancora lì quando ci si torna.
+      */}
+      {istantanea && (
+        <Card className="border border-accento/25 bg-accento-tenue">
+          <CardCorpo className="flex flex-wrap items-start justify-between gap-4">
+            <div className="min-w-64 flex-1">
+              <p className="text-etichetta font-semibold text-accento">
+                {istantanea.causa === "import"
+                  ? "L'archivio di prima è ancora qui"
+                  : istantanea.causa === "demo"
+                    ? "L'archivio che c'era prima del dataset dimostrativo è ancora qui"
+                    : "L'archivio svuotato è ancora recuperabile"}
+              </p>
+              <p className="mt-1 text-etichetta text-inchiostro-tenue">
+                {interoIt.format(documentiDi(istantanea))} righe, salvate il{" "}
+                {dataEstesa(istantanea.creataIl.slice(0, 10))}
+                {istantanea.dettaglio ? ` prima di importare «${istantanea.dettaglio}»` : ""}.{" "}
+                {istantanea.causa === "svuota"
+                  ? "Finché la copia è qui, l'archivio non è davvero sparito da questo dispositivo: se l'hai svuotato per farlo sparire, eliminala."
+                  : "Resta finché non la elimini: non scade e sopravvive alla chiusura del browser."}
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button scrive variante="contorno" taglia="sm" onClick={ripristina} disabled={inCorso}>
+                <RotateCcw className="size-3.5" aria-hidden />
+                Ripristina
+              </Button>
+              <Button scrive variante="quieto" taglia="sm" onClick={scarta} disabled={inCorso}>
+                Elimina la copia
+              </Button>
+            </div>
+          </CardCorpo>
+        </Card>
+      )}
+
       {errori.length > 0 && (
         <Card className="border border-negativo/25 bg-negativo-tenue">
           <CardCorpo>
@@ -152,6 +267,22 @@ export function PannelloDati() {
                 </li>
               )}
             </ul>
+            {/*
+              Il rifiuto è in blocco di proposito: un archivio che sembra
+              completo e non lo è produce calcoli fiscali sbagliati in silenzio,
+              che è peggio di un file respinto. Ma respinto non vuol dire perso,
+              e chi arriva qui ha appena cambiato computer: va detto che il file
+              si aggiusta e come.
+            */}
+            {recuperabile && (
+              <p className="mt-3 text-etichetta text-[#C13237]">
+                <span className="font-medium">Il file non è perso.</span> È un backup vero, con
+                dei guasti in righe precise: aprilo con un editor di testo, cerca le righe
+                indicate qui sopra — sono nell&apos;ordine in cui stanno nel file, dentro la
+                collezione che porta quel nome — correggile o cancellale, e riprova a
+                importarlo. Un backup con qualche riga in meno vale molto più di nessun backup.
+              </p>
+            )}
           </CardCorpo>
         </Card>
       )}
@@ -316,6 +447,15 @@ export function PannelloDati() {
         </>
       )}
       </div>
+
+      <DialogoConfermaImport
+        confronto={daConfermare?.confronto ?? null}
+        nomeFile={daConfermare?.nomeFile ?? ""}
+        inCorso={inCorso}
+        onEsporta={esporta}
+        onConferma={confermaImport}
+        onAnnulla={() => setDaConfermare(null)}
+      />
     </Guscio>
   );
 }

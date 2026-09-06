@@ -252,6 +252,36 @@ sé stesso. È la stessa cosa scritta sopra sotto «Il ÷ 12 della quota mensile
 sta anche qui perché è un campo da aggiungere al modello, non solo una domanda
 aperta.
 
+## Il promemoria del backup ha due punti ciechi
+
+L'app ricorda l'ultimo export in `localStorage`, non nell'archivio: dentro
+l'archivio finirebbe nel file di backup, e chi importa il backup di un altro si
+vedrebbe dire «hai fatto un backup il 3 marzo», che è la data di un'altra
+persona.
+
+Ne discendono due limiti. Chi svuota i dati del sito perde anche il
+promemoria, e l'app torna a dire «non hai mai fatto un backup»: è falso, ma è
+falso nella direzione giusta — in quel caso è sparito anche l'archivio, e un
+avviso di troppo è meglio di uno di meno. E chi apre l'app in un altro browser
+sullo stesso computer riparte da zero, perché è un'altra installazione.
+
+Il conteggio dei documenti nuovi è una differenza fra due totali, non un
+registro delle modifiche: chi cancella dieci fatture e ne inserisce dieci non
+risulta avere niente di nuovo. Un avviso mancato su un lavoro fatto, quindi,
+ma solo in un caso che si riconosce da sé.
+
+## Chi svuota l'archivio si lascia dietro una copia
+
+Ogni gesto che sostituisce l'archivio intero — importare, ricaricare il
+dataset dimostrativo, svuotare — ne mette da parte una copia che sopravvive
+alla chiusura del browser. Sullo svuotamento è una contraddizione: chi svuota
+per far sparire i dati se li ritrova ancora sul dispositivo.
+
+Non è nascosta — la scheda in Dati e backup lo dice in chiaro e la si elimina
+con un tocco — ma è un secondo passo, e va conosciuto. L'alternativa sarebbe
+non tenere niente e rendere lo svuotamento irreversibile, che su un gesto che
+si può premere per sbaglio è peggio.
+
 ## Regione e comune non finiscono sul prospetto
 
 La schermata Parametri registra in quale regione e in quale comune si vive: è

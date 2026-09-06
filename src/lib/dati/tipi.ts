@@ -99,6 +99,31 @@ export type Importazione = {
   modifiche: ModificaImport[];
 };
 
+/**
+ * L'archivio com'era un istante prima di essere sostituito.
+ *
+ * L'import di un backup non è chirurgico come quello da CSV: rimpiazza tutto,
+ * e non c'è modo di disfarlo riga per riga. L'unica rete possibile è una copia
+ * intera del prima — e deve **sopravvivere alla ricarica**, perché di un import
+ * sbagliato ci si accorge quando si riapre l'app e i numeri non tornano, non
+ * nei tre secondi in cui un toast è a schermo.
+ *
+ * Ce n'è una sola: la successiva prende il posto della precedente. Resta finché
+ * non la si ripristina o non la si scarta, e come `Importazione` non è una
+ * collezione di `COLLEZIONI` — dentro un backup sarebbe l'archivio di qualcun
+ * altro travestito da rete di sicurezza.
+ */
+export type IstantaneaArchivio = {
+  id: string;
+  creataIl: string;
+  /** Che cosa l'ha sostituito, per poterlo raccontare a chi torna il giorno dopo. */
+  causa: "import" | "demo" | "svuota";
+  /** Il nome del file, quando la causa è un import. */
+  dettaglio?: string;
+  conteggi: Record<NomeCollezione, number>;
+  dati: Dati;
+};
+
 export type VocePatrimonio = {
   id: string;
   tipo: "attivo" | "passivo";
