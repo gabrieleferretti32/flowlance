@@ -81,8 +81,12 @@ export const CAMPI_UTENTE: DefinizioneCampo[] = [
     aCosaServe:
       "Si applica al tuo imponibile insieme all'IRPEF. Cambia da regione a regione: alcune hanno un'aliquota sola, molte — Piemonte, Lombardia, Lazio e altre — la applicano a scaglioni come l'IRPEF, e diverse esentano i redditi sotto una soglia.",
     doveTrovarlo:
-      "Nel quadro RV dell'ultima dichiarazione dei redditi trovi quella che ti è stata applicata. Per l'anno in corso, la delibera è pubblicata sul sito della tua regione alla voce «addizionale regionale IRPEF».",
+      "Nel quadro RV della dichiarazione dell'anno prima, se ne hai una: è l'aliquota che ti è stata applicata davvero. Se hai anche un lavoro dipendente sta sulla Certificazione Unica, fra le ritenute. Per l'anno in corso, sul portale del Dipartimento delle Finanze qui sotto, o nella delibera della tua regione.",
     incideSu: "imposte",
+    fonte: {
+      etichetta: "Aliquote sul portale del Dipartimento delle Finanze",
+      href: "https://www.finanze.gov.it",
+    },
     formato: "percentuale",
     nellIrpef: true,
     pertinente: ordinario,
@@ -96,9 +100,12 @@ export const CAMPI_UTENTE: DefinizioneCampo[] = [
     aCosaServe:
       "Come quella regionale, ma decisa dal tuo comune: c'è chi non la applica e chi arriva allo 0,9 %. Quasi tutti i comuni che la applicano esentano i redditi sotto una soglia, e qualcuno usa gli scaglioni.",
     doveTrovarlo:
-      "Nel portale del MEF, sezione «Addizionale comunale all'IRPEF», cercando il comune di residenza: c'è aliquota, soglia di esenzione e delibera. Sta anche nel quadro RV della dichiarazione.",
+      "Nel quadro RV della dichiarazione dell'anno prima, o sulla Certificazione Unica se hai anche un lavoro dipendente. Per l'anno in corso, sul portale del Dipartimento delle Finanze qui sotto, sezione «Addizionale comunale all'IRPEF»: cercando il comune di residenza trovi aliquota, soglia di esenzione e delibera.",
     incideSu: "imposte",
-    fonte: { etichetta: "Portale del MEF", href: "https://www.finanze.gov.it" },
+    fonte: {
+      etichetta: "Aliquote sul portale del Dipartimento delle Finanze",
+      href: "https://www.finanze.gov.it",
+    },
     formato: "percentuale",
     nellIrpef: true,
     pertinente: ordinario,
@@ -224,6 +231,53 @@ export function dichiarato(imp: Impostazioni, campo: CampoUtente): boolean {
   return (imp.dichiarati ?? []).includes(campo);
 }
 
+/**
+ * Il valore viene dall'anno precedente e nessuno l'ha riconfermato qui.
+ *
+ * È dichiarato — vale, e non blocca l'export — ma non è una risposta data per
+ * *questo* anno, e regioni e comuni ritoccano le aliquote ogni gennaio. La
+ * differenza va detta: è la stessa cautela dei parametri di legge provvisori.
+ */
+export function ereditato(imp: Impostazioni, campo: CampoUtente): boolean {
+  return dichiarato(imp, campo) && (imp.ereditati ?? []).includes(campo);
+}
+
+/** Toglie un campo dall'elenco degli ereditati: è stato toccato o confermato. */
+function senzaEredita(imp: Impostazioni, campo: CampoUtente): Impostazioni {
+  const gia = imp.ereditati ?? [];
+  if (!gia.includes(campo)) return imp;
+  return { ...imp, ereditati: gia.filter((c) => c !== campo) };
+}
+
+/**
+ * «Sì, vale anche per quest'anno.»
+ *
+ * Non cambia il numero: cambia chi se ne prende la responsabilità e per quale
+ * anno. Senza questo gesto l'unico modo di togliere l'etichetta «ereditato»
+ * sarebbe riscrivere a mano un valore identico.
+ */
+export function conEreditaConfermata(imp: Impostazioni, campo: CampoUtente): Impostazioni {
+  return senzaEredita(imp, campo);
+}
+
+/**
+ * La regione a cui si riferisce l'addizionale regionale.
+ *
+ * Sceglierla non dichiara l'aliquota: quella che si compila da sola è
+ * l'aliquota base di legge, uguale per tutte le regioni, e resta «predefinita»
+ * finché l'utente non ci mette la sua. La regione dice a quale delibera
+ * guardare, ed è quello che serve a chi legge il prospetto.
+ */
+export function conRegione(imp: Impostazioni, codice: string | null): Impostazioni {
+  return { ...imp, regione: codice };
+}
+
+/** Il nome del comune, scritto a mano: nessun elenco da tenere aggiornato. */
+export function conComune(imp: Impostazioni, nome: string | null): Impostazioni {
+  const pulito = nome?.trim();
+  return { ...imp, comune: pulito ? pulito : null };
+}
+
 /** Il valore, formattato come si legge. */
 export function valoreDi(imp: Impostazioni, campo: CampoUtente): string {
   const d = definizioneDi(campo);
@@ -280,11 +334,35 @@ export function conValoreDichiarato(
   const d = definizioneDi(campo);
   const dentro = Math.min(d.massimo, Math.max(d.minimo, valore));
   const gia = imp.dichiarati ?? [];
-  return {
-    ...imp,
-    [campo]: dentro,
-    dichiarati: gia.includes(campo) ? gia : [...gia, campo],
-  };
+  // Scrivere un valore è rispondere per quest'anno: quale che fosse il numero
+  // di partenza, da qui in poi non è più ereditato.
+  return senzaEredita(
+    {
+      ...imp,
+      [campo]: dentro,
+      dichiarati: gia.includes(campo) ? gia : [...gia, campo],
+    },
+    campo,
+  );
+}
+
+/**
+ * Scrive un valore **senza** dichiararlo.
+ *
+ * È il punto di partenza che l'app propone quando sa qualcosa di più della sua
+ * media — l'aliquota base di legge, una volta scelta la regione — ma non sa
+ * ancora la risposta. Il campo cambia numero e resta marcato «predefinito»:
+ * contarlo come una dichiarazione sbloccherebbe il PDF su un valore che nessuno
+ * ha confermato, che è esattamente ciò che questo modulo impedisce.
+ */
+export function conValoreProposto(
+  imp: Impostazioni,
+  campo: CampoUtente,
+  valore: number,
+): Impostazioni {
+  if (dichiarato(imp, campo)) return imp;
+  const d = definizioneDi(campo);
+  return { ...imp, [campo]: Math.min(d.massimo, Math.max(d.minimo, valore)) };
 }
 
 /** Le due addizionali, le sole che possono avere scaglioni e soglia propri. */
@@ -314,12 +392,13 @@ export function conScaglioni(
       ? "scaglioniAddizionaleRegionale"
       : "scaglioniAddizionaleComunale";
   const gia = imp.dichiarati ?? [];
-  return {
+  const prossime: Impostazioni = {
     ...imp,
     [chiave]: scaglioni,
     dichiarati:
       scaglioni === null || !conferma || gia.includes(campo) ? gia : [...gia, campo],
   };
+  return conferma ? senzaEredita(prossime, campo) : prossime;
 }
 
 /**
@@ -355,6 +434,7 @@ export function senzaDichiarazione(
     ...imp,
     [campo]: predefinito,
     dichiarati: (imp.dichiarati ?? []).filter((c) => c !== campo),
+    ereditati: (imp.ereditati ?? []).filter((c) => c !== campo),
   };
   // Tornare a «non lo so» toglie anche scaglioni e soglia: lasciarli sarebbe
   // tenere metà di una risposta ritirata, e il calcolo continuerebbe a usarli.

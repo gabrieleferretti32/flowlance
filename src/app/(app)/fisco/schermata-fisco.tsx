@@ -12,10 +12,14 @@ import { Guscio } from "@/components/guscio/guscio";
 import { RigaDelProspetto } from "@/components/fisco/riga-prospetto";
 import { AvvisoParametri } from "@/components/fisco/avviso-parametri";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { Lock, Printer } from "lucide-react";
 import { DocumentoProspettoStampa } from "@/components/fisco/documento-prospetto";
 import { documentoProspetto, stampaConsentita } from "@/lib/fisco/stampa";
-import { campiDaDichiarare, elencoInTesto } from "@/lib/fisco/parametri-utente";
+import {
+  aliquoteIrpefNonDichiarate,
+  campiDaDichiarare,
+  elencoInTesto,
+} from "@/lib/fisco/parametri-utente";
 import type { Impostazioni } from "@/lib/fisco/tipi";
 import { useCalcoloAnno } from "@/lib/dati/hooks";
 import { parametriDi } from "@/lib/fisco/parametri";
@@ -47,6 +51,10 @@ export function SchermataFisco() {
   const soglia = dettaglioSoglia(p, imp);
   const parametri = parametriDi(anno);
   const stampa = stampaConsentita(parametri, imp);
+  // Le aliquote che bloccano l'export e che l'utente può sbloccare da solo. I
+  // parametri di legge provvisori bloccano allo stesso modo, ma lì non c'è
+  // niente da dichiarare: mandare ai Parametri sarebbe mandare a vuoto.
+  const daDichiarare = aliquoteIrpefNonDichiarate(imp);
   const documento = documentoProspetto(p, imp, parametri, oggi);
 
   return (
@@ -58,15 +66,29 @@ export function SchermataFisco() {
         // schermo, e il foglio di stampa spegne l'app e accende lui. Il browser
         // fa il PDF da sé, senza librerie e senza che i dati escano dal
         // dispositivo — che è il punto dell'intero progetto.
-        <Button
-          variante="contorno"
-          disabled={!stampa.consentita}
-          title={stampa.consentita ? undefined : stampa.motivo}
-          onClick={() => window.print()}
-        >
-          <Printer className="size-4" aria-hidden />
-          Stampa il prospetto
-        </Button>
+        //
+        // Quando è bloccato per colpa di un'aliquota mai dichiarata, il
+        // pulsante non si spegne: diventa la porta per andare a dichiararla.
+        // Spento con la ragione in un `title` era un vicolo cieco — e su un
+        // telefono, dove il `title` non si vede, era un vicolo cieco muto.
+        daDichiarare.length > 0 ? (
+          <Button variante="contorno" asChild>
+            <Link href="/parametri">
+              <Lock className="size-4" aria-hidden />
+              Sblocca la stampa
+            </Link>
+          </Button>
+        ) : (
+          <Button
+            variante="contorno"
+            disabled={!stampa.consentita}
+            title={stampa.consentita ? undefined : stampa.motivo}
+            onClick={() => window.print()}
+          >
+            <Printer className="size-4" aria-hidden />
+            Stampa il prospetto
+          </Button>
+        )
       }
     >
       {/* Quello che si vede a schermo si spegne in stampa: al suo posto va il

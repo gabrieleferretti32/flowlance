@@ -8,7 +8,7 @@ import { extendTailwindMerge } from "tailwind-merge";
  * card colorate tornano alla dimensione del testo corrente.
  * Ogni scala personalizzata definita in `globals.css` va dichiarata qui.
  */
-const DIMENSIONI_TESTO = ["semaforo", "kpi", "kpi-sm", "corpo", "etichetta", "micro"];
+const DIMENSIONI_TESTO = ["semaforo", "kpi", "kpi-sm", "corpo", "campo", "etichetta", "micro"];
 
 const COLORI = [
   "fondo",

@@ -170,6 +170,25 @@ export type Impostazioni = {
    * campi in `CampoUtente`; assente sui dati vecchi, che vale «nessuno».
    */
   dichiarati?: string[];
+  /**
+   * I parametri arrivati dall'anno precedente senza essere riconfermati qui.
+   *
+   * Un anno nuovo eredita quello che l'utente aveva dichiarato l'anno prima —
+   * è un punto di partenza migliore della media dell'app — ma ereditare in
+   * silenzio farebbe passare per «tua» un'aliquota confermata per un altro
+   * anno, mentre regioni e comuni le ritoccano ogni gennaio. Un campo che sta
+   * qui è dichiarato *e* ereditato: vale, e la schermata lo dice. Esce da qui
+   * appena lo si tocca o lo si conferma.
+   */
+  ereditati?: string[];
+  /**
+   * L'anno da cui l'eredità è arrivata.
+   *
+   * Non è sempre `anno - 1`: chi salta dal 2026 al 2028 eredita dal 2026, e
+   * dire «ereditato dal 2027» sarebbe una frase precisa e falsa su una
+   * schermata che esiste per distinguere i numeri veri da quelli plausibili.
+   */
+  ereditatiDa?: number;
   nome: string;
   dataAperturaPiva: string | null;
   saldoInizialeAttivita: number;
@@ -206,6 +225,22 @@ export type Impostazioni = {
   addizionaleComunale: number;
   scaglioniAddizionaleComunale?: ScaglioneIrpef[] | null;
   esenzioneAddizionaleComunale?: number;
+  /**
+   * Dove si versano le due addizionali: il codice della regione e il nome del
+   * comune, scritto a mano.
+   *
+   * Non entrano nel calcolo — l'aliquota è quella dei campi qui sopra — ma
+   * dicono a quale delibera l'aliquota si riferisce: un'addizionale dello
+   * 0,8 % senza il nome del comune è un numero che nessuno può verificare.
+   * Per ora vivono nella schermata Parametri; il posto dove servirebbero
+   * davvero è il prospetto stampato, e non ci sono ancora.
+   *
+   * Dei comuni non c'è nessun elenco precaricato: sono quasi ottomila e
+   * cambiano aliquota ogni anno. Una tabella del genere dentro un'app
+   * local-first invecchia nell'installazione di chi la usa.
+   */
+  regione?: string | null;
+  comune?: string | null;
   detrazioniPersonali: number;
   fondoPensione: number;
 

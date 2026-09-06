@@ -3,8 +3,13 @@ import {
   aliquoteIrpefNonDichiarate,
   campiDaDichiarare,
   campiPertinenti,
+  conComune,
+  conEreditaConfermata,
+  conRegione,
   conValoreDichiarato,
+  conValoreProposto,
   dichiarato,
+  ereditato,
   leggiValore,
   messaggioFuoriScala,
   nellaScala,
@@ -13,7 +18,9 @@ import {
   valoreDi,
   CAMPI_UTENTE,
 } from "./parametri-utente";
+import { conScaglioni } from "./parametri-utente";
 import { esportazioneProspettoConsentita } from "./chiusura";
+import { ALIQUOTA_BASE_REGIONALE, REGIONI, nomeRegione } from "./regioni";
 import { impostazioniPredefinite } from "./impostazioni";
 import { PARAMETRI_2026 } from "./parametri/2026";
 import { PARAMETRI_2027 } from "./parametri/2027";
@@ -143,5 +150,96 @@ describe("l'export del prospetto e le aliquote non dichiarate", () => {
     // La firma resta compatibile: chi non passa le impostazioni ottiene il
     // controllo sui soli parametri di legge.
     expect(esportazioneProspettoConsentita(PARAMETRI_2026).consentita).toBe(true);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// L'eredità fra anni d'imposta
+// ————————————————————————————————————————————————————————————
+
+/** Un anno che ha ereditato l'addizionale regionale dichiarata l'anno prima. */
+const conEredita: Impostazioni = {
+  ...ordinario,
+  addizionaleRegionale: 0.0203,
+  dichiarati: ["addizionaleRegionale"],
+  ereditati: ["addizionaleRegionale"],
+};
+
+describe("un parametro ereditato dall'anno prima", () => {
+  it("vale, ma non passa per una risposta data quest'anno", () => {
+    expect(dichiarato(conEredita, "addizionaleRegionale")).toBe(true);
+    expect(ereditato(conEredita, "addizionaleRegionale")).toBe(true);
+  });
+
+  it("non blocca l'export: il numero l'ha scritto l'utente, non l'app", () => {
+    // Bloccare ogni gennaio farebbe ricominciare da capo chi non ha cambiato
+    // né comune né regione. Il valore vale; quello che cambia è l'etichetta.
+    const soloComunale = aliquoteIrpefNonDichiarate(conEredita).map((c) => c.campo);
+    expect(soloComunale).toEqual(["addizionaleComunale"]);
+  });
+
+  it("confermarlo non tocca il numero, solo l'anno di chi risponde", () => {
+    const dopo = conEreditaConfermata(conEredita, "addizionaleRegionale");
+    expect(dopo.addizionaleRegionale).toBe(0.0203);
+    expect(dichiarato(dopo, "addizionaleRegionale")).toBe(true);
+    expect(ereditato(dopo, "addizionaleRegionale")).toBe(false);
+  });
+
+  it("riscrivere il valore lo toglie dagli ereditati", () => {
+    const dopo = conValoreDichiarato(conEredita, "addizionaleRegionale", 0.0173);
+    expect(ereditato(dopo, "addizionaleRegionale")).toBe(false);
+  });
+
+  it("passare agli scaglioni e toccarli lo toglie dagli ereditati", () => {
+    const scelta = conScaglioni(conEredita, "addizionaleRegionale", null, false);
+    // Scegliere la forma non è ancora rispondere.
+    expect(ereditato(scelta, "addizionaleRegionale")).toBe(true);
+    const risposta = conScaglioni(scelta, "addizionaleRegionale", [
+      { limite: 15_000, aliquota: 0.0173 },
+      { limite: null, aliquota: 0.0203 },
+    ]);
+    expect(ereditato(risposta, "addizionaleRegionale")).toBe(false);
+  });
+
+  it("«non lo so» cancella anche l'eredità", () => {
+    const dopo = senzaDichiarazione(conEredita, "addizionaleRegionale", 0.0173);
+    expect(dichiarato(dopo, "addizionaleRegionale")).toBe(false);
+    expect(ereditato(dopo, "addizionaleRegionale")).toBe(false);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Dove si versa, e il valore proposto
+// ————————————————————————————————————————————————————————————
+
+describe("regione e comune", () => {
+  it("le regioni sono venti", () => {
+    expect(REGIONI).toHaveLength(20);
+    expect(new Set(REGIONI.map((r) => r.codice)).size).toBe(20);
+  });
+
+  it("scegliere la regione non dichiara l'aliquota", () => {
+    const dopo = conRegione(ordinario, "lombardia");
+    expect(nomeRegione(dopo.regione)).toBe("Lombardia");
+    expect(dichiarato(dopo, "addizionaleRegionale")).toBe(false);
+  });
+
+  it("il nome del comune si ripulisce, e vuoto vuol dire nessuno", () => {
+    expect(conComune(ordinario, "  Bologna ").comune).toBe("Bologna");
+    expect(conComune(ordinario, "   ").comune).toBeNull();
+  });
+
+  it("l'aliquota base si compila da sola e resta predefinita", () => {
+    const dopo = conValoreProposto(ordinario, "addizionaleRegionale", ALIQUOTA_BASE_REGIONALE);
+    expect(dopo.addizionaleRegionale).toBe(ALIQUOTA_BASE_REGIONALE);
+    // Il punto di tutto: proporre non è dichiarare, e il PDF resta bloccato.
+    expect(dichiarato(dopo, "addizionaleRegionale")).toBe(false);
+    expect(esportazioneProspettoConsentita(PARAMETRI_2026, dopo).consentita).toBe(false);
+  });
+
+  it("non sovrascrive un valore che l'utente ha già dichiarato", () => {
+    const mia = conValoreDichiarato(ordinario, "addizionaleRegionale", 0.0333);
+    const dopo = conValoreProposto(mia, "addizionaleRegionale", ALIQUOTA_BASE_REGIONALE);
+    expect(dopo.addizionaleRegionale).toBe(0.0333);
   });
 });

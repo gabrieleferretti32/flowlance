@@ -10,11 +10,21 @@ import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Chip } from "@/components/ui/chip";
 import { Input } from "@/components/ui/input";
 import { Segmenti } from "@/components/ui/segmenti";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Guscio } from "@/components/guscio/guscio";
 import { AvvisoParametri } from "@/components/fisco/avviso-parametri";
 import {
+  confermaEredita,
+  dichiaraComune,
   dichiaraEsenzione,
   dichiaraParametro,
+  dichiaraRegione,
   dichiaraScaglioni,
   ripristinaParametro,
 } from "@/lib/dati/azioni";
@@ -23,6 +33,7 @@ import {
   campiPertinenti,
   dichiarato,
   eAddizionale,
+  ereditato,
   elencoInTesto,
   leggiValore,
   messaggioFuoriScala,
@@ -32,11 +43,12 @@ import {
   type DefinizioneCampo,
 } from "@/lib/fisco/parametri-utente";
 import { controllaScaglioni } from "@/lib/fisco/addizionali";
+import { ALIQUOTA_BASE_REGIONALE, REGIONI, regioneDi } from "@/lib/fisco/regioni";
 import { frazioneDaPercentuale } from "@/lib/fisco/aritmetica";
 import type { CampoAddizionale } from "@/lib/fisco/parametri-utente";
 import type { Impostazioni, ScaglioneIrpef } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
-import { analizzaNumero, euro, perCampo } from "@/lib/format";
+import { aliquota, analizzaNumero, euro, perCampo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -66,6 +78,7 @@ export function SchermataParametri() {
   const imp = calcolo.impostazioni;
   const campi = campiPertinenti(imp);
   const mancanti = campi.filter((c) => !dichiarato(imp, c.campo));
+  const ereditate = campi.filter((c) => ereditato(imp, c.campo));
   const bloccanti = aliquoteIrpefNonDichiarate(imp);
 
   return (
@@ -115,15 +128,42 @@ export function SchermataParametri() {
             {/*
               Le aliquote cambiano ogni gennaio, e l'anno nuovo eredita quelle
               dichiarate l'anno prima: sono un punto di partenza ragionevole, non
-              una conferma. Dirlo qui evita che restino lì per anni.
+              una conferma. Da qui in poi lo dicono anche una per una.
             */}
             <p className="mt-4 text-etichetta text-inchiostro-tenue">
-              Valgono per il {anno}: regioni e comuni le ritoccano ogni anno, e l&apos;anno
-              nuovo parte da quelle che hai dichiarato qui. Quando cambia l&apos;anno vale la
-              pena ricontrollarle.
+              {ereditate.length > 0
+                ? `Valgono per il ${anno}, e ${ereditate.length === 1 ? "una viene" : `${ereditate.length} vengono`} dal ${imp.ereditatiDa ?? anno - 1}: ${elencoInTesto(ereditate)} ${ereditate.length === 1 ? "è marcata «ereditata»" : "sono marcate «ereditate»"} finché non ${ereditate.length === 1 ? "la confermi" : "le confermi"}. Regioni e comuni le ritoccano ogni gennaio.`
+                : `Valgono per il ${anno}: regioni e comuni le ritoccano ogni anno, e l'anno nuovo parte da quelle che hai dichiarato qui, marcandole finché non le riconfermi.`}
             </p>
           </CardCorpo>
         </Card>
+
+        {/*
+          In forfettario le due addizionali non esistono: l'imposta sostitutiva
+          sostituisce IRPEF, addizionali e IRAP. Toglierle e basta lascerebbe
+          chi le cerca a chiedersi se l'app se le è dimenticate — e chi passa
+          all'ordinario a non sapere che da quel momento vanno dichiarate.
+        */}
+        {imp.regime === "forfettario" && (
+          <Card>
+            <CardCorpo className="py-4">
+              <p className="text-etichetta font-medium">
+                Le addizionali regionale e comunale non ti riguardano
+              </p>
+              <p className="mt-1 text-etichetta text-inchiostro-tenue">
+                In forfettario si paga un&apos;imposta sostitutiva, che sostituisce anche
+                loro: non c&apos;è niente da dichiarare e niente da cercare sul portale del
+                tuo comune. Se passi al regime ordinario ricompaiono qui, e diventano le
+                due aliquote che tengono bloccato l&apos;export del prospetto finché non le
+                scrivi.{" "}
+                <Link href="/confronto" className="underline underline-offset-2">
+                  Il confronto fra i due regimi
+                </Link>{" "}
+                le mette già nel conto.
+              </p>
+            </CardCorpo>
+          </Card>
+        )}
 
         {campi.map((c) => (
           <SchedaParametro
@@ -160,6 +200,11 @@ function SchedaParametro({
   anno: number;
 }) {
   const confermato = dichiarato(imp, d.campo);
+  const vieneDaPrima = ereditato(imp, d.campo);
+  // L'anno da cui arriva, non «l'anno prima»: chi salta un anno eredita da più
+  // lontano, e la data sbagliata su questa schermata è proprio il genere di
+  // dettaglio preciso e falso che il resto del prodotto cerca di evitare.
+  const annoDiProvenienza = imp.ereditatiDa ?? anno - 1;
   const addizionale = eAddizionale(d.campo) ? d.campo : null;
   const scaglioni = addizionale
     ? (addizionale === "addizionaleRegionale"
@@ -196,10 +241,47 @@ function SchedaParametro({
             <p className="font-display text-corpo font-semibold">{d.etichetta}</p>
             <p className="mt-0.5 text-etichetta text-inchiostro-tenue">{d.aCosaServe}</p>
           </div>
-          <Chip tono={confermato ? "positivo" : "attenzione"} className="shrink-0">
-            {confermato ? "dichiarato da te" : "predefinito"}
+          <Chip
+            tono={vieneDaPrima ? "neutro" : confermato ? "positivo" : "attenzione"}
+            className="shrink-0"
+          >
+            {vieneDaPrima
+              ? `ereditato dal ${annoDiProvenienza}`
+              : confermato
+                ? "dichiarato da te"
+                : "predefinito"}
           </Chip>
         </div>
+
+        {/*
+          Ereditato non è né «tuo» né «predefinito»: è una risposta data per un
+          altro anno. Vale — il numero è quello, e non blocca l'export — ma
+          regioni e comuni ritoccano le aliquote ogni gennaio, e lasciarlo
+          passare per una conferma di quest'anno sarebbe la bugia che questo
+          modulo esiste per evitare. Si esce di qui in un tocco, o riscrivendo.
+        */}
+        {vieneDaPrima && (
+          <BloccoScrittura>
+            <CardInterna className="mt-4 flex flex-wrap items-center justify-between gap-3 p-3">
+              <p className="min-w-56 flex-1 text-etichetta text-inchiostro-tenue">
+                Viene dal {annoDiProvenienza}, dove l&apos;avevi dichiarata. Nessuno l&apos;ha ancora
+                confermata per il {anno}: se {d.campo === "addizionaleComunale" ? "il comune" : d.campo === "addizionaleRegionale" ? "la regione" : "chi la decide"}{" "}
+                l&apos;ha ritoccata, il numero qui sotto è vecchio.
+              </p>
+              <Button
+                scrive
+                variante="contorno"
+                taglia="sm"
+                onClick={() => void confermaEredita(anno, d.campo)}
+              >
+                <Check className="size-3.5" aria-hidden />
+                Vale anche per il {anno}
+              </Button>
+            </CardInterna>
+          </BloccoScrittura>
+        )}
+
+        {addizionale && <DoveSiVersa campo={addizionale} impostazioni={imp} anno={anno} />}
 
         {addizionale && (
           <BloccoScrittura>
@@ -343,6 +425,92 @@ function SchedaParametro({
         </CardInterna>
       </CardCorpo>
     </Card>
+  );
+}
+
+/**
+ * Dove si versa: la regione per l'addizionale regionale, il comune per quella
+ * comunale.
+ *
+ * Non entra nel calcolo. Serve a dire a quale delibera l'aliquota si
+ * riferisce: «0,8 %» senza il nome del comune è un numero che nessuno può
+ * verificare.
+ *
+ * Delle regioni c'è l'elenco, dei comuni no: sono quasi ottomila e ritoccano
+ * l'aliquota ogni anno. Una tabella così dentro un'app local-first invecchia
+ * nell'installazione di chi la usa, e nessuno la aggiorna. Il nome si scrive.
+ */
+function DoveSiVersa({
+  campo,
+  impostazioni: imp,
+  anno,
+}: {
+  campo: CampoAddizionale;
+  impostazioni: Impostazioni;
+  anno: number;
+}) {
+  const id = React.useId();
+  const confermato = dichiarato(imp, campo);
+
+  if (campo === "addizionaleComunale") {
+    return (
+      <BloccoScrittura>
+        <div className="mt-4">
+          <label htmlFor={id} className="block text-etichetta text-inchiostro-tenue">
+            Comune di residenza
+          </label>
+          <Input
+            id={id}
+            className="mt-1.5 w-full sm:w-72"
+            placeholder="Scrivi il nome del comune"
+            defaultValue={imp.comune ?? ""}
+            onChange={(e) => void dichiaraComune(anno, e.target.value)}
+          />
+          <p className="mt-1.5 text-etichetta text-inchiostro-tenue">
+            Serve solo a dire di quale comune è l&apos;aliquota qui sotto: non entra nel
+            calcolo. L&apos;app non tiene un elenco dei comuni — sono quasi ottomila e
+            cambiano ogni anno.
+          </p>
+        </div>
+      </BloccoScrittura>
+    );
+  }
+
+  const regione = regioneDi(imp.regione);
+  return (
+    <BloccoScrittura>
+      <div className="mt-4">
+        <label htmlFor={id} className="block text-etichetta text-inchiostro-tenue">
+          Regione di residenza
+        </label>
+        <div className="mt-1.5 sm:w-72">
+          <Select
+            value={imp.regione ?? ""}
+            // L'aliquota base si compila da sola, e resta «predefinita»:
+            // scegliere dove si vive non è dichiarare quanto si paga. Se
+            // l'utente ha già messo la sua, `dichiaraRegione` non la tocca.
+            onValueChange={(v) => void dichiaraRegione(anno, v, ALIQUOTA_BASE_REGIONALE)}
+          >
+            <SelectTrigger id={id} aria-label="Regione di residenza">
+              <SelectValue placeholder="Scegli la regione" />
+            </SelectTrigger>
+            <SelectContent>
+              {REGIONI.map((r) => (
+                <SelectItem key={r.codice} value={r.codice}>
+                  {r.nome}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        <p className="mt-1.5 text-etichetta text-inchiostro-tenue">
+          {confermato && regione
+            ? `L'aliquota qui sotto è quella che hai dichiarato per ${regione.nome}.`
+            : `Scegliendola, il campo qui sotto parte dall'aliquota base di legge, ${aliquota(ALIQUOTA_BASE_REGIONALE)}. È uguale per tutte le regioni — l'app non tiene una tabella delle venti aliquote, che cambiano ogni anno: la tua regione può aver aumentato la base, o applicarla a scaglioni. Il numero resta da controllare finché non lo confermi.`}
+          {regione?.nota ? ` ${regione.nota}` : ""}
+        </p>
+      </div>
+    </BloccoScrittura>
   );
 }
 

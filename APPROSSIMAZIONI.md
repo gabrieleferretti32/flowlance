@@ -40,6 +40,31 @@ esistono nel modello.
 esercenti attività di impresa o professione, ma la valutazione
 sull'autonoma organizzazione l'app non la fa e non la può fare.
 
+**Esenzioni e soglie delle addizionali: le dichiari tu, l'app non le sa.**
+Quasi tutti i comuni che applicano l'addizionale esentano i redditi sotto una
+soglia, e diverse regioni fanno lo stesso. C'è un campo per dichiararla, in
+Parametri, e il motore la applica come una soglia — sotto non si paga niente,
+sopra si paga sull'intero imponibile, non sull'eccedenza. Quello che l'app non
+fa è *saperlo*: se il tuo comune ti esenta e non lo scrivi, l'app ti conta
+un'imposta che non devi.
+
+Restano fuori anche i casi più fini: le esenzioni legate a qualcosa di diverso
+dal reddito, le soglie diverse per scaglione, e i comuni che esentano solo
+alcune categorie. Il modello ha una soglia sola per addizionale.
+
+**Nessuna tabella delle aliquote, né delle regioni né dei comuni.** Scegliere
+la regione precompila l'**aliquota base di legge**, l'1,23 % dell'art. 6 del
+D.Lgs. 68/2011: è uguale per tutte e venti, e quasi tutte la superano o
+applicano scaglioni. Non c'è una tabella regione per regione, e nemmeno una dei
+comuni — sono quasi ottomila e ritoccano le aliquote ogni anno. Una tabella
+scritta oggi dentro un'app local-first invecchia nell'installazione di chi la
+usa e continua a mostrare come «la tua aliquota» un numero di due anni fa, che
+è il modo più efficace di sbagliare. Il numero vero lo scrive l'utente, e
+finché non lo scrive il prospetto non si esporta.
+
+Il Trentino-Alto Adige è una regione sola ma due addizionali: Trento e Bolzano
+deliberano ciascuna la propria. L'elenco resta a venti voci e la nota lo dice.
+
 **Soglia dei 12 € sulle addizionali.** Un'addizionale regionale o comunale
 sotto i 12 € non si versa. L'app la conta comunque: la differenza è al massimo
 di dodici euro, e sta qui perché è un numero che qualcuno prima o poi
@@ -110,6 +135,19 @@ quale committente attribuirla, e attribuirla a caso sposterebbe la ritenuta di
 qualcun altro. Il prospetto lo scrive nella riga delle ritenute.
 
 ## Anni e parametri
+
+**Un anno nuovo eredita i parametri dichiarati, e lo dichiara.** Le aliquote
+che l'utente ha confermato passano all'anno successivo col loro valore — è un
+punto di partenza migliore della media dell'app — marcate «ereditate dal
+<anno>». Valgono, e non bloccano l'export: il numero l'ha scritto una persona,
+non l'app. Ma nessuno l'ha confermato per l'anno nuovo, e regioni e comuni le
+ritoccano ogni gennaio: chi non ci torna sopra tiene un'aliquota vecchia con
+un'etichetta che lo dice, non con una che lo nasconde.
+
+Resta una scelta discutibile in un senso solo: si potrebbe bloccare l'export
+finché ogni parametro non è riconfermato per l'anno in corso, come già fanno i
+parametri di legge provvisori. Non si fa perché costringerebbe a rispondere di
+nuovo, ogni gennaio, anche a chi non ha cambiato né comune né regione.
 
 **Censiti il 2025 e il 2026; il 2027 eredita dal 2026 in attesa della sua
 Legge di Bilancio.** Un anno senza parametri propri usa quelli dell'anno censito
@@ -213,6 +251,15 @@ indietro?» resta senza risposta e la card della copertura confronta il piano co
 sé stesso. È la stessa cosa scritta sopra sotto «Il ÷ 12 della quota mensile»:
 sta anche qui perché è un campo da aggiungere al modello, non solo una domanda
 aperta.
+
+## Regione e comune non finiscono sul prospetto
+
+La schermata Parametri registra in quale regione e in quale comune si vive: è
+quello che rende verificabile un'aliquota dichiarata — «0,8 %» senza il nome
+del comune è un numero che nessuno può ricontrollare. Il posto dove
+servirebbero davvero è il prospetto stampato, che va da un'altra persona, e lì
+non ci sono ancora: il documento riporta le aliquote, non a quale delibera si
+riferiscono.
 
 ## I pulsanti principali sono alti 40 px, non 44
 

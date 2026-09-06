@@ -23,7 +23,10 @@ import {
   type Scostamento,
 } from "@/lib/fisco/chiusura";
 import { annoDi } from "@/lib/fisco/documenti";
-import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
+import {
+  impostazioniDaPrecedente,
+  impostazioniPrecedenti,
+} from "@/lib/fisco/impostazioni";
 import { parametriDi } from "@/lib/fisco/parametri";
 import type {
   Costo,
@@ -144,10 +147,9 @@ export function calcolaAnno(
   // sull'anno censito più recente, e le impostazioni predefinite ne erediterebbero
   // l'anno. Il motore filtra i documenti su `impostazioni.anno`, quindi un anno
   // sbagliato qui significa il prospetto di un altro anno, senza alcun errore.
-  const impostazioni: Impostazioni = archivio.impostazioni.find((i) => i.anno === anno) ?? {
-    ...impostazioniPredefinite(parametri),
-    anno,
-  };
+  const impostazioni: Impostazioni =
+    archivio.impostazioni.find((i) => i.anno === anno) ??
+    impostazioniDaPrecedente(parametri, anno, impostazioniPrecedenti(anno, archivio.impostazioni));
   const entrata = riportoInIngresso ?? riportoVuoto(anno - 1);
   const chiusura = archivio.chiusure.find((c) => c.anno === anno) ?? null;
 

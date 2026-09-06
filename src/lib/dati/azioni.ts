@@ -4,11 +4,19 @@
 // dipendere dalla presentazione, e così i test girano senza toccare JSX.
 import { toast, type Raggruppamento } from "@/lib/stato/toast";
 import { dimenticaImport } from "./importazioni";
-import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
+import {
+  impostazioniDaPrecedente,
+  impostazioniPredefinite,
+  impostazioniPrecedenti,
+} from "@/lib/fisco/impostazioni";
 import { parametriDi } from "@/lib/fisco/parametri";
 import {
+  conComune,
+  conEreditaConfermata,
   conEsenzione,
+  conRegione,
   conScaglioni,
+  conValoreProposto,
   conValoreDichiarato,
   senzaDichiarazione,
   type CampoAddizionale,
@@ -429,57 +437,17 @@ export async function eliminaVocePatrimonio(voce: VocePatrimonio) {
 /**
  * Le impostazioni di un anno, create se non esistono.
  *
- * Un anno nuovo non parte da zero: eredita il profilo di quello precedente —
- * nome, gestione previdenziale, gruppo ATECO, percentuale di accantonamento —
- * e prende dai parametri solo aliquote e soglie, che cambiano ogni gennaio.
- * Il saldo iniziale invece resta a zero di proposito: lo porta la chiusura.
+ * L'eredità dall'anno precedente sta in `impostazioniDaPrecedente`, che usano
+ * in due: questa, quando si tocca qualcosa, e il calcolo, che mostra un anno
+ * mai aperto. Devono essere la stessa funzione, altrimenti la schermata fa
+ * vedere un profilo e il primo tasto premuto ne salva un altro.
  */
 export async function impostazioniDellAnno(anno: number): Promise<Impostazioni> {
   const esistenti = await archivio().impostazioni.leggi(anno);
   if (esistenti) return esistenti;
 
-  const parametri = parametriDi(anno);
-  const base = impostazioniPredefinite(parametri);
-  const precedente = await archivio().impostazioni.leggi(anno - 1);
-  if (!precedente) return { ...base, anno };
-
-  return {
-    ...base,
-    anno,
-    nome: precedente.nome,
-    dataAperturaPiva: precedente.dataAperturaPiva,
-    regime: precedente.regime,
-    gruppoAteco: precedente.gruppoAteco,
-    coefficienteRedditivita: precedente.coefficienteRedditivita,
-    gestione: precedente.gestione,
-    periodicitaIva: precedente.periodicitaIva,
-    rivalsaAttiva: precedente.rivalsaAttiva,
-    ritenutaAttiva: precedente.ritenutaAttiva,
-    bolloAddebitato: precedente.bolloAddebitato,
-    terminiPagamento: precedente.terminiPagamento,
-    percentualeAccantonamento: precedente.percentualeAccantonamento,
-    mesiFondoEmergenza: precedente.mesiFondoEmergenza,
-    giorniLavorativi: precedente.giorniLavorativi,
-    oreFatturabiliGiorno: precedente.oreFatturabiliGiorno,
-    tariffaOraria: precedente.tariffaOraria,
-    nettoDesiderato: precedente.nettoDesiderato,
-    costiFissiAnnui: precedente.costiFissiAnnui,
-    // I parametri dichiarati passano all'anno nuovo col loro valore: l'utente
-    // li ha confermati e l'app non ha modo di sapere che il comune li ha
-    // ritoccati. La schermata Parametri lo ricorda anno per anno.
-    addizionaleRegionale: precedente.addizionaleRegionale,
-    scaglioniAddizionaleRegionale: precedente.scaglioniAddizionaleRegionale ?? null,
-    esenzioneAddizionaleRegionale: precedente.esenzioneAddizionaleRegionale ?? 0,
-    addizionaleComunale: precedente.addizionaleComunale,
-    scaglioniAddizionaleComunale: precedente.scaglioniAddizionaleComunale ?? null,
-    esenzioneAddizionaleComunale: precedente.esenzioneAddizionaleComunale ?? 0,
-    contributiFissi: precedente.contributiFissi,
-    aliquotaSoggettivaCassa: precedente.aliquotaSoggettivaCassa,
-    dichiarati: [...(precedente.dichiarati ?? [])],
-    // Il saldo iniziale non si eredita: arriva dal riporto della chiusura.
-    saldoInizialeAttivita: 0,
-    saldoInizialePersonale: 0,
-  };
+  const tutte = await archivio().impostazioni.tutti();
+  return impostazioniDaPrecedente(parametriDi(anno), anno, impostazioniPrecedenti(anno, tutte));
 }
 
 /**
@@ -670,6 +638,64 @@ export async function dichiaraEsenzione(
 ): Promise<void> {
   const attuali = await impostazioniDellAnno(anno);
   await archivio().impostazioni.salva(conEsenzione(attuali, campo, valore));
+}
+
+/**
+ * Propone un valore senza dichiararlo: cambia il numero, non la responsabilità.
+ * Il campo resta «predefinito», e il prospetto resta bloccato.
+ */
+export async function proponiParametro(
+  anno: number,
+  campo: CampoUtente,
+  valore: number,
+): Promise<void> {
+  const attuali = await impostazioniDellAnno(anno);
+  await archivio().impostazioni.salva(conValoreProposto(attuali, campo, valore));
+}
+
+/**
+ * «Vale anche per quest'anno.»
+ *
+ * Il numero non cambia: cambia l'anno per cui qualcuno se ne prende la
+ * responsabilità. Senza questo gesto, togliere l'etichetta «ereditato»
+ * vorrebbe dire riscrivere a mano un valore identico a quello già a schermo.
+ */
+export async function confermaEredita(anno: number, campo: CampoUtente): Promise<void> {
+  const attuali = await impostazioniDellAnno(anno);
+  await archivio().impostazioni.salva(conEreditaConfermata(attuali, campo));
+}
+
+/**
+ * La regione, e con lei l'aliquota base da cui partire.
+ *
+ * Una scrittura sola, e non è un dettaglio: leggere le impostazioni due volte
+ * per scrivere due campi fa vincere l'ultima scrittura, e la regione appena
+ * scelta spariva sovrascritta dall'aliquota proposta un istante dopo. Le due
+ * cose sono un gesto solo anche per chi le usa — «vivo qui, parti da questo
+ * numero» — e vanno salvate come tali.
+ *
+ * L'aliquota base resta **non dichiarata**: dire dove si vive non è dire
+ * quanto si paga, e il prospetto resta bloccato finché l'aliquota vera non la
+ * scrive l'utente. Se l'aveva già dichiarata non le si tocca niente.
+ */
+export async function dichiaraRegione(
+  anno: number,
+  codice: string | null,
+  aliquotaBase?: number,
+): Promise<void> {
+  const attuali = await impostazioniDellAnno(anno);
+  const conLaRegione = conRegione(attuali, codice);
+  const prossime =
+    codice !== null && aliquotaBase !== undefined
+      ? conValoreProposto(conLaRegione, "addizionaleRegionale", aliquotaBase)
+      : conLaRegione;
+  await archivio().impostazioni.salva(prossime);
+}
+
+/** Il nome del comune a cui si riferisce l'addizionale comunale. */
+export async function dichiaraComune(anno: number, nome: string | null): Promise<void> {
+  const attuali = await impostazioniDellAnno(anno);
+  await archivio().impostazioni.salva(conComune(attuali, nome));
 }
 
 /**
