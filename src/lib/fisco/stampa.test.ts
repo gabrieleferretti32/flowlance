@@ -77,7 +77,67 @@ describe("il prospetto stampato si spiega senza l'app intorno", () => {
     expect(v["Regime fiscale"]).toBe("Ordinario");
     expect(v["Coefficiente di redditività"]).toBeUndefined();
     expect(v["Scaglioni IRPEF"]).toContain("23 %");
-    expect(v["Addizionale regionale"]).toBe(percentuale(0.0173));
+  });
+
+  /**
+   * Un'aliquota senza il suo territorio non è verificabile.
+   *
+   * «Addizionale regionale 1,73 %» su un foglio che finisce in mano al
+   * commercialista non si può ricontrollare: per sapere se è giusta bisogna
+   * sapere di quale regione è. Dove il territorio manca la riga lo dice, e
+   * l'aliquota non compare: mostrarla nuda darebbe l'aria di un dato completo
+   * a un dato che non lo è.
+   */
+  describe("le addizionali portano il loro territorio", () => {
+    const conTerritorio = documentoCon({
+      ...impostazioniOrdinario(),
+      nome: "Studio di consulenza",
+      regione: "emilia-romagna",
+      comune: "Bologna",
+    });
+
+    it("aliquota e territorio nella stessa riga", () => {
+      const v = valoriDi(conTerritorio.parametri);
+      expect(v["Addizionale regionale"]).toBe(`${percentuale(0.0173)} · Emilia-Romagna`);
+      expect(v["Addizionale comunale"]).toBe(`${percentuale(0.008)} · Bologna`);
+    });
+
+    it("senza territorio la riga dice cosa manca, e non mostra l'aliquota", () => {
+      const v = valoriDi(ordinario.parametri);
+      expect(v["Addizionale regionale"]).toBe("Regione non dichiarata");
+      expect(v["Addizionale comunale"]).toBe("Comune non dichiarato");
+      expect(v["Addizionale regionale"]).not.toContain("%");
+    });
+
+    it("un comune scritto di soli spazi non è un comune", () => {
+      const v = valoriDi(
+        documentoCon({ ...impostazioniOrdinario(), comune: "   ", regione: "veneto" }).parametri,
+      );
+      expect(v["Addizionale comunale"]).toBe("Comune non dichiarato");
+    });
+
+    it("con gli scaglioni non stampa l'aliquota unica, che non è quella applicata", () => {
+      const v = valoriDi(
+        documentoCon({
+          ...impostazioniOrdinario(),
+          regione: "lombardia",
+          comune: "Milano",
+          scaglioniAddizionaleRegionale: [
+            { limite: 15_000, aliquota: 0.0123 },
+            { limite: null, aliquota: 0.0173 },
+          ],
+        }).parametri,
+      );
+      // La scomposizione sta nella sezione delle imposte, con la sua formula.
+      expect(v["Addizionale regionale"]).toBe("a scaglioni · Lombardia");
+      expect(v["Addizionale comunale"]).toBe(`${percentuale(0.008)} · Milano`);
+    });
+
+    it("in forfettario le due righe non ci sono per niente", () => {
+      const v = valoriDi(forfettario.parametri);
+      expect(v["Addizionale regionale"]).toBeUndefined();
+      expect(v["Addizionale comunale"]).toBeUndefined();
+    });
   });
 
   it("porta la nota di prospetto gestionale, in chiaro", () => {

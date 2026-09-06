@@ -14,6 +14,7 @@
 import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
 import { esportazioneProspettoConsentita, type EsitoEsportazione } from "./chiusura";
 import { prospettoDettagliato, type SezioneProspetto } from "./spiegazioni";
+import { nomeRegione } from "./regioni";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 
@@ -101,8 +102,8 @@ export function documentoProspetto(
     );
   } else {
     parametri.push(
-      { etichetta: "Addizionale regionale", valore: percentuale(imp.addizionaleRegionale) },
-      { etichetta: "Addizionale comunale", valore: percentuale(imp.addizionaleComunale) },
+      voceAddizionale("regionale", imp),
+      voceAddizionale("comunale", imp),
       {
         etichetta: "Scaglioni IRPEF",
         valore: imp.scaglioniIrpef
@@ -171,6 +172,41 @@ export function documentoProspetto(
  */
 export function stampaConsentita(par: ParametriAnno, imp?: Impostazioni): EsitoEsportazione {
   return esportazioneProspettoConsentita(par, imp);
+}
+
+/**
+ * Un'addizionale col suo territorio: «1,62 % · Emilia-Romagna».
+ *
+ * Un'aliquota da sola, su un foglio che finisce in mano al commercialista, non
+ * è verificabile: per sapere se l'1,62 % è giusto bisogna sapere di quale
+ * regione è. Era l'unica riga dei parametri che arrivava senza il suo contesto.
+ *
+ * Dove il territorio manca la riga lo dice, e l'aliquota non compare: mostrarla
+ * nuda darebbe l'aria di un dato completo a un dato che non lo è. Dove ci sono
+ * gli scaglioni non compare comunque, perché quella singola aliquota non è
+ * quella applicata — la scomposizione sta più avanti, nella sezione delle
+ * imposte, con la sua formula.
+ */
+function voceAddizionale(
+  quale: "regionale" | "comunale",
+  imp: Impostazioni,
+): VoceIntestazione {
+  const regionale = quale === "regionale";
+  const etichetta = regionale ? "Addizionale regionale" : "Addizionale comunale";
+  const territorio = regionale ? nomeRegione(imp.regione) : imp.comune?.trim() || null;
+  if (!territorio) {
+    return {
+      etichetta,
+      valore: regionale ? "Regione non dichiarata" : "Comune non dichiarato",
+    };
+  }
+  const scaglioni = regionale
+    ? imp.scaglioniAddizionaleRegionale
+    : imp.scaglioniAddizionaleComunale;
+  const aliquota = scaglioni?.length
+    ? "a scaglioni"
+    : percentuale(regionale ? imp.addizionaleRegionale : imp.addizionaleComunale);
+  return { etichetta, valore: `${aliquota} · ${territorio}` };
 }
 
 /** `prospetto-2026-studio-di-consulenza.pdf`, per chi lo salva e lo allega. */
