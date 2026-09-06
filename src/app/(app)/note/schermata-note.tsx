@@ -293,6 +293,19 @@ export function SchermataNote() {
                       },
                     ]}
                   />
+                  {/*
+                    Un residuo senza fattura è un problema che la scheda sa
+                    mostrare e non sa risolvere: riconciliare è lavoro, non
+                    consultazione, e l'aggancio sta nella tabella, da 768 in su.
+                    Dire dove si rimedia costa una riga; non dirlo lascia in mano
+                    un numero rosso e nessuna via d'uscita.
+                  */}
+                  {n.residuo > 0 && (
+                    <p className="mt-2 text-micro text-inchiostro-tenue">
+                      La riconciliazione — decidere su quali fatture cade lo storno — si fa da
+                      computer.
+                    </p>
+                  )}
                   {!n.dataRimborso ? (
                     <Button
                       scrive

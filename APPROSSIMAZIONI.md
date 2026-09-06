@@ -189,6 +189,22 @@ decidere *cosa* pagina — una finestra scorrevole, un «mostra altri 20», o il
 filtro per mese già presente in cima usato come navigazione vera. Con un
 archivio di tre anni la domanda si pone da sola; con uno di un anno, no.
 
+## La riconciliazione delle note si fa solo da computer
+
+Agganciare una nota di credito alle fatture su cui cade lo storno è un pannello
+che vive nella tabella, cioè da 768 px in su. Sulla scheda del telefono
+l'azione non c'è, ed è voluto: riconciliare è lavoro, non consultazione, e la
+distribuzione di uno storno su più fatture chiede di vederle tutte insieme.
+
+Quello che la scheda deve fare è dirlo. Mostra il residuo — «400,00 € senza
+fattura» — e sotto la riga che dice dove si rimedia. Un problema senza via
+d'uscita è peggio di un problema rimandato.
+
+Se un giorno la riconciliazione dovesse funzionare anche sul telefono, non
+basta scoprire il pulsante: servirebbe una forma diversa dal pannello a lista,
+perché il gesto è «distribuisci questo importo fra queste fatture» e su 375 px
+non ci stanno né le fatture né gli importi da confrontare.
+
 ## Il conto delle tasse non si può marcare
 
 Il Patrimonio ha voci libere e nessun modo di dire che *quella* voce è il conto
