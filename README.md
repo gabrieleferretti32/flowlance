@@ -161,7 +161,9 @@ concorrono a formare il reddito complessivo e possono spostare lo scaglione
 IRPEF. I numeri definitivi restano quelli del commercialista.
 
 L'elenco completo di quello che il motore non calcola o semplifica sta in
-[`APPROSSIMAZIONI.md`](APPROSSIMAZIONI.md), con la ragione di ogni scelta.
+[`APPROSSIMAZIONI.md`](APPROSSIMAZIONI.md), con la ragione di ogni scelta. In
+fondo allo stesso file c'è la parte sull'interfaccia: quello che si sa essere
+stretto sul piccolo e che si è deciso di lasciare così.
 
 ## Font
 

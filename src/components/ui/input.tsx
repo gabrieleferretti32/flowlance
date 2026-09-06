@@ -12,7 +12,7 @@ export const Input = React.forwardRef<
     ref={ref}
     data-slot="input"
     className={cn(
-      "h-10 w-full rounded-campo border border-bordo bg-superficie px-3 text-corpo text-inchiostro",
+      "h-10 w-full rounded-campo border border-bordo bg-superficie px-3 text-campo text-inchiostro",
       "placeholder:text-inchiostro-tenue/70",
       "transition-[border-color,box-shadow] duration-150 ease-quieto",
       "hover:border-[#D5DBE7]",

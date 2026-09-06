@@ -58,6 +58,22 @@
   --text-etichetta--line-height: 1.35;
   --text-micro: 0.6875rem;        /* 11px — micro-label */
   --text-micro--line-height: 1.3;
+  /*
+    16px, e non i 15 del testo, per un motivo solo: sotto i 16 Safari su iOS
+    ingrandisce la pagina quando il campo prende il fuoco, e non la rimpicciolisce
+    più. Vale per ogni cosa in cui si scrive — input, select, textarea — e non
+    per il testo intorno, che resta a 15.
+  */
+  --text-campo: 1rem;             /* 16px — tutto ciò in cui si scrive */
+  --text-campo--line-height: 1.4;
+
+  /* — Soglie ——————————————————————————————————— */
+  /*
+    I quattro segmenti del periodo misurano 364 px e non si comprimono: sotto
+    questa larghezza mandano la testata a capo, e la testata è appiccicosa.
+    Fin qui la stessa scelta sta in una tendina.
+  */
+  --breakpoint-largo: 1380px;
 
   /* — Forma: raggi differenziati per gerarchia ——————————— */
   --radius-card: 24px;      /* card contenitore */
@@ -87,6 +103,39 @@
   font-feature-settings: "tnum" 1;
 }
 
+/*
+  Barra di scorrimento sempre visibile, non a comparsa.
+  Su una tabella più larga della finestra la barra a scomparsa di macOS non dice
+  a nessuno che c'è dell'altro a destra: si scopre per caso. Qui la barra si
+  vede ferma, e occupa il suo spazio invece di stare sopra l'ultima riga.
+  Su iOS non esiste da stilare: lì la parte che si vede è il velo in fondo al
+  contenitore, disegnato dal componente.
+*/
+@utility scorrevole {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-inchiostro-tenue) transparent;
+
+  &::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  &::-webkit-scrollbar-track {
+    background: var(--color-superficie-alt);
+    border-radius: 999px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: #c3cad9;
+    border: 2px solid var(--color-superficie-alt);
+    border-radius: 999px;
+  }
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--color-inchiostro-tenue);
+  }
+  &::-webkit-scrollbar-corner {
+    background: var(--color-superficie-alt);
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;
@@ -114,6 +163,18 @@
   td,
   input[type="number"] {
     font-variant-numeric: tabular-nums lining-nums;
+  }
+
+  /*
+    Rete di sicurezza per lo zoom al fuoco su iOS: un campo che nasce senza
+    classe di dimensione parte comunque da 16 px. Una classe esplicita vince su
+    questa regola, quindi il posto giusto dove scriverlo resta il componente —
+    questa è la rete, non la regola.
+  */
+  input,
+  select,
+  textarea {
+    font-size: var(--text-campo);
   }
 
   ::selection {

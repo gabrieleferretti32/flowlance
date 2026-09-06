@@ -146,7 +146,7 @@ export function SchermataNote() {
           />
         ) : (
           <>
-            <ContenitoreTabella data-scroll-ok className="hidden md:block">
+            <ContenitoreTabella data-scroll-ok classeGuscio="hidden md:block">
               <Tabella>
                 <TabellaTesta>
                   <tr>

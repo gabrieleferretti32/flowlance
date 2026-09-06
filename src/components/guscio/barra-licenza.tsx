@@ -29,10 +29,10 @@ export function BarraLicenza() {
     return (
       <div
         role="status"
-        className="flex items-center gap-x-3 border-b border-negativo/25 bg-negativo/10 px-4 py-2 sm:flex-wrap sm:gap-y-1 sm:px-5 lg:px-8 print:hidden"
+        className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-negativo/25 bg-negativo/10 px-4 py-2 sm:px-5 lg:px-8 print:hidden"
       >
         <CircleAlert className="size-4 shrink-0 text-negativo" aria-hidden />
-        <p className="min-w-0 truncate text-etichetta sm:whitespace-normal">
+        <p className="min-w-0 text-etichetta">
           <span className="font-medium">{descrizione(stato)}.</span>{" "}
           <span className="text-inchiostro-tenue">
             L&apos;app è in sola lettura: si consulta tutto, non si inserisce niente.
@@ -50,9 +50,13 @@ export function BarraLicenza() {
   }
 
   return (
-    <div className="flex items-center gap-x-3 border-b border-bordo bg-superficie-alt px-4 py-1.5 sm:flex-wrap sm:gap-y-1 sm:px-5 lg:px-8 print:hidden">
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-bordo bg-superficie-alt px-4 py-1.5 sm:px-5 lg:px-8 print:hidden">
       <Clock className="size-3.5 shrink-0 text-inchiostro-tenue" aria-hidden />
-      <p className="min-w-0 truncate text-micro text-inchiostro-tenue sm:whitespace-normal">
+      {/* Va a capo a ogni larghezza. Con `truncate` sotto i 640 la frase si
+          fermava a «Periodo di prova fino al 19 settembre 2026: sca…»: spariva
+          proprio la parte che dice quanti giorni mancano, cioè l'unica ragione
+          per cui la riga esiste. */}
+      <p className="min-w-0 text-micro text-inchiostro-tenue">
         {descrizione(stato)}: {giorniInParole(giorni as number)}.
       </p>
       {/* Il testo resta minuscolo, l'area da premere no: un link alto quattordici

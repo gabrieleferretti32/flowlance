@@ -109,7 +109,7 @@ export function SchermataLicenza() {
                 placeholder="FLW1.…"
                 aria-invalid={errore ? true : undefined}
                 className={cn(
-                  "cifre w-full resize-y break-all rounded-campo border bg-superficie px-3 py-2 text-etichetta",
+                  "cifre w-full resize-y break-all rounded-campo border bg-superficie px-3 py-2 text-campo",
                   "transition-[border-color,box-shadow] duration-150",
                   "focus:outline-none focus:ring-2",
                   errore

@@ -279,7 +279,8 @@ export function SchermataFatture() {
             {/* Da tablet in su: la tabella. */}
             <ContenitoreTabella
               data-scroll-ok
-              className="hidden max-h-[calc(100dvh-21rem)] md:block"
+              classeGuscio="hidden md:block"
+              className="max-h-[calc(100dvh-21rem)]"
             >
               <Tabella>
                 <TabellaTesta>

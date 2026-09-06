@@ -205,7 +205,7 @@ export function SchermataConfronto() {
           <CardCorpo className="pb-2">
             <CardTitolo>Confronto a parità di ricavi</CardTitolo>
           </CardCorpo>
-          <ContenitoreTabella className="px-2 pb-2">
+          <ContenitoreTabella data-scroll-ok className="px-2 pb-2">
             <Tabella>
               <TabellaTesta>
                 <tr>

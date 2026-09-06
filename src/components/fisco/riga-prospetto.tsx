@@ -53,7 +53,11 @@ function Spiegazione({ riga, valore }: { riga: RigaProspetto; valore: string }) 
         <button
           type="button"
           aria-label={`Come si calcola: ${riga.etichetta}`}
-          className="-my-2 rounded-full p-2 text-inchiostro-tenue/70 transition-colors hover:bg-superficie-alt hover:text-accento focus-visible:text-accento sm:-my-0.5 sm:p-0.5"
+          /* 44 px sul telefono, dove si preme col pollice: da 30 si mancava e
+             si finiva sulla riga. I margini negativi tengono la riga alta come
+             prima — il bersaglio cresce, il prospetto no. Da 640 in su torna il
+             segno piccolo, che con un mouse basta. */
+          className="-my-2.5 flex size-11 shrink-0 items-center justify-center rounded-full text-inchiostro-tenue/70 transition-colors hover:bg-superficie-alt hover:text-accento focus-visible:text-accento sm:-my-0.5 sm:size-auto sm:p-0.5"
         >
           <HelpCircle className="size-3.5" aria-hidden />
         </button>

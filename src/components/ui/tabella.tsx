@@ -1,3 +1,5 @@
+"use client";
+
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
@@ -10,12 +12,63 @@ import { cn } from "@/lib/utils";
  * Il riquadro che scorre. Contiene la tabella su entrambi gli assi, così
  * l'intestazione e la riga dei totali possono agganciarsi ai suoi bordi e il
  * corpo della pagina non scorre mai in orizzontale.
+ *
+ * Lo scorrimento orizzontale è dichiarato, non nascosto. Su un tablet la
+ * tabella delle fatture chiede 1328 px e ne ha 728: senza un segno, che ci sia
+ * dell'altro a destra si scopre per caso. Due segni, perché nessuno dei due
+ * basta da solo — la barra di scorrimento sempre visibile, che su iOS non
+ * esiste, e un velo sul bordo destro che sparisce quando si arriva in fondo.
+ *
+ * `classeGuscio` porta le classi che valgono per il riquadro intero, non per
+ * la zona che scorre: sono le tabelle che sotto i 768 lasciano il posto alle
+ * schede (`hidden md:block`). Senza, il velo resterebbe acceso sul telefono
+ * sopra una tabella che lì non c'è.
  */
 export function ContenitoreTabella({
   className,
+  classeGuscio,
+  children,
   ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("w-full overflow-auto", className)} {...props} />;
+}: React.HTMLAttributes<HTMLDivElement> & { classeGuscio?: string }) {
+  const rif = React.useRef<HTMLDivElement>(null);
+  const [restaADestra, setRestaADestra] = React.useState(false);
+
+  React.useEffect(() => {
+    const el = rif.current;
+    if (!el) return;
+    const misura = () => {
+      // Un pixel di tolleranza: gli arrotondamenti dello zoom del browser
+      // lasciano scarti sotto l'unità, e un velo che non si spegne mai è
+      // peggio di nessun velo.
+      setRestaADestra(el.scrollWidth - el.clientWidth - el.scrollLeft > 1);
+    };
+    misura();
+    el.addEventListener("scroll", misura, { passive: true });
+    const osservatore = new ResizeObserver(misura);
+    osservatore.observe(el);
+    for (const figlio of el.children) osservatore.observe(figlio);
+    return () => {
+      el.removeEventListener("scroll", misura);
+      osservatore.disconnect();
+    };
+  }, []);
+
+  return (
+    <div className={cn("relative", classeGuscio)}>
+      <div ref={rif} className={cn("scorrevole w-full overflow-auto", className)} {...props}>
+        {children}
+      </div>
+      {restaADestra && (
+        <div
+          aria-hidden
+          /* `z-[5]`: sopra le celle normali, sotto la colonna delle azioni e
+             l'intestazione, che sono agganciate ai bordi con `z-10`. Un velo
+             sopra i pulsanti li farebbe sembrare spenti. */
+          className="pointer-events-none absolute inset-y-0 right-0 z-[5] w-8 bg-gradient-to-l from-inchiostro/10 to-transparent"
+        />
+      )}
+    </div>
+  );
 }
 
 export function Tabella({ className, ...props }: React.HTMLAttributes<HTMLTableElement>) {

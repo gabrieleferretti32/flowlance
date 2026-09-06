@@ -491,7 +491,12 @@ function RigaScadenza({ scadenza, oggi }: { scadenza: Adempimento; oggi: string 
           aria-hidden
         />
         <span className="min-w-0">
-          <span className="block truncate text-corpo">{scadenza.titolo}</span>
+          {/*
+            A 375 px il titolo perdeva più della metà — «Secondo acconto di imposte
+            e contr…» — sulla schermata che si guarda per prima. Va a capo: la riga
+            cresce di una riga di testo, la scadenza conserva il nome.
+          */}
+          <span className="block text-corpo">{scadenza.titolo}</span>
           <span className="block text-micro text-inchiostro-tenue">
             {fmtData(scadenza.data)} · {giorni === 0 ? "oggi" : giorni === 1 ? "domani" : `fra ${giorni} giorni`}
             {scadenza.dataDiCalendario &&

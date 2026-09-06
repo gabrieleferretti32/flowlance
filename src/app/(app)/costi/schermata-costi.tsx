@@ -248,7 +248,11 @@ export function SchermataCosti() {
           />
         ) : (
           <>
-            <ContenitoreTabella data-scroll-ok className="hidden max-h-[calc(100dvh-21rem)] md:block">
+            <ContenitoreTabella
+              data-scroll-ok
+              classeGuscio="hidden md:block"
+              className="max-h-[calc(100dvh-21rem)]"
+            >
               <Tabella>
                 <TabellaTesta>
                   <tr>

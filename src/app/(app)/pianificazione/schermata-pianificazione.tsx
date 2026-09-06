@@ -183,7 +183,9 @@ export function SchermataPianificazione() {
               <button
                 type="button"
                 onClick={() => aggiorna("costi")(registratiTutti.totale)}
-                className="mt-3 text-etichetta font-medium text-accento underline underline-offset-2"
+                /* Alto 18 px era il bersaglio più piccolo dell'app: sul telefono
+                   diventa una riga da premere, con un mouse resta il link di prima. */
+                className="mt-3 flex min-h-11 items-center text-left text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0"
               >
                 Usa i {euro(registratiTutti.totale)} di costi che hai già registrato nel {anno}
               </button>
@@ -344,7 +346,9 @@ export function SchermataPianificazione() {
                 <button
                   type="button"
                   onClick={() => aggiorna("costiFissi")(registratiFissi.totale)}
-                  className="mt-3 text-etichetta font-medium text-accento underline underline-offset-2"
+                  /* Alto 18 px era il bersaglio più piccolo dell'app: sul telefono
+                   diventa una riga da premere, con un mouse resta il link di prima. */
+                className="mt-3 flex min-h-11 items-center text-left text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0"
                 >
                   Usa i {euro(registratiFissi.totale)} di costi fissi registrati nel {anno}
                 </button>

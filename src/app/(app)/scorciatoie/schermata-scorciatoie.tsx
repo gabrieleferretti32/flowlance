@@ -29,7 +29,30 @@ export function SchermataScorciatoie() {
         </Button>
       }
     >
-      <div className="space-y-4">
+      {/*
+        Sotto i 768 questa schermata elenca ⌘K, N, ? e / a chi non ha una
+        tastiera: si impagina benissimo e non serve a niente. Al suo posto una
+        riga che dice perché, invece di un elenco di gesti impossibili. La
+        schermata resta raggiungibile — dalla palette e dall'indirizzo — e
+        ricompare intera appena c'è lo schermo per usarla.
+      */}
+      <Card className="md:hidden">
+        <CardIntestazione>
+          <CardTitolo>Questa schermata va usata da computer</CardTitolo>
+          <CardSottotitolo>
+            Sono scorciatoie da tastiera: qui non c&apos;è una tastiera a cui riferirsi
+          </CardSottotitolo>
+        </CardIntestazione>
+        <CardCorpo className="pt-2">
+          <p className="max-w-prose text-corpo text-inchiostro-tenue">
+            Niente di quello che sta scritto qui è indispensabile: ogni scorciatoia fa una cosa
+            che si fa anche toccando. Sul telefono la stessa ricerca sta nella lente in alto a
+            sinistra, che apre la palette senza premere nulla.
+          </p>
+        </CardCorpo>
+      </Card>
+
+      <div className="hidden space-y-4 md:block">
         <Card>
           <CardIntestazione>
             <CardTitolo>La palette</CardTitolo>

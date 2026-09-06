@@ -154,7 +154,7 @@ export function SchermataIva() {
             </CardCorpo>
           )}
 
-          <ContenitoreTabella data-scroll-ok className="hidden px-2 pb-2 md:block">
+          <ContenitoreTabella data-scroll-ok classeGuscio="hidden md:block" className="px-2 pb-2">
             <Tabella>
               <TabellaTesta>
                 <tr>

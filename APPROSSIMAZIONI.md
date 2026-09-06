@@ -1,8 +1,11 @@
-# Approssimazioni note del motore
+# Approssimazioni note
 
 Quello che Flowlance **non** calcola, o calcola in modo semplificato. È l'elenco
 da leggere prima di vendere il prodotto: ogni voce è una differenza possibile
 fra il numero che l'app mostra e quello che scriverà il commercialista.
+
+In fondo, dopo il motore, c'è la stessa cosa per l'interfaccia: quello che si
+sa essere stretto e che si è deciso di lasciare così.
 
 Nessuna di queste è un difetto da correggere di corsa. Sono scelte, e la ragione
 di ognuna sta scritta accanto. Quando una diventa un problema per un utente
@@ -166,3 +169,51 @@ Per separarli servirebbe sapere se un F24 è un saldo o un acconto: il campo
 `natura` sul versamento, rimandato quando è stato introdotto `annoImposta`. In
 alternativa una regola sulla data — versato per l'anno N entro il 30 giugno di
 N+1 è acconto, dopo è saldo — che funziona ma resta una deduzione.
+
+---
+
+# Interfaccia: cose viste e rimandate
+
+Non sono difetti scoperti dopo. Sono misurati, e la ragione per cui restano
+sta accanto.
+
+## Le pagine lunghe non si paginano
+
+Su un telefono da 375 px, con l'archivio dimostrativo, **Costi è alta 14.509
+px**: sessantanove schede una sotto l'altra, senza paginazione e senza «carica
+altre». Fatture è 5.541, Cashflow 4.644. Si scorre e si legge tutto — niente è
+tagliato — ma cercare il costo di marzo vuol dire quindici schermate di pollice.
+
+Non è una correzione di impaginazione: è una funzione che non c'è. Servirebbe
+decidere *cosa* pagina — una finestra scorrevole, un «mostra altri 20», o il
+filtro per mese già presente in cima usato come navigazione vera. Con un
+archivio di tre anni la domanda si pone da sola; con uno di un anno, no.
+
+## Il conto delle tasse non si può marcare
+
+Il Patrimonio ha voci libere e nessun modo di dire che *quella* voce è il conto
+dove finiscono i soldi delle imposte. Senza, la domanda «sono in pari o sono
+indietro?» resta senza risposta e la card della copertura confronta il piano con
+sé stesso. È la stessa cosa scritta sopra sotto «Il ÷ 12 della quota mensile»:
+sta anche qui perché è un campo da aggiungere al modello, non solo una domanda
+aperta.
+
+## I pulsanti principali sono alti 40 px, non 44
+
+Sotto la soglia consigliata per il tocco, sopra la soglia in cui si sbaglia:
+Nuova fattura, Nuovo costo, Stampa il prospetto, Esporta, Importa, Attiva,
+Conferma e continua e i filtri di ogni elenco misurano 40 px di altezza sul
+telefono. Portarli tutti a 44 vuol dire toccare la taglia `md` del componente
+`Button`, cioè ogni schermata dell'app e ogni allineamento verticale che ci sta
+sopra: un lavoro sproporzionato rispetto al guadagno.
+
+Sono stati portati a 44 solo i due casi in cui sbagliare costa davvero: il ☰,
+che sotto i 1024 è l'unica navigazione che esiste, e i quattro «Come si calcola»
+del prospetto, che erano 30×30 su una schermata che si consulta.
+
+Restano più piccoli anche, e non sono stati toccati: i selettori a segmenti di
+Configurazione e Import da CSV (34 px), «Ricarica il dataset dimostrativo» e
+«Svuota» in Dati e backup (32 px), e il segmento stretto del semaforo fiscale
+sul cruscotto (29 px di larghezza — è largo quanto la quota che rappresenta, e
+allargarlo vorrebbe dire mentire sulla proporzione; da questa fase risponde
+anche al tocco, non solo al passaggio del mouse).

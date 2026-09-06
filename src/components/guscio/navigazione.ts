@@ -51,6 +51,13 @@ const ICONE: Record<string, LucideIcon> = {
   "/scorciatoie": Keyboard,
 };
 
+/**
+ * Rotte che senza una tastiera non hanno senso. Restano raggiungibili — la
+ * palette le trova ancora, e l'indirizzo funziona — ma sotto i 768 non si
+ * offrono nel menu: elencare ⌘K, N e ? a chi ha solo un vetro è rumore.
+ */
+export const SOLO_CON_TASTIERA = new Set(["/scorciatoie"]);
+
 /** L'ordine dei gruppi nel menu, che non è quello alfabetico. */
 const ORDINE = ["Ogni giorno", "Fisco", "Finanza", "Impostazioni"];
 

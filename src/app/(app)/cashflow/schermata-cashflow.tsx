@@ -136,7 +136,11 @@ export function SchermataCashflow() {
             senza scorrere: un anno di cassa in cui l'ultimo trimestre resta
             sotto il bordo è un anno che non si legge.
           */}
-          <ContenitoreTabella data-scroll-ok className="hidden max-h-[48rem] px-2 pb-2 md:block">
+          <ContenitoreTabella
+            data-scroll-ok
+            classeGuscio="hidden md:block"
+            className="max-h-[48rem] px-2 pb-2"
+          >
             <Tabella>
               <TabellaTesta>
                 <tr>

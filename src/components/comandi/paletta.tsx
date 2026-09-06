@@ -182,7 +182,7 @@ export function Paletta() {
               aria-label="Cerca un comando"
               aria-controls="risultati-comandi"
               aria-activedescendant={attivo ? idVoce(attivo.comando.id) : undefined}
-              className="w-full bg-transparent py-3.5 text-corpo outline-none placeholder:text-inchiostro-tenue"
+              className="w-full bg-transparent py-3.5 text-campo outline-none placeholder:text-inchiostro-tenue"
             />
           </div>
 
@@ -222,7 +222,10 @@ export function Paletta() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-bordo bg-superficie-alt px-4 py-2 text-micro text-inchiostro-tenue">
+          {/* Tutta la riga parla di tasti — ↑ ↓, Invio, Esc — e rimanda alla
+              schermata delle scorciatoie. Sotto i 768 non c'è una tastiera a cui
+              riferirsi: la riga sparisce invece di spiegare gesti inesistenti. */}
+          <div className="hidden flex-wrap items-center gap-x-4 gap-y-1 border-t border-bordo bg-superficie-alt px-4 py-2 text-micro text-inchiostro-tenue md:flex">
             <span>
               <Tasto>↑</Tasto> <Tasto>↓</Tasto> scorri
             </span>

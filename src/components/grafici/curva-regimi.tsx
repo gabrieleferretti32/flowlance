@@ -64,7 +64,11 @@ export function CurvaRegimi({
         <p className="max-w-64 text-right text-etichetta text-inchiostro-tenue">
           A {euroTondo(punto.ricavi)} di ricavi la differenza è {euro(Math.abs(differenza))} a
           favore del {differenza >= 0 ? "forfettario" : "ordinario"}.
-          {puntoAttivo === null && " Passa sulla curva per esplorare altri fatturati."}
+          {/* L'invito sparisce sotto i 768: descrive un gesto che su un vetro non
+              esiste, e il numero che promette è già scritto qui sopra. */}
+          {puntoAttivo === null && (
+            <span className="hidden md:inline"> Passa sulla curva per esplorare altri fatturati.</span>
+          )}
         </p>
       </div>
 
@@ -81,13 +85,21 @@ export function CurvaRegimi({
             onMouseLeave={() => setAttivo(null)}
           >
             <CartesianGrid vertical={false} stroke="#E4E8F0" />
+            {/*
+              Le tacche si diradano da sole. Con un intervallo fisso a 375 px ne
+              uscivano dieci larghe 46 px ogni 27: si sovrapponevano tutte, e
+              l'asse non si leggeva più. `minTickGap` dice la distanza minima fra
+              due etichette e lascia decidere allo spazio quante ne stanno: sul
+              telefono restano quattro o cinque, sul desktop tornano tutte.
+            */}
             <XAxis
               dataKey="ricavi"
               tickLine={false}
               axisLine={false}
               tick={{ fill: "#6B7392", fontSize: 11 }}
               tickFormatter={(v: number) => euroTondo(v)}
-              interval={3}
+              interval="preserveStartEnd"
+              minTickGap={52}
               dy={4}
             />
             <YAxis
@@ -104,11 +116,19 @@ export function CurvaRegimi({
                 x={arrotondaAlPunto(ricaviAttuali, punti)}
                 stroke="#6B7392"
                 strokeDasharray="4 4"
+                /*
+                  Una riga più in basso della soglia rossa. Le due etichette
+                  partono da linee diverse e crescono l'una verso l'altra: su uno
+                  schermo stretto si incontravano a metà — «dove seilimite
+                  85.000 €». Sfalsate in verticale non possono più toccarsi,
+                  qualunque sia la distanza fra le due linee.
+                */
                 label={{
                   value: "dove sei",
                   position: "insideTopLeft",
                   fill: "#6B7392",
                   fontSize: 11,
+                  dy: 15,
                 }}
               />
             )}

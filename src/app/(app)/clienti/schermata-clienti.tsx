@@ -170,7 +170,8 @@ export function SchermataClienti() {
               {/* Da tablet in su: la tabella, dieci colonne che si confrontano. */}
               <ContenitoreTabella
                 data-scroll-ok
-                className="hidden max-h-[calc(100dvh-22rem)] px-2 pb-2 md:block"
+                classeGuscio="hidden md:block"
+                className="max-h-[calc(100dvh-22rem)] px-2 pb-2"
               >
                 <Tabella>
                   <TabellaTesta>

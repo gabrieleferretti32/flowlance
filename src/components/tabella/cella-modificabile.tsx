@@ -123,7 +123,7 @@ export function CellaModificabile({
         onChange={(e) => void conSpunta(e.target.value)}
         className={cn(
           "w-full cursor-pointer rounded-campo border border-transparent bg-transparent px-2 py-2 sm:py-1",
-          "text-corpo text-inchiostro",
+          "text-campo text-inchiostro",
           "transition-colors duration-150 hover:border-bordo hover:bg-superficie",
           "focus:border-accento focus:outline-none focus:ring-2 focus:ring-accento/20",
           "disabled:cursor-not-allowed disabled:text-inchiostro-tenue",

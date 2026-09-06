@@ -59,14 +59,17 @@ export function SelettorePeriodo({
       {/*
         I quattro segmenti del tipo di periodo misurano 364 px e non vanno a
         capo: su un iPhone SE da 320 px sfondavano la pagina di 44 px, su ogni
-        schermata. Sul telefono la stessa scelta sta in una tendina; da tablet
-        in su tornano i segmenti, che si leggono tutti in un colpo d'occhio.
+        schermata. La stessa scelta sta in una tendina finché non c'è spazio per
+        i segmenti sulla riga del titolo — cioè fino a 1380 px. Sopra tornano, e
+        si leggono tutti in un colpo d'occhio. Fra i 768 e i 1380 la tendina
+        costa un tocco in più e fa risparmiare una riga di testata su ogni
+        schermata: la testata è appiccicosa, la tendina no.
       */}
       <Select
         value={periodo.tipo}
         onValueChange={(v) => cambiaTipo(v as TipoPeriodo)}
       >
-        <SelectTrigger className="h-9 w-28 sm:hidden" aria-label="Tipo di periodo">
+        <SelectTrigger className="h-9 w-28 largo:hidden" aria-label="Tipo di periodo">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -78,7 +81,7 @@ export function SelettorePeriodo({
         </SelectContent>
       </Select>
       <Segmenti
-        className="hidden sm:inline-flex"
+        className="hidden largo:inline-flex"
         etichettaGruppo="Tipo di periodo"
         valore={periodo.tipo}
         onChange={cambiaTipo}

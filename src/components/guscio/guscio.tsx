@@ -18,7 +18,7 @@ import { SegnoFlowlance } from "./marchio";
 import { RegimeAttuale } from "./regime-attuale";
 import { Paletta, Tasto } from "@/components/comandi/paletta";
 import { ScorciatoieGlobali } from "@/components/comandi/tasti";
-import { GRUPPI, type Voce } from "./navigazione";
+import { GRUPPI, SOLO_CON_TASTIERA, type Voce } from "./navigazione";
 import { SelettorePeriodo } from "./selettore-periodo";
 import type { StatoDellAnno } from "./stato-anno";
 import type { Periodo } from "@/lib/periodo";
@@ -82,22 +82,33 @@ export function Guscio({
         <BarraLicenza />
         <header className="sticky top-0 z-30 border-b border-bordo bg-fondo/85 backdrop-blur-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 sm:gap-3 sm:px-5 sm:py-3 lg:px-8">
-            {/*
-              Il titolo ha un minimo dichiarato: senza, i controlli si
-              stringevano fino a starci per un pelo e il pelo lo pagava lui —
-              «Imposte e contributi» diventava «Imp…» mentre accanto c'era
-              spazio vuoto. Sotto quel minimo i controlli vanno a capo, che è
-              quello che deve succedere.
-            */}
-            <div className="flex min-w-0 flex-1 items-center gap-2 sm:min-w-72">
+            <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:min-w-72 sm:flex-nowrap sm:gap-2">
               <MenuMobile />
               <BottoneCerca />
-              <div className="min-w-0">
-                <h1 className="truncate font-display text-kpi-sm font-semibold">{titolo}</h1>
-                {/* La descrizione sul telefono si riduceva a «Registro…», che non
-                    dice niente e ruba al titolo lo spazio per essere letto. */}
+              {/*
+                Sotto i 640 il titolo aveva 118 px e si tagliava: «Configuraz…»,
+                «Imposte e …», «Dati e bac…». Il minimo dichiarato vale ora anche
+                lì — 144 px, quanto la parola più lunga del prodotto
+                («Configurazione») — e la riga può andare a capo: quando titolo e
+                riepilogo del periodo non ci stanno insieme, è il riepilogo a
+                scendere di una riga. Il titolo non si accorcia più.
+              */}
+              <div className="min-w-36 flex-1 sm:min-w-0">
+                <h1 className="font-display text-kpi-sm font-semibold">{titolo}</h1>
+                {/*
+                  La descrizione compare solo dove ci sta intera, e lì va a capo.
+
+                  Con `truncate` si tagliava a ogni larghezza da 640 in su, non
+                  solo sul piccolo: a 768 «Tutto vive nel tuo browser: non esiste
+                  un server a cui questi dati possano arrivare» aveva 109 px su
+                  499, e a 1440 ne aveva 302. Mezza frase in una testata non
+                  informa nessuno — dice solo che qualcosa è stato tolto. Sopra i
+                  1380 la testata si distende e la frase ci sta tutta; sotto vale
+                  la stessa scelta già presa per il telefono, dove la descrizione
+                  non c'è: il titolo viene prima.
+                */}
                 {descrizione && (
-                  <p className="hidden truncate text-etichetta text-inchiostro-tenue sm:block">
+                  <p className="hidden text-etichetta text-inchiostro-tenue largo:block">
                     {descrizione}
                   </p>
                 )}
@@ -114,10 +125,18 @@ export function Guscio({
                 onChange={impostaPeriodo}
                 statoAnno={statoAnno}
                 regime={regime}
-                className="ml-auto shrink-0 sm:hidden"
+                className="ml-auto shrink-0 largo:hidden"
               />
             </div>
-            <div className="hidden w-full flex-wrap items-center gap-2 sm:flex lg:w-auto">
+            {/*
+              I controlli distesi — segmenti, frecce dell'anno, stato, regime —
+              chiedono 695 px e non si comprimono: sotto i 1380 prendevano una
+              riga tutta loro, e su Dati e backup la testata appiccicosa
+              arrivava a 168 px, un sesto dello schermo di un tablet, ferma su
+              ogni schermata. Fin lì vale il riepilogo qui sopra, che dice le
+              stesse quattro cose in 89 px e si apre per cambiarle.
+            */}
+            <div className="hidden w-full flex-wrap items-center gap-2 largo:flex largo:w-auto">
               <SelettorePeriodo
                 periodo={periodo}
                 onChange={impostaPeriodo}
@@ -218,7 +237,10 @@ function ElencoSezioni({ onNaviga }: { onNaviga?: () => void }) {
             <p className="px-2 pb-1.5 text-micro text-inchiostro-tenue">{gruppo.titolo}</p>
             <ul className="flex flex-col gap-0.5">
               {voci.map((voce) => (
-                <li key={voce.href}>
+                <li
+                  key={voce.href}
+                  className={SOLO_CON_TASTIERA.has(voce.href) ? "hidden md:block" : undefined}
+                >
                   <VoceNav voce={voce} attiva={percorso === voce.href} onNaviga={onNaviga} />
                 </li>
               ))}
@@ -251,12 +273,16 @@ function MenuMobile() {
       {/*
         `shrink-0`: senza, il flex della testata comprimeva il bersaglio a 26 px
         di larghezza su uno schermo da 320, contro i 36 dichiarati.
+
+        44 px sotto i 1024, che è la soglia sotto cui questo pulsante è l'unica
+        navigazione che esiste: da 36 era il bersaglio più piccolo dell'app
+        proprio dove sbagliarlo costa di più.
       */}
       <DialogTrigger asChild>
         <Button
           variante="contorno"
           taglia="icona"
-          className="shrink-0 lg:hidden"
+          className="size-11 shrink-0 lg:hidden"
           aria-label="Apri le sezioni"
         >
           <Menu className="size-4" />
@@ -356,11 +382,16 @@ function RiepilogoPeriodo({
         >
           <span className="cifre">{periodo.anno}</span>
           {statoAnno && <PalliniStato stato={statoAnno} />}
-          {/* Sotto i 360 px il regime esce dal riepilogo: il titolo della
-              schermata viene prima, e il regime resta dentro, a un tocco. */}
-          <span className="hidden text-inchiostro-tenue min-[360px]:inline">
-            {regime === "forfettario" ? "forf." : "ord."}
-          </span>
+          {/*
+            Il regime resta dentro, a un tocco — la finestra che questo pulsante
+            apre ha la sua riga «Regime fiscale».
+
+            Prima usciva solo sotto i 360 px. Ora esce sempre, perché le
+            trentaquattro lettere che occupava erano quelle che mancavano al
+            titolo: con esse il riepilogo non stava sulla riga del titolo e
+            scendeva sotto, alzando di 52 px una testata appiccicosa su ogni
+            schermata. Il titolo della schermata viene prima.
+          */}
           <ChevronDown className="size-3.5 text-inchiostro-tenue" aria-hidden />
         </button>
       </DialogTrigger>

@@ -169,7 +169,14 @@ function ColonnaPatrimonio({
           return (
             <li key={v.id} className="flex items-center justify-between gap-3 py-1 pl-6 pr-2">
               <span className="min-w-0">
-                <span className="block truncate text-corpo">{v.descrizione}</span>
+                {/*
+                  Il nome va a capo, non si taglia. Con `truncate` «Liquidità del
+                  conto attività» e «Liquidità del conto personale» leggevano tutte
+                  e due «Liquidità del con…»: due righe diverse, due importi
+                  diversi, lo stesso testo. Un importo attribuito a un nome che non
+                  si distingue è un numero sbagliato, non un layout stretto.
+                */}
+                <span className="block text-corpo">{v.descrizione}</span>
                 {v.nota && (
                   <span className="block text-micro text-inchiostro-tenue">{v.nota}</span>
                 )}

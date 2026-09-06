@@ -110,6 +110,9 @@ export function SemaforoFiscale({
               onMouseEnter={() => setAttivo(s.chiave)}
               onFocus={() => setAttivo(s.chiave)}
               onBlur={() => setAttivo(null)}
+              /* Il tocco fa quello che fa il passaggio del mouse: senza, su un
+                 telefono il dettaglio di ogni voce era irraggiungibile. */
+              onClick={() => setAttivo(s.chiave)}
               aria-label={`${s.etichetta}: ${euro(s.valore)}, ${percentuale(quota, 1)}`}
               className={cn(
                 "group relative flex min-w-2 items-center justify-center overflow-hidden rounded-[10px]",
@@ -133,9 +136,18 @@ export function SemaforoFiscale({
         className="mt-3 min-h-5 text-etichetta text-inchiostro-tenue"
         aria-live="polite"
       >
-        {segmentoAttivo
-          ? segmentoAttivo.dettaglio
-          : "Passa sui segmenti per il dettaglio di ogni voce."}
+        {segmentoAttivo ? (
+          segmentoAttivo.dettaglio
+        ) : (
+          <>
+            {/* Il verbo cambia con l'apparecchio: sul telefono si tocca, e dirgli
+                di passare col mouse è una bugia in caratteri piccoli. */}
+            <span className="md:hidden">Tocca un segmento per il dettaglio di ogni voce.</span>
+            <span className="hidden md:inline">
+              Passa sui segmenti per il dettaglio di ogni voce.
+            </span>
+          </>
+        )}
       </p>
     </section>
   );
