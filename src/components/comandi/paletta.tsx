@@ -185,6 +185,19 @@ export function Paletta() {
             />
           </div>
 
+          {/*
+            Chi cerca «nuova fattura» a licenza scaduta non trovava niente e non
+            sapeva perché: i comandi che scrivono spariscono dall'elenco, ed è
+            giusto — mostrarli spenti è peggio — ma sparire in silenzio è un
+            difetto della palette, non della licenza.
+          */}
+          {solaLettura && (
+            <p className="border-b border-bordo bg-attenzione-tenue px-4 py-2 text-micro text-[#B8791A]">
+              Licenza scaduta: i comandi che scrivono non ci sono. Restano la ricerca,
+              la navigazione e l&apos;esportazione del backup.
+            </p>
+          )}
+
           <div
             id="risultati-comandi"
             ref={elencoRef}

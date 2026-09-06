@@ -64,6 +64,21 @@ export interface StorageAdapter {
   leggiTutto(): Promise<Dati>;
   /** Scrive tutto. `sostituisci` svuota prima, `unisci` fa upsert per chiave. */
   scriviTutto(dati: Dati, modalita: ModalitaImport): Promise<EsitoImport>;
+  /**
+   * Rimette in archivio dati che erano già suoi.
+   *
+   * Fa esattamente quello che fa `scriviTutto` in modalità «sostituisci», e
+   * esiste solo per essere **distinguibile dalla sola lettura**. Ripristinare
+   * l'istantanea presa prima di un import non è inserire dati nuovi: è
+   * rimettere i propri dove stavano, e a licenza scaduta deve restare
+   * possibile — altrimenti chi sbaglia un import e poi scade si esporta
+   * l'archivio sbagliato, con quello giusto a un pulsante spento di distanza.
+   *
+   * Non è un varco di sicurezza, e la guardia non è una barriera: un controllo
+   * lato client si aggira comunque, e sta lì per le dimenticanze
+   * dell'interfaccia, non contro chi apre la console.
+   */
+  ripristina(dati: Dati): Promise<EsitoImport>;
   svuota(): Promise<void>;
   /** L'archivio non contiene nulla: serve a decidere se proporre l'onboarding. */
   vuoto(): Promise<boolean>;

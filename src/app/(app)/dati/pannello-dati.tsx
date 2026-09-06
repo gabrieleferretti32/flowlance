@@ -239,11 +239,16 @@ export function PannelloDati() {
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button scrive variante="contorno" taglia="sm" onClick={ripristina} disabled={inCorso}>
+              {/* Senza `scrive`, e apposta, come l'export: rimettere i propri
+                  dati dove stavano non è inserirne di nuovi, e a licenza
+                  scaduta deve restare possibile — altrimenti si esporta
+                  l'archivio sbagliato con quello giusto a un pulsante spento
+                  di distanza. */}
+              <Button variante="contorno" taglia="sm" onClick={ripristina} disabled={inCorso}>
                 <RotateCcw className="size-3.5" aria-hidden />
                 Ripristina
               </Button>
-              <Button scrive variante="quieto" taglia="sm" onClick={scarta} disabled={inCorso}>
+              <Button variante="quieto" taglia="sm" onClick={scarta} disabled={inCorso}>
                 Elimina la copia
               </Button>
             </div>

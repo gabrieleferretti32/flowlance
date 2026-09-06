@@ -110,6 +110,11 @@ export class DexieAdapter implements StorageAdapter {
     });
   }
 
+  /** Vedi `StorageAdapter.ripristina`: è `scriviTutto`, con un altro nome. */
+  async ripristina(dati: Dati): Promise<EsitoImport> {
+    return this.scriviTutto(dati, "sostituisci");
+  }
+
   async svuota(): Promise<void> {
     await this.database.transaction("rw", this.tabelle(), async () => {
       for (const tabella of this.tabelle()) await tabella.clear();

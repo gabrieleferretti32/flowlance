@@ -252,6 +252,49 @@ sé stesso. È la stessa cosa scritta sopra sotto «Il ÷ 12 della quota mensile
 sta anche qui perché è un campo da aggiungere al modello, non solo una domanda
 aperta.
 
+## Che cosa succede a licenza scaduta
+
+Non è un'approssimazione: è il comportamento, misurato con una licenza vera —
+chiave Ed25519 firmata dallo strumento di emissione, dodici mesi, verificata
+dal browser — spostando avanti l'orologio invece di forzare lo stato. Sta qui
+perché è la domanda che farà chi compra, e la risposta dev'essere una sola e
+rileggibile.
+
+**Il giorno dopo la scadenza l'app si apre come sempre.** Nessuna schermata
+bloccata, nessuna finestra da chiudere. In cima a ogni schermata una riga
+rossa: «Licenza scaduta il *data*. L'app è in sola lettura: si consulta tutto,
+non si inserisce niente. L'esportazione dei dati resta attiva», con i
+collegamenti per rinnovare e per incollare una chiave.
+
+- **I dati sono intatti.** L'archivio non viene toccato: la licenza chiude le
+  scritture, non l'accesso.
+- **Si legge tutto.** Cruscotto, prospetto, scadenzario, cashflow, fatture,
+  clienti, patrimonio: coi numeri veri, niente nascosto e niente sfocato.
+- **L'export funziona sempre.** È l'unico pulsante acceso in Dati e backup, e
+  resta anche nella palette. I dati dell'utente non sono in ostaggio.
+- **La stampa del prospetto funziona.** Il PDF si genera: è un documento sui
+  propri dati, e la licenza non c'entra.
+- **La copia di sicurezza dell'ultimo import si può ripristinare**, anche da
+  scaduti. Rimettere i propri dati dove stavano non è inserirne di nuovi — e
+  senza questo, chi sbaglia un import e poi scade riesce a esportare solo
+  l'archivio sbagliato.
+- **Si spegne solo quello che scrive**: nuova fattura, nuovo costo, import da
+  CSV e da backup, celle modificabili, spunte dello scadenzario, ricarica del
+  dataset, svuotamento. La palette toglie quei comandi dall'elenco e lo dichiara
+  in una riga.
+- **Il rientro è immediato.** Si incolla la chiave nuova nella schermata
+  Licenza: la barra sparisce senza ricaricare, i dati sono gli stessi, le
+  scritture tornano. Niente da rifare.
+- **Togliere la chiave non riapre niente:** si finisce in «periodo di prova
+  finito», che è di nuovo sola lettura.
+
+Il preavviso comincia **quindici giorni prima** — una riga sottile in testa,
+con «scade fra N giorni» e il collegamento al rinnovo — e il giorno della
+scadenza si scrive ancora: la scadenza è compresa.
+
+Senza nessuna chiave valgono **quattordici giorni di prova** dal primo avvio,
+poi lo stesso stato di sola lettura.
+
 ## Il promemoria del backup ha due punti ciechi
 
 L'app ricorda l'ultimo export in `localStorage`, non nell'archivio: dentro

@@ -17,6 +17,19 @@ import type { Licenza } from "./chiave";
 export const GIORNI_PREAVVISO = 15;
 
 /**
+ * Dove si compra e si rinnova.
+ *
+ * Sta qui, in una costante sola, perché compare in tre posti — la barra del
+ * preavviso, quella della scadenza e la schermata Licenza — e tre indirizzi
+ * scritti a mano divergono al primo cambio di dominio.
+ *
+ * Dire «inserisci una chiave» a chi è scaduto presuppone che una chiave ce
+ * l'abbia: chi vuole rinnovare non aveva nessun posto dove andare, e il
+ * momento in cui se ne va un cliente è proprio quello.
+ */
+export const INDIRIZZO_ACQUISTO = "https://flowlance.it";
+
+/**
  * Quanto dura la prova prima di inserire una chiave.
  *
  * Senza licenza l'app deve pur comportarsi in qualche modo: qui la scelta è un
@@ -90,6 +103,16 @@ export function solaLettura(stato: StatoLicenza): boolean {
 export function preavviso(stato: StatoLicenza): number | null {
   if (stato.esito !== "attiva" && stato.esito !== "prova") return null;
   return stato.giorniResidui <= GIORNI_PREAVVISO ? stato.giorniResidui : null;
+}
+
+/**
+ * Come si chiama il gesto: chi ha già comprato rinnova, chi è in prova compra.
+ *
+ * Una parola sola, decisa qui e non in tre punti dell'interfaccia. Dire
+ * «rinnova» a chi non ha mai comprato è una porta che sembra chiusa a chiave.
+ */
+export function etichettaAcquisto(stato: StatoLicenza): string {
+  return stato.esito === "attiva" || stato.esito === "scaduta" ? "Rinnova" : "Acquista";
 }
 
 /** Una riga sola, per la barra in testa e per la schermata della licenza. */

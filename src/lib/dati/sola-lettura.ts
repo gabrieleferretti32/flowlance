@@ -44,11 +44,16 @@ export function conSolaLettura(
   return {
     ...protetti,
     importazioni: depositoProtetto(base.importazioni, "importazioni", bloccato),
-    // Protetta come le altre: l'istantanea nasce da un import, e ripristinarla
-    // riscrive l'archivio. Entrambe le cose sono scritture, e a licenza scaduta
-    // non si scrive. Chi ha una licenza scaduta e un import sbagliato alle
-    // spalle ha comunque l'export, che non si blocca mai.
-    istantanee: depositoProtetto(base.istantanee, "istantanee", bloccato),
+    /*
+      NON protetta, ed è una scelta rivista.
+      L'istantanea è l'archivio dell'utente com'era un istante prima di essere
+      sostituito. Bloccarla a licenza scaduta significa: vedi scritto «i tuoi
+      dati di prima sono ancora qui», il pulsante è spento, e l'unica cosa che
+      puoi esportare è l'archivio sbagliato. Rimettere i propri dati dove
+      stavano non è inserirne di nuovi, e nemmeno cancellarli è una scrittura
+      che valga la pena impedire: è l'utente che rinuncia a una sua copia.
+    */
+    istantanee: base.istantanee,
     get nome() {
       return base.nome;
     },
@@ -58,6 +63,9 @@ export function conSolaLettura(
       bloccato()
         ? Promise.reject(new ErroreSolaLettura("importare un backup"))
         : base.scriviTutto(dati, modalita),
+    // Passa sempre: è la stessa scrittura, ma di dati che erano già in questo
+    // archivio. Vedi `StorageAdapter.ripristina`.
+    ripristina: (dati) => base.ripristina(dati),
     svuota: () =>
       bloccato() ? Promise.reject(new ErroreSolaLettura("svuotare l'archivio")) : base.svuota(),
   } as StorageAdapter;

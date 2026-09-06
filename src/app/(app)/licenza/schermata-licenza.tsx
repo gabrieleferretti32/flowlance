@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, CircleAlert, Clock, ShieldQuestion } from "lucide-react";
+import { CheckCircle2, CircleAlert, Clock, ExternalLink, ShieldQuestion } from "lucide-react";
 import { Guscio } from "@/components/guscio/guscio";
 import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardIntestazione, CardSottotitolo, CardTitolo } from "@/components/ui/card";
@@ -15,9 +15,12 @@ import {
   GIORNI_DI_PROVA,
   GIORNI_PREAVVISO,
   descrizione,
+  etichettaAcquisto,
   giorniInParole,
+  preavviso,
   solaLettura,
   valutaSostituzione,
+  INDIRIZZO_ACQUISTO,
   type StatoLicenza,
 } from "@/lib/licenza/stato";
 import { useLicenza, useStatoLicenza } from "@/lib/stato/licenza";
@@ -228,6 +231,22 @@ function RiquadroStato({ stato }: { stato: StatoLicenza }) {
                 L&apos;app è in sola lettura: si consulta tutto, non si inserisce niente.
                 L&apos;esportazione dei dati resta attiva.
               </p>
+            )}
+            {/*
+              Il collegamento all'acquisto, dove serve: a chi è scaduto e a chi
+              ha i giorni contati. La schermata sapeva dire benissimo com'è
+              messa la licenza e non diceva da nessuna parte dove si compra.
+            */}
+            {(bloccata || preavviso(stato) !== null) && (
+              <a
+                href={INDIRIZZO_ACQUISTO}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0"
+              >
+                <ExternalLink className="size-3.5" aria-hidden />
+                {etichettaAcquisto(stato)} su flowlance.it
+              </a>
             )}
           </div>
         </div>

@@ -72,7 +72,9 @@ export async function istantaneaDisponibile(): Promise<IstantaneaArchivio | unde
 export async function ripristinaIstantanea(): Promise<boolean> {
   const istantanea = await istantaneaDisponibile();
   if (!istantanea) return false;
-  await archivio().scriviTutto(istantanea.dati, "sostituisci");
+  // `ripristina`, non `scriviTutto`: la differenza è che questa passa anche a
+  // licenza scaduta, perché rimette dati che erano già dell'utente.
+  await archivio().ripristina(istantanea.dati);
   await archivio().istantanee.elimina(CHIAVE);
   return true;
 }

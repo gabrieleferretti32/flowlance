@@ -2,8 +2,15 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CircleAlert, Clock } from "lucide-react";
-import { descrizione, giorniInParole, preavviso, solaLettura } from "@/lib/licenza/stato";
+import { CircleAlert, Clock, ExternalLink } from "lucide-react";
+import {
+  descrizione,
+  giorniInParole,
+  preavviso,
+  solaLettura,
+  etichettaAcquisto,
+  INDIRIZZO_ACQUISTO,
+} from "@/lib/licenza/stato";
 import { useStatoLicenza } from "@/lib/stato/licenza";
 
 /**
@@ -39,12 +46,29 @@ export function BarraLicenza() {
             L&apos;esportazione dei dati resta attiva.
           </span>
         </p>
-        <Link
-          href="/licenza"
-          className="-my-1 ml-auto flex min-h-11 shrink-0 items-center text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0 sm:py-0"
-        >
-          Inserisci una chiave
-        </Link>
+        {/*
+          Due strade, e servono tutte e due. «Inserisci una chiave» presuppone
+          che una chiave ce l'abbia: chi vuole rinnovare non aveva dove andare,
+          e la scadenza è proprio il momento in cui un cliente si perde. Il
+          rinnovo viene prima perché è quello che sblocca l'app.
+        */}
+        <span className="-my-1 ml-auto flex shrink-0 flex-wrap items-center gap-x-4">
+          <a
+            href={INDIRIZZO_ACQUISTO}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-h-11 items-center gap-1.5 text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0 sm:py-0"
+          >
+            {etichettaAcquisto(stato)}
+            <ExternalLink className="size-3.5" aria-hidden />
+          </a>
+          <Link
+            href="/licenza"
+            className="flex min-h-11 items-center text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0 sm:py-0"
+          >
+            Inserisci una chiave
+          </Link>
+        </span>
       </div>
     );
   }
@@ -62,12 +86,26 @@ export function BarraLicenza() {
       {/* Il testo resta minuscolo, l'area da premere no: un link alto quattordici
           pixel su un telefono si manca, e chi lo manca colpisce quello che c'è
           sotto. L'area cresce senza allargare la barra, con un margine negativo. */}
-      <Link
-        href="/licenza"
-        className="-my-1.5 ml-auto flex min-h-11 shrink-0 items-center px-1 text-micro text-inchiostro-tenue underline underline-offset-2 hover:text-inchiostro sm:min-h-0 sm:py-0"
-      >
-        Gestisci
-      </Link>
+      <span className="-my-1.5 ml-auto flex shrink-0 flex-wrap items-center gap-x-3">
+        {/* Anche qui, e soprattutto qui: nei quindici giorni prima si rinnova
+            senza fastidio, dopo si rinnova con l'app spenta a metà. La parola
+            cambia da sola — chi è in prova compra, non rinnova. */}
+        <a
+          href={INDIRIZZO_ACQUISTO}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex min-h-11 items-center gap-1 px-1 text-micro font-medium text-accento underline underline-offset-2 sm:min-h-0 sm:py-0"
+        >
+          {etichettaAcquisto(stato)}
+          <ExternalLink className="size-3" aria-hidden />
+        </a>
+        <Link
+          href="/licenza"
+          className="flex min-h-11 items-center px-1 text-micro text-inchiostro-tenue underline underline-offset-2 hover:text-inchiostro sm:min-h-0 sm:py-0"
+        >
+          Gestisci
+        </Link>
+      </span>
     </div>
   );
 }

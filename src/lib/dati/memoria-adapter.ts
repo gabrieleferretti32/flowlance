@@ -87,6 +87,11 @@ export class MemoriaAdapter implements StorageAdapter {
     return { scritte, totale: Object.values(scritte).reduce((a, b) => a + b, 0), modalita };
   }
 
+  /** Vedi `StorageAdapter.ripristina`: è `scriviTutto`, con un altro nome. */
+  async ripristina(dati: Dati): Promise<EsitoImport> {
+    return this.scriviTutto(dati, "sostituisci");
+  }
+
   async svuota(): Promise<void> {
     for (const collezione of COLLEZIONI) this.deposito(collezione).svuotaSincrono();
   }
