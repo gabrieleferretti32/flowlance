@@ -21,12 +21,13 @@
  *
  * ┌────────────────────────────────────────────────────────────────────────┐
  * │ I NUMERI SONO INVENTATI, LE ALIQUOTE TERRITORIALI NO.                  │
- * │ Persone, clienti e importi non esistono. Le due addizionali, invece,   │
- * │ dicono «Emilia-Romagna» e «Bologna»: prima di pubblicare uno           │
- * │ screenshot vanno ricontrollate sulla delibera dell'anno, perché una    │
- * │ aliquota sbagliata accanto al nome di un territorio vero è un numero   │
- * │ plausibile e falso — esattamente quello che questa app esiste per non  │
- * │ produrre.                                                              │
+ * │ Persone, clienti e importi non esistono. Le due addizionali sì: dicono │
+ * │ «Emilia-Romagna» e «Bologna», cioè un territorio vero, e valgono       │
+ * │ quanto la loro fonte. Sono quelle della L.R. 19/2006 art. 2 come       │
+ * │ modificato da L.R. 1/2025 e L.R. 9/2025, con scaglioni diversi fra il  │
+ * │ 2025 e il 2026, e lo 0,80 % di Bologna. L'unica cosa non verificata è  │
+ * │ la soglia di esenzione comunale, che perciò non c'è: vedi il commento  │
+ * │ accanto al campo.                                                      │
  * └────────────────────────────────────────────────────────────────────────┘
  *
  * È deterministico come l'altro: nessun numero casuale, stesso file di backup
@@ -606,25 +607,33 @@ const NOME_ATTIVITA = "Elena Marani";
 const APERTURA_PIVA = "2019-09-02";
 
 /**
- * Le due addizionali, dichiarate: regione, comune, aliquote e soglia.
+ * L'addizionale regionale dell'Emilia-Romagna, anno per anno.
  *
- * `dichiarati` è quello che sblocca l'export del prospetto e toglie la
- * marcatura «predefinito» dalle schermate. Qui ci sono tutti e quattro i campi
- * pertinenti — le due addizionali per l'ordinario, i giorni lavorativi e le ore
- * fatturabili — perché il dataset racconta qualcuno che ha finito di
- * configurare, non qualcuno che sta configurando.
+ * Sono maggiorazioni sull'aliquota base statale dell'1,23 % (art. 6 D.Lgs.
+ * 68/2011), deliberate con la L.R. 19/2006 art. 2 come modificato dalla
+ * L.R. 1/2025 e dalla L.R. 9/2025. La regione la applica a scaglioni, e gli
+ * scaglioni **cambiano fra i due anni del dataset**: la terza fascia scende
+ * dal 2,93 % del 2025 al 2,78 % del 2026.
  *
- * La regionale è a scaglioni: molte regioni la applicano così, e con
- * un'aliquota unica il conto sulla parte bassa del reddito sarebbe più alto del
- * dovuto. Le cifre vanno ricontrollate sulla delibera prima di finire in uno
- * screenshot pubblico (vedi il riquadro in testa al file).
+ * Il modello lo regge senza forzature — `Impostazioni` è per anno d'imposta e
+ * `scaglioniAddizionaleRegionale` è un campo suo — ed è esattamente il caso per
+ * cui è fatto così: uniformare i due anni per comodità del dataset vorrebbe
+ * dire mostrare sul 2025 un'aliquota che nel 2025 non esisteva.
+ *
+ * Il reddito imponibile della vetrina sta poco sotto i 28.000 €, cioè a cavallo
+ * fra la seconda e la terza fascia: la differenza fra i due anni si vede in
+ * pochi euro sull'addizionale, non in un salto. È giusto così — la fascia alta
+ * non la tocca nessuno dei due anni.
  */
-const SCAGLIONI_REGIONALI = [
-  { limite: 15_000, aliquota: 0.0133 },
-  { limite: 28_000, aliquota: 0.0193 },
-  { limite: 50_000, aliquota: 0.0203 },
-  { limite: null, aliquota: 0.0207 },
-];
+function scaglioniRegionali(anno: number) {
+  const terza = anno <= 2025 ? 0.0293 : 0.0278;
+  return [
+    { limite: 15_000, aliquota: 0.0133 },
+    { limite: 28_000, aliquota: 0.0193 },
+    { limite: 50_000, aliquota: terza },
+    { limite: null, aliquota: 0.0333 },
+  ];
+}
 
 function impostazioniVetrina(anno: number): Impostazioni {
   const base = impostazioniPredefinite(anno === ANNO_PRIMA ? PARAMETRI_2025 : PARAMETRI_2026);
@@ -642,14 +651,35 @@ function impostazioniVetrina(anno: number): Impostazioni {
 
     periodicitaIva: "trimestrale",
 
+    /*
+      Le due addizionali, dichiarate: regione, comune e aliquote.
+
+      `dichiarati` è quello che sblocca l'export del prospetto e toglie la
+      marcatura «predefinito» dalle schermate. Qui ci sono tutti e quattro i
+      campi pertinenti — le due addizionali dell'ordinario, i giorni lavorativi
+      e le ore fatturabili — perché il dataset racconta qualcuno che ha finito
+      di configurare, non qualcuno che sta configurando.
+
+      L'aliquota unica resta scritta accanto agli scaglioni: è il valore da cui
+      si riparte se qualcuno torna indietro dalla forma a scaglioni, e su questo
+      reddito la fascia che si applica è la terza.
+
+      La soglia di esenzione comunale è **a zero, e non è una dichiarazione che
+      Bologna non ne abbia una**: è il valore che l'app usa per «non lo so».
+      Non è stato possibile verificarla sull'elenco delle aliquote allegato alle
+      istruzioni del 730/2026, e scriverne una presa da un aggregatore sarebbe
+      il numero plausibile e sbagliato che questo file esiste per non produrre.
+      Sull'imponibile della vetrina non cambia un centesimo — sta ben sopra
+      qualunque soglia comunale — quindi il costo di lasciarla fuori è zero.
+    */
     regione: "emilia-romagna",
     comune: "Bologna",
-    addizionaleRegionale: 0.0203,
-    scaglioniAddizionaleRegionale: SCAGLIONI_REGIONALI.map((s) => ({ ...s })),
+    addizionaleRegionale: anno <= ANNO_PRIMA ? 0.0293 : 0.0278,
+    scaglioniAddizionaleRegionale: scaglioniRegionali(anno),
     esenzioneAddizionaleRegionale: 0,
     addizionaleComunale: 0.008,
     scaglioniAddizionaleComunale: null,
-    esenzioneAddizionaleComunale: 14_000,
+    esenzioneAddizionaleComunale: 0,
     dichiarati: [
       "addizionaleRegionale",
       "addizionaleComunale",

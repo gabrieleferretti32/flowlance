@@ -223,6 +223,69 @@ describe("vetrina · niente parametri predefiniti, niente export bloccato", () =
     }
   });
 
+  /*
+    Le aliquote territoriali si verificano per quello che sono scritte, non per
+    quello che producono.
+
+    È il buco che questo blocco chiude. Il reddito imponibile della vetrina sta
+    sotto i 28.000 € in tutti e due gli anni, quindi **la terza e la quarta
+    fascia dell'addizionale regionale non entrano mai nel calcolo**: due
+    aliquote sbagliate lì non spostano un centesimo, e ogni test che guarda
+    solo gli importi le lascia passare. È successo davvero — il dataset ha
+    girato con la terza fascia al 2,03 % invece che al 2,78 % senza che niente
+    diventasse rosso.
+
+    Da qui in poi si confrontano i valori scritti, uno per uno, contro le
+    aliquote deliberate. Un test di contenuto è l'unica forma che regge quando
+    il dato non è esercitato dai numeri.
+  */
+  it("l'addizionale regionale è quella dell'Emilia-Romagna, anno per anno", () => {
+    // Maggiorazioni sulla base statale dell'1,23 % (art. 6 D.Lgs. 68/2011):
+    // L.R. 19/2006 art. 2, come modificato da L.R. 1/2025 e L.R. 9/2025.
+    const attese: Record<number, [number | null, number][]> = {
+      2025: [[15_000, 0.0133], [28_000, 0.0193], [50_000, 0.0293], [null, 0.0333]],
+      2026: [[15_000, 0.0133], [28_000, 0.0193], [50_000, 0.0278], [null, 0.0333]],
+    };
+    for (const a of [prima, anno]) {
+      const scritti = (a.impostazioni.scaglioniAddizionaleRegionale ?? []).map(
+        (s) => [s.limite, s.aliquota] as [number | null, number],
+      );
+      expect(scritti, `scaglioni regionali ${a.anno}`).toEqual(attese[a.anno]);
+    }
+  });
+
+  it("i due anni non hanno gli stessi scaglioni: la terza fascia è scesa nel 2026", () => {
+    // Uniformarli per comodità del dataset significherebbe mostrare sul 2025
+    // un'aliquota che nel 2025 non esisteva.
+    const terza = (a: typeof anno) => a.impostazioni.scaglioniAddizionaleRegionale![2].aliquota;
+    expect(terza(prima)).toBeGreaterThan(terza(anno));
+  });
+
+  /*
+    Dove cade l'imponibile, dichiarato.
+
+    Il 2026 sta a sette euro dai 28.000: qualunque ritocco ai costi lo porta
+    nella terza fascia, e da quel momento l'aliquota che oggi non conta
+    comincia a contare. Meglio che sia un test a dirlo, quando succede, che
+    un importo diverso in uno screenshot già pubblicato.
+  */
+  it("l'imponibile resta nelle prime due fasce: le altre sono dichiarate, non esercitate", () => {
+    for (const a of [prima, anno]) {
+      expect(a.prospetto.imponibile).toBeGreaterThan(15_000);
+      expect(a.prospetto.imponibile).toBeLessThan(28_000);
+    }
+  });
+
+  it("l'addizionale comunale è lo 0,80 % di Bologna, senza soglia inventata", () => {
+    for (const a of [prima, anno]) {
+      expect(a.impostazioni.addizionaleComunale).toBe(0.008);
+      expect(a.impostazioni.scaglioniAddizionaleComunale ?? null).toBeNull();
+      // Zero perché non verificata sulla fonte primaria, non perché Bologna
+      // non ne abbia una: vedi il commento nel dataset.
+      expect(a.impostazioni.esenzioneAddizionaleComunale ?? 0).toBe(0);
+    }
+  });
+
   it("regione e comune sono dichiarati: sul prospetto non compare «non dichiarata»", () => {
     for (const a of [prima, anno]) {
       expect(a.impostazioni.regione).toBeTruthy();

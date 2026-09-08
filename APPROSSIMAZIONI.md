@@ -345,17 +345,40 @@ sul cruscotto (29 px di larghezza — è largo quanto la quota che rappresenta, 
 allargarlo vorrebbe dire mentire sulla proporzione; da questa fase risponde
 anche al tocco, non solo al passaggio del mouse).
 
-## Le due aliquote territoriali del dataset da vetrina sono da ricontrollare
+## Le aliquote territoriali del dataset da vetrina: verificate, tranne una
 
 Il dataset da vetrina (`src/lib/dati/vetrina.ts`) è quello che finisce negli
-screenshot: persone, clienti e importi sono inventati, e non c'è niente da
-verificare. Le due addizionali no — dicono «Emilia-Romagna» e «Bologna», cioè
-un territorio vero, e le aliquote scritte lì sono la ricostruzione di una
-delibera, non un dato che l'app conosce.
+screenshot. Persone, clienti e importi sono inventati e non c'è niente da
+verificare; le due addizionali sì, perché dicono «Emilia-Romagna» e «Bologna»,
+cioè un territorio vero, e valgono quanto la loro fonte.
 
-Non è un'approssimazione del motore: il motore calcola giusto quello che gli si
-dà. È un rischio di pubblicazione, ed è l'unico posto del prodotto in cui un
-numero plausibile e sbagliato potrebbe uscire con sopra il nome di una regione
-vera. Prima di pubblicare uno screenshot che le mostra — la schermata Parametri
-e il prospetto stampato sono le due — vanno ricontrollate sulla delibera
-dell'anno, o sostituite con quelle di un altro territorio.
+**Addizionale regionale Emilia-Romagna — verificata.** Sono maggiorazioni
+sull'aliquota base statale dell'1,23 % (art. 6 D.Lgs. 68/2011) deliberate con la
+L.R. 19/2006 art. 2, come modificato dalla L.R. 1/2025 e dalla L.R. 9/2025:
+
+| scaglione | 2025 | 2026 |
+|---|---|---|
+| fino a 15.000 € | 1,33 % | 1,33 % |
+| 15.000 – 28.000 € | 1,93 % | 1,93 % |
+| 28.000 – 50.000 € | **2,93 %** | **2,78 %** |
+| oltre 50.000 € | 3,33 % | 3,33 % |
+
+I due anni del dataset hanno perciò scaglioni diversi, ed è il caso per cui
+`Impostazioni` è per anno d'imposta: la terza fascia è stata ridotta a partire
+dal 2026.
+
+**Addizionale comunale Bologna — 0,80 %, verificata. La soglia di esenzione no,
+e perciò non c'è.** Il campo è a zero, che nell'app significa «nessuna
+esenzione dichiarata», non «Bologna non ne ha una». L'elenco delle aliquote
+allegato alle istruzioni del 730/2026 — la fonte primaria — non è raggiungibile
+dall'ambiente in cui il dataset è stato costruito, e gli aggregatori non
+concordano. Sull'imponibile della vetrina (poco sotto i 28.000 €) non cambia un
+centesimo, quindi lasciarla fuori non costa niente e non afferma niente.
+
+**Le fasce alte sono dichiarate ma non esercitate.** L'imponibile della vetrina
+sta fra 15.000 e 28.000 € in tutti e due gli anni: la terza e la quarta fascia
+non entrano mai nel calcolo. È il motivo per cui il dataset ha girato con la
+terza fascia al 2,03 % senza che un solo test diventasse rosso — nessun importo
+cambiava. Da lì il blocco di test che confronta le aliquote **scritte** con
+quelle deliberate, invece dei soli importi che producono: quando un dato non è
+esercitato dai numeri, verificarne l'effetto non verifica niente.
