@@ -367,18 +367,61 @@ I due anni del dataset hanno perciò scaglioni diversi, ed è il caso per cui
 `Impostazioni` è per anno d'imposta: la terza fascia è stata ridotta a partire
 dal 2026.
 
-**Addizionale comunale Bologna — 0,80 %, verificata. La soglia di esenzione no,
-e perciò non c'è.** Il campo è a zero, che nell'app significa «nessuna
-esenzione dichiarata», non «Bologna non ne ha una». L'elenco delle aliquote
-allegato alle istruzioni del 730/2026 — la fonte primaria — non è raggiungibile
-dall'ambiente in cui il dataset è stato costruito, e gli aggregatori non
-concordano. Sull'imponibile della vetrina (poco sotto i 28.000 €) non cambia un
-centesimo, quindi lasciarla fuori non costa niente e non afferma niente.
+**Addizionale comunale Bologna — nessuna delle due righe è verificata.** La
+fonte primaria è l'elenco delle aliquote allegato alle istruzioni del 730/2026,
+e non è raggiungibile né dall'ambiente in cui il dataset è stato costruito né
+da chi lo ha commissionato: l'Agenzia delle Entrate blocca il fetch.
 
-**Le fasce alte sono dichiarate ma non esercitate.** L'imponibile della vetrina
-sta fra 15.000 e 28.000 € in tutti e due gli anni: la terza e la quarta fascia
-non entrano mai nel calcolo. È il motivo per cui il dataset ha girato con la
-terza fascia al 2,03 % senza che un solo test diventasse rosso — nessun importo
-cambiava. Da lì il blocco di test che confronta le aliquote **scritte** con
-quelle deliberate, invece dei soli importi che producono: quando un dato non è
-esercitato dai numeri, verificarne l'effetto non verifica niente.
+Quindi, per essere precisi su che cosa sappiamo:
+
+- **0,80 % di aliquota: plausibile, non verificato.** Viene da fonti
+  secondarie. L'unico documento comunale rintracciato è un archivio del 2013
+  che riporta 0,7 % con esenzione a 12.000 €. Probabile che sia stata alzata da
+  allora — 0,80 % è il massimo che la legge consente — ma «probabile» non è
+  «verificato».
+- **Soglia di esenzione: non la sappiamo, e perciò non c'è.** Il campo è a
+  zero, che nell'app significa «nessuna esenzione dichiarata», non «Bologna non
+  ne ha una». Gli aggregatori non concordano fra loro. Sull'imponibile della
+  vetrina (poco sotto i 28.000 €) non cambia un centesimo, quindi lasciarla
+  fuori non costa niente e non afferma niente.
+
+La regola che ne esce vale oltre questo caso: **se una soglia non è verificabile
+dalle fonti secondarie, non lo è nemmeno l'aliquota che sta sulla stessa riga.**
+Sono lo stesso documento; sapere di non poterne leggere metà significa non
+poterne leggere l'altra metà.
+
+## Quello che il dataset da vetrina non attraversa
+
+Il difetto delle aliquote regionali è passato perché il calcolo non ci arrivava:
+l'imponibile della vetrina sta fra 15.000 e 28.000 € in tutti e due gli anni, e
+la terza fascia non entra mai. Nessun importo cambiava, nessun test diventava
+rosso. Da lì i test che confrontano le aliquote **scritte** con quelle
+deliberate: quando un dato non è esercitato dai numeri, verificarne l'effetto
+non verifica niente.
+
+Lo stesso vale per tutto quello che segue. Non è un elenco di difetti — è
+l'elenco di dove un valore sbagliato non si vedrebbe, cioè dove serve un test di
+contenuto invece di uno di effetto. La colonna a destra dice se qualcos'altro,
+nel repository, lo tiene fermo.
+
+| Non attraversato dalla vetrina | Coperto altrove? |
+|---|---|
+| **Scaglioni IRPEF oltre 28.000 €** (33 % nel 2026, 35 % nel 2025, 43 % oltre 50.000): l'imponibile resta nel primo scaglione | solo `spiegazioni.test.ts` cita 23/33/43 per il 2026. **Il 35 % del 2025 non è asserito da nessun test** |
+| **Tutti i valori di `PARAMETRI_2025`**: `PARAMETRI_2025` non è importato da nessun file di test | no. Il 2025 entra nella catena della vetrina, ma nessuno ne asserisce le costanti — l'unico valore di legge pinnato è `minimaleAnnuo = 18.808`, che è il 2026 |
+| **Detrazione art. 13, secondo tratto** (28.000–50.000) e **il gradino di 50 €** (11.000–17.000): la vetrina cade sempre nel primo tratto decrescente | sì, `detrazioni.test.ts` copre tutti i tratti e il gradino |
+| **Imposta di bollo** (`importoBollo`, `sogliaBollo`, `bolloAddebitato`): tutte le fatture hanno IVA al 22 %, e il bollo scatta solo a IVA zero | sì, `motore.test.ts` in forfettario; e il dataset dimostrativo lo esercita |
+| **Massimale e minimale della Gestione Separata**: reddito ~32.000 €, nessuno dei due vincola | sì, `motore.test.ts` |
+| **Credito IVA riportato al periodo successivo** e la scelta compensazione/rimborso della chiusura: `creditoFinale` è zero in tutti e due gli anni, quindi la decisione registrata nella chiusura 2025 non produce nulla | sì, `iva.test.ts` |
+| **Acconto delle imposte 40/60**: le imposte a saldo sono zero per via delle ritenute, quindi si esercita solo l'80 % in due rate dei contributi e il 30 % della comunale | sì, `motore.test.ts` |
+| **Soglie `sogliaAcconti`, `sogliaAccontoUnico`, `sogliaVistoCompensazione`**: gli acconti sono molto sopra le prime due, il credito molto sotto la terza | parzialmente |
+| **Esenzioni delle addizionali e scaglioni comunali**: entrambe a zero / `null` | sì, `addizionali.test.ts` |
+| **Rivalsa INPS 4 % e contributo integrativo cassa**: spenti nel dataset | sì, `motore.test.ts` |
+| **Aliquote IVA diverse dal 22 % in fattura** (esente, fuori campo, 10 %): tutte le fatture usano l'aliquota predefinita. I costi invece esercitano 0 %, 10 % e 22 % | sì, per i costi; per le fatture solo il forfettario del dataset dimostrativo |
+| **Nota di credito non riconciliata**: quella della vetrina è agganciata alla sua fattura | sì, `note.test.ts` |
+| **Parametri del forfettario** (coefficiente, sostitutiva, limite, soglia d'uscita): in ordinario non entrano nel prospetto | li esercita la schermata Confronto regimi, e `regime.test.ts` |
+
+Le due righe senza copertura sono le prime: **gli scaglioni IRPEF oltre i 28.000
+e i valori di `PARAMETRI_2025`**. Sono esattamente la stessa forma del difetto
+appena corretto — costanti di legge che nessun numero attraversa e nessun test
+nomina — e il file `parametri/2025.ts` esiste proprio per una di quelle
+differenze (lo scaglione centrale al 35 % invece del 33 %).

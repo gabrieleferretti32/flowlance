@@ -23,11 +23,18 @@
  * │ I NUMERI SONO INVENTATI, LE ALIQUOTE TERRITORIALI NO.                  │
  * │ Persone, clienti e importi non esistono. Le due addizionali sì: dicono │
  * │ «Emilia-Romagna» e «Bologna», cioè un territorio vero, e valgono       │
- * │ quanto la loro fonte. Sono quelle della L.R. 19/2006 art. 2 come       │
+ * │ quanto la loro fonte — che non è la stessa per tutte e due.            │
+ * │                                                                        │
+ * │ La regionale è verificata sulla norma: L.R. 19/2006 art. 2 come        │
  * │ modificato da L.R. 1/2025 e L.R. 9/2025, con scaglioni diversi fra il  │
- * │ 2025 e il 2026, e lo 0,80 % di Bologna. L'unica cosa non verificata è  │
- * │ la soglia di esenzione comunale, che perciò non c'è: vedi il commento  │
- * │ accanto al campo.                                                      │
+ * │ 2025 e il 2026.                                                        │
+ * │                                                                        │
+ * │ Quella di Bologna no. Lo 0,80 % viene da fonti secondarie e non è      │
+ * │ stato confrontato con l'elenco allegato alle istruzioni del 730/2026,  │
+ * │ che è la fonte primaria e non è raggiungibile da qui: è plausibile —   │
+ * │ 0,80 % è il massimo di legge — non verificato. La soglia di esenzione  │
+ * │ non l'abbiamo affatto, e per questo non c'è. Vedi il commento accanto  │
+ * │ ai due campi.                                                          │
  * └────────────────────────────────────────────────────────────────────────┘
  *
  * È deterministico come l'altro: nessun numero casuale, stesso file di backup
@@ -664,13 +671,22 @@ function impostazioniVetrina(anno: number): Impostazioni {
       si riparte se qualcuno torna indietro dalla forma a scaglioni, e su questo
       reddito la fascia che si applica è la terza.
 
-      La soglia di esenzione comunale è **a zero, e non è una dichiarazione che
-      Bologna non ne abbia una**: è il valore che l'app usa per «non lo so».
-      Non è stato possibile verificarla sull'elenco delle aliquote allegato alle
-      istruzioni del 730/2026, e scriverne una presa da un aggregatore sarebbe
-      il numero plausibile e sbagliato che questo file esiste per non produrre.
-      Sull'imponibile della vetrina non cambia un centesimo — sta ben sopra
-      qualunque soglia comunale — quindi il costo di lasciarla fuori è zero.
+      Su Bologna la fonte primaria — l'elenco delle aliquote allegato alle
+      istruzioni del 730/2026 — non è raggiungibile, e questo vale per tutte e
+      due le righe qui sotto, non solo per una.
+
+      Lo **0,80 %** è plausibile e non verificato: viene da fonti secondarie, e
+      l'unico documento comunale rintracciato è un archivio del 2013 che dice
+      0,7 % con esenzione a 12.000 €. Probabile che sia stata alzata da allora —
+      0,80 % è il massimo che la legge consente — ma «probabile» non è
+      «verificato», e finché resta qui va detto così.
+
+      La **soglia di esenzione** è a zero, e non è una dichiarazione che Bologna
+      non ne abbia una: è il valore che l'app usa per «non lo so». Scriverne una
+      presa da un aggregatore sarebbe il numero plausibile e sbagliato che
+      questo file esiste per non produrre. Sull'imponibile della vetrina non
+      cambia un centesimo — sta ben sopra qualunque soglia comunale — quindi il
+      costo di lasciarla fuori è zero.
     */
     regione: "emilia-romagna",
     comune: "Bologna",

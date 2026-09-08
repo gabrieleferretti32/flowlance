@@ -276,12 +276,20 @@ describe("vetrina · niente parametri predefiniti, niente export bloccato", () =
     }
   });
 
-  it("l'addizionale comunale è lo 0,80 % di Bologna, senza soglia inventata", () => {
+  /*
+    Bologna: questo test fissa quello che il dataset dice, non quello che il
+    Comune ha deliberato.
+
+    È una differenza che va tenuta a mente leggendo il verde. Lo 0,80 % non è
+    stato confrontato con la fonte primaria — plausibile, non verificato — e la
+    soglia di esenzione non c'è perché non la sappiamo. Il test serve a
+    impedire che cambino per distrazione, non a certificarle.
+  */
+  it("l'addizionale comunale è lo 0,80 % scritto per Bologna, senza soglia inventata", () => {
     for (const a of [prima, anno]) {
       expect(a.impostazioni.addizionaleComunale).toBe(0.008);
       expect(a.impostazioni.scaglioniAddizionaleComunale ?? null).toBeNull();
-      // Zero perché non verificata sulla fonte primaria, non perché Bologna
-      // non ne abbia una: vedi il commento nel dataset.
+      // Zero perché non la sappiamo, non perché Bologna non ne abbia una.
       expect(a.impostazioni.esenzioneAddizionaleComunale ?? 0).toBe(0);
     }
   });
