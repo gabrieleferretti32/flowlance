@@ -420,8 +420,22 @@ nel repository, lo tiene fermo.
 | **Nota di credito non riconciliata**: quella della vetrina è agganciata alla sua fattura | sì, `note.test.ts` |
 | **Parametri del forfettario** (coefficiente, sostitutiva, limite, soglia d'uscita): in ordinario non entrano nel prospetto | li esercita la schermata Confronto regimi, e `regime.test.ts` |
 
-Le due righe senza copertura sono le prime: **gli scaglioni IRPEF oltre i 28.000
-e i valori di `PARAMETRI_2025`**. Sono esattamente la stessa forma del difetto
-appena corretto — costanti di legge che nessun numero attraversa e nessun test
-nomina — e il file `parametri/2025.ts` esiste proprio per una di quelle
-differenze (lo scaglione centrale al 35 % invece del 33 %).
+Le due righe che erano senza copertura — **gli scaglioni IRPEF oltre i 28.000 e
+i valori di `PARAMETRI_2025`** — adesso ce l'hanno: `parametri/parametri.test.ts`
+asserisce le costanti di legge una per una, anno per anno, con la fonte accanto a
+ogni riga. È la stessa forma di difesa dei test sulle aliquote territoriali, per
+la stessa ragione: quel file contiene solo numeri che nessuno ricalcola.
+
+Restano da riconfermare, e il test lo dice riga per riga, tre valori che
+l'autore non ha potuto leggere sul documento originale: **minimale e massimale
+INPS 2026** (18.808 € e 122.295 €, da circolare) e la **riduzione dello scaglione
+IRPEF centrale al 33 %** nella Legge di Bilancio 2026, di cui il test cita la
+misura e non l'articolo.
+
+Due cose che stanno in `parametri/<anno>.ts` ma **non sono valori di legge**, e
+non vanno cercate in una norma: `rateRateizzazione` (sei rate è la proposta
+dell'app, il contribuente sceglie entro il termine massimo) e `sogliaAvviso`
+(l'85 % del limite forfettario oltre il quale scatta l'avviso preventivo).
+
+E una che l'app semplifica: `aliquotaEccedenzaArtigiani` è **una sola** aliquota
+per artigiani e commercianti, che l'INPS pubblica separate.
