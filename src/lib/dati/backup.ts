@@ -9,7 +9,7 @@
  * scartati. Nel database non deve finire nulla che si possa ricalcolare.
  */
 import { VERSIONE_SCHEMA } from "./db";
-import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
+import { parametriDi, parametriSonoDellAnno } from "@/lib/fisco/parametri";
 import { GESTIONI, type Gestione, type ScaglioneIrpef } from "@/lib/fisco/tipi";
 import {
   COLLEZIONI,
@@ -311,15 +311,6 @@ const convalidaMovimentoAttivita: Convalida<Dati["movimentiAttivita"][number]> =
   };
 };
 
-/*
-  Il minimale di reddito annuo, per i backup che non ce l'hanno.
-
-  È lo stesso valore per l'accredito della Gestione Separata e per l'eccedenza
-  di artigiani e commercianti: due default diversi erano il modo più rapido di
-  far divergere una costante sola.
-*/
-const MINIMALE_PREDEFINITO = PARAMETRI_2026.minimaleAnnuo;
-
 const convalidaVersamento: Convalida<Dati["versamenti"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "versamenti", i, errori);
   if (!id) return null;
@@ -419,12 +410,61 @@ const convalidaVocePatrimonio: Convalida<Dati["patrimonio"][number]> = (riga, i,
   };
 };
 
-const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i, errori) => {
+/**
+ * Le impostazioni di un anno, con i ripieghi presi **dai parametri di
+ * quell'anno**.
+ *
+ * Erano dodici costanti di legge riscritte a mano — 85.000, 122.295, 0,2607 —
+ * cioè i valori del 2026 messi in qualunque riga, compresa una del 2025. Due
+ * divergono davvero: il massimale della Gestione Separata (122.295 contro
+ * 120.607) e il minimale (18.808 contro 18.555), che sono esattamente i due
+ * che l'INPS rivaluta ogni gennaio — quindi la divergenza cresce a ogni anno
+ * nuovo invece di restare ferma. `MINIMALE_PREDEFINITO` non faceva eccezione:
+ * veniva dai parametri invece che da una cifra scritta a mano, ma erano quelli
+ * del 2026 messi in una riga del 2025, cioè lo stesso difetto travestito
+ * meglio.
+ *
+ * L'anno della riga è già noto e già preteso: la riga che non ce l'ha viene
+ * rifiutata poche righe più sotto, prima che un ripiego serva. Non esiste il
+ * caso in cui l'app debba indovinare da quale anno pescare.
+ */
+function costruisciConvalidaImpostazioni(
+  avvisi: string[],
+): Convalida<Dati["impostazioni"][number]> {
+  return (riga, i, errori) => {
   const anno = numero(riga.anno, Number.NaN);
   if (!Number.isInteger(anno) || anno < 2000 || anno > 2100) {
     errori.push(`impostazioni, riga ${i + 1}: anno mancante o fuori intervallo.`);
     return null;
   }
+
+  const par = parametriDi(anno);
+  /*
+    I campi che il file non porta, e che quindi arrivano dalla legge. Si
+    raccolgono qui e si dicono tutti insieme in fondo: un avviso per campo
+    sarebbe un muro che nessuno legge.
+  */
+  const caduti: string[] = [];
+
+  /**
+   * Legge un campo, e **segna se è caduto sul ripiego**.
+   *
+   * Cade anche un valore presente ma illeggibile — una stringa dove ci vuole
+   * un numero, un'aliquota fuori da zero-uno — perché per chi importa non
+   * cambia niente: in archivio entra comunque un numero che nel file non c'era.
+   */
+  const preso = (
+    campo: string,
+    ripiego: number,
+    leggi: (v: unknown, predefinito: number) => number = numero,
+  ): number => {
+    const grezzo = riga[campo];
+    const letto = leggi(grezzo, ripiego);
+    if (typeof grezzo !== "number" || !Number.isFinite(grezzo) || letto !== grezzo) {
+      caduti.push(campo);
+    }
+    return letto;
+  };
   const scaglioni = Array.isArray(riga.scaglioniIrpef)
     ? riga.scaglioniIrpef
         .filter(oggetto)
@@ -450,7 +490,34 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
   const gestione = GESTIONI.includes(riga.gestione as Gestione)
     ? (riga.gestione as Gestione)
     : "separata";
-  return {
+
+  // Un backup scritto prima della schermata Parametri non ha l'elenco: vale
+  // «niente confermato», che è la verità di quel backup.
+  const dichiarati = Array.isArray(riga.dichiarati)
+    ? riga.dichiarati.filter((c): c is string => typeof c === "string")
+    : [];
+
+  /*
+    Contributi fissi dichiarati ma non scritti: la riga si rifiuta.
+
+    Il ripiego era zero, ed è il peggiore possibile. Il campo entra nel calcolo
+    **solo** se è dichiarato: un file che dice «li ho dichiarati» senza portare
+    il valore fa entrare nel prospetto zero euro di contributi fissi —
+    quattromilacinquecento in meno su un documento che va dal commercialista,
+    senza che niente lo dica. Un archivio che non entra si vede; questo no.
+  */
+  const fissiDichiarati = dichiarati.includes("contributiFissi");
+  const fissiScritti =
+    typeof riga.contributiFissi === "number" && Number.isFinite(riga.contributiFissi);
+  if (fissiDichiarati && !fissiScritti) {
+    errori.push(
+      `impostazioni, riga ${i + 1} (${anno}): i contributi fissi risultano dichiarati ma il valore manca. ` +
+        "Scrivilo nel file accanto a «contributiFissi», oppure togli la voce da «dichiarati».",
+    );
+    return null;
+  }
+
+  const lette: Dati["impostazioni"][number] = {
     anno,
     nome: testo(riga.nome),
     dataAperturaPiva: dataOpzionale(riga.dataAperturaPiva),
@@ -458,31 +525,31 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
     saldoInizialePersonale: numero(riga.saldoInizialePersonale),
     regime,
     gruppoAteco: testo(riga.gruppoAteco, "professionali"),
-    coefficienteRedditivita: fraZeroEUno(riga.coefficienteRedditivita, 0.78),
+    coefficienteRedditivita: preso("coefficienteRedditivita", par.gruppiAteco[0].coefficiente, fraZeroEUno),
     nuovaAttivita: booleano(riga.nuovaAttivita),
-    limiteForfettario: numero(riga.limiteForfettario, 85_000),
-    sogliaUscita: numero(riga.sogliaUscita, 100_000),
-    aliquotaIva: fraZeroEUno(riga.aliquotaIva, 0.22),
+    limiteForfettario: preso("limiteForfettario", par.limiteForfettario),
+    sogliaUscita: preso("sogliaUscita", par.sogliaUscitaImmediata),
+    aliquotaIva: preso("aliquotaIva", par.aliquotaIvaOrdinaria, fraZeroEUno),
     periodicitaIva: riga.periodicitaIva === "mensile" ? "mensile" : "trimestrale",
-    maggiorazioneTrimestrale: fraZeroEUno(riga.maggiorazioneTrimestrale, 0.01),
+    maggiorazioneTrimestrale: preso("maggiorazioneTrimestrale", par.maggiorazioneTrimestrale, fraZeroEUno),
     scaglioniIrpef: scaglioni,
     addizionaleRegionale: fraZeroEUno(riga.addizionaleRegionale, 0),
     addizionaleComunale: fraZeroEUno(riga.addizionaleComunale, 0),
     detrazioniPersonali: numero(riga.detrazioniPersonali),
     fondoPensione: numero(riga.fondoPensione),
     gestione,
-    aliquotaGestioneSeparata: fraZeroEUno(riga.aliquotaGestioneSeparata, 0.2607),
-    massimaleGs: numero(riga.massimaleGs, 122_295),
-    minimaleGs: numero(riga.minimaleGs, MINIMALE_PREDEFINITO),
+    aliquotaGestioneSeparata: preso("aliquotaGestioneSeparata", par.aliquotaGestioneSeparata, fraZeroEUno),
+    massimaleGs: preso("massimaleGs", par.massimaleGestioneSeparata),
+    minimaleGs: preso("minimaleGs", par.minimaleAnnuo),
     contributiFissi: numero(riga.contributiFissi),
     aliquotaSoggettivaCassa: fraZeroEUno(riga.aliquotaSoggettivaCassa, 0.15),
     aliquotaIntegrativaCassa: fraZeroEUno(riga.aliquotaIntegrativaCassa, 0.04),
     rivalsaAttiva: booleano(riga.rivalsaAttiva),
-    aliquotaRivalsa: fraZeroEUno(riga.aliquotaRivalsa, 0.04),
+    aliquotaRivalsa: preso("aliquotaRivalsa", par.aliquotaRivalsaInps, fraZeroEUno),
     ritenutaAttiva: booleano(riga.ritenutaAttiva),
-    aliquotaRitenuta: fraZeroEUno(riga.aliquotaRitenuta, 0.2),
-    importoBollo: numero(riga.importoBollo, 2),
-    sogliaBollo: numero(riga.sogliaBollo, 77.47),
+    aliquotaRitenuta: preso("aliquotaRitenuta", par.aliquotaRitenuta, fraZeroEUno),
+    importoBollo: preso("importoBollo", par.importoBollo),
+    sogliaBollo: preso("sogliaBollo", par.sogliaBollo),
     bolloAddebitato: booleano(riga.bolloAddebitato, true),
     terminiPagamento: numero(riga.terminiPagamento, 30),
     giorniLavorativi: numero(riga.giorniLavorativi, 220),
@@ -497,13 +564,35 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
     esenzioneAddizionaleRegionale: numero(riga.esenzioneAddizionaleRegionale),
     scaglioniAddizionaleComunale: leggiScaglioni(riga.scaglioniAddizionaleComunale),
     esenzioneAddizionaleComunale: numero(riga.esenzioneAddizionaleComunale),
-    // Un backup scritto prima della schermata Parametri non ha l'elenco: vale
-    // «niente confermato», che è la verità di quel backup.
-    dichiarati: Array.isArray(riga.dichiarati)
-      ? riga.dichiarati.filter((c): c is string => typeof c === "string")
-      : [],
+    dichiarati,
   };
-};
+
+  /*
+    L'avviso nomina i campi e l'anno da cui vengono i valori.
+
+    Due cose distinte, e servono tutte e due: **quali** campi il file non
+    portava, perché chi importa possa andarli a guardare, e **da quale anno**
+    arrivano i numeri che li hanno riempiti. Coincidono quasi sempre; quando
+    non coincidono — un anno d'imposta per cui i parametri non sono ancora
+    censiti — la riga sta prendendo aliquote di un altro anno, e questa è
+    l'unica occasione in cui qualcuno può accorgersene.
+  */
+  if (caduti.length > 0) {
+    const altroAnno = parametriSonoDellAnno(anno)
+      ? ""
+      : ` — attenzione: per il ${anno} non ci sono ancora parametri censiti, quindi i valori sono quelli del ${par.anno}`;
+    const quanti =
+      caduti.length === 1
+        ? "un valore mancante nel file è stato preso"
+        : `${caduti.length} valori mancanti nel file sono stati presi`;
+    avvisi.push(
+      `Impostazioni ${anno}: ${quanti} dai parametri di legge del ${par.anno}${altroAnno}. ${caduti.join(", ")}.`,
+    );
+  }
+
+  return lette;
+  };
+}
 
 /**
  * Legge un file di backup. Non lancia mai: restituisce gli errori da mostrare
@@ -545,15 +634,22 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
     };
   }
   if (versione < VERSIONE_SCHEMA) {
+    // Quali campi, e da quale anno: lo dicono le convalide riga per riga.
+    // Questo avviso dice soltanto perché può succedere.
     avvisi.push(
-      `Backup con schema ${versione}, più vecchio dell'attuale (${VERSIONE_SCHEMA}): i campi mancanti prendono i valori predefiniti.`,
+      `Backup con schema ${versione}, più vecchio dell'attuale (${VERSIONE_SCHEMA}): quello che il file non porta viene riempito con i valori di legge dell'anno della riga.`,
     );
   }
 
   const contenuto = oggetto(radice.dati) ? radice.dati : {};
   const errori: string[] = [];
   const dati = datiVuoti();
-  dati.impostazioni = convalidaElenco(contenuto.impostazioni, "impostazioni", convalidaImpostazioni, errori);
+  dati.impostazioni = convalidaElenco(
+    contenuto.impostazioni,
+    "impostazioni",
+    costruisciConvalidaImpostazioni(avvisi),
+    errori,
+  );
   dati.clienti = convalidaElenco(contenuto.clienti, "clienti", convalidaCliente, errori);
   dati.fatture = convalidaElenco(contenuto.fatture, "fatture", convalidaFattura, errori);
   dati.note = convalidaElenco(contenuto.note, "note", convalidaNota, errori);

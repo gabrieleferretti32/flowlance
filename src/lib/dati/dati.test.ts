@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { calcolaProspetto } from "@/lib/fisco/motore";
 import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
 import { GESTIONI } from "@/lib/fisco/tipi";
+import { PARAMETRI_2025 } from "@/lib/fisco/parametri/2025";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
 import type { StorageAdapter } from "./adapter";
 import {
   analizzaBackup,
   creaBackup,
+  FORMATO,
   nomeFileBackup,
   serializzaBackup,
   FORMATI_STORICI,
@@ -514,5 +516,108 @@ describe("backup · nessuna gestione previdenziale si perde per strada", () => {
     expect(esito.ok).toBe(true);
     if (!esito.ok) return;
     expect(esito.backup.dati.impostazioni[0].gestione).toBe("separata");
+  });
+});
+
+describe("i ripieghi dell'import vengono dall'anno della riga", () => {
+  /**
+   * Erano dieci costanti di legge riscritte a mano in `backup.ts`, cioè i
+   * valori del 2026 messi in qualunque riga. Due divergono davvero, e sono i
+   * due che l'INPS rivaluta ogni gennaio: chi importava un archivio del 2025 a
+   * cui mancavano quei campi si ritrovava il massimale del 2026 senza che
+   * niente lo dicesse.
+   */
+  function fileConRigaScarna(anno: number, extra: Record<string, unknown> = {}) {
+    return JSON.stringify({
+      formato: FORMATO,
+      versioneSchema: VERSIONE_SCHEMA,
+      esportatoIl: "2026-01-01T00:00:00.000Z",
+      dati: {
+        impostazioni: [
+          {
+            anno,
+            nome: "Prova",
+            regime: "ordinario",
+            gestione: "separata",
+            scaglioniIrpef: [{ limite: null, aliquota: 0.23 }],
+            ...extra,
+          },
+        ],
+      },
+    });
+  }
+
+  it("una riga del 2025 prende il massimale e il minimale del 2025", () => {
+    const esito = analizzaBackup(fileConRigaScarna(2025));
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    const riga = esito.backup.dati.impostazioni[0];
+    expect(riga.massimaleGs).toBe(PARAMETRI_2025.massimaleGestioneSeparata);
+    expect(riga.minimaleGs).toBe(PARAMETRI_2025.minimaleAnnuo);
+    // E che siano davvero diversi da quelli del 2026, altrimenti il test non
+    // starebbe verificando quello che pensiamo.
+    expect(PARAMETRI_2025.massimaleGestioneSeparata).not.toBe(
+      PARAMETRI_2026.massimaleGestioneSeparata,
+    );
+    expect(PARAMETRI_2025.minimaleAnnuo).not.toBe(PARAMETRI_2026.minimaleAnnuo);
+  });
+
+  it("una riga del 2026 prende quelli del 2026", () => {
+    const esito = analizzaBackup(fileConRigaScarna(2026));
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.backup.dati.impostazioni[0].massimaleGs).toBe(
+      PARAMETRI_2026.massimaleGestioneSeparata,
+    );
+  });
+
+  it("l'avviso dice quali campi sono caduti e da quale anno vengono i valori", () => {
+    const esito = analizzaBackup(fileConRigaScarna(2025));
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    const avviso = esito.avvisi.find((a) => a.startsWith("Impostazioni 2025"));
+    expect(avviso, `avvisi: ${esito.avvisi.join(" | ")}`).toBeDefined();
+    expect(avviso).toContain("massimaleGs");
+    expect(avviso).toContain("minimaleGs");
+    expect(avviso).toContain("del 2025");
+  });
+
+  it("un anno senza parametri censiti lo dice, invece di far finta di niente", () => {
+    const esito = analizzaBackup(fileConRigaScarna(2035));
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    const avviso = esito.avvisi.find((a) => a.startsWith("Impostazioni 2035"));
+    expect(avviso).toContain("non ci sono ancora parametri censiti");
+  });
+
+  it("un file completo non produce nessun avviso sui ripieghi", () => {
+    const completo = serializzaBackup(creaBackup(datiDemo()));
+    const esito = analizzaBackup(completo);
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.avvisi.filter((a) => a.startsWith("Impostazioni "))).toEqual([]);
+  });
+
+  it("contributi fissi dichiarati senza il valore: la riga si rifiuta, non entra a zero", () => {
+    const esito = analizzaBackup(
+      fileConRigaScarna(2026, { gestione: "artigiani", dichiarati: ["contributiFissi"] }),
+    );
+    expect(esito.ok).toBe(false);
+    if (esito.ok) return;
+    expect(esito.errori.join(" ")).toContain("contributi fissi risultano dichiarati");
+    expect(esito.recuperabile).toBe(true);
+  });
+
+  it("contributi fissi dichiarati col valore: entra quello del file", () => {
+    const esito = analizzaBackup(
+      fileConRigaScarna(2026, {
+        gestione: "artigiani",
+        dichiarati: ["contributiFissi"],
+        contributiFissi: 2_940.88,
+      }),
+    );
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.backup.dati.impostazioni[0].contributiFissi).toBe(2_940.88);
   });
 });
