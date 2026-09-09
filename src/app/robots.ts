@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { BASE_APP } from "@/lib/rotte";
-import { CHIUSO_AI_MOTORI, DOMINIO } from "@/lib/sito";
+import { CHIUSO_AI_MOTORI, DOMINIO } from "@/lib/sito/impostazioni";
 
 // Con `output: "export"` una route di metadata va dichiarata statica in modo
 // esplicito, altrimenti Next la tratta come dinamica e il build fallisce.

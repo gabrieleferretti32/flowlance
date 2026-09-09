@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { ContenitoreToast } from "@/components/ui/toast";
-import { CHIUSO_AI_MOTORI, DOMINIO } from "@/lib/sito";
+import { CHIUSO_AI_MOTORI, DOMINIO } from "@/lib/sito/impostazioni";
 import "./globals.css";
 
 const DESCRIZIONE =

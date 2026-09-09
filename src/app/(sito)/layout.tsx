@@ -1,4 +1,5 @@
 import { Piede } from "@/components/sito/piede";
+import { Statistiche } from "@/components/sito/statistiche";
 
 /**
  * Il guscio delle pagine pubbliche: vendita e documenti.
@@ -18,6 +19,8 @@ export default function LayoutSito({ children }: { children: React.ReactNode }) 
     <div className="flex min-h-dvh flex-col bg-fondo">
       <div className="flex-1">{children}</div>
       <Piede />
+      {/* Banner e statistiche: montati qui, quindi mai su /app. */}
+      <Statistiche />
     </div>
   );
 }

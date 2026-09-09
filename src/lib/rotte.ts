@@ -78,6 +78,8 @@ export const SITO = {
   termini: "/termini",
   cookie: "/cookie",
   approssimazioni: "/cosa-non-calcola",
+  /** Dove Stripe rimanda dopo il pagamento. Non sa chi sia arrivato, e lo dice. */
+  grazie: "/grazie",
 } as const;
 
 /**

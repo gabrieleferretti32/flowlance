@@ -64,6 +64,51 @@ ordini esisteranno servirà poter dire *quale* testo una persona ha accettato.
 
 ---
 
+## La domanda che viene prima di tutte, ed è per il legale
+
+**Se i Termini dicono che Flowlance è offerto esclusivamente a chi acquista
+nell'esercizio della propria attività professionale, la distinzione
+Consumatore / Professionista sparisce.** E con lei sparisce il diritto di
+recesso, sparisce la casella dell'attivazione immediata che esiste solo per
+proteggerlo, e sparisce metà di questo documento.
+
+Non è una forzatura: Flowlance è uno strumento di gestione fiscale per titolari
+di partita IVA, e chi lo compra senza esserlo non può usarlo per la cosa a cui
+serve. Un'offerta rivolta a soli professionisti è quindi coerente con il
+prodotto, non un espediente per togliersi obblighi.
+
+**È una domanda per il legale, non per chi scrive il codice**, e vale la pena
+porla prima di progettare il checkout, perché la risposta cambia cosa il
+checkout deve fare:
+
+| | Se la risposta è **no** (offerta a tutti) | Se è **sì** (solo professionisti) |
+|---|---|---|
+| Punto 1 · dichiarare la qualità | serve | non serve |
+| Punto 2 · attivazione immediata | serve | non serve — il recesso non c'è |
+| Punto 3 · art. 1341 | serve | **serve comunque**: vale nei contratti per adesione, anche fra professionisti |
+| Punto 4 · supporto durevole | serve | serve |
+| Recesso 14 giorni (Termini, punto 7) | va riconosciuto | non si applica |
+| Foro (Termini, punto 11) | quello del consumatore | Alessandria per tutti |
+
+Da chiarire con chi risponde, perché non è ovvio:
+
+- **La garanzia di rimborso a 30 giorni resta comunque**, in tutti e due i
+  casi: è contrattuale, non di legge, ed è più ampia del recesso per durata e
+  per platea. È il motivo per cui i Termini la tengono anche adesso che il
+  recesso è riconosciuto.
+- **Una dichiarazione dell'acquirente non basta da sola a escludere la
+  qualifica di consumatore**: rileva lo scopo effettivo dell'acquisto, e i
+  Termini attuali lo dicono già. Va capito se un'offerta rivolta a soli
+  professionisti regge dove una dichiarazione non reggerebbe.
+- **Cosa succede a chi compra lo stesso senza esserlo.** Se l'offerta è chiusa
+  ai professionisti, serve dire cosa accade a un acquisto fuori perimetro:
+  rimborso, o licenza valida lo stesso.
+
+Finché la risposta non c'è, questo documento resta scritto per il caso più
+oneroso — offerta a tutti — perché è quello che copre entrambi.
+
+---
+
 ## 5 · Le righe non dicono da dove vengono
 
 Non è un obbligo dei Termini: è una **mancanza del modello** che si è vista
