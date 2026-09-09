@@ -5,12 +5,57 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 
 | Strumento | A cosa serve |
 |---|---|
+| `schermate-vendita.mjs` | Rifà le quattro schermate della pagina di vendita dal prodotto vero, sul dataset vetrina |
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
 | `diagnosi-iva-importata.js` | Elenca le righe la cui aliquota IVA non è quella dichiarata, dopo il difetto dell'import da CSV |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
+
+---
+
+## `schermate-vendita.mjs`
+
+```sh
+npm run build
+node strumenti/schermate-vendita.mjs
+```
+
+Uno screenshot di un prodotto invecchia in fretta e invecchia in silenzio:
+resta bello, e intanto mostra una versione che non esiste più. Lo strumento
+rifà tutte e quattro le immagini della pagina di vendita dal sito appena
+costruito, così quello che si vede sulla pagina è l'app che si apre premendo
+«Apri la demo».
+
+**Solo il dataset vetrina**, caricato dalla schermata vera e non scrivendo in
+IndexedDB da fuori: se un giorno il caricamento cambia, queste immagini devono
+cambiare con lui invece di continuare a uscire da una scorciatoia.
+
+**Orologio fermo al 5 settembre 2026**, l'ultimo giorno che la vetrina
+racconta. Senza fermarlo, due esecuzioni a distanza di un mese darebbero
+scadenze e importi diversi.
+
+**Un controllo che vale più di tutto il resto.** Prima di scattare, verifica
+che ogni fattura, costo e cliente in archivio abbia un id `vet-`. La prima
+stesura non lo faceva: dopo aver caricato la vetrina cercava un'eventuale
+conferma con `/^(Carica|Sostituisci|Conferma)/`, e quel motivo corrispondeva al
+pulsante «Carica «Dimostrativo · forfettario»» lì accanto. Lo premeva. Il
+dimostrativo conserva le impostazioni, quindi l'archivio restava intestato a
+Elena Marani in regime ordinario con sotto i documenti di un forfettario:
+**quattro schermate perfettamente credibili di un'attività che non esiste.**
+Nessun titolo di pagina se n'era accorto, e a occhio non si vedeva niente. Se
+il controllo non passa non scrive nulla: meglio nessuna immagine che quattro
+sbagliate e convincenti.
+
+**Le misure non sono le stesse per tutte.** Le schermate a card stanno a
+1440 × 900, dove il testo resta grande. Il registro dei costi no: la sua
+tabella chiede 1537 px e a 1440 il contenitore gliene dà 1136, quindi scorre e
+la colonna «Totale» finisce sotto la colonna delle azioni, che è appiccicata a
+destra. `453,84 €` diventa `4`. Da 1920 in su ci sta tutta, e il registro si
+scatta lì. La proporzione resta 16:10 per tutte e quattro, perché la pagina di
+vendita è impaginata attorno a quella. Sempre a densità doppia: la pagina le
+mostra attorno ai 1050 px e i file escono a 2880 o 3840.
 
 ---
 
