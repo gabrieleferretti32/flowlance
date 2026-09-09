@@ -55,10 +55,19 @@ src/lib/periodo.ts      mese, trimestre, anno, personalizzato — puro e testato
 src/lib/stato/          preferenze di interfaccia, persistite in localStorage
 src/components/guscio/  navigazione, selettore di periodo, toggle di regime
 src/components/tabella/ modifica in linea, ordinamento, barra di ricerca
-src/app/design/         la pagina che mostra tutto il sistema visivo
 src/components/grafici/ i due grafici del cruscotto
-src/app/(app)/          le schermate di lavoro, dentro il guscio
+src/lib/rotte.ts        gli indirizzi del sito e dell'app, scritti in un posto solo
+src/app/page.tsx        la pagina di vendita, alla radice del dominio
+src/app/app/            le schermate di lavoro, dentro il guscio, sotto /app
+src/app/_design/        la pagina del sistema visivo — cartella privata, fuori dalle rotte
+contenuti/              i testi legali pubblicati così come sono, uno per pagina
 ```
+
+L'applicazione vive sotto `/app` perché la radice del dominio è la pagina di
+vendita. I percorsi non si scrivono a mano: stanno in `src/lib/rotte.ts`, una
+regola di eslint rifiuta le stringhe di percorso nel sorgente e
+`strumenti/verifica-link.mjs` apre ogni pagina del sito costruito per
+verificare che nessun link interno sia morto.
 
 ### Il prospetto fiscale
 
@@ -164,6 +173,12 @@ L'elenco completo di quello che il motore non calcola o semplifica sta in
 [`APPROSSIMAZIONI.md`](APPROSSIMAZIONI.md), con la ragione di ogni scelta. In
 fondo allo stesso file c'è la parte sull'interfaccia: quello che si sa essere
 stretto sul piccolo e che si è deciso di lasciare così.
+
+I testi di Privacy, Termini e Cookie stanno in [`contenuti/`](contenuti/LEGGIMI.md):
+si pubblicano così come sono, e aggiornarne uno è cambiare quel file e
+nient'altro. Quello che i Termini promettono e il prodotto non fa ancora —
+tutto ciò che riguarda l'acquisto, che non esiste — sta in
+[`CHECKOUT.md`](CHECKOUT.md).
 
 ## Font
 
