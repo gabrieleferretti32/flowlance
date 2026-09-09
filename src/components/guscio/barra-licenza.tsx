@@ -75,7 +75,17 @@ export function BarraLicenza() {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-bordo bg-superficie-alt px-4 py-1.5 sm:px-5 lg:px-8 print:hidden">
+    /*
+      `role="status"` come sull'altro ramo e come sulla barra della demo.
+      Ce l'aveva solo il ramo «licenza scaduta»: per un lettore di schermo una
+      barra annunciava la scadenza e l'altra taceva, e chi misura la presenza
+      di una barra ne trovava una sola. È costato dieci minuti di caccia a una
+      regressione che non c'era.
+    */
+    <div
+      role="status"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-bordo bg-superficie-alt px-4 py-1.5 sm:px-5 lg:px-8 print:hidden"
+    >
       <Clock className="size-3.5 shrink-0 text-inchiostro-tenue" aria-hidden />
       {/* Va a capo a ogni larghezza. Con `truncate` sotto i 640 la frase si
           fermava a «Periodo di prova fino al 19 settembre 2026: sca…»: spariva

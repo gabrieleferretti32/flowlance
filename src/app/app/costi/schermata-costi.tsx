@@ -280,15 +280,18 @@ export function SchermataCosti() {
                     <IntestazioneOrdinabile colonna="totale" ordinamento={ordinamento} onOrdina={ordina} numerica>
                       Totale
                     </IntestazioneOrdinabile>
+                    {/*
+                      Una colonna sola per un fatto solo. Erano «% deduc.» e
+                      «Deducibile» affiancate — 202 px per dire «di 372 € ne
+                      deduci il 20 %, cioè 74,40» — e la percentuale in
+                      colonna propria non serviva a nessuno: nessuno ordina i
+                      costi per percentuale di deducibilità, e l'importo senza
+                      la sua percentuale accanto è il numero che si legge male.
+                    */}
                     {!forfettario && (
-                      <>
-                        <TabellaIntestazione numerica className="whitespace-nowrap">
-                          % deduc.
-                        </TabellaIntestazione>
-                        <IntestazioneOrdinabile colonna="deducibile" ordinamento={ordinamento} onOrdina={ordina} numerica>
-                          Deducibile
-                        </IntestazioneOrdinabile>
-                      </>
+                      <IntestazioneOrdinabile colonna="deducibile" ordinamento={ordinamento} onOrdina={ordina} numerica>
+                        Deducibile
+                      </IntestazioneOrdinabile>
                     )}
                     <IntestazioneOrdinabile colonna="pagamento" ordinamento={ordinamento} onOrdina={ordina}>
                       Pagamento
@@ -333,16 +336,13 @@ export function SchermataCosti() {
                       </TabellaCella>
                       <TabellaCella numerica className="whitespace-nowrap font-medium">{euro(c.totale)}</TabellaCella>
                       {!forfettario && (
-                        <>
-                          <TabellaCella className="p-1">
-                            <CellaModificabile tipo="percentuale" etichetta="Percentuale di deducibilità"
-                              valore={c.percentualeDeducibilita} className="whitespace-nowrap"
-                              onSalva={(v) => aggiorna(c, { percentualeDeducibilita: Number(v) })} />
-                          </TabellaCella>
-                          <TabellaCella numerica className="whitespace-nowrap">
-                            {euro(c.costoDeducibile)}
-                          </TabellaCella>
-                        </>
+                        <TabellaCella numerica className="whitespace-nowrap">
+                          <span className="block">{euro(c.costoDeducibile)}</span>
+                          {/* La percentuale resta modificabile: è il campo, l'importo è il derivato. */}
+                          <CellaModificabile tipo="percentuale" etichetta="Percentuale di deducibilità"
+                            valore={c.percentualeDeducibilita} className="whitespace-nowrap text-micro text-inchiostro-tenue"
+                            onSalva={(v) => aggiorna(c, { percentualeDeducibilita: Number(v) })} />
+                        </TabellaCella>
                       )}
                       <TabellaCella className="p-1">
                         <CellaModificabile tipo="data" etichetta="Data di pagamento"
@@ -384,12 +384,7 @@ export function SchermataCosti() {
                     <TabellaCella numerica>{euro(totali.imponibile)}</TabellaCella>
                     <TabellaCella numerica>{euro(totali.iva)}</TabellaCella>
                     <TabellaCella numerica>{euro(totali.totale)}</TabellaCella>
-                    {!forfettario && (
-                      <>
-                        <TabellaCella />
-                        <TabellaCella numerica>{euro(totali.deducibile)}</TabellaCella>
-                      </>
-                    )}
+                    {!forfettario && <TabellaCella numerica>{euro(totali.deducibile)}</TabellaCella>}
                     <TabellaCella colSpan={2} />
                   </tr>
                 </TabellaPiede>

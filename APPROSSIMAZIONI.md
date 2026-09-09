@@ -341,6 +341,33 @@ scadenza si scrive ancora: la scadenza è compresa.
 Senza nessuna chiave valgono **quattordici giorni di prova** dal primo avvio,
 poi lo stesso stato di sola lettura.
 
+## Un anno senza parametri censiti usa quelli dell'anno prima, in silenzio
+
+`parametriDi(anno)` restituisce i parametri dell'anno richiesto, e se quell'anno
+non è ancora censito **ricade sull'anno più recente disponibile**. Il commento
+accanto dice «meglio una stima dichiarata che un errore», ed è vero — ma la
+stima, oggi, è dichiarata solo in parte.
+
+Dove è dichiarata: gli anni che il progetto conosce ma per cui la Legge di
+Bilancio non è ancora uscita hanno un file loro con `provvisorio: true`, e
+quello l'app lo dice — banner in cima alla schermata, export del prospetto
+bloccato. Il 2027 è così adesso.
+
+Dove **non** è dichiarata: un anno oltre l'ultimo file esistente. A gennaio 2028,
+se `parametri/2028.ts` non c'è ancora, l'app calcola con i parametri del 2027 e
+non lo dice da nessuna parte: `provvisorio` è un campo del file, e un anno senza
+file non ha un campo da leggere. Succederà, perché la Legge di Bilancio esce a
+fine dicembre e i file si aggiornano dopo.
+
+Non è un dettaglio di comodo: i Termini di servizio, al punto 8, promettono
+parametri aggiornati per gli anni coperti dalla licenza. Il giorno in cui la
+promessa non è ancora mantenuta deve dirlo l'app, non scoprirlo il cliente
+confrontando il prospetto col commercialista.
+
+Una parte del buco è già chiusa: chi **importa** un backup con un anno del genere
+adesso lo legge nell'avviso dell'import, che nomina l'anno da cui vengono i
+valori. Manca sulle schermate e sulla stampa, che è dove conta.
+
 ## Il promemoria del backup ha due punti ciechi
 
 L'app ricorda l'ultimo export in `localStorage`, non nell'archivio: dentro
