@@ -311,8 +311,15 @@ export type Impostazioni = {
   regime: Regime;
   gruppoAteco: string;
   coefficienteRedditivita: number;
+  /**
+   * L'attività ha i requisiti di novità dell'agevolazione.
+   *
+   * È l'unica cosa che la data di apertura non dice: non aver svolto la stessa
+   * attività nei tre anni precedenti, non proseguire quella di qualcun altro.
+   * L'aliquota invece **non si dichiara**: la deriva `aliquotaSostitutivaEffettiva`
+   * dalla data e dall'anno d'imposta.
+   */
   nuovaAttivita: boolean;
-  aliquotaSostitutiva: number;
   limiteForfettario: number;
   sogliaUscita: number;
 
@@ -375,7 +382,6 @@ export type Impostazioni = {
    * aveva modo di sapere che quel campo lo doveva toccare.
    */
   contributiFissi: number;
-  minimaleArtigiani: number;
   aliquotaSoggettivaCassa: number;
   aliquotaIntegrativaCassa: number;
 

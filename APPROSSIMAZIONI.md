@@ -391,6 +391,26 @@ scadenza vera più vicina. Trattare lo zero come «nessun importo» non si può:
 un trimestre coperto da un credito vale zero davvero, e chiamarlo «senza
 importo stimato» sarebbe falso.
 
+## Due «netto», e il motore ne conosce uno solo
+
+Il semaforo del cruscotto scompone il denaro **entrato in cassa**: i suoi
+quattro segmenti — netto, imposte, contributi, IVA incassata — devono sommare a
+`incassatoLordo`, e i costi dell'attività restano fuori. Il suo netto è quindi
+`incassatoLordo − caricoTotale − ivaIncassata`, e vive in
+`segmentiSemaforo`, non nel motore.
+
+Il motore ha invece `nettoDisponibile`, che i costi li toglie:
+`ricaviRilevanti − costiNettiACarico − caricoTotale`. Rispondono a due domande
+diverse — «di quello che è entrato, quanto è mio» contro «alla fine dell'anno
+cosa resta» — e le due schermate lo dicono, perché la riga di dettaglio del
+segmento nomina l'altro numero.
+
+La conseguenza da sapere: **chi tocca `caricoTotale` muove anche il semaforo**,
+e il semaforo non è coperto dai test del motore perché la sua formula non sta lì.
+È il prezzo di una scomposizione che deve sommare a un totale diverso da quello
+del prospetto; l'alternativa — portare il netto del semaforo dentro il motore —
+metterebbe nel motore una grandezza che serve a una sola schermata.
+
 ## Il «Come si calcola» si apre in due modi
 
 Sotto i 768 px il dettaglio del prospetto si apre **sotto la riga**, spingendo

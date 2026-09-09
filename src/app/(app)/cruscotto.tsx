@@ -8,7 +8,7 @@ import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Chip } from "@/components/ui/chip";
 import { Kpi } from "@/components/ui/kpi";
 import { quotaLimite } from "@/lib/fisco/spiegazioni";
-import { COLORI_SEMAFORO, SemaforoFiscale } from "@/components/fisco/semaforo-fiscale";
+import { SemaforoFiscale, segmentiSemaforo } from "@/components/fisco/semaforo-fiscale";
 import { GraficoAndamento } from "@/components/grafici/andamento";
 import { GraficoConcentrazione } from "@/components/grafici/concentrazione";
 import { Guscio } from "@/components/guscio/guscio";
@@ -118,7 +118,6 @@ export function Cruscotto() {
   }
 
   const { prospetto: p, iva } = calcolo;
-  const nettoSemaforo = p.incassatoLordo - p.caricoTotale - p.ivaIncassata;
   const scaduto = p.fattureCalcolate
     .filter((f) => f.stato === "scaduto")
     .reduce((a, f) => a + f.nettoIncasso, 0);
@@ -162,39 +161,7 @@ export function Cruscotto() {
 
         <SemaforoFiscale
           totale={p.incassatoLordo}
-          segmenti={[
-            {
-              chiave: "netto",
-              etichetta: "Netto tuo",
-              valore: nettoSemaforo,
-              colore: COLORI_SEMAFORO.netto,
-              dettaglio: `Prima dei costi dell'attività. Al netto anche di quelli restano ${euro(p.nettoDisponibile)}.`,
-            },
-            {
-              chiave: "imposte",
-              etichetta: "Imposte",
-              valore: p.totaleImposte,
-              colore: COLORI_SEMAFORO.imposte,
-              dettaglio:
-                p.regime === "forfettario"
-                  ? `Imposta sostitutiva: ${euro(p.imponibile)} × ${percentuale(calcolo.impostazioni.aliquotaSostitutiva, 0)} = ${euro(p.impostaSostitutiva)}.`
-                  : `IRPEF ${euro(p.irpefNetta)} più addizionali per ${euro(p.addizionaleRegionale + p.addizionaleComunale)}.`,
-            },
-            {
-              chiave: "contributi",
-              etichetta: "Contributi",
-              valore: p.totaleContributi,
-              colore: COLORI_SEMAFORO.contributi,
-              dettaglio: `${euro(p.baseContributiva)} × ${percentuale(calcolo.impostazioni.aliquotaGestioneSeparata, 2)}, fino al massimale di ${euro(calcolo.impostazioni.massimaleGs)}.`,
-            },
-            {
-              chiave: "iva",
-              etichetta: "IVA incassata",
-              valore: p.ivaIncassata,
-              colore: COLORI_SEMAFORO.iva,
-              dettaglio: `Riscossa dai clienti e da girare all'erario. Da versare nell'anno: ${euro(iva.totaleDaVersare)}.`,
-            },
-          ]}
+          segmenti={segmentiSemaforo(p, calcolo.impostazioni, parametriDi(anno), iva)}
         />
 
         {/*

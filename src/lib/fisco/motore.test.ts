@@ -18,7 +18,12 @@ import {
 } from "./motore";
 import { PARAMETRI_2026 } from "./parametri/2026";
 import { conValoreDichiarato } from "./parametri-utente";
-import { conFissiDiLegge } from "./impostazioni";
+import {
+  aliquotaSostitutivaEffettiva,
+  conFissiDiLegge,
+  impostazioniDaPrecedente,
+} from "./impostazioni";
+import { parametriDi } from "./parametri";
 import type { Costo, Fattura, Impostazioni, NotaCredito, VersamentoF24 } from "./tipi";
 
 const par = PARAMETRI_2026;
@@ -690,7 +695,8 @@ describe("casi limite", () => {
     */
     const imp = impostazioniForfettario();
     expect(imp.minimaleGs).toBe(par.minimaleAnnuo);
-    expect(imp.minimaleArtigiani).toBe(par.minimaleAnnuo);
+    // La copia degli artigiani non esiste più: leggono i parametri direttamente.
+    expect(par.artigianiCommercianti.minimale).toBe(par.minimaleAnnuo);
     expect(par.minimaleAnnuo).toBe(18_808);
   });
 
@@ -950,3 +956,93 @@ describe("ritorno alla forma grezza", () => {
     expect(calcolaCosto(grezzo, impostazioniOrdinario())).toEqual(calcolato);
   });
 })
+
+/*
+  L'aliquota sostitutiva si deriva, non si dichiara.
+
+  Il difetto che ha portato qui: `aliquotaSostitutivaEffettiva` esisteva già —
+  qualcuno aveva capito che la regola dei cinque anni è un conto — ma non la
+  chiamava nessuno. Il motore moltiplicava per un campo scritto da un
+  interruttore, e chi l'aveva acceso restava al 5 % anche al sesto anno: dieci
+  punti di aliquota sbagliati su un documento che va dal commercialista.
+
+  Nessun test sugli importi l'avrebbe preso, perché il calcolo *era* coerente
+  col campo. È la terza volta che questa specie di difetto passa, e la difesa è
+  sempre la stessa: verificare che il valore usato sia quello derivato, non che
+  il totale torni.
+*/
+describe("imposta sostitutiva · derivata dalla data di apertura", () => {
+  const nel = (anno: number, apertura: string | null, nuova = true): Impostazioni => ({
+    ...impostazioniForfettario(),
+    anno,
+    dataAperturaPiva: apertura,
+    nuovaAttivita: nuova,
+  });
+
+  it("dentro i cinque anni si applica il 5 %", () => {
+    // Apertura 2023: agevolati il 2023, 2024, 2025, 2026 e 2027.
+    for (const anno of [2023, 2024, 2025, 2026, 2027]) {
+      const e = aliquotaSostitutivaEffettiva(nel(anno, "2023-04-10"), parametriDi(anno));
+      expect(e.aliquota, `anno ${anno}`).toBe(0.05);
+      expect(e.agevolata).toBe(true);
+    }
+  });
+
+  it("al sesto anno torna al 15 %, da sola", () => {
+    // È il caso che sbagliava: il campo restava al 5 % per sempre.
+    const e = aliquotaSostitutivaEffettiva(nel(2028, "2023-04-10"), PARAMETRI_2026);
+    expect(e.aliquota).toBe(0.15);
+    expect(e.agevolata).toBe(false);
+    expect(e.motivo).toContain("2023");
+    expect(e.motivo).toContain("6°");
+  });
+
+  it("il motore usa la derivata, non un campo", () => {
+    // Sopravvissuto il campo, sarebbe bastato questo a non accorgersene.
+    const scaduta = calcolaProspetto({
+      impostazioni: nel(2028, "2023-04-10"),
+      parametri: PARAMETRI_2026,
+      fatture: [
+        {
+          id: "unica",
+          dataEmissione: "2028-01-10",
+          numero: "2028/001",
+          clienteId: "alfa",
+          descrizione: "Incarico annuale",
+          tipoRicavo: "progetto",
+          imponibile: 30_000,
+          dataIncasso: "2028-02-10",
+        },
+      ],
+      costi: [],
+      oggi: "2028-12-31",
+    });
+    expect(scaduta.impostaSostitutiva).toBe(round2(scaduta.imponibile * 0.15));
+  });
+
+  it("senza requisiti di novità resta l'ordinaria, per quanto recente sia l'apertura", () => {
+    const e = aliquotaSostitutivaEffettiva(nel(2026, "2026-01-02", false), PARAMETRI_2026);
+    expect(e.aliquota).toBe(0.15);
+    expect(e.motivo).toContain("non è dichiarata nuova");
+  });
+
+  /*
+    Senza data non si applica: è la direzione giusta in cui sbagliare, e prima
+    era l'opposto — la funzione morta restituiva il 5 % a chi la data non
+    l'aveva scritta.
+  */
+  it("senza data di apertura l'agevolazione non parte, e la schermata dice perché", () => {
+    const e = aliquotaSostitutivaEffettiva(nel(2026, null), PARAMETRI_2026);
+    expect(e.aliquota).toBe(0.15);
+    expect(e.agevolata).toBe(false);
+    expect(e.motivo).toContain("manca la data");
+  });
+
+  it("l'anno nuovo eredita i requisiti: l'agevolazione non sparisce a gennaio", () => {
+    // Non erano ereditati, e al secondo anno il 5 % svaniva senza dirlo.
+    const primo = nel(2024, "2024-03-01");
+    const secondo = impostazioniDaPrecedente(PARAMETRI_2026, 2025, primo);
+    expect(secondo.nuovaAttivita).toBe(true);
+    expect(aliquotaSostitutivaEffettiva(secondo, PARAMETRI_2026).aliquota).toBe(0.05);
+  });
+});

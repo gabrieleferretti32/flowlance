@@ -3,6 +3,7 @@
  * quell'anno. L'utente le sovrascrive dal pannello di controllo; i valori di
  * legge restano quelli marcati «da rivedere ogni gennaio».
  */
+import { aliquota } from "../format";
 import { conValoreProposto } from "./parametri-utente";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
 
@@ -22,7 +23,6 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
     gruppoAteco: gruppo.codice,
     coefficienteRedditivita: gruppo.coefficiente,
     nuovaAttivita: false,
-    aliquotaSostitutiva: par.aliquotaSostitutiva,
     limiteForfettario: par.limiteForfettario,
     sogliaUscita: par.sogliaUscitaImmediata,
 
@@ -53,7 +53,6 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
     contributiFissi: par.artigianiCommercianti.artigiani.fissi,
     // Stessa costante del minimale della Gestione Separata: la legge ne
     // pubblica una sola, e nel modello arriva da un campo solo.
-    minimaleArtigiani: par.artigianiCommercianti.minimale,
     aliquotaSoggettivaCassa: 0.15,
     aliquotaIntegrativaCassa: 0.04,
 
@@ -80,17 +79,78 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
   };
 }
 
-/** Aliquota sostitutiva coerente con l'anzianità della partita IVA. */
+/**
+ * L'aliquota sostitutiva, **derivata** e non dichiarata.
+ *
+ * L'app la data di apertura della partita IVA ce l'ha, e l'anno d'imposta pure:
+ * contare cinque anni è un conto che sa fare da sola. Chiederlo all'utente
+ * significava chiedergli di dichiarare una cosa che il sistema può dedurre — e
+ * questa funzione esisteva già per farlo, ma non la chiamava nessuno. Il motore
+ * moltiplicava per un campo scritto da un interruttore, e chi aveva acceso
+ * quell'interruttore restava al 5 % anche al sesto anno: **dieci punti di
+ * aliquota sbagliati su un documento che va dal commercialista.**
+ *
+ * Quello che l'utente dichiara è l'unica cosa che una data non dice: se
+ * l'attività ha i **requisiti di novità** — non aver svolto la stessa attività
+ * nei tre anni precedenti, non proseguire quella di qualcun altro. È un fatto,
+ * non un'aliquota, ed è la sola domanda che resta.
+ *
+ * Senza data di apertura l'agevolazione non si applica. È la direzione giusta
+ * in cui sbagliare, e lo dice la schermata stessa: pagare di meno e scoprire
+ * dopo di non averne diritto è il modo peggiore di sbagliare.
+ *
+ * Restituisce anche il **perché**, con dentro gli anni di chi legge: un'aliquota
+ * derivata che non spiega la derivazione è un numero che cambia sotto le mani.
+ */
+export type SostitutivaApplicata = {
+  /** Quella che il motore usa. */
+  aliquota: number;
+  /** L'agevolazione dei primi cinque anni è in corso. */
+  agevolata: boolean;
+  /** La derivazione in una frase, con gli anni dentro. */
+  motivo: string;
+};
+
 export function aliquotaSostitutivaEffettiva(
   imp: Impostazioni,
   par: ParametriAnno,
-): number {
-  if (!imp.nuovaAttivita) return par.aliquotaSostitutiva;
-  if (!imp.dataAperturaPiva) return par.aliquotaSostitutivaNuovaAttivita;
-  const anniTrascorsi = imp.anno - Number(imp.dataAperturaPiva.slice(0, 4));
-  return anniTrascorsi < par.anniNuovaAttivita
-    ? par.aliquotaSostitutivaNuovaAttivita
-    : par.aliquotaSostitutiva;
+): SostitutivaApplicata {
+  const ordinaria = par.aliquotaSostitutiva;
+  const agevolata = par.aliquotaSostitutivaNuovaAttivita;
+
+  if (!imp.nuovaAttivita) {
+    return {
+      aliquota: ordinaria,
+      agevolata: false,
+      motivo: `${aliquota(ordinaria)}: l'attività non è dichiarata nuova ai fini dell'agevolazione.`,
+    };
+  }
+  if (!imp.dataAperturaPiva) {
+    return {
+      aliquota: ordinaria,
+      agevolata: false,
+      motivo: `${aliquota(ordinaria)}: manca la data di apertura della partita IVA, e senza quella i cinque anni non si contano. Scrivila nel profilo e l'aliquota si aggiorna da sola.`,
+    };
+  }
+
+  const annoApertura = Number(imp.dataAperturaPiva.slice(0, 4));
+  const trascorsi = imp.anno - annoApertura;
+  // Il primo anno è quello dell'apertura: chi apre nel 2021 è agevolato dal
+  // 2021 al 2025, e il 2026 è il sesto.
+  const quale = trascorsi + 1;
+
+  if (trascorsi < par.anniNuovaAttivita) {
+    return {
+      aliquota: agevolata,
+      agevolata: true,
+      motivo: `${aliquota(agevolata)}: hai aperto nel ${annoApertura}, quindi il ${imp.anno} è il ${quale}° dei ${par.anniNuovaAttivita} anni agevolati.`,
+    };
+  }
+  return {
+    aliquota: ordinaria,
+    agevolata: false,
+    motivo: `${aliquota(ordinaria)}: hai aperto nel ${annoApertura}, quindi il ${imp.anno} è il ${quale}° anno e i ${par.anniNuovaAttivita} agevolati sono passati.`,
+  };
 }
 
 /**
@@ -125,6 +185,13 @@ export function impostazioniDaPrecedente(
     ...base,
     nome: precedente.nome,
     dataAperturaPiva: precedente.dataAperturaPiva,
+    /*
+      Un fatto dell'attività, non una scelta dell'anno: senza ereditarlo
+      l'agevolazione spariva al secondo anno. Ereditarlo è sicuro adesso che il
+      taglio dei cinque anni lo deriva il motore dalla data — prima avrebbe
+      portato avanti un 5 % che nessuno faceva più scadere.
+    */
+    nuovaAttivita: precedente.nuovaAttivita,
     regime: precedente.regime,
     gruppoAteco: precedente.gruppoAteco,
     coefficienteRedditivita: precedente.coefficienteRedditivita,

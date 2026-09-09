@@ -3,6 +3,11 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { euro, percentuale } from "@/lib/format";
+import { round2 } from "@/lib/fisco/aritmetica";
+import { aliquotaSostitutivaEffettiva } from "@/lib/fisco/impostazioni";
+import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "@/lib/fisco/tipi";
+import type { Prospetto } from "@/lib/fisco/motore";
+import type { LiquidazioneIva } from "@/lib/fisco/iva";
 
 export type SegmentoSemaforo = {
   chiave: string;
@@ -159,3 +164,76 @@ export const COLORI_SEMAFORO = {
   contributi: "#F5A524",
   iva: "#6B7392",
 } as const;
+
+/**
+ * Il netto del semaforo, e i suoi quattro segmenti.
+ *
+ * Stanno qui e non nelle due schermate che li mostrano perché erano scritti due
+ * volte, e le due copie **erano già divergute**: la pagina del sistema visivo
+ * aveva il 15 %, il 26,07 % e i 122.295 € scritti a mano, cioè tre costanti di
+ * legge in una schermata che viene costruita e servita come le altre. Copiare
+ * una formula è come copiare un parametro — la seconda copia non sa quando la
+ * prima cambia.
+ *
+ * Il netto qui non è `nettoDisponibile` del motore, ed è voluto: il semaforo
+ * scompone il denaro **entrato in cassa**, quindi i quattro segmenti devono
+ * sommare a `incassatoLordo` e i costi restano fuori. Sono due domande diverse
+ * con due risposte diverse; la differenza è dichiarata in APPROSSIMAZIONI.md.
+ */
+export function nettoDelSemaforo(p: Prospetto): number {
+  return round2(p.incassatoLordo - p.caricoTotale - p.ivaIncassata);
+}
+
+export function segmentiSemaforo(
+  p: Prospetto,
+  imp: Impostazioni,
+  par: ParametriAnno,
+  iva: LiquidazioneIva,
+): SegmentoSemaforo[] {
+  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
+  return [
+    {
+      chiave: "netto",
+      etichetta: "Netto tuo",
+      valore: nettoDelSemaforo(p),
+      colore: COLORI_SEMAFORO.netto,
+      dettaglio: `Prima dei costi dell'attività. Al netto anche di quelli restano ${euro(p.nettoDisponibile)}.`,
+    },
+    {
+      chiave: "imposte",
+      etichetta: "Imposte",
+      valore: p.totaleImposte,
+      colore: COLORI_SEMAFORO.imposte,
+      dettaglio:
+        p.regime === "forfettario"
+          ? `Imposta sostitutiva: ${euro(p.imponibile)} × ${percentuale(sostitutiva.aliquota, 0)} = ${euro(p.impostaSostitutiva)}.`
+          : `IRPEF ${euro(p.irpefNetta)} più addizionali per ${euro(p.addizionaleRegionale + p.addizionaleComunale)}.`,
+    },
+    {
+      chiave: "contributi",
+      etichetta: "Contributi",
+      valore: p.totaleContributi,
+      colore: COLORI_SEMAFORO.contributi,
+      dettaglio: dettaglioContributi(p, imp, par),
+    },
+    {
+      chiave: "iva",
+      etichetta: "IVA incassata",
+      valore: p.ivaIncassata,
+      colore: COLORI_SEMAFORO.iva,
+      dettaglio: `Riscossa dai clienti e da girare all'erario. Da versare nell'anno: ${euro(iva.totaleDaVersare)}.`,
+    },
+  ];
+}
+
+/** La riga dei contributi cambia con la gestione: erano tre frasi diverse. */
+function dettaglioContributi(p: Prospetto, imp: Impostazioni, par: ParametriAnno): string {
+  if (eGestioneCommerciale(imp.gestione)) {
+    const regole = par.artigianiCommercianti;
+    return `Fissi più ${percentuale(regole[imp.gestione].aliquota, 2)} sul reddito oltre il minimale di ${euro(regole.minimale)}.`;
+  }
+  if (imp.gestione === "cassa") {
+    return `${euro(p.baseContributiva)} × ${percentuale(imp.aliquotaSoggettivaCassa, 2)} di contributo soggettivo.`;
+  }
+  return `${euro(p.baseContributiva)} × ${percentuale(imp.aliquotaGestioneSeparata, 2)}, fino al massimale di ${euro(imp.massimaleGs)}.`;
+}

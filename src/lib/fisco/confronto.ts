@@ -10,6 +10,7 @@
 import { nonNegativo, rapporto, round2, somma } from "./aritmetica";
 import { interoIt } from "../format";
 import { contributiPrevidenziali, irpefScaglioni } from "./motore";
+import { aliquotaSostitutivaEffettiva } from "./impostazioni";
 import {
   addizionaleComunaleDi,
   addizionaleDovuta,
@@ -100,7 +101,7 @@ function scenario(
       detrazioneLavoroAutonomo(redditoLordo, par.detrazioneLavoroAutonomo).importo,
   );
   const imposte = forfettario
-    ? round2(imponibile * imp.aliquotaSostitutiva)
+    ? round2(imponibile * aliquotaSostitutivaEffettiva(imp, par).aliquota)
     : somma(
         irpefNetta,
         // Senza IRPEF dovuta non sono dovute nemmeno le addizionali.

@@ -26,6 +26,7 @@ import { cercaGruppi } from "@/lib/fisco/ateco";
 import { cambiamentiDiRegime } from "@/lib/fisco/regime";
 import type { Riporto } from "@/lib/fisco/chiusura";
 import { nomeGestione } from "@/lib/fisco/tipi";
+import { aliquotaSostitutivaEffettiva } from "@/lib/fisco/impostazioni";
 import type { GruppoAteco, Impostazioni, ParametriAnno, Regime } from "@/lib/fisco/tipi";
 import type { ContestoCalcolo } from "@/lib/onboarding/percorso";
 import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
@@ -98,21 +99,22 @@ function ControlloDelPasso({
       return (
         <div className="space-y-3">
           <Interruttore
-            etichetta="Attività nuova, aperta da meno di cinque anni"
+            etichetta="L'attività ha i requisiti di novità della norma"
             attivo={imp.nuovaAttivita}
-            onCambia={(nuovaAttivita) =>
-              onModifica({
-                nuovaAttivita,
-                aliquotaSostitutiva: nuovaAttivita
-                  ? par.aliquotaSostitutivaNuovaAttivita
-                  : par.aliquotaSostitutiva,
-              })
-            }
+            onCambia={(nuovaAttivita) => onModifica({ nuovaAttivita })}
           />
+          {/*
+            L'interruttore dichiara i requisiti, non l'aliquota: quella la
+            deriva il motore dalla data di apertura. La riga qui sotto dice che
+            cosa ha dedotto e perché — un'aliquota derivata che non spiega la
+            derivazione è un numero che cambia sotto le mani.
+          */}
           <p className="text-etichetta text-inchiostro-tenue">
-            Aliquota applicata: {aliquota(imp.aliquotaSostitutiva)}. Nel dubbio lascia il{" "}
-            {aliquota(par.aliquotaSostitutiva)}: pagare di meno e scoprire dopo di non
-            averne diritto è il modo peggiore di sbagliare.
+            {aliquotaSostitutivaEffettiva(imp, par).motivo}
+          </p>
+          <p className="text-etichetta text-inchiostro-tenue">
+            Nel dubbio lascia l&apos;interruttore spento: pagare di meno e scoprire dopo di
+            non averne diritto è il modo peggiore di sbagliare.
           </p>
         </div>
       );
@@ -928,7 +930,10 @@ export function riepilogoImpostazioni(
     {
       passo: "sostitutiva",
       voce: "Imposta sostitutiva",
-      valore: imp.regime === "forfettario" ? percentuale(imp.aliquotaSostitutiva) : "—",
+      valore:
+        imp.regime === "forfettario"
+          ? percentuale(aliquotaSostitutivaEffettiva(imp, par).aliquota)
+          : "—",
     },
     {
       passo: "gestione",

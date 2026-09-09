@@ -18,6 +18,7 @@
  * spiega cosa cambia nei calcoli. I controlli stanno nella schermata.
  */
 import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
+import { aliquotaSostitutivaEffettiva } from "@/lib/fisco/impostazioni";
 import type { Prospetto } from "@/lib/fisco/motore";
 import type { Impostazioni, ParametriAnno } from "@/lib/fisco/tipi";
 
@@ -186,15 +187,15 @@ export const PASSI: Passo[] = [
   {
     id: "sostitutiva",
     titolo: "Imposta sostitutiva",
-    domanda: "Hai aperto la partita IVA da meno di cinque anni?",
+    domanda: "La tua è un'attività nuova ai fini dell'agevolazione?",
     perche:
-      "Nel forfettario si paga un'imposta unica al posto di IRPEF e addizionali. L'aliquota ordinaria è il 15 %, ma per i primi cinque anni di una attività davvero nuova scende al 5 %. «Nuova» ha un significato preciso: non basta aver aperto da poco, non devi aver svolto la stessa attività nei tre anni precedenti né proseguire quella di qualcun altro.",
+      "Nel forfettario si paga un'imposta unica al posto di IRPEF e addizionali. L'aliquota ordinaria è il 15 %, ma per i primi cinque anni di una attività davvero nuova scende al 5 %. Da quanto hai aperto lo sa già l'app, che ha la data della partita IVA e conta da sola: quello che non può sapere è se «nuova» vale nel senso della norma — non aver svolto la stessa attività nei tre anni precedenti, non proseguire quella di qualcun altro.",
     seSalti: (c) =>
-      `Resta l'aliquota ${aliquota(c.impostazioni.aliquotaSostitutiva)}, quella ordinaria del regime.`,
+      `Resta ${aliquota(aliquotaSostitutivaEffettiva(c.impostazioni, c.parametri).aliquota)}: senza la dichiarazione dei requisiti l'agevolazione non si applica.`,
     effetto: (c) => {
       const imponibile = c.prospetto.imponibile;
       if (imponibile <= 0) return null;
-      return `Sul tuo imponibile di ${euro(imponibile)}: ${euro(imponibile * c.parametri.aliquotaSostitutiva)} al 15 %, ${euro(imponibile * c.parametri.aliquotaSostitutivaNuovaAttivita)} al 5 %.`;
+      return `${aliquotaSostitutivaEffettiva(c.impostazioni, c.parametri).motivo} Sul tuo imponibile di ${euro(imponibile)} fa ${euro(imponibile * aliquotaSostitutivaEffettiva(c.impostazioni, c.parametri).aliquota)}.`;
     },
     sblocca:
       "Ora sa con quale aliquota calcolare l'imposta che pagherai.",

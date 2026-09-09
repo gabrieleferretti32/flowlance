@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/tabella";
 import { toast } from "@/components/ui/toast";
 import { Vuoto } from "@/components/ui/vuoto";
-import { COLORI_SEMAFORO, SemaforoFiscale } from "@/components/fisco/semaforo-fiscale";
+import { SemaforoFiscale, segmentiSemaforo } from "@/components/fisco/semaforo-fiscale";
 import { calcolaProspetto } from "@/lib/fisco/motore";
 import { calcolaIva } from "@/lib/fisco/iva";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
@@ -42,7 +42,7 @@ export function ProvaSistema() {
   const [regime, setRegime] = React.useState<Regime>("forfettario");
 
   // Il toggle di regime ricalcola tutto: è il motore, non una finzione visiva.
-  const { prospetto, iva } = React.useMemo(() => {
+  const { prospetto, iva, impostazioni } = React.useMemo(() => {
     const impostazioni =
       regime === "forfettario" ? impostazioniForfettario() : impostazioniOrdinario();
     const p = calcolaProspetto({
@@ -54,15 +54,11 @@ export function ProvaSistema() {
     });
     return {
       prospetto: p,
+      impostazioni,
       iva: calcolaIva(p.fattureCalcolate, p.costiCalcolati, impostazioni, PARAMETRI_2026),
     };
   }, [regime]);
 
-  // Il semaforo scompone il denaro davvero entrato in cassa: compensi più l'IVA
-  // incassata dai clienti. Sottrarre l'IVA da una base che non la contiene
-  // farebbe apparire il netto più magro di quanto sia.
-  const nettoSemaforo =
-    prospetto.incassatoLordo - prospetto.caricoTotale - prospetto.ivaIncassata;
 
   return (
     <main className="mx-auto max-w-6xl px-6 py-10">
@@ -91,39 +87,7 @@ export function ProvaSistema() {
       <Sezione titolo="L'elemento firma" nota="Il semaforo fiscale, alimentato dal motore.">
         <SemaforoFiscale
           totale={prospetto.incassatoLordo}
-          segmenti={[
-            {
-              chiave: "netto",
-              etichetta: "Netto tuo",
-              valore: nettoSemaforo,
-              colore: COLORI_SEMAFORO.netto,
-              dettaglio: `Restano ${euro(nettoSemaforo)} prima dei costi dell'attività. Al netto anche di quelli: ${euro(prospetto.nettoDisponibile)}.`,
-            },
-            {
-              chiave: "imposte",
-              etichetta: "Imposte",
-              valore: prospetto.totaleImposte,
-              colore: COLORI_SEMAFORO.imposte,
-              dettaglio:
-                regime === "forfettario"
-                  ? `Imposta sostitutiva: ${euro(prospetto.imponibile)} × 15% = ${euro(prospetto.impostaSostitutiva)}.`
-                  : `IRPEF ${euro(prospetto.irpefNetta)} più addizionali ${euro(prospetto.addizionaleRegionale + prospetto.addizionaleComunale)}.`,
-            },
-            {
-              chiave: "contributi",
-              etichetta: "Contributi",
-              valore: prospetto.totaleContributi,
-              colore: COLORI_SEMAFORO.contributi,
-              dettaglio: `${euro(prospetto.baseContributiva)} × 26,07%, fino al massimale di ${euro(122_295)}.`,
-            },
-            {
-              chiave: "iva",
-              etichetta: "IVA incassata",
-              valore: prospetto.ivaIncassata,
-              colore: COLORI_SEMAFORO.iva,
-              dettaglio: `Incassata dai clienti e da girare all'erario. Liquidazione dell'anno: ${euro(iva.totaleDebito)} a debito meno ${euro(iva.totaleCredito)} detraibili, ${euro(iva.totaleDaVersare)} da versare.`,
-            },
-          ]}
+          segmenti={segmentiSemaforo(prospetto, impostazioni, PARAMETRI_2026, iva)}
         />
       </Sezione>
 

@@ -13,6 +13,7 @@ import {
   addizionaleRegionaleDi,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
+import { aliquotaSostitutivaEffettiva } from "./impostazioni";
 import { dichiarato } from "./parametri-utente";
 import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
@@ -624,7 +625,10 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   const imponibile = round2(nonNegativo(redditoLordo - contributiDedotti - oneriDeducibili));
 
   // — C · Imposte ————————————————————————————————————
-  const impostaSostitutiva = forfettario ? round2(imponibile * imp.aliquotaSostitutiva) : 0;
+  // L'aliquota si deriva dalla data di apertura, non si legge da un campo: la
+  // regola dei cinque anni è un conto, e i conti li fa il motore.
+  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
+  const impostaSostitutiva = forfettario ? round2(imponibile * sostitutiva.aliquota) : 0;
   const irpefLorda = forfettario ? 0 : irpefScaglioni(imponibile, imp.scaglioniIrpef);
   const detrazioni = forfettario ? 0 : imp.detrazioniPersonali;
   /*

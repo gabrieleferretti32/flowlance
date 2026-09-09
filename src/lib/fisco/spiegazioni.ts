@@ -19,6 +19,7 @@ import {
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
 import { dichiarato, noteDelValore } from "./parametri-utente";
+import { aliquotaSostitutivaEffettiva } from "./impostazioni";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 import { eGestioneCommerciale } from "./tipi";
@@ -289,14 +290,18 @@ export function prospettoDettagliato(
 
   // — C · Imposte ————————————————————————————————
   const imposte: RigaProspetto[] = [];
+  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
   if (forfettario) {
     imposte.push({
       id: "sostitutiva",
       etichetta: "Imposta sostitutiva",
       valore: p.impostaSostitutiva,
       formato: "euro",
-      formula: `${euro(p.imponibile)} × ${percentuale(imp.aliquotaSostitutiva, 0)}.`,
-      nota: "Sostituisce IRPEF, addizionali regionali e comunali e IRAP.",
+      formula: `${euro(p.imponibile)} × ${percentuale(sostitutiva.aliquota, 0)}.`,
+      // Il perché dell'aliquota, non solo l'aliquota: è derivata dalla data di
+      // apertura, e un numero derivato che non spiega la derivazione è un
+      // numero che cambia sotto le mani senza dire perché.
+      nota: `${sostitutiva.motivo} Sostituisce IRPEF, addizionali regionali e comunali e IRAP.`,
     });
   } else {
     imposte.push({

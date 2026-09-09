@@ -15,6 +15,7 @@ import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
 import { esportazioneProspettoConsentita, type EsitoEsportazione } from "./chiusura";
 import { prospettoDettagliato, type SezioneProspetto } from "./spiegazioni";
 import { nomeRegione } from "./regioni";
+import { aliquotaSostitutivaEffettiva } from "./impostazioni";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 
@@ -83,6 +84,7 @@ export function documentoProspetto(
     { etichetta: "Documento emesso il", valore: dataEstesa(emessoIl) },
   ];
 
+  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
   const parametri: VoceIntestazione[] = [
     { etichetta: "Regime fiscale", valore: forfettario ? "Forfettario" : "Ordinario" },
   ];
@@ -94,7 +96,7 @@ export function documentoProspetto(
       },
       {
         etichetta: "Imposta sostitutiva",
-        valore: `${percentuale(imp.aliquotaSostitutiva)}${imp.nuovaAttivita ? " (nuova attività)" : ""}`,
+        valore: `${percentuale(sostitutiva.aliquota)}${sostitutiva.agevolata ? " (nuova attività)" : ""}`,
       },
       {
         etichetta: "Limite di ricavi del regime",
