@@ -3,6 +3,7 @@ import { calcolaProspetto } from "@/lib/fisco/motore";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
 import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
 import { datiDemo, ANNO_DEMO } from "@/lib/dati/demo";
+import type { Adempimento } from "@/lib/fisco/scadenze";
 import type { Fattura, NotaCredito } from "@/lib/fisco/tipi";
 import { coloreDaNome } from "@/lib/format";
 import {
@@ -10,8 +11,11 @@ import {
   concentrazione,
   giorniMediIncasso,
   portafoglioClienti,
+  prossimoVersamento,
   scadutoPerFascia,
 } from "./dashboard";
+import { calcolaIva } from "@/lib/fisco/iva";
+import { scadenzeAnno } from "@/lib/fisco/scadenze";
 
 const dati = datiDemo();
 // Il dataset copre due anni: qui interessa quello raccontato, non l'antefatto.
@@ -25,6 +29,9 @@ const prospetto = calcolaProspetto({
   versamenti: dati.versamenti,
   oggi: "2026-09-01",
 });
+const iva = calcolaIva(
+  prospetto.fattureCalcolate, prospetto.costiCalcolati, impostazioni, PARAMETRI_2026,
+);
 
 describe("andamento mensile", () => {
   const mesi = andamentoMensile(prospetto.fattureCalcolate, prospetto.costiCalcolati, ANNO_DEMO);
@@ -231,5 +238,129 @@ describe("giorni medi di incasso", () => {
 
   it("senza incassi non inventa uno zero", () => {
     expect(giorniMediIncasso([])).toBeNull();
+  });
+});
+
+/*
+  La card «Prossima scadenza» è quella che si guarda per sapere quanto serve
+  sul conto e quando. Il caso che ha fatto nascere questa funzione è vero:
+  su un archivio appena avviato la prima scadenza non dichiarativa era
+  l'imposta di bollo del 4° trimestre — che un importo stimato non ce l'ha — e
+  la card mostrava un trattino.
+*/
+describe("prossimo versamento", () => {
+  const adempimento = (
+    id: string,
+    data: string,
+    importo: number | null,
+    categoria: Adempimento["categoria"] = "imposte",
+  ): Adempimento => ({ id, data, titolo: id, importo, categoria });
+
+  const OGGI = "2027-01-10";
+
+  it("mostra il primo versamento in arrivo, quando l'importo ce l'ha", () => {
+    const v = prossimoVersamento(
+      [adempimento("iva-1t", "2027-05-16", 1_200), adempimento("secondo-acconto", "2027-11-30", 900)],
+      OGGI,
+    );
+    expect(v.importo).toBe(1_200);
+    expect(v.dovute.map((s) => s.id)).toEqual(["iva-1t"]);
+    expect(v.scavalcati).toEqual([]);
+  });
+
+  it("scavalca le scadenze senza importo, e le tiene per dirlo", () => {
+    const v = prossimoVersamento(
+      [
+        adempimento("bollo-4t-precedente", "2027-03-16", null, "bollo"),
+        adempimento("iva-1t", "2027-05-16", 1_200, "iva"),
+      ],
+      OGGI,
+    );
+    expect(v.importo).toBe(1_200);
+    expect(v.dovute.map((s) => s.id)).toEqual(["iva-1t"]);
+    // La card mostra il 16 maggio: il 16 marzo non sparisce, lo racconta.
+    expect(v.scavalcati.map((s) => s.id)).toEqual(["bollo-4t-precedente"]);
+  });
+
+  it("scavalcandone più di una le tiene tutte, in ordine", () => {
+    const v = prossimoVersamento(
+      [
+        adempimento("bollo-4t-precedente", "2027-03-16", null, "bollo"),
+        adempimento("rinvio-luglio", "2027-07-31", null),
+        adempimento("iva-3t", "2027-11-16", 800, "iva"),
+      ],
+      OGGI,
+    );
+    expect(v.scavalcati.map((s) => s.id)).toEqual(["bollo-4t-precedente", "rinvio-luglio"]);
+    expect(v.importo).toBe(800);
+  });
+
+  /*
+    Il caso in cui il trattino resta, ed è giusto che resti: mostrare un numero
+    preso da una data diversa da quella scritta sotto sarebbe peggio.
+  */
+  it("se nessuna ha un importo torna alla prima, col trattino", () => {
+    const v = prossimoVersamento(
+      [
+        adempimento("bollo-4t-precedente", "2027-03-16", null, "bollo"),
+        adempimento("acconto-iva", "2027-12-27", null, "iva"),
+      ],
+      OGGI,
+    );
+    expect(v.importo).toBeNull();
+    expect(v.dovute.map((s) => s.id)).toEqual(["bollo-4t-precedente"]);
+    expect(v.scavalcati).toEqual([]);
+  });
+
+  it("somma tutto quello che esce lo stesso giorno, e conta gli importi che mancano", () => {
+    const v = prossimoVersamento(
+      [
+        adempimento("inps-artigiani-4", "2027-11-16", 1_150, "contributi"),
+        adempimento("iva-3t", "2027-11-16", 800, "iva"),
+        adempimento("altro-stesso-giorno", "2027-11-16", null),
+      ],
+      OGGI,
+    );
+    expect(v.importo).toBe(1_950);
+    expect(v.dovute).toHaveLength(3);
+    expect(v.senzaImporto).toBe(1);
+  });
+
+  it("le dichiarazioni restano fuori: non sono denaro che esce", () => {
+    const v = prossimoVersamento(
+      [
+        adempimento("lipe-4t-precedente", "2027-02-28", null, "dichiarazione"),
+        adempimento("redditi-pf", "2027-10-31", null, "dichiarazione"),
+        adempimento("iva-1t", "2027-05-16", 1_200, "iva"),
+      ],
+      OGGI,
+    );
+    expect(v.dovute.map((s) => s.id)).toEqual(["iva-1t"]);
+    // Nemmeno fra le scavalcate: non sono state scavalcate, non c'entrano.
+    expect(v.scavalcati).toEqual([]);
+  });
+
+  it("quello che è già passato non è in arrivo", () => {
+    const v = prossimoVersamento(
+      [adempimento("iva-1t", "2026-05-16", 1_200, "iva")],
+      OGGI,
+    );
+    expect(v.dovute).toEqual([]);
+    expect(v.importo).toBeNull();
+  });
+
+  it("oggi conta come in arrivo: si versa entro fine giornata", () => {
+    const v = prossimoVersamento([adempimento("iva-1t", OGGI, 1_200, "iva")], OGGI);
+    expect(v.importo).toBe(1_200);
+  });
+
+  it("sui dati veri il primo versamento resta quello che si versa davvero", () => {
+    const scadenze = scadenzeAnno(
+      impostazioni, PARAMETRI_2026, prospetto, iva, null,
+    );
+    const v = prossimoVersamento(scadenze, `${ANNO_DEMO}-09-05`);
+    expect(v.dovute.every((s) => s.categoria !== "dichiarazione")).toBe(true);
+    for (const s of v.scavalcati) expect(s.importo).toBeNull();
+    for (const s of v.scavalcati) expect(s.data < v.dovute[0].data).toBe(true);
   });
 });

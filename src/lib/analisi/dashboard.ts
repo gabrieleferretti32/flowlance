@@ -7,6 +7,7 @@ import { annoDi, meseDi } from "@/lib/fisco/documenti";
 import type { CostoCalcolato, FatturaCalcolata } from "@/lib/fisco/tipi";
 import type { NotaCalcolata } from "@/lib/fisco/note";
 import type { Cliente } from "@/lib/dati/tipi";
+import type { Adempimento } from "@/lib/fisco/scadenze";
 
 export type MeseAndamento = {
   mese: number;
@@ -189,4 +190,76 @@ export function giorniMediIncasso(fatture: FatturaCalcolata[]): number | null {
  */
 export function concentrazione(portafoglio: RigaCliente[]): number {
   return portafoglio[0]?.quota ?? 0;
+}
+
+// ————————————————————————————————————————————————————————————
+// La prossima scadenza da pagare
+// ————————————————————————————————————————————————————————————
+
+export type ProssimoVersamento = {
+  /** Quello che si versa in quel giorno. Vuoto se non c'è niente in arrivo. */
+  dovute: Adempimento[];
+  /** La somma degli importi noti. `null` se nessuna delle `dovute` ne ha uno. */
+  importo: number | null;
+  /** Quante fra le `dovute` non hanno un importo stimato. */
+  senzaImporto: number;
+  /**
+   * I versamenti più vicini di questo, scavalcati perché nessuno di loro ha un
+   * importo stimato. Vanno detti: la card mostra una data che non è la prima
+   * cosa che succede, e tacerlo la farebbe sembrare la prima.
+   */
+  scavalcati: Adempimento[];
+};
+
+/**
+ * Che cosa mostra la card «Prossima scadenza».
+ *
+ * Non è «il primo adempimento in arrivo»: è **il primo versamento di cui si
+ * conosce l'importo**. La differenza nasce da un caso vero — su un archivio
+ * appena avviato la prima scadenza non dichiarativa era l'imposta di bollo del
+ * 4° trimestre, che un importo stimato non ce l'ha, e la card più utile del
+ * cruscotto mostrava un trattino.
+ *
+ * Gli adempimenti senza importo non sono un'eccezione da ignorare: sono cinque
+ * — bollo del trimestre, IVA di dicembre dell'anno prima, rinvio di luglio,
+ * acconto IVA, e saldo e acconti quando manca l'anno da cui calcolarli.
+ *
+ * Quindi si scavalcano, ma **si nominano**: chi legge deve poter sapere che
+ * prima di quella data c'è dell'altro. Se nessuno dei prossimi ha un importo si
+ * torna al primo in assoluto e la card mostra il trattino — meglio un trattino
+ * che un numero preso da una data diversa da quella scritta sotto.
+ *
+ * Le dichiarazioni restano fuori: una LIPE da inviare non è denaro che esce, e
+ * in una card che risponde a «quanto e quando pago» sarebbe fuori posto.
+ */
+export function prossimoVersamento(
+  scadenze: readonly Adempimento[],
+  oggi: string,
+): ProssimoVersamento {
+  const inArrivo = scadenze
+    .filter((s) => s.data >= oggi && s.categoria !== "dichiarazione")
+    // L'ordine arriva già giusto da `scadenzeAnno`, ma qui si concatenano due
+    // anni: ordinare costa niente e toglie di mezzo un'assunzione.
+    .sort((a, b) => a.data.localeCompare(b.data) || a.id.localeCompare(b.id));
+
+  const dataUtile = inArrivo.find((s) => s.importo !== null)?.data ?? inArrivo[0]?.data ?? null;
+  if (dataUtile === null) {
+    return { dovute: [], importo: null, senzaImporto: 0, scavalcati: [] };
+  }
+
+  // Tutto quello che cade in quel giorno, non solo la prima voce: il 16
+  // novembre un artigiano versa la rata INPS *e* l'IVA del trimestre, e una
+  // card che ne mostrasse una sola direbbe un numero più basso del vero.
+  const dovute = inArrivo.filter((s) => s.data === dataUtile);
+  const conImporto = dovute.filter((s) => s.importo !== null);
+
+  return {
+    dovute,
+    importo:
+      conImporto.length > 0
+        ? round2(conImporto.reduce((a, s) => a + (s.importo ?? 0), 0))
+        : null,
+    senzaImporto: dovute.length - conImporto.length,
+    scavalcati: inArrivo.filter((s) => s.data < dataUtile),
+  };
 }

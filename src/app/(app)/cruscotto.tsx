@@ -13,13 +13,17 @@ import { GraficoAndamento } from "@/components/grafici/andamento";
 import { GraficoConcentrazione } from "@/components/grafici/concentrazione";
 import { Guscio } from "@/components/guscio/guscio";
 import { InvitoPercorso } from "@/components/guscio/invito-percorso";
-import { andamentoMensile, giorniMediIncasso, portafoglioClienti } from "@/lib/analisi/dashboard";
+import {
+  andamentoMensile,
+  giorniMediIncasso,
+  portafoglioClienti,
+  prossimoVersamento,
+} from "@/lib/analisi/dashboard";
 import { generaAvvisi, type Avviso } from "@/lib/analisi/avvisi";
 import { PromemoriaBackup } from "@/components/dati/promemoria-backup";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
-import { round2 } from "@/lib/fisco/aritmetica";
 import { periodoIvaCorrente } from "@/lib/fisco/iva";
 import { prossimeScadenze, scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
 import { usePreferenze } from "@/lib/stato/preferenze";
@@ -130,27 +134,17 @@ export function Cruscotto() {
   */
   const periodoIva = periodoIvaCorrente(iva, oggi, anno);
   /*
-    Il primo *versamento* in arrivo, non il primo adempimento: una
-    dichiarazione da presentare non è denaro che esce, e in una card che
-    risponde a «quanto e quando pago» sarebbe fuori posto.
+    Che cosa esce dal conto per primo, e quanto. La scelta di quale scadenza
+    mostrare sta in `prossimoVersamento`, che è puro e testato: la card qui
+    sotto la racconta e basta.
   */
-  const inArrivo = prossimeScadenze(
+  const versamento = prossimoVersamento(
     [...analisi.scadenze, ...analisi.scadenzeSuccessive],
     oggi,
-    40,
-  ).filter((s) => s.categoria !== "dichiarazione");
-  /*
-    Tutto quello che cade nello stesso giorno, non solo la prima voce: il 16
-    novembre un artigiano versa la rata INPS *e* l'IVA del trimestre, e una
-    card che ne mostrasse una sola direbbe un numero più basso del vero
-    proprio nel punto in cui si guarda quanto serve sul conto.
-  */
-  const primaData = inArrivo[0]?.data ?? null;
-  const dovute = inArrivo.filter((s) => s.data === primaData);
-  const conImporto = dovute.filter((s) => s.importo !== null);
+  );
+  const { dovute, scavalcati } = versamento;
   const prossima = dovute[0] ?? null;
-  const importoProssima =
-    conImporto.length > 0 ? round2(conImporto.reduce((a, s) => a + (s.importo ?? 0), 0)) : null;
+  const importoProssima = versamento.importo;
   // Quanto del fabbisogno copre la percentuale impostata. `null` quando non
   // c'è niente da coprire: una percentuale su zero non vuol dire niente.
   // Anno contro anno: la percentuale impostata lavora su tutti i ricavi e ha
@@ -356,15 +350,36 @@ export function Cruscotto() {
             }
             sotto={
               prossima ? (
-                <p className="text-inchiostro-tenue">
-                  {fmtData(prossima.data)}
-                  {dovute.length > 1 && ` · ${dovute.length} versamenti lo stesso giorno`}
-                  {importoProssima === null &&
-                    (prossima.nota ? " · importo non calcolabile" : " · importo non stimato")}
-                  {importoProssima !== null &&
-                    conImporto.length < dovute.length &&
-                    " · uno degli importi non è stimato"}
-                </p>
+                <>
+                  <p className="text-inchiostro-tenue">
+                    {fmtData(prossima.data)}
+                    {dovute.length > 1 && ` · ${dovute.length} versamenti lo stesso giorno`}
+                    {importoProssima === null &&
+                      (prossima.nota ? " · importo non calcolabile" : " · importo non stimato")}
+                    {importoProssima !== null &&
+                      versamento.senzaImporto > 0 &&
+                      ` · ${versamento.senzaImporto === 1 ? "un importo non è stimato" : `${versamento.senzaImporto} importi non sono stimati`}`}
+                  </p>
+                  {/*
+                    La data qui sopra non è sempre la prima cosa che succede:
+                    quando le scadenze più vicine non hanno un importo stimato
+                    la card le scavalca, perché mostrare un trattino al posto
+                    del numero è il modo più rapido di rendere inutile la card
+                    più utile del cruscotto. Scavalcarle in silenzio però
+                    sarebbe peggio — questa riga è il prezzo di quella scelta.
+                  */}
+                  {scavalcati.length > 0 && (
+                    <p className="mt-1 text-inchiostro-tenue">
+                      {/* Il titolo non si minuscola: «Acconto IVA annuale» diventerebbe
+                          «acconto iva annuale», e le sigle non si minuscolano. */}
+                      Prima, {scavalcati.length > 1 ? "dal" : "il"} {fmtData(scavalcati[0].data)}:{" "}
+                      {scavalcati[0].titolo}
+                      {scavalcati.length === 2 && " e un altro"}
+                      {scavalcati.length > 2 && ` e altri ${scavalcati.length - 1}`}, senza importo
+                      stimato.
+                    </p>
+                  )}
+                </>
               ) : undefined
             }
           />

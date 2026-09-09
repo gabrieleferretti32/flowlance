@@ -325,6 +325,26 @@ con un tocco — ma è un secondo passo, e va conosciuto. L'alternativa sarebbe
 non tenere niente e rendere lo svuotamento irreversibile, che su un gesto che
 si può premere per sbaglio è peggio.
 
+## La card «Prossima scadenza» non mostra sempre la prima scadenza
+
+Mostra il primo versamento **di cui si conosce l'importo**, e nomina quelli che
+ha scavalcato con la loro data. Gli adempimenti senza importo stimato non sono
+un'eccezione: sono cinque — bollo del trimestre, IVA di dicembre dell'anno
+prima, rinvio di luglio, acconto IVA, e saldo e acconti quando manca l'anno da
+cui calcolarli — e senza questa regola la card più utile del cruscotto mostrava
+un trattino proprio su un archivio appena avviato.
+
+Il prezzo è dichiarato in una riga sotto la data. Se nessuna delle prossime ha
+un importo si torna alla prima e il trattino resta: meglio un trattino che un
+numero preso da una data diversa da quella scritta accanto.
+
+Un caso limite che resta: se l'anno successivo non ha ancora documenti, la sua
+prima liquidazione IVA vale `0,00 €` — che è un importo, quindi vince sul
+trattino. La card dice allora «0,00 €» per una data futura, e sotto nomina la
+scadenza vera più vicina. Trattare lo zero come «nessun importo» non si può:
+un trimestre coperto da un credito vale zero davvero, e chiamarlo «senza
+importo stimato» sarebbe falso.
+
 ## Il «Come si calcola» si apre in due modi
 
 Sotto i 768 px il dettaglio del prospetto si apre **sotto la riga**, spingendo
