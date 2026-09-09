@@ -6,6 +6,7 @@ import { ripartisci } from "./competenza";
 import { impostazioniForfettario, impostazioniOrdinario, OGGI_FIXTURE } from "./fixture";
 import { PARAMETRI_2026 } from "./parametri/2026";
 import type { Fattura, NotaCredito } from "./tipi";
+import { euro } from "@/lib/format";
 
 function nota(p: Partial<NotaCredito> = {}): NotaCredito {
   return {
@@ -156,7 +157,13 @@ describe("una nota non riconciliata resta valida e viene segnalata", () => {
 
   it("agganciata a metà dice quanto resta", () => {
     const n = nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 300 }] });
-    expect(controlliNote([n], [fattura()])[0].messaggio).toContain("200.00");
+    /*
+      L'attesa viene dal formattatore, non riscritta a mano: `euro()` separa
+      la cifra dal simbolo con uno spazio unificatore (U+00A0), non con uno
+      normale, e un test che scrive lo spazio a mano fallisce per una ragione
+      che non c'entra niente con quello che sta verificando.
+    */
+    expect(controlliNote([n], [fattura()])[0].messaggio).toContain(euro(200));
   });
 
   it("agganciata del tutto non produce avvisi", () => {

@@ -173,6 +173,9 @@ L'elenco completo di quello che il motore non calcola o semplifica sta in
 fondo allo stesso file c'è la parte sull'interfaccia: quello che si sa essere
 stretto sul piccolo e che si è deciso di lasciare così.
 
+Quello che si sa e non si corregge — con la data, e con il criterio che decide
+cosa si chiude prima del lancio — sta in [`APPUNTI.md`](APPUNTI.md).
+
 I testi di Privacy, Termini e Cookie stanno in [`contenuti/`](contenuti/LEGGIMI.md):
 si pubblicano così come sono, e aggiornarne uno è cambiare quel file e
 nient'altro. Quello che i Termini promettono e il prodotto non fa ancora —

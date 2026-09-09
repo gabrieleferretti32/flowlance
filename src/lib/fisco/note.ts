@@ -10,6 +10,7 @@
  * comunque, perché il documento esiste e il fisco lo conta. Chi non aggancia
  * niente resta con i conti giusti e un avviso.
  */
+import { euro } from "@/lib/format";
 import { round2 } from "./aritmetica";
 import { annoDi } from "./documenti";
 import type { DateDocumento } from "./competenza";
@@ -174,7 +175,7 @@ export function controlliNote(
         messaggio:
           c.riconciliato === 0
             ? "Non è riconciliata a nessuna fattura: riduce comunque ricavi e IVA."
-            : `Riconciliata solo in parte: restano ${c.residuo.toFixed(2)} € senza fattura.`,
+            : `Riconciliata solo in parte: restano ${euro(c.residuo)} senza fattura.`,
       });
     }
 
@@ -200,7 +201,7 @@ export function controlliNote(
           notaId: nota.notaId,
           numero: nota.numero,
           gravita: "errore",
-          messaggio: `Le note agganciate superano l'imponibile della fattura: ${voce.stornato.toFixed(2)} € su ${originale.imponibile.toFixed(2)} €.`,
+          messaggio: `Le note agganciate superano l'imponibile della fattura: ${euro(voce.stornato)} su ${euro(originale.imponibile)}.`,
         });
       }
     }
