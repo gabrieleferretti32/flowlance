@@ -10,6 +10,7 @@ export function IntestazioneOrdinabile<C extends string>({
   ordinamento,
   onOrdina,
   numerica = false,
+  ancorataSeconda = false,
   className,
   children,
 }: {
@@ -17,6 +18,8 @@ export function IntestazioneOrdinabile<C extends string>({
   ordinamento: Ordinamento<C>;
   onOrdina: (colonna: C) => void;
   numerica?: boolean;
+  /** La colonna dell'identità, ferma accanto alle azioni mentre la tabella scorre. */
+  ancorataSeconda?: boolean;
   className?: string;
   children: React.ReactNode;
 }) {
@@ -26,6 +29,7 @@ export function IntestazioneOrdinabile<C extends string>({
   return (
     <TabellaIntestazione
       numerica={numerica}
+      ancorataSeconda={ancorataSeconda}
       className={cn("p-0", className)}
       aria-sort={attiva ? (ordinamento.verso === "crescente" ? "ascending" : "descending") : "none"}
     >

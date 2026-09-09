@@ -26,12 +26,13 @@
  *   ai 1050 px e i file escono a 2880, quindi restano nette su uno schermo
  *   retina.
  *
- *   Le schermate a card stanno a 1440 × 900, dove il testo resta grande. I
- *   **registri no**: la tabella dei costi ne chiede 1537 di sola tabella, e a
- *   1440 il contenitore gliene dà 1136. La differenza non si vede come uno
- *   spazio mancante — si vede come la colonna «Totale» mezza nascosta sotto la
- *   colonna delle azioni, che è appiccicata a destra e sta sopra quello che
- *   scorre. `453,84 €` diventa `4`. Da 1920 in su la tabella ci sta tutta.
+ *   Tutte e quattro a 1440 × 900, registri compresi. Il registro dei costi si
+ *   scattava a 1920 perché a 1440 la colonna «Totale» finiva sotto quella
+ *   delle azioni — `453,84 €` si leggeva `4` — ma quello era un difetto del
+ *   registro, non una ragione per fotografarlo a una risoluzione che lo
+ *   nasconde: una schermata scattata dove il difetto non si vede mostra una
+ *   cosa che il cliente non vedrà. Il difetto è stato corretto (le azioni ora
+ *   sono ancorate a sinistra) e lo scatto è tornato a 1440.
  *
  * Opzioni:
  *   --dove=cartella         dove scrivere i PNG
@@ -60,11 +61,9 @@ const GIORNO = "2026-09-05T10:30:00";
 
 const SCHERMATE = [
   { file: "cruscotto.png", rotta: "/app/", attesa: "Cruscotto" },
-  { file: "fisco.png", rotta: "/app/fisco/", attesa: "Imposte e contributi" },
+  { file: "fisco.png", rotta: "/app/fisco/", attesa: "Imposte e contributi", apriDettaglio: true },
   { file: "scadenziario.png", rotta: "/app/scadenzario/", attesa: "Scadenzario" },
-  // Il registro dei costi ha dodici colonne: sotto i 1920 la tabella scorre e
-  // l'ultima colonna finisce sotto quella delle azioni.
-  { file: "costi.png", rotta: "/app/costi/", attesa: "Costi", larghezza: 1920, altezza: 1200 },
+  { file: "costi.png", rotta: "/app/costi/", attesa: "Costi" },
 ];
 
 try {
@@ -167,6 +166,23 @@ console.log(`Vetrina caricata: ${estranee.totale} fra fatture, costi e clienti, 
 // illuminata dal passaggio del mouse finisce dentro l'immagine.
 await page.mouse.move(2, 2);
 
+/**
+ * La riga del prospetto da aprire prima di scattare.
+ *
+ * Il paragrafo accanto all'immagine promette che «ogni riga dice il suo
+ * calcolo», e un prospetto tutto chiuso mostra etichette e importi: la promessa
+ * non si vede.
+ *
+ * Fra le righe che stanno dentro l'inquadratura, «Quota fiscalmente
+ * deducibile» è quella che spiega di più — nomina l'auto al 20 %, i ristoranti
+ * al 75 %, la telefonia al 50 % dell'IVA, cioè tre percentuali per documento
+ * che quasi nessuno si aspetta di vedere in un gestionale. Le righe che
+ * nominano il coefficiente ATECO e l'aliquota regionale spiegherebbero
+ * altrettanto bene ma cadono sotto il taglio dei 900 px, e scattarle
+ * significherebbe togliere la testata all'immagine.
+ */
+const RIGA_DA_APRIRE = /^Come si calcola: Quota fiscalmente deducibile/;
+
 for (const s of SCHERMATE) {
   const larghezza = s.larghezza ?? LARGHEZZA;
   const altezza = s.altezza ?? ALTEZZA;
@@ -179,6 +195,16 @@ for (const s of SCHERMATE) {
     console.error(`${s.file}: non trovo «${s.attesa}» nella pagina. Non la salvo.`);
     continue;
   }
+  if (s.apriDettaglio) {
+    const bottone = page.getByRole("button", { name: RIGA_DA_APRIRE }).first();
+    if (await bottone.isVisible().catch(() => false)) {
+      await bottone.click();
+      await page.waitForTimeout(700);
+    } else {
+      console.error(`${s.file}: non trovo la riga da aprire. Scatto comunque, ma senza formula.`);
+    }
+  }
+
   const percorso = join(DOVE, s.file);
   await page.screenshot({ path: percorso });
   const { size } = statSync(percorso);

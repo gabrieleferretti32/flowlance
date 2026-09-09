@@ -151,10 +151,10 @@ export function SchermataNote() {
                 <TabellaTesta>
                   <tr>
                     {/* Ancorate a sinistra: vedi `ANCORATA` in ui/tabella.tsx. */}
-                    <TabellaIntestazione ancorata className="w-20">
+                    <TabellaIntestazione ancorata className="w-24">
                       <span className="sr-only">Azioni</span>
                     </TabellaIntestazione>
-                    <TabellaIntestazione>Data</TabellaIntestazione>
+                    <TabellaIntestazione ancorataSeconda>Data</TabellaIntestazione>
                     <TabellaIntestazione>Numero</TabellaIntestazione>
                     <TabellaIntestazione className="min-w-40">Cliente</TabellaIntestazione>
                     <TabellaIntestazione className="min-w-48">Descrizione</TabellaIntestazione>
@@ -169,7 +169,7 @@ export function SchermataNote() {
                     const problemi = avvisiDi(n.id);
                     return (
                       <TabellaRiga key={n.id}>
-                        <TabellaCella ancorata>
+                        <TabellaCella ancorata className="w-24">
                           <div className="flex items-center justify-start gap-1">
                             {n.dataRimborso ? (
                               <Button
@@ -204,7 +204,7 @@ export function SchermataNote() {
                             </Button>
                           </div>
                         </TabellaCella>
-                        <TabellaCella className="p-1">
+                        <TabellaCella ancorataSeconda className="p-1">
                           <CellaModificabile
                             tipo="data"
                             etichetta={`Data della nota ${n.numero}`}

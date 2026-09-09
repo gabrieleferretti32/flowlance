@@ -156,14 +156,31 @@ export function TabellaRiga({ className, ...props }: React.HTMLAttributes<HTMLTa
 const ANCORATA =
   "sticky left-0 bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:-right-3 after:w-3 after:bg-gradient-to-r after:from-inchiostro/10 after:to-transparent";
 
+/**
+ * La seconda colonna ferma: l'identità della riga.
+ *
+ * Da sola, la colonna delle azioni ancorata a sinistra risolve il difetto a
+ * riposo ma scorrendo **copre** la data e il fornitore — cioè proprio quello
+ * che serve sapere mentre si guardano le colonne di destra. Ferma anche
+ * quella, la tabella scorre sotto due colonne che restano: chi si sposta a
+ * destra per leggere «Deducibile» continua a vedere di quale documento sta
+ * leggendo.
+ *
+ * L'offset è la larghezza della colonna delle azioni: 96 px, `left-24`.
+ */
+const ANCORATA_SECONDA =
+  "sticky left-24 bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:-right-3 after:w-3 after:bg-gradient-to-r after:from-inchiostro/10 after:to-transparent";
+
 export function TabellaIntestazione({
   className,
   numerica = false,
   ancorata = false,
+  ancorataSeconda = false,
   ...props
 }: React.ThHTMLAttributes<HTMLTableCellElement> & {
   numerica?: boolean;
   ancorata?: boolean;
+  ancorataSeconda?: boolean;
 }) {
   return (
     <th
@@ -174,6 +191,7 @@ export function TabellaIntestazione({
         // Nell'angolo in alto a destra si incrociano due agganci: sopra tutto,
         // altrimenti le celle del corpo le passano davanti scorrendo.
         ancorata && `${ANCORATA} z-20`,
+        ancorataSeconda && `${ANCORATA_SECONDA} z-20`,
         className,
       )}
       {...props}
@@ -185,10 +203,12 @@ export function TabellaCella({
   className,
   numerica = false,
   ancorata = false,
+  ancorataSeconda = false,
   ...props
 }: React.TdHTMLAttributes<HTMLTableCellElement> & {
   numerica?: boolean;
   ancorata?: boolean;
+  ancorataSeconda?: boolean;
 }) {
   return (
     <td
@@ -196,6 +216,7 @@ export function TabellaCella({
         "px-2.5 py-2.5 align-middle",
         numerica && "cifre text-right",
         ancorata && `${ANCORATA} z-10`,
+        ancorataSeconda && `${ANCORATA_SECONDA} z-10`,
         className,
       )}
       {...props}

@@ -297,7 +297,7 @@ export function SchermataFatture() {
                     <TabellaIntestazione ancorata>
                       <span className="sr-only">Azioni</span>
                     </TabellaIntestazione>
-                    <IntestazioneOrdinabile colonna="emissione" ordinamento={ordinamento} onOrdina={ordina}>
+                    <IntestazioneOrdinabile colonna="emissione" ordinamento={ordinamento} onOrdina={ordina} ancorataSeconda>
                       Emissione
                     </IntestazioneOrdinabile>
                     <IntestazioneOrdinabile colonna="numero" ordinamento={ordinamento} onOrdina={ordina}>
@@ -364,7 +364,7 @@ export function SchermataFatture() {
                           </Button>
                         </div>
                       </TabellaCella>
-                      <TabellaCella className="p-1">
+                      <TabellaCella ancorataSeconda className="p-1">
                         <CellaModificabile
                           tipo="data" etichetta="Data di emissione" valore={f.dataEmissione}
                           onSalva={(v) => { if (v) aggiorna(f, { dataEmissione: String(v) }); }}

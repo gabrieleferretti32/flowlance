@@ -266,7 +266,7 @@ export function SchermataCosti() {
                       l'identità della riga: quella la si vuole vedere.
                     */}
                     <TabellaIntestazione ancorata><span className="sr-only">Azioni</span></TabellaIntestazione>
-                    <IntestazioneOrdinabile colonna="documento" ordinamento={ordinamento} onOrdina={ordina}>
+                    <IntestazioneOrdinabile colonna="documento" ordinamento={ordinamento} onOrdina={ordina} ancorataSeconda>
                       Documento
                     </IntestazioneOrdinabile>
                     <IntestazioneOrdinabile colonna="fornitore" ordinamento={ordinamento} onOrdina={ordina}>
@@ -335,7 +335,7 @@ export function SchermataCosti() {
                           </Button>
                         </div>
                       </TabellaCella>
-                      <TabellaCella className="p-1">
+                      <TabellaCella ancorataSeconda className="p-1">
                         <CellaModificabile tipo="data" etichetta="Data del documento" valore={c.dataDocumento}
                           onSalva={(v) => { if (v) aggiorna(c, { dataDocumento: String(v) }); }} />
                       </TabellaCella>
@@ -387,14 +387,22 @@ export function SchermataCosti() {
 
                 <TabellaPiede>
                   <tr>
-                    <TabellaCella colSpan={5}>
+                    {/*
+                      Sei, non cinque: la colonna delle azioni apre la riga, e
+                      il piede deve contarla. Spostata la colonna e non il
+                      `colSpan`, i totali finivano incolonnati sotto le
+                      intestazioni sbagliate — «15.057,50 €» sotto «Natura».
+                      È il difetto tipico di questa tabella: un numero
+                      plausibile nella casella di un altro.
+                    */}
+                    <TabellaCella colSpan={6}>
                       Totale · {righe.length} {righe.length === 1 ? "costo" : "costi"}
                     </TabellaCella>
                     <TabellaCella numerica>{euro(totali.imponibile)}</TabellaCella>
                     <TabellaCella numerica>{euro(totali.iva)}</TabellaCella>
                     <TabellaCella numerica>{euro(totali.totale)}</TabellaCella>
                     {!forfettario && <TabellaCella numerica>{euro(totali.deducibile)}</TabellaCella>}
-                    <TabellaCella colSpan={2} />
+                    <TabellaCella />
                   </tr>
                 </TabellaPiede>
               </Tabella>
