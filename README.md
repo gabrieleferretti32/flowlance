@@ -59,7 +59,6 @@ src/components/grafici/ i due grafici del cruscotto
 src/lib/rotte.ts        gli indirizzi del sito e dell'app, scritti in un posto solo
 src/app/page.tsx        la pagina di vendita, alla radice del dominio
 src/app/app/            le schermate di lavoro, dentro il guscio, sotto /app
-src/app/_design/        la pagina del sistema visivo — cartella privata, fuori dalle rotte
 contenuti/              i testi legali pubblicati così come sono, uno per pagina
 ```
 
