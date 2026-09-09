@@ -17,6 +17,8 @@ import {
   irpefScaglioni,
 } from "./motore";
 import { PARAMETRI_2026 } from "./parametri/2026";
+import { conValoreDichiarato } from "./parametri-utente";
+import { conFissiDiLegge } from "./impostazioni";
 import type { Costo, Fattura, Impostazioni, NotaCredito, VersamentoF24 } from "./tipi";
 
 const par = PARAMETRI_2026;
@@ -573,23 +575,111 @@ describe("casi limite", () => {
   it("i contributi si fermano al massimale della Gestione Separata", () => {
     const imp = impostazioniForfettario();
     const soprailMassimale = imp.massimaleGs + 50_000;
-    const c = contributiPrevidenziali(soprailMassimale, imp);
+    const c = contributiPrevidenziali(soprailMassimale, imp, PARAMETRI_2026);
     expect(c.separata).toBe(round2(imp.massimaleGs * imp.aliquotaGestioneSeparata));
     expect(c.separata).toBe(31_882.31);
     // Un euro sopra il massimale non cambia il contributo.
-    expect(contributiPrevidenziali(imp.massimaleGs + 1, imp).separata).toBe(c.separata);
+    expect(contributiPrevidenziali(imp.massimaleGs + 1, imp, PARAMETRI_2026).separata).toBe(
+      c.separata,
+    );
   });
 
-  it("artigiani e commercianti pagano i fissi più l'eccedenza sul minimale", () => {
-    const imp = { ...impostazioniForfettario(), gestione: "artigiani" as const };
-    // Sotto il minimale si versano solo i contributi fissi.
-    expect(contributiPrevidenziali(10_000, imp).artigiani).toBe(4600);
-    // Il minimale si legge dalle impostazioni, non si riscrive qui: è un valore
-    // di legge che cambia ogni anno, e un numero fisso nel test avrebbe
-    // continuato a passare anche col parametro sbagliato.
-    expect(contributiPrevidenziali(imp.minimaleArtigiani + 10_000, imp).artigiani).toBe(
-      round2(4600 + 10_000 * imp.aliquotaEccedenza),
-    );
+  /*
+    Artigiani e commercianti: due gestioni, due aliquote, due scaglioni.
+
+    Erano una gestione sola con un'aliquota piatta, e i tre errori che ne
+    uscivano si **compensavano** — su un artigiano a 100.000 € il totale era 30 €
+    sopra il vero con due componenti entrambe fuori posto. Da qui la forma di
+    questi test: si controllano le componenti a un reddito per volta, non un
+    totale che può tornare per caso.
+  */
+  describe("artigiani e commercianti", () => {
+    const regole = PARAMETRI_2026.artigianiCommercianti;
+    const conGestione = (gestione: "artigiani" | "commercianti") => ({
+      ...impostazioniForfettario(),
+      gestione,
+    });
+    const contributi = (reddito: number, gestione: "artigiani" | "commercianti") =>
+      contributiPrevidenziali(reddito, conGestione(gestione), PARAMETRI_2026).artigiani;
+
+    it("sotto il minimale si versano solo i fissi, e sono quelli della gestione", () => {
+      expect(contributi(10_000, "artigiani")).toBe(regole.artigiani.fissi);
+      expect(contributi(10_000, "commercianti")).toBe(regole.commercianti.fissi);
+      // Non sono lo stesso importo: se lo diventassero, questo test lo dice.
+      expect(regole.artigiani.fissi).not.toBe(regole.commercianti.fissi);
+    });
+
+    it("sopra il minimale l'artigiano versa il 24 %, il commerciante il 24,48 %", () => {
+      const reddito = regole.minimale + 10_000;
+      expect(contributi(reddito, "artigiani")).toBe(round2(regole.artigiani.fissi + 10_000 * 0.24));
+      expect(contributi(reddito, "commercianti")).toBe(
+        round2(regole.commercianti.fissi + 10_000 * 0.2448),
+      );
+      // Lo 0,48 % di differenza è l'aliquota aggiuntiva dei soli commercianti.
+      expect(contributi(reddito, "commercianti") - contributi(reddito, "artigiani")).toBeCloseTo(
+        regole.commercianti.fissi - regole.artigiani.fissi + 10_000 * 0.0048,
+        2,
+      );
+    });
+
+    it("oltre la prima fascia pensionabile l'aliquota sale di un punto", () => {
+      const reddito = regole.primaFasciaPensionabile + 10_000;
+      const sottoFascia = regole.primaFasciaPensionabile - regole.minimale;
+      expect(contributi(reddito, "artigiani")).toBe(
+        round2(regole.artigiani.fissi + sottoFascia * 0.24 + 10_000 * 0.25),
+      );
+      expect(contributi(reddito, "commercianti")).toBe(
+        round2(regole.commercianti.fissi + sottoFascia * 0.2448 + 10_000 * 0.2548),
+      );
+    });
+
+    it("sopra il massimale non si versa più niente", () => {
+      const al = contributi(regole.massimale, "artigiani");
+      expect(contributi(regole.massimale + 1, "artigiani")).toBe(al);
+      expect(contributi(regole.massimale + 100_000, "artigiani")).toBe(al);
+    });
+
+    it("i contributi fissi dichiarati scavalcano quelli di legge", () => {
+      // È la strada dei casi agevolati: riduzione del 35 %, del 50 % per gli
+      // over 65 pensionati, del 50 % per i nuovi iscritti.
+      const agevolato = conValoreDichiarato(conGestione("artigiani"), "contributiFissi", 2_938.88);
+      expect(
+        contributiPrevidenziali(10_000, agevolato, PARAMETRI_2026).artigiani,
+      ).toBe(2_938.88);
+    });
+
+    /*
+      Quello che il campo mostra è quello che il motore usa.
+
+      Il motore legge l'importo di legge dai parametri, il campo nei Parametri
+      mostra quello scritto in archivio: se divergono, il calcolo è giusto e il
+      numero a schermo no, e nessuno dei due lo segnala. È successo davvero — un
+      commerciante vedeva l'importo degli artigiani.
+    */
+    it("i fissi scritti in archivio seguono la gestione scelta", () => {
+      for (const g of ["artigiani", "commercianti"] as const) {
+        const allineate = conFissiDiLegge(conGestione(g), PARAMETRI_2026);
+        expect(allineate.contributiFissi).toBe(regole[g].fissi);
+        // E il motore, che l'importo lo prende dai parametri, dice lo stesso.
+        expect(contributiPrevidenziali(0, allineate, PARAMETRI_2026).artigiani).toBe(
+          allineate.contributiFissi,
+        );
+      }
+    });
+
+    it("allineare la gestione non sovrascrive una riduzione dichiarata", () => {
+      const agevolato = conValoreDichiarato(conGestione("commercianti"), "contributiFissi", 2_305.82);
+      expect(conFissiDiLegge(agevolato, PARAMETRI_2026).contributiFissi).toBe(2_305.82);
+    });
+
+    it("un valore scritto ma non dichiarato non scavalca niente", () => {
+      // Il campo esiste in archivio anche prima di essere toccato: se bastasse
+      // la sua presenza, il valore di legge non entrerebbe mai in gioco.
+      const scritto = { ...conGestione("artigiani"), contributiFissi: 1 };
+      expect(contributiPrevidenziali(10_000, scritto, PARAMETRI_2026).artigiani).toBe(
+        regole.artigiani.fissi,
+      );
+    });
   });
 
   it("il minimale annuo è una costante sola, letta da due formule", () => {

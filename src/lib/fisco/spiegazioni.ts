@@ -18,9 +18,10 @@ import {
   descriviAddizionale,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
-import { noteDelValore } from "./parametri-utente";
+import { dichiarato, noteDelValore } from "./parametri-utente";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
+import { eGestioneCommerciale } from "./tipi";
 
 export type FormatoValore = "euro" | "percentuale" | "testo";
 
@@ -460,16 +461,37 @@ export function prospettoDettagliato(
         ? undefined
         : "Sotto il minimale l'anno non viene accreditato per intero ai fini pensionistici. È un'informazione che quasi nessuno dà.",
     });
-  } else if (imp.gestione === "artigiani") {
+  } else if (eGestioneCommerciale(imp.gestione)) {
+    const regole = par.artigianiCommercianti;
+    const sua = regole[imp.gestione];
+    const scavalcati = dichiarato(imp, "contributiFissi");
+    const fissi = scavalcati ? imp.contributiFissi : sua.fissi;
+    const oltreLaFascia = p.redditoLordo > regole.primaFasciaPensionabile;
     contributi.push({
       id: "artigiani",
-      etichetta: "Artigiani e commercianti",
+      etichetta: imp.gestione === "artigiani" ? "Artigiani" : "Commercianti",
       valore: p.contributiArtigiani,
       formato: "euro",
-      // I contributi fissi cambiano ogni anno e per gestione: finché non sono
-      // stati confermati, quello scritto qui è la media dell'app.
-      formula: `${euro(imp.contributiFissi)} di contributi fissi (${noteDelValore(imp, "contributiFissi")}) più ${percentuale(imp.aliquotaEccedenza, 2)} sulla parte di reddito oltre il minimale di ${euro(imp.minimaleArtigiani)}.`,
-      nota: "I contributi fissi si versano in quattro rate, a febbraio, maggio, agosto e novembre.",
+      /*
+        Le due aliquote si nominano tutte e due solo quando servono tutte e
+        due: sotto la prima fascia, scrivere «e il 25 % oltre i 56.224 €»
+        aggiunge una riga che non riguarda chi legge.
+      */
+      formula:
+        `${euro(fissi)} di contributi fissi` +
+        (scavalcati ? " (valore che hai dichiarato)" : "") +
+        `, più ${percentuale(sua.aliquota, 2)} sulla parte di reddito oltre il minimale di ${euro(regole.minimale)}` +
+        (oltreLaFascia
+          ? `, e ${percentuale(sua.aliquotaOltreFascia, 2)} sulla parte oltre ${euro(regole.primaFasciaPensionabile)}.`
+          : "."),
+      nota:
+        "I contributi fissi si versano in quattro rate, a maggio, agosto, novembre e febbraio dell'anno dopo." +
+        (scavalcati
+          ? ""
+          : ` L'importo è quello pubblicato dall'INPS per ${imp.gestione === "artigiani" ? "gli artigiani" : "i commercianti"}: si scavalca dai Parametri se hai diritto a una riduzione.`) +
+        (p.redditoLordo > regole.massimale
+          ? ` Oltre il massimale di ${euro(regole.massimale)} non si versa: il reddito eccedente non è imponibile.`
+          : ""),
     });
   } else {
     contributi.push({
@@ -789,7 +811,7 @@ function composizioneRata(
     const regola = par.accontoContributi[imp.gestione];
     const quotaRata = regola ? regola.quota / regola.rate : 0;
     const dove =
-      imp.gestione === "artigiani"
+      eGestioneCommerciale(imp.gestione)
         ? `${euro(a.contributi.base)} di contributi sul reddito eccedente il minimale`
         : euro(a.contributi.base);
     pezzi.push(
@@ -802,7 +824,7 @@ function composizioneRata(
   if (!forfettario && p.addizionaleRegionale > 0) {
     code.push("L'addizionale regionale non ha acconto: si versa tutta a saldo.");
   }
-  if (imp.gestione === "artigiani") {
+  if (eGestioneCommerciale(imp.gestione)) {
     code.push("I contributi sul minimale non entrano qui: si versano in quattro rate fisse.");
   }
   if (imp.gestione === "cassa" && p.contributiCassa > 0) {
@@ -920,6 +942,8 @@ function nomeGestione(gestione: Impostazioni["gestione"]): string {
   return gestione === "separata"
     ? "Gestione Separata INPS"
     : gestione === "artigiani"
-      ? "Artigiani e commercianti"
-      : "Cassa professionale";
+      ? "Artigiani"
+      : gestione === "commercianti"
+        ? "Commercianti"
+        : "Cassa professionale";
 }

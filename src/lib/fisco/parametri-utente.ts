@@ -15,7 +15,7 @@
  */
 import { aliquota, analizzaNumero, euro, interoIt } from "@/lib/format";
 import { frazioneDaPercentuale } from "./aritmetica";
-import type { Impostazioni, ScaglioneIrpef } from "./tipi";
+import { eGestioneCommerciale, type Impostazioni, type ScaglioneIrpef } from "./tipi";
 
 /** I campi che l'utente può dichiarare. La chiave è il campo di `Impostazioni`. */
 export type CampoUtente =
@@ -58,6 +58,12 @@ export type DefinizioneCampo = {
    * esporta: sarebbe un documento con dentro un'aliquota inventata.
    */
   nellIrpef: boolean;
+  /**
+   * L'app si aspetta che l'utente lo dichiari. `false` dove un valore di legge
+   * c'è già e il campo serve solo a scavalcarlo: chiederlo sarebbe chiedere di
+   * confermare una cosa che si sa. Assente vale `true`.
+   */
+  daDichiarare?: boolean;
   /**
    * Dove si sente la sua mancanza: nei conti col fisco, o nel calcolo di quante
    * ore hai da vendere. Serve a segnalarlo nella schermata giusta — le ore
@@ -113,18 +119,34 @@ export const CAMPI_UTENTE: DefinizioneCampo[] = [
     massimo: 0.01,
   },
   {
+    /*
+      Questo campo non chiede un dato che l'app non conosce: lo **scavalca**.
+
+      L'importo di legge dei contributi fissi l'app ce l'ha, per gestione, e lo
+      usa. Prima teneva una media (4.600 €) e la marcava «da confermare», che
+      era sbagliato due volte: il numero non era di nessuno, e chiedeva di
+      confermare una cosa che si poteva sapere.
+
+      Resta un campo perché tre categorie di persone versano meno del dovuto per
+      legge, e quali siano l'app non lo può indovinare. Il testo qui sotto le
+      nomina tutte e tre: è l'unico posto in cui un utente agevolato scopre che
+      quel campo lo deve toccare.
+    */
     campo: "contributiFissi",
-    etichetta: "Contributi fissi artigiani e commercianti",
+    etichetta: "Contributi fissi INPS, se hai una riduzione",
     nelTesto: "i contributi fissi INPS",
     aCosaServe:
-      "La quota dovuta comunque, anche a reddito zero, divisa in quattro rate. Sopra il minimale si aggiunge la percentuale sull'eccedenza.",
+      "La quota dovuta comunque, anche a reddito zero, divisa in quattro rate. L'importo di legge lo conosce l'app e lo applica da solo: questo campo serve se hai diritto a una riduzione, perché quella l'app non può saperla. Sono tre casi: la riduzione del 35 % di chi è in regime forfettario e l'ha chiesta all'INPS, la riduzione del 50 % di chi ha più di 65 anni ed è già pensionato, e la riduzione del 50 % per i nuovi iscritti nel 2025.",
     doveTrovarlo:
-      "Nel Cassetto previdenziale del sito INPS, alla voce «contributi dovuti», o nella circolare INPS di inizio anno per artigiani e commercianti.",
+      "Nel Cassetto previdenziale del sito INPS, alla voce «contributi dovuti»: è l'importo che l'INPS ha calcolato per te, riduzione compresa. Se non hai nessuna riduzione lascia stare: il valore che l'app usa è già quello della circolare di inizio anno.",
     incideSu: "imposte",
     fonte: { etichetta: "inps.it", href: "https://www.inps.it" },
     formato: "euro",
     nellIrpef: false,
-    pertinente: (imp) => imp.gestione === "artigiani",
+    // Non entra fra i parametri «da dichiarare»: un valore di legge non si
+    // chiede all'utente, e segnalarlo come mancante sarebbe rumore.
+    daDichiarare: false,
+    pertinente: (imp) => eGestioneCommerciale(imp.gestione),
     minimo: 0,
     massimo: 20_000,
   },
@@ -294,7 +316,9 @@ export function campiPertinenti(imp: Impostazioni): DefinizioneCampo[] {
 
 /** Quelli che valgono per questa configurazione e nessuno ha ancora confermato. */
 export function campiDaDichiarare(imp: Impostazioni): DefinizioneCampo[] {
-  return campiPertinenti(imp).filter((c) => !dichiarato(imp, c.campo));
+  return campiPertinenti(imp).filter(
+    (c) => (c.daDichiarare ?? true) && !dichiarato(imp, c.campo),
+  );
 }
 
 /**
@@ -322,6 +346,9 @@ export function noteDelValore(imp: Impostazioni, campo: CampoUtente): string {
     : d.campo === "addizionaleComunale"
       ? "l'aliquota del tuo comune"
       : "il valore che hai dichiarato";
+  // Dove un valore di legge c'è, «non ancora confermato» sarebbe una bugia: il
+  // numero non è una media dell'app, è quello pubblicato.
+  if (d.daDichiarare === false) return "l'importo di legge, che l'app conosce";
   return "valore predefinito, non ancora confermato";
 }
 

@@ -10,7 +10,7 @@
  */
 import { VERSIONE_SCHEMA } from "./db";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
-import type { ScaglioneIrpef } from "@/lib/fisco/tipi";
+import { GESTIONI, type Gestione, type ScaglioneIrpef } from "@/lib/fisco/tipi";
 import {
   COLLEZIONI,
   datiVuoti,
@@ -438,8 +438,18 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
     return null;
   }
   const regime = riga.regime === "ordinario" ? "ordinario" : "forfettario";
-  const gestione =
-    riga.gestione === "artigiani" || riga.gestione === "cassa" ? riga.gestione : "separata";
+  /*
+    La lista bianca delle gestioni.
+
+    Va tenuta allineata al tipo `Gestione`: un valore che non c'è qui dentro
+    diventa «separata» **in silenzio**, e chi importa il proprio backup si
+    ritrova in un'altra cassa previdenziale senza che niente lo dica. Quando
+    «commercianti» è stata aggiunta al tipo, questa riga non la conosceva.
+    Un test la confronta con l'elenco dei valori ammessi.
+  */
+  const gestione = GESTIONI.includes(riga.gestione as Gestione)
+    ? (riga.gestione as Gestione)
+    : "separata";
   return {
     anno,
     nome: testo(riga.nome),
@@ -467,7 +477,6 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
     minimaleGs: numero(riga.minimaleGs, MINIMALE_PREDEFINITO),
     contributiFissi: numero(riga.contributiFissi),
     minimaleArtigiani: numero(riga.minimaleArtigiani, MINIMALE_PREDEFINITO),
-    aliquotaEccedenza: fraZeroEUno(riga.aliquotaEccedenza, 0.2448),
     aliquotaSoggettivaCassa: fraZeroEUno(riga.aliquotaSoggettivaCassa, 0.15),
     aliquotaIntegrativaCassa: fraZeroEUno(riga.aliquotaIntegrativaCassa, 0.04),
     rivalsaAttiva: booleano(riga.rivalsaAttiva),

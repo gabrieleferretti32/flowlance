@@ -13,6 +13,8 @@ import {
   addizionaleRegionaleDi,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
+import { dichiarato } from "./parametri-utente";
+import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
 import { interoIt } from "../format";
 import { annoDi, calcolaCosto, calcolaFattura } from "./documenti";
@@ -301,21 +303,61 @@ export function irpefScaglioni(imponibile: number, scaglioni: ScaglioneIrpef[]):
 }
 
 /** Contributi previdenziali sulla base imponibile contributiva. */
+/**
+ * I contributi di artigiani e commercianti: fissi, due scaglioni, un massimale.
+ *
+ * Era un'aliquota piatta sull'eccedenza, e sbagliava in tre modi. Applicava il
+ * 24,48 % dei commercianti anche agli artigiani, che versano il 24 %. Ignorava
+ * il punto percentuale in più oltre la prima fascia di retribuzione
+ * pensionabile. E non aveva massimale, quindi a redditi alti il contributo
+ * cresceva senza fermarsi.
+ *
+ * I tre errori non si sommano: si **compensano**. Su un artigiano a 100.000 €
+ * il totale sbagliato era di soli 30 € sopra il vero, con due componenti
+ * entrambe fuori posto. È il difetto peggiore possibile in un prospetto che si
+ * vende sulla verificabilità di ogni riga — un totale plausibile che nessuno
+ * ricontrolla perché non stona.
+ *
+ * I contributi fissi sono un importo pubblicato, non una percentuale: l'app li
+ * conosce e li usa. Il campo `contributiFissi` li scavalca solo se l'utente lo
+ * ha dichiarato, che è il caso di chi gode di una riduzione.
+ */
+export function contributiCommerciali(
+  reddito: number,
+  imp: Impostazioni,
+  par: ParametriAnno,
+): number {
+  if (!eGestioneCommerciale(imp.gestione)) return 0;
+  const regole = par.artigianiCommercianti;
+  const sua = regole[imp.gestione];
+  const fissi = dichiarato(imp, "contributiFissi") ? imp.contributiFissi : sua.fissi;
+
+  // Sopra il massimale non si versa più niente: il reddito eccedente non è
+  // imponibile ai fini contributivi.
+  const imponibile = Math.min(nonNegativo(reddito), regole.massimale);
+  const primaFascia = nonNegativo(
+    Math.min(imponibile, regole.primaFasciaPensionabile) - regole.minimale,
+  );
+  const oltreFascia = nonNegativo(imponibile - regole.primaFasciaPensionabile);
+
+  return round2(
+    fissi + primaFascia * sua.aliquota + oltreFascia * sua.aliquotaOltreFascia,
+  );
+}
+
 export function contributiPrevidenziali(
   base: number,
   imp: Impostazioni,
+  par: ParametriAnno,
 ): { separata: number; artigiani: number; cassa: number; totale: number } {
   const positiva = nonNegativo(base);
   const separata =
     imp.gestione === "separata"
       ? round2(Math.min(positiva, imp.massimaleGs) * imp.aliquotaGestioneSeparata)
       : 0;
-  const artigiani =
-    imp.gestione === "artigiani"
-      ? round2(
-          imp.contributiFissi + nonNegativo(positiva - imp.minimaleArtigiani) * imp.aliquotaEccedenza,
-        )
-      : 0;
+  // Il nome del campo resta `artigiani` perché è la voce del prospetto, e
+  // rinominarla romperebbe ogni schermata per un guadagno nullo.
+  const artigiani = contributiCommerciali(positiva, imp, par);
   const cassa =
     imp.gestione === "cassa" ? round2(positiva * imp.aliquotaSoggettivaCassa) : 0;
   return { separata, artigiani, cassa, totale: somma(separata, artigiani, cassa) };
@@ -553,7 +595,7 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     : round2(ricaviRilevanti - costiDeducibiliPagati);
 
   const baseContributiva = redditoLordo;
-  const contributi = contributiPrevidenziali(baseContributiva, imp);
+  const contributi = contributiPrevidenziali(baseContributiva, imp, par);
   const contributiCompetenza = contributi.totale;
 
   /*

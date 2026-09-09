@@ -36,6 +36,16 @@ esistono nel modello.
 
 ## Imposte
 
+**La sterilizzazione del beneficio sopra i 200.000 € non è implementata.** La
+riduzione del secondo scaglione IRPEF dal 35 % al 33 % (art. 1 commi 3 e 4
+della L. 199/2025) è accompagnata da un meccanismo che ne annulla il vantaggio
+per chi ha un reddito complessivo oltre i 200.000 €. L'app applica gli
+scaglioni e basta: a quei redditi calcola un'imposta più bassa del dovuto.
+
+È fuori dal pubblico di Flowlance — un reddito da 200.000 € di sola partita IVA
+non è il caso d'uso — ma il numero sarebbe sbagliato in difetto, che è la
+direzione peggiore, e va detto.
+
 **IRAP: non calcolata.** Dal 2022 non è dovuta dalle persone fisiche
 esercenti attività di impresa o professione, ma la valutazione
 sull'autonoma organizzazione l'app non la fa e non la può fare.
@@ -88,10 +98,41 @@ L'app applica l'aliquota soggettiva che l'utente dichiara nei Parametri, e per
 le casse **non calcola nessun acconto**: le scadenze le decide il regolamento
 della cassa, non l'INPS.
 
-**Artigiani e commercianti: contributi fissi come importo annuo dichiarato.**
-Non sono calcolati sul minimale, e non sono gestite le riduzioni — over 65 già
-pensionati, coadiuvanti under 21, agevolazione per i forfettari. Manca anche il
-massimale sulla parte eccedente.
+**Artigiani e commercianti: quello che l'app calcola e quello che non chiede.**
+Le due gestioni sono distinte, con le loro aliquote e i loro contributi fissi;
+il punto in più oltre la prima fascia di retribuzione pensionabile e il
+massimale ci sono. Restano fuori tre cose:
+
+- **Le riduzioni.** Il 35 % dei forfettari che l'hanno chiesta all'INPS, il
+  50 % di chi ha più di 65 anni ed è già pensionato, il 50 % dei nuovi iscritti.
+  L'app non le calcola perché non può sapere chi ne ha diritto: si scavalcano
+  scrivendo l'importo nel campo dei contributi fissi, e il testo del campo
+  nomina i tre casi. Chi non li legge paga di più nel prospetto che nella
+  realtà.
+- **I coadiuvanti familiari.** Under 21 o no, hanno aliquote proprie e non
+  esistono nel modello: l'app calcola i contributi di una persona sola.
+- **L'anzianità contributiva al 31 dicembre 1995**, qui sotto.
+
+**Il massimale applicato è quello dei nuovi iscritti.** L'art. 2 comma 18 della
+L. 335/1995 fissa il massimale per chi è privo di anzianità contributiva al
+31 dicembre 1995: 122.295 € per il 2026. Chi ha anzianità precedente ha invece
+un massimale più basso — 93.707 €, cioè la prima fascia di retribuzione
+pensionabile più due terzi — e l'app **non chiede l'anzianità**, quindi applica
+sempre il primo.
+
+È la direzione giusta in cui sbagliare per il pubblico di Flowlance, dove quasi
+nessuno era già iscritto prima del 1996, ma per chi lo era il contributo
+calcolato è più alto del dovuto sopra i 93.707 €. Chiederlo significherebbe una
+domanda in più nella configurazione per un caso che riguarda pochi; per ora è
+dichiarato qui.
+
+**Due valori del 2025 sono ereditati dal 2026.** La prima fascia di
+retribuzione pensionabile e i due importi dei contributi fissi si rivalutano
+ogni anno come il minimale, e per il 2025 non sono stati letti sulla circolare:
+`parametri/2025.ts` porta quelli del 2026, e un test lo dichiara invece di
+lasciarlo scoprire. Minimale e massimale del 2025 sono invece quelli veri. Chi
+calcola un 2025 in questa gestione paga qualche decina di euro di troppo sui
+fissi. Si chiude con due numeri.
 
 **Gestione Separata: una sola aliquota.** L'aliquota cambia a seconda che il
 professionista abbia o no un'altra copertura previdenziale; l'app usa quella
@@ -473,6 +514,3 @@ Due cose che stanno in `parametri/<anno>.ts` ma **non sono valori di legge**, e
 non vanno cercate in una norma: `rateRateizzazione` (sei rate è la proposta
 dell'app, il contribuente sceglie entro il termine massimo) e `sogliaAvviso`
 (l'85 % del limite forfettario oltre il quale scatta l'avviso preventivo).
-
-E una che l'app semplifica: `aliquotaEccedenzaArtigiani` è **una sola** aliquota
-per artigiani e commercianti, che l'INPS pubblica separate.

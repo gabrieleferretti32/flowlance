@@ -54,7 +54,8 @@ export const NOTA_GESTIONALE =
 
 function nomeGestione(g: Impostazioni["gestione"]): string {
   if (g === "separata") return "Gestione Separata INPS";
-  if (g === "artigiani") return "Artigiani e commercianti";
+  if (g === "artigiani") return "Artigiani";
+  if (g === "commercianti") return "Commercianti";
   return "Cassa professionale";
 }
 

@@ -31,6 +31,7 @@ import { PARAMETRI_2025 } from "./2025";
 import { PARAMETRI_2026 } from "./2026";
 import { PARAMETRI_2027 } from "./2027";
 import { PARAMETRI_PER_ANNO, ANNO_DEFINITIVO_PIU_RECENTE, parametriDi } from ".";
+import { impostaProgressiva } from "../scaglioni";
 import type { ParametriAnno, ScaglioneIrpef } from "../tipi";
 
 /** Gli scaglioni in forma leggibile, per confrontarli in un colpo d'occhio. */
@@ -62,18 +63,32 @@ describe("IRPEF · scaglioni e aliquote", () => {
   });
 
   /*
-    La fonte qui è la Legge di Bilancio 2026, di cui questo test cita la misura
-    e non l'articolo: la riduzione del secondo scaglione dal 35 % al 33 % per i
-    redditi fino a 50.000 €. È l'asserzione meno ancorata del file, e va
-    riconfermata sul testo pubblicato — insieme a minimale e massimale INPS, con
-    cui condivide la stessa fragilità.
+    Art. 1 commi 3 e 4 della legge n. 199/2025 (Legge di Bilancio 2026), come
+    riepilogati dall'Agenzia delle Entrate nella pagina «Aliquote e calcolo
+    dell'Irpef» aggiornata al 13 gennaio 2026: 23 % fino a 28.000, 33 % da
+    28.001 a 50.000, 43 % oltre.
   */
-  it("2026: lo scaglione centrale scende al 33 % — Legge di Bilancio 2026", () => {
+  it("2026: lo scaglione centrale scende al 33 % — art. 1 c. 3-4 L. 199/2025", () => {
     expect(forma(PARAMETRI_2026.scaglioniIrpef)).toEqual([
       [28_000, 0.23],
       [50_000, 0.33],
       [null, 0.43],
     ]);
+  });
+
+  /*
+    L'Agenzia pubblica anche la forma abbreviata: sopra i 50.000 l'imposta è
+    13.700 € più il 43 % sull'eccedenza. Era 14.140 € con il 35 %.
+
+    Vale più delle tre aliquote messe in fila, perché è un numero **derivato**:
+    se una soglia o un'aliquota fosse sbagliata, la somma non tornerebbe. È il
+    controllo incrociato che gli scaglioni da soli non danno.
+  */
+  it("a 50.000 € l'IRPEF è 13.700 € nel 2026 e 14.140 € nel 2025", () => {
+    expect(impostaProgressiva(50_000, PARAMETRI_2026.scaglioniIrpef)).toBe(13_700);
+    expect(impostaProgressiva(50_000, PARAMETRI_2025.scaglioniIrpef)).toBe(14_140);
+    // E oltre: 13.700 più il 43 % dell'eccedenza.
+    expect(impostaProgressiva(60_000, PARAMETRI_2026.scaglioniIrpef)).toBe(13_700 + 0.43 * 10_000);
   });
 
   it("le soglie non si muovono fra i due anni: cambia solo l'aliquota centrale", () => {
@@ -200,9 +215,88 @@ describe("previdenza · aliquote, minimali, massimali", () => {
     expect(PARAMETRI_2026.aliquotaGestioneSeparata).toBe(0.2607);
   });
 
-  it("artigiani e commercianti: 24,48 % sull'eccedenza — circolari INPS di inizio anno", () => {
-    expect(PARAMETRI_2025.aliquotaEccedenzaArtigiani).toBe(0.2448);
-    expect(PARAMETRI_2026.aliquotaEccedenzaArtigiani).toBe(0.2448);
+  /*
+    Artigiani e commercianti 2026 — Circolare INPS n. 14 del 9 febbraio 2026.
+
+    par. 1: artigiani 24 %, commercianti 24,48 %. Lo 0,48 % di differenza è
+    l'aliquota aggiuntiva dovuta dai soli commercianti per l'indennizzo di
+    cessazione (art. 5 D.Lgs. 207/1996). Erano una voce sola, e l'artigiano
+    pagava lo 0,48 % di troppo su tutto il reddito eccedente il minimale.
+
+    par. 3: oltre la prima fascia di retribuzione pensionabile l'aliquota sale
+    di un punto (art. 3-ter D.L. 384/1992, conv. L. 438/1992).
+
+    par. 2: i contributi fissi sono importi, non percentuali — la quota di
+    maternità è 0,62 € al mese, cioè 7,44 € l'anno, e negli artigiani si somma
+    ai 4.513,92 € di IVS.
+  */
+  it("2026 · aliquote e fissi di artigiani e commercianti — circ. INPS 14/2026 par. 1, 2 e 3", () => {
+    expect(PARAMETRI_2026.artigianiCommercianti.artigiani).toEqual({
+      fissi: 4_521.36,
+      aliquota: 0.24,
+      aliquotaOltreFascia: 0.25,
+    });
+    expect(PARAMETRI_2026.artigianiCommercianti.commercianti).toEqual({
+      fissi: 4_611.64,
+      aliquota: 0.2448,
+      aliquotaOltreFascia: 0.2548,
+    });
+  });
+
+  it("lo scarto fra le due gestioni è esattamente lo 0,48 % dei commercianti", () => {
+    const { artigiani, commercianti } = PARAMETRI_2026.artigianiCommercianti;
+    expect(commercianti.aliquota - artigiani.aliquota).toBeCloseTo(0.0048, 10);
+    expect(commercianti.aliquotaOltreFascia - artigiani.aliquotaOltreFascia).toBeCloseTo(0.0048, 10);
+  });
+
+  it("oltre la prima fascia l'aliquota sale di un punto esatto, in tutte e due", () => {
+    for (const g of ["artigiani", "commercianti"] as const) {
+      const s = PARAMETRI_2026.artigianiCommercianti[g];
+      expect(s.aliquotaOltreFascia - s.aliquota).toBeCloseTo(0.01, 10);
+    }
+  });
+
+  it("prima fascia 56.224 € e massimale 122.295 € — circ. INPS 14/2026 par. 3 e 4", () => {
+    expect(PARAMETRI_2026.artigianiCommercianti.primaFasciaPensionabile).toBe(56_224);
+    expect(PARAMETRI_2026.artigianiCommercianti.massimale).toBe(122_295);
+  });
+
+  /*
+    Il massimale è un numero solo che serve due gestioni: discende dall'art. 2
+    comma 18 della L. 335/1995, e vale sia per la Gestione Separata sia per i
+    «nuovi iscritti» di artigiani e commercianti — chi è privo di anzianità
+    contributiva al 31 dicembre 1995. Se un domani divergessero, uno dei due
+    starebbe citando la norma sbagliata.
+  */
+  it("il massimale della Separata e quello di artigiani e commercianti coincidono", () => {
+    for (const par of [PARAMETRI_2025, PARAMETRI_2026]) {
+      expect(par.artigianiCommercianti.massimale).toBe(par.massimaleGestioneSeparata);
+    }
+  });
+
+  it("il minimale è una costante sola, non due copie che divergono", () => {
+    for (const par of [PARAMETRI_2025, PARAMETRI_2026]) {
+      expect(par.artigianiCommercianti.minimale).toBe(par.minimaleAnnuo);
+    }
+  });
+
+  /*
+    Due valori del 2025 sono ereditati dal 2026 e non verificati: la prima
+    fascia pensionabile e i due importi dei contributi fissi, che si rivalutano
+    ogni anno come il minimale. Questo test **non** li dichiara giusti: fissa
+    che sono ancora quelli del 2026, così quando arriveranno i valori veri il
+    test cade e ricorda che vanno messi.
+  */
+  it("2025 · fissi e prima fascia sono ancora quelli del 2026, in attesa della circolare", () => {
+    expect(PARAMETRI_2025.artigianiCommercianti.primaFasciaPensionabile).toBe(
+      PARAMETRI_2026.artigianiCommercianti.primaFasciaPensionabile,
+    );
+    expect(PARAMETRI_2025.artigianiCommercianti.artigiani.fissi).toBe(
+      PARAMETRI_2026.artigianiCommercianti.artigiani.fissi,
+    );
+    // Minimale e massimale invece sono quelli veri del 2025.
+    expect(PARAMETRI_2025.artigianiCommercianti.minimale).toBe(18_555);
+    expect(PARAMETRI_2025.artigianiCommercianti.massimale).toBe(120_607);
   });
 
   /*
@@ -221,7 +315,7 @@ describe("previdenza · aliquote, minimali, massimali", () => {
     expect(PARAMETRI_2026.minimaleAnnuo).toBe(18_808);
   });
 
-  it("massimale della Gestione Separata: 120.607 € nel 2025, 122.295 € nel 2026 — circolari INPS", () => {
+  it("massimale: 120.607 € nel 2025, 122.295 € nel 2026 — circ. INPS 14/2026 par. 4, art. 2 c. 18 L. 335/1995", () => {
     expect(PARAMETRI_2025.massimaleGestioneSeparata).toBe(120_607);
     expect(PARAMETRI_2026.massimaleGestioneSeparata).toBe(122_295);
   });

@@ -242,14 +242,22 @@ function SchedaParametro({
             <p className="mt-0.5 text-etichetta text-inchiostro-tenue">{d.aCosaServe}</p>
           </div>
           <Chip
-            tono={vieneDaPrima ? "neutro" : confermato ? "positivo" : "attenzione"}
+            tono={
+              vieneDaPrima || d.daDichiarare === false
+                ? "neutro"
+                : confermato
+                  ? "positivo"
+                  : "attenzione"
+            }
             className="shrink-0"
           >
             {vieneDaPrima
               ? `ereditato dal ${annoDiProvenienza}`
               : confermato
                 ? "dichiarato da te"
-                : "predefinito"}
+                : d.daDichiarare === false
+                  ? "importo di legge"
+                  : "predefinito"}
           </Chip>
         </div>
 
@@ -352,7 +360,7 @@ function SchedaParametro({
               "flex-1 text-etichetta",
               fuoriScala
                 ? "text-[#C13237]"
-                : confermato
+                : confermato || d.daDichiarare === false
                   ? "text-inchiostro-tenue"
                   : "text-[#B8791A]",
             )}
@@ -361,9 +369,11 @@ function SchedaParametro({
               ? messaggioFuoriScala(d)
               : confermato
                 ? `In uso: ${valoreDi(imp, d.campo)}. Valore dichiarato da te.`
-                : d.incideSu === "imposte"
-                  ? `In uso: ${valoreDi(imp, d.campo)}. Media dell'app: non è detto che sia quella giusta per te.`
-                  : `In uso: ${valoreDi(imp, d.campo)}. Valore predefinito: mettici il tuo.`}
+                : d.daDichiarare === false
+                  ? `In uso: ${valoreDi(imp, d.campo)}. È l'importo pubblicato dall'INPS: cambialo solo se hai diritto a una riduzione.`
+                  : d.incideSu === "imposte"
+                    ? `In uso: ${valoreDi(imp, d.campo)}. Media dell'app: non è detto che sia quella giusta per te.`
+                    : `In uso: ${valoreDi(imp, d.campo)}. Valore predefinito: mettici il tuo.`}
           </p>
 
         </div>

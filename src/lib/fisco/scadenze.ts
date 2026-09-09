@@ -11,7 +11,9 @@
 import { slittaAGiornoLavorativo } from "./calendario";
 import type { LiquidazioneIva } from "./iva";
 import type { Prospetto } from "./motore";
-import type { Impostazioni, ParametriAnno } from "./tipi";
+import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
+import { dichiarato } from "./parametri-utente";
+import { round2 } from "./aritmetica";
 
 export type Adempimento = {
   id: string;
@@ -44,6 +46,28 @@ type Contesto = {
 };
 
 /**
+ * Le quattro rate dei contributi fissi, per **anno di contribuzione**.
+ *
+ * Non per anno di calendario, ed è la correzione di un difetto di competenza
+ * identico a quello già chiuso sui versamenti F24. L'anno di contribuzione
+ * 2026 si versa il 16 maggio, il 20 agosto e il 16 novembre del 2026, più il
+ * **16 febbraio del 2027**: la rata di febbraio appartiene all'anno prima, non
+ * a quello in cui esce dal conto (Circolare INPS n. 14 del 9 febbraio 2026,
+ * par. 9).
+ *
+ * Prima lo scadenzario del 2026 mostrava il 16 febbraio 2026 come «1ª rata» —
+ * che è la quarta del 2025 — e non mostrava affatto il 16 febbraio 2027.
+ * Nessun importo sbagliato, ma un anno che conteneva la rata di un altro e
+ * un'ultima rata che non compariva da nessuna parte.
+ */
+const RATE_FISSI: [mese: number, giorno: number, annoDopo: boolean][] = [
+  [5, 16, false],
+  [8, 20, false],
+  [11, 16, false],
+  [2, 16, true],
+];
+
+/**
  * Lo scadenzario di un anno di calendario.
  *
  * @param prospetto l'anno d'imposta corrente: da qui vengono le scadenze IVA,
@@ -66,10 +90,20 @@ export function scadenzeAnno(
     imp,
     forfettario: imp.regime === "forfettario",
     mensile: imp.periodicitaIva === "mensile",
-    artigiani: imp.gestione === "artigiani",
+    artigiani: eGestioneCommerciale(imp.gestione),
   };
 
-  const rataArtigiani = imp.contributiFissi / 4;
+  /*
+    La rata è un quarto dei contributi fissi **della sua gestione**, non della
+    media che l'app teneva prima: l'importo di legge lo conosce il motore, e
+    `contributiFissi` lo scavalca solo se l'utente l'ha dichiarato.
+  */
+  const fissiAnnui = eGestioneCommerciale(imp.gestione)
+    ? dichiarato(imp, "contributiFissi")
+      ? imp.contributiFissi
+      : par.artigianiCommercianti[imp.gestione].fissi
+    : 0;
+  const rataArtigiani = round2(fissiAnnui / 4);
   const trimestre = (indice: number) => iva.trimestri[indice]?.totaleDaVersare ?? 0;
   const mese = (indice: number) => iva.mesi[indice]?.totaleDaVersare ?? 0;
 
@@ -78,11 +112,6 @@ export function scadenzeAnno(
       id: "iva-dicembre-precedente", mese: 2, giorno: 16, categoria: "iva",
       titolo: "IVA di dicembre e saldo del 4° trimestre dell'anno precedente",
       importo: null, quando: (c) => !c.forfettario,
-    },
-    {
-      id: "inps-artigiani-1", mese: 2, giorno: 16, categoria: "contributi",
-      titolo: "Contributi fissi INPS artigiani e commercianti — 1ª rata",
-      importo: rataArtigiani, quando: (c) => c.artigiani,
     },
     {
       id: "bollo-4t-precedente", mese: 3, giorno: 16, categoria: "bollo",
@@ -102,11 +131,6 @@ export function scadenzeAnno(
       id: "iva-1t", mese: 5, giorno: 16, categoria: "iva",
       titolo: "IVA del 1° trimestre", importo: trimestre(0),
       quando: (c) => !c.forfettario && !c.mensile,
-    },
-    {
-      id: "inps-artigiani-2", mese: 5, giorno: 16, categoria: "contributi",
-      titolo: "Contributi fissi INPS artigiani e commercianti — 2ª rata",
-      importo: rataArtigiani, quando: (c) => c.artigiani,
     },
     {
       id: "lipe-1t", mese: 5, giorno: 31, categoria: "dichiarazione",
@@ -135,11 +159,6 @@ export function scadenzeAnno(
       quando: (c) => !c.forfettario && !c.mensile,
     },
     {
-      id: "inps-artigiani-3", mese: 8, giorno: 20, categoria: "contributi",
-      titolo: "Contributi fissi INPS artigiani e commercianti — 3ª rata",
-      importo: rataArtigiani, quando: (c) => c.artigiani,
-    },
-    {
       id: "lipe-2t", mese: 9, giorno: 30, categoria: "dichiarazione",
       titolo: "LIPE — liquidazioni del 2° trimestre", importo: null,
       quando: (c) => !c.forfettario,
@@ -153,11 +172,6 @@ export function scadenzeAnno(
       id: "iva-3t", mese: 11, giorno: 16, categoria: "iva",
       titolo: "IVA del 3° trimestre", importo: trimestre(2),
       quando: (c) => !c.forfettario && !c.mensile,
-    },
-    {
-      id: "inps-artigiani-4", mese: 11, giorno: 16, categoria: "contributi",
-      titolo: "Contributi fissi INPS artigiani e commercianti — 4ª rata",
-      importo: rataArtigiani, quando: (c) => c.artigiani,
     },
     {
       id: "secondo-acconto", mese: 11, giorno: 30, categoria: "imposte",
@@ -182,6 +196,22 @@ export function scadenzeAnno(
       titolo: "Acconto IVA annuale", importo: null, quando: (c) => !c.forfettario,
     },
   ];
+
+  // Le quattro rate dei contributi fissi, per anno di contribuzione.
+  if (ctx.artigiani) {
+    RATE_FISSI.forEach(([mese, giorno, annoDopo], i) => {
+      voci.push({
+        id: `inps-artigiani-${i + 1}`,
+        mese,
+        giorno,
+        annoDopo,
+        categoria: "contributi",
+        titolo: `Contributi fissi INPS ${imp.gestione === "artigiani" ? "artigiani" : "commercianti"} — ${i + 1}ª rata ${imp.anno}`,
+        importo: rataArtigiani,
+        quando: () => true,
+      });
+    });
+  }
 
   // Liquidazioni mensili: una per ciascun mese, il 16 del mese successivo.
   if (!ctx.forfettario && ctx.mensile) {

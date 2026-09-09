@@ -26,6 +26,7 @@ import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { periodoIvaCorrente } from "@/lib/fisco/iva";
 import { prossimeScadenze, scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
+import { nomeGestione } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { coloreDaNome, data as fmtData, euro, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -537,11 +538,4 @@ function RigaScadenza({ scadenza, oggi }: { scadenza: Adempimento; oggi: string 
   );
 }
 
-function nomeGestione(gestione: string): string {
-  return gestione === "separata"
-    ? "Gestione Separata INPS"
-    : gestione === "artigiani"
-      ? "Artigiani e commercianti"
-      : "Cassa professionale";
-}
 

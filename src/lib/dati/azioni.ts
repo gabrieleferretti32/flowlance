@@ -5,6 +5,7 @@
 import { toast, type Raggruppamento } from "@/lib/stato/toast";
 import { dimenticaImport } from "./importazioni";
 import {
+  conFissiDiLegge,
   impostazioniDaPrecedente,
   impostazioniPredefinite,
   impostazioniPrecedenti,
@@ -598,7 +599,21 @@ export async function aggiornaImpostazioni(
   modifiche: Partial<Impostazioni>,
 ): Promise<void> {
   const attuali = await impostazioniDellAnno(anno);
-  await archivio().impostazioni.salva({ ...attuali, ...modifiche, anno });
+  let prossime: Impostazioni = { ...attuali, ...modifiche, anno };
+  /*
+    Cambiare gestione cambia i contributi fissi di legge, e il campo che li
+    mostra deve seguirli.
+
+    Senza questo, un commerciante vedeva nei Parametri l'importo degli artigiani
+    mentre il motore ne usava un altro: il numero calcolato era giusto e quello
+    scritto no, che è la divergenza peggiore fra le due — nessuno dei due
+    segnala l'altro. `conValoreProposto` lascia stare un valore dichiarato:
+    chi ha una riduzione non se la vede sovrascrivere cambiando gestione.
+  */
+  if (modifiche.gestione !== undefined) {
+    prossime = conFissiDiLegge(prossime, parametriDi(anno));
+  }
+  await archivio().impostazioni.salva(prossime);
 }
 
 /**

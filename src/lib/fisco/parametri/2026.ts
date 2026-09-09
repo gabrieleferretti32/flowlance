@@ -10,11 +10,11 @@ import type { ParametriAnno } from "../tipi";
 export const PARAMETRI_2026: ParametriAnno = {
   anno: 2026,
   fonti: [
-    "Legge di Bilancio 2026",
+    "Legge n. 199/2025 (Legge di Bilancio 2026), art. 1 commi 3 e 4 — secondo scaglione IRPEF al 33 %",
     "Allegato n. 2 alla Legge 190/2014 — coefficienti di redditività",
     "Art. 13 TUIR — detrazione per redditi di lavoro autonomo",
     "Circolare INPS n. 8 del 3 febbraio 2026 — Gestione Separata: aliquote e acconti",
-    "Circolare INPS n. 14 del 9 febbraio 2026 — artigiani e commercianti",
+    "Circolare INPS n. 14 del 9 febbraio 2026 — artigiani e commercianti: aliquote, minimale, fissi e massimale",
     "Art. 1 comma 4 D.Lgs. 360/1998 — acconto dell'addizionale comunale",
   ],
   provvisorio: false,
@@ -91,7 +91,28 @@ export const PARAMETRI_2026: ParametriAnno = {
   // Minimale di reddito annuo 2026: uno solo, per l'accredito della Gestione
   // Separata e per l'eccedenza di artigiani e commercianti.
   minimaleAnnuo: 18_808,
-  aliquotaEccedenzaArtigiani: 0.2448,
+  /*
+    Artigiani e commercianti — Circolare INPS n. 14 del 9 febbraio 2026.
+
+    par. 1: aliquote. Artigiani 24 %, commercianti 24,48 %; lo 0,48 % in più è
+    l'aliquota aggiuntiva dovuta dai soli commercianti per l'indennizzo di
+    cessazione (art. 5 D.Lgs. 207/1996).
+    par. 3: oltre la prima fascia di retribuzione pensionabile l'aliquota sale
+    di un punto (art. 3-ter D.L. 384/1992, conv. L. 438/1992).
+    par. 2: minimale e contributi fissi. La quota di maternità è 0,62 € al mese
+    — 7,44 € l'anno — e non una percentuale.
+    par. 4: massimale, per i privi di anzianità al 31/12/1995 (art. 2 c. 18
+    L. 335/1995). È lo stesso valore, e la stessa norma, del massimale della
+    Gestione Separata: un numero solo che serve due gestioni.
+  */
+  artigianiCommercianti: {
+    minimale: 18_808,
+    primaFasciaPensionabile: 56_224,
+    massimale: 122_295,
+    // 4.513,92 IVS + 7,44 di maternità
+    artigiani: { fissi: 4_521.36, aliquota: 0.24, aliquotaOltreFascia: 0.25 },
+    commercianti: { fissi: 4_611.64, aliquota: 0.2448, aliquotaOltreFascia: 0.2548 },
+  },
 
   aliquotaIvaOrdinaria: 0.22,
   maggiorazioneTrimestrale: 0.01,
@@ -123,6 +144,8 @@ export const PARAMETRI_2026: ParametriAnno = {
   accontoContributi: {
     separata: { quota: 0.8, rate: 2 },
     artigiani: { quota: 1, rate: 2 },
+    // Stessa regola: cambia l'aliquota, non il modo di anticiparla.
+    commercianti: { quota: 1, rate: 2 },
     cassa: null,
   },
 

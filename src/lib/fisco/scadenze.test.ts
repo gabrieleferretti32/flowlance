@@ -6,6 +6,7 @@ import {
   impostazioniForfettario,
   impostazioniOrdinario,
 } from "./fixture";
+import { round2 } from "./aritmetica";
 import { calcolaIva } from "./iva";
 import { calcolaProspetto } from "./motore";
 import { PARAMETRI_2026 } from "./parametri/2026";
@@ -68,14 +69,42 @@ describe("scadenzario", () => {
     const separata = scadenzeDi(impostazioniForfettario());
     expect(separata.some((s) => s.titolo.includes("artigiani"))).toBe(false);
 
-    const artigiani = scadenzeDi({
-      ...impostazioniForfettario(),
-      gestione: "artigiani",
-      contributiFissi: 4600,
-    });
+    const artigiani = scadenzeDi({ ...impostazioniForfettario(), gestione: "artigiani" });
     const rate = artigiani.filter((s) => s.titolo.includes("artigiani"));
     expect(rate).toHaveLength(4);
-    expect(rate.every((r) => r.importo === 1150)).toBe(true);
+    // Un quarto dei fissi di legge, non della media che l'app teneva prima.
+    const quarto = round2(PARAMETRI_2026.artigianiCommercianti.artigiani.fissi / 4);
+    expect(rate.every((r) => r.importo === quarto)).toBe(true);
+
+    // I commercianti versano di più, e lo scadenzario lo dice.
+    const commercianti = scadenzeDi({ ...impostazioniForfettario(), gestione: "commercianti" });
+    const loro = commercianti.filter((s) => s.titolo.includes("commercianti"));
+    expect(loro).toHaveLength(4);
+    expect(loro[0].importo).toBeGreaterThan(quarto);
+  });
+
+  /*
+    Le rate seguono l'anno di contribuzione, non quello di calendario.
+
+    È lo stesso difetto di competenza già chiuso sui versamenti F24: prima lo
+    scadenzario del 2026 mostrava il 16 febbraio 2026 — che è la quarta rata del
+    2025 — e non mostrava il 16 febbraio 2027, che è la sua.
+  */
+  it("le quattro rate dei fissi sono quelle dell'anno di contribuzione", () => {
+    const rate = scadenzeDi({ ...impostazioniForfettario(), gestione: "artigiani" })
+      .filter((s) => s.id.startsWith("inps-artigiani"))
+      .map((s) => s.data);
+    expect(rate).toEqual(["2026-05-18", "2026-08-20", "2026-11-16", "2027-02-16"]);
+  });
+
+  it("ogni rata dice a quale anno appartiene", () => {
+    const prima = scadenzeDi({ ...impostazioniForfettario(), gestione: "artigiani" }).find(
+      (s) => s.id === "inps-artigiani-4",
+    )!;
+    // Cade nel 2027 ma è del 2026: senza l'anno nel titolo, chi la incrocia a
+    // febbraio non ha modo di saperlo.
+    expect(prima.data.startsWith("2027")).toBe(true);
+    expect(prima.titolo).toContain("2026");
   });
 
   it("collega gli importi ai numeri reali del prospetto", () => {

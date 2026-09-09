@@ -85,7 +85,7 @@ function scenario(
     ? round2(ing.ricavi * imp.coefficienteRedditivita)
     : round2(ing.ricavi - costiRiconosciuti);
 
-  const contributi = contributiPrevidenziali(redditoLordo, imp).totale;
+  const contributi = contributiPrevidenziali(redditoLordo, imp, par).totale;
   const oneriDeducibili = forfettario
     ? 0
     : round2(Math.min(imp.fondoPensione, par.tettoFondoPensione));

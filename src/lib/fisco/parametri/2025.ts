@@ -40,5 +40,23 @@ export const PARAMETRI_2025: ParametriAnno = {
   aliquotaGestioneSeparata: 0.2607,
   massimaleGestioneSeparata: 120_607,
   minimaleAnnuo: 18_555,
-  aliquotaEccedenzaArtigiani: 0.2448,
+  /*
+    Artigiani e commercianti 2025.
+
+    ┌────────────────────────────────────────────────────────────────────┐
+    │ DUE DI QUESTI NUMERI NON SONO DEL 2025.                            │
+    │ `minimale` e `massimale` sono i valori 2025, che si conoscono.     │
+    │ `primaFasciaPensionabile` e i due importi `fissi` sono invece      │
+    │ ereditati dal 2026 in attesa della circolare INPS di inizio 2025:  │
+    │ si rivalutano ogni anno come il minimale, quindi nel 2025 erano    │
+    │ più bassi. Chi calcola un 2025 in questa gestione paga qualche     │
+    │ decina di euro di troppo sui fissi.                                │
+    │ Dichiarato in APPROSSIMAZIONI.md; si chiude con due numeri.        │
+    └────────────────────────────────────────────────────────────────────┘
+  */
+  artigianiCommercianti: {
+    ...PARAMETRI_2026.artigianiCommercianti,
+    minimale: 18_555,
+    massimale: 120_607,
+  },
 };

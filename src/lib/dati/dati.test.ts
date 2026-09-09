@@ -1,6 +1,8 @@
 import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 import { calcolaProspetto } from "@/lib/fisco/motore";
+import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
+import { GESTIONI } from "@/lib/fisco/tipi";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
 import type { StorageAdapter } from "./adapter";
 import {
@@ -474,5 +476,43 @@ describe("dataset dimostrativo · i due anni si raccontano allo stesso modo", ()
     for (const a of [prima, anno]) {
       for (const m of a.cashflow.mesi) expect(m.saldoCassa).toBeGreaterThan(0);
     }
+  });
+});
+
+/*
+  Ogni gestione previdenziale sopravvive al giro export → import.
+
+  La lettura di un backup lavora su JSON, dove la gestione è una stringa
+  qualunque: c'è una lista bianca, e un valore che non le appartiene diventa
+  «separata» **in silenzio**. Quando al tipo `Gestione` è stata aggiunta la voce
+  «commercianti», quella lista non la conosceva — chi avesse importato il
+  proprio backup si sarebbe ritrovato in un'altra cassa previdenziale, con
+  contributi diversi e nessun messaggio.
+
+  Il test non guarda la lista: guarda il **giro completo**, gestione per
+  gestione, prendendo i valori dall'elenco esportato dal tipo. Una gestione
+  nuova entra qui da sola, e se la lista bianca resta indietro questo diventa
+  rosso.
+*/
+describe("backup · nessuna gestione previdenziale si perde per strada", () => {
+  for (const gestione of GESTIONI) {
+    it(`«${gestione}» torna indietro com'era`, () => {
+      const dati = datiVuoti();
+      dati.impostazioni = [{ ...impostazioniPredefinite(PARAMETRI_2026), gestione }];
+      const esito = analizzaBackup(serializzaBackup(creaBackup(dati)));
+      expect(esito.ok).toBe(true);
+      if (!esito.ok) return;
+      expect(esito.backup.dati.impostazioni[0].gestione).toBe(gestione);
+    });
+  }
+
+  it("una gestione che non esiste ricade su «separata», senza inventarne una", () => {
+    const dati = datiVuoti();
+    dati.impostazioni = [impostazioniPredefinite(PARAMETRI_2026)];
+    const testo = serializzaBackup(creaBackup(dati)).replace('"separata"', '"cooperativa"');
+    const esito = analizzaBackup(testo);
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.backup.dati.impostazioni[0].gestione).toBe("separata");
   });
 });

@@ -3,7 +3,8 @@
  * quell'anno. L'utente le sovrascrive dal pannello di controllo; i valori di
  * legge restano quelli marcati «da rivedere ogni gennaio».
  */
-import type { Impostazioni, ParametriAnno } from "./tipi";
+import { conValoreProposto } from "./parametri-utente";
+import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
 
 export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
   const gruppo = par.gruppiAteco[0];
@@ -43,11 +44,16 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
     aliquotaGestioneSeparata: par.aliquotaGestioneSeparata,
     massimaleGs: par.massimaleGestioneSeparata,
     minimaleGs: par.minimaleAnnuo,
-    contributiFissi: 4600,
+    /*
+      Il valore di legge degli artigiani, che è anche quello che il modulo
+      mostra prima di essere toccato. Non entra nel calcolo finché non lo si
+      dichiara: il motore legge l'importo della gestione dai parametri
+      dell'anno, e questo campo serve solo a scavalcarlo nei casi agevolati.
+    */
+    contributiFissi: par.artigianiCommercianti.artigiani.fissi,
     // Stessa costante del minimale della Gestione Separata: la legge ne
     // pubblica una sola, e nel modello arriva da un campo solo.
-    minimaleArtigiani: par.minimaleAnnuo,
-    aliquotaEccedenza: par.aliquotaEccedenzaArtigiani,
+    minimaleArtigiani: par.artigianiCommercianti.minimale,
     aliquotaSoggettivaCassa: 0.15,
     aliquotaIntegrativaCassa: 0.04,
 
@@ -171,4 +177,25 @@ export function impostazioniPrecedenti(
 /** Ore fatturabili all'anno: giorni lavorativi × ore al giorno. */
 export function oreFatturabiliAnno(imp: Impostazioni): number {
   return imp.giorniLavorativi * imp.oreFatturabiliGiorno;
+}
+
+/**
+ * Allinea i contributi fissi alla gestione scelta.
+ *
+ * Il motore l'importo di legge lo legge dai parametri; il campo nei Parametri
+ * mostra invece quello scritto in archivio. Se i due divergono — ed è successo:
+ * un commerciante vedeva l'importo degli artigiani — il numero calcolato è
+ * giusto e quello mostrato no, che è la divergenza peggiore, perché nessuno dei
+ * due segnala l'altro.
+ *
+ * `conValoreProposto` non tocca un valore dichiarato: chi ha una riduzione non
+ * se la vede sovrascrivere cambiando gestione.
+ */
+export function conFissiDiLegge(imp: Impostazioni, par: ParametriAnno): Impostazioni {
+  if (!eGestioneCommerciale(imp.gestione)) return imp;
+  return conValoreProposto(
+    imp,
+    "contributiFissi",
+    par.artigianiCommercianti[imp.gestione].fissi,
+  );
 }

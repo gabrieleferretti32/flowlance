@@ -207,7 +207,7 @@ export const PASSI: Passo[] = [
     titolo: "Cassa previdenziale",
     domanda: "Dove versi i contributi?",
     perche:
-      "I contributi pesano quanto le imposte, spesso di più, e si calcolano in modi diversi. Nella Gestione Separata INPS sono una percentuale del reddito, senza minimo: se guadagni poco versi poco. Per artigiani e commercianti c'è un contributo fisso dovuto comunque, più una percentuale sulla parte eccedente. Le casse professionali hanno regole proprie e un contributo integrativo che si addebita in fattura e non fa reddito.",
+      "I contributi pesano quanto le imposte, spesso di più, e si calcolano in modi diversi. Nella Gestione Separata INPS sono una percentuale del reddito, senza minimo: se guadagni poco versi poco. Artigiani e commercianti hanno un contributo fisso dovuto comunque, più una percentuale sulla parte di reddito eccedente il minimale — e sono due gestioni diverse: i commercianti versano lo 0,48 % in più per l'indennizzo di cessazione. Le casse professionali hanno regole proprie e un contributo integrativo che si addebita in fattura e non fa reddito.",
     seSalti: (c) => `Resta ${nomeGestione(c.impostazioni.gestione)}.`,
     effetto: (c) =>
       c.prospetto.redditoLordo > 0
@@ -303,7 +303,8 @@ export const PASSI: Passo[] = [
 
 function nomeGestione(g: Impostazioni["gestione"]): string {
   if (g === "separata") return "la Gestione Separata INPS";
-  if (g === "artigiani") return "la gestione artigiani e commercianti";
+  if (g === "artigiani") return "la gestione artigiani";
+  if (g === "commercianti") return "la gestione commercianti";
   return "una cassa professionale";
 }
 

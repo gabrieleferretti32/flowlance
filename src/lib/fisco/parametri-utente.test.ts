@@ -130,8 +130,15 @@ describe("l'export del prospetto e le aliquote non dichiarate", () => {
 
   it("solo le aliquote dell'IRPEF bloccano, non le ore fatturabili", () => {
     const artigiano: Impostazioni = { ...base, gestione: "artigiani" };
-    // Contributi fissi e ore fatturabili restano da dichiarare…
-    expect(campiDaDichiarare(artigiano).map((c) => c.campo)).toContain("contributiFissi");
+    /*
+      I contributi fissi **non** sono fra i campi da dichiarare: l'importo di
+      legge l'app lo conosce, e chiedere di confermarlo sarebbe chiedere di
+      confermare una cosa che si sa. Il campo resta pertinente — si può
+      scavalcare, ed è la strada dei casi agevolati.
+    */
+    expect(campiDaDichiarare(artigiano).map((c) => c.campo)).not.toContain("contributiFissi");
+    expect(campiPertinenti(artigiano).map((c) => c.campo)).toContain("contributiFissi");
+    // Le ore fatturabili invece restano da dichiarare…
     // …ma non mandano un documento sbagliato dal commercialista.
     expect(aliquoteIrpefNonDichiarate(artigiano)).toEqual([]);
     expect(esportazioneProspettoConsentita(PARAMETRI_2026, artigiano).consentita).toBe(true);

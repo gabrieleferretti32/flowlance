@@ -25,6 +25,7 @@ import { costiRegistrati } from "@/lib/analisi/pianificazione";
 import { cercaGruppi } from "@/lib/fisco/ateco";
 import { cambiamentiDiRegime } from "@/lib/fisco/regime";
 import type { Riporto } from "@/lib/fisco/chiusura";
+import { nomeGestione } from "@/lib/fisco/tipi";
 import type { GruppoAteco, Impostazioni, ParametriAnno, Regime } from "@/lib/fisco/tipi";
 import type { ContestoCalcolo } from "@/lib/onboarding/percorso";
 import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
@@ -132,7 +133,10 @@ function ControlloDelPasso({
               Gestione Separata INPS — {percentuale(par.aliquotaGestioneSeparata)} del reddito
             </SelectItem>
             <SelectItem value="artigiani">
-              Artigiani e commercianti — fissi più eccedenza
+              Artigiani — {percentuale(par.artigianiCommercianti.artigiani.aliquota)} oltre il minimale
+            </SelectItem>
+            <SelectItem value="commercianti">
+              Commercianti — {percentuale(par.artigianiCommercianti.commercianti.aliquota)} oltre il minimale
             </SelectItem>
             <SelectItem value="cassa">Cassa professionale</SelectItem>
           </SelectContent>
@@ -932,9 +936,7 @@ export function riepilogoImpostazioni(
       valore:
         imp.gestione === "separata"
           ? `Gestione Separata (${percentuale(par.aliquotaGestioneSeparata)})`
-          : imp.gestione === "artigiani"
-            ? "Artigiani e commercianti"
-            : "Cassa professionale",
+          : nomeGestione(imp.gestione),
     },
     {
       passo: "iva",

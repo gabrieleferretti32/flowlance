@@ -12,6 +12,7 @@ import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
+import { gestioneNelTesto } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { data as fmtData, euro } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -89,7 +90,7 @@ export function SchermataScadenzario() {
   return (
     <Guscio
       titolo="Scadenzario"
-      descrizione={`Adempimenti ${anno} · filtrati per regime ${calcolo.impostazioni.regime} e ${nomeGestione(calcolo.impostazioni.gestione)}`}
+      descrizione={`Adempimenti ${anno} · filtrati per regime ${calcolo.impostazioni.regime} e ${gestioneNelTesto(calcolo.impostazioni.gestione)}`}
     >
       <div className="mx-auto max-w-4xl space-y-4">
         <section aria-label="Sintesi" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -135,7 +136,7 @@ export function SchermataScadenzario() {
             <p className="mt-2 text-etichetta text-inchiostro-tenue">
               L&apos;elenco è già filtrato per il tuo regime e la tua gestione previdenziale:
               in forfettario non vedi LIPE e liquidazioni IVA, in Gestione Separata non vedi
-              le quattro rate dei contributi fissi di artigiani e commercianti.
+              le quattro rate dei contributi fissi di artigiani e commercianti — comprese quelle che si versano nell&apos;anno dopo.
             </p>
             <p className="text-etichetta text-inchiostro-tenue">
               Le date che cadono di sabato, di domenica o in un giorno festivo sono già
@@ -257,10 +258,3 @@ function maiuscola(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-function nomeGestione(gestione: string): string {
-  return gestione === "separata"
-    ? "Gestione Separata"
-    : gestione === "artigiani"
-      ? "artigiani e commercianti"
-      : "cassa professionale";
-}
