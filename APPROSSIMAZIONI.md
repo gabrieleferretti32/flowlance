@@ -325,6 +325,23 @@ con un tocco — ma è un secondo passo, e va conosciuto. L'alternativa sarebbe
 non tenere niente e rendere lo svuotamento irreversibile, che su un gesto che
 si può premere per sbaglio è peggio.
 
+## Il «Come si calcola» si apre in due modi
+
+Sotto i 768 px il dettaglio del prospetto si apre **sotto la riga**, spingendo
+in giù il contenuto; da 768 in su resta il riquadro che compare accanto. Non è
+una preferenza estetica: misurato su iPhone, il riquadro sovrapposto copriva le
+righe intorno a quella che stava spiegando — fino a quattro per volta — e una
+spiegazione che nasconde ciò che spiega non serve a niente.
+
+Il prezzo è che sono due componenti invece di uno, e che serve conoscere la
+larghezza in JavaScript (`useSchermoStretto`) invece che in CSS: il
+comportamento cambia, non solo l'aspetto, e una media query non sa cambiare
+comportamento. È l'unico punto dell'app in cui questo vale la pena; ovunque la
+differenza sia di dimensioni o disposizione, resta Tailwind.
+
+Conseguenza sul telefono: il dettaglio in linea non ripete etichetta e valore,
+che il riquadro invece porta con sé. La riga è visibile subito sopra.
+
 ## I pulsanti principali sono alti 40 px, non 44
 
 Sotto la soglia consigliata per il tocco, sopra la soglia in cui si sbaglia:
