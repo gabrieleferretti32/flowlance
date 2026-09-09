@@ -17,6 +17,7 @@ import {
 } from "./stampa";
 import { euro, percentuale } from "@/lib/format";
 import type { Impostazioni, ParametriAnno } from "./tipi";
+import { parametriDi, parametriSonoDellAnno } from "./parametri";
 
 function documentoCon(imp: Impostazioni, par: ParametriAnno = PARAMETRI_2026) {
   const p = calcolaProspetto({
@@ -258,5 +259,71 @@ describe("nome del file da allegare", () => {
   it("senza intestatario resta il solo anno", () => {
     const doc = documentoCon({ ...impostazioniForfettario(), nome: "" });
     expect(nomeFileProspetto(doc)).toBe("prospetto-2026-non-impostato");
+  });
+});
+
+describe("un anno oltre l'ultimo file di parametri", () => {
+  /*
+    Il caso non si vede oggi e si presenterà da solo. `parametriDi` per un anno
+    non censito ricade sull'anno più recente, e quell'anno può essere
+    definitivo: `provvisorio` è `false`, e il blocco basato su quello lascia
+    passare un prospetto calcolato su aliquote di un altro anno.
+
+    Il 2027 è provvisorio, quindi oggi blocca comunque — per caso, non per
+    costruzione. Questi test usano un anno lontano, dove il caso è puro.
+  */
+  const ANNO_LONTANO = 2035;
+
+  it("i parametri che l'app userebbe sono quelli di un altro anno", () => {
+    expect(parametriSonoDellAnno(ANNO_LONTANO)).toBe(false);
+    expect(parametriDi(ANNO_LONTANO).anno).not.toBe(ANNO_LONTANO);
+  });
+
+  it("la stampa è bloccata, e il motivo nomina i due anni", () => {
+    const par = parametriDi(ANNO_LONTANO);
+    const esito = stampaConsentita(par, undefined, ANNO_LONTANO);
+    expect(esito.consentita).toBe(false);
+    if (esito.consentita) return;
+    expect(esito.motivo).toContain(String(ANNO_LONTANO));
+    expect(esito.motivo).toContain(String(par.anno));
+  });
+
+  it("il blocco non dipende dal flag provvisorio dei parametri di ripiego", () => {
+    // Anche fingendo che l'anno di ripiego sia definitivo, il blocco resta.
+    const definitivo = { ...parametriDi(ANNO_LONTANO), provvisorio: false };
+    expect(stampaConsentita(definitivo, undefined, ANNO_LONTANO).consentita).toBe(false);
+    // E senza l'anno, come chiamava prima, sarebbe passato: è il difetto.
+    expect(stampaConsentita(definitivo).consentita).toBe(true);
+  });
+
+  it("l'intestazione del documento lo dice accanto all'anno d'imposta", () => {
+    const par = parametriDi(ANNO_LONTANO);
+    const imp = { ...impostazioniForfettario(), anno: ANNO_LONTANO };
+    const p = calcolaProspetto({
+      impostazioni: imp,
+      parametri: par,
+      fatture: [],
+      costi: [],
+      oggi: `${ANNO_LONTANO}-06-30`,
+    });
+    const doc = documentoProspetto(p, imp, par, `${ANNO_LONTANO}-06-30`);
+    const anno = doc.identificazione.find((v) => v.etichetta === "Anno d'imposta");
+    expect(anno?.valore).toContain(String(ANNO_LONTANO));
+    expect(anno?.valore).toContain(`parametri di legge del ${par.anno}`);
+    expect(anno?.valore).toContain("non definitivi");
+  });
+
+  it("quando l'anno è censito l'intestazione resta il solo numero", () => {
+    const par = PARAMETRI_2026;
+    const imp = impostazioniForfettario();
+    const p = calcolaProspetto({
+      impostazioni: imp,
+      parametri: par,
+      fatture: [],
+      costi: [],
+      oggi: "2026-06-30",
+    });
+    const doc = documentoProspetto(p, imp, par, "2026-06-30");
+    expect(doc.identificazione.find((v) => v.etichetta === "Anno d'imposta")?.valore).toBe("2026");
   });
 });

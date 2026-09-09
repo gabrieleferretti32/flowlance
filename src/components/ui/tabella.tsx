@@ -130,15 +130,31 @@ export function TabellaRiga({ className, ...props }: React.HTMLAttributes<HTMLTa
 }
 
 /**
- * La colonna che resta agganciata al bordo destro mentre la tabella scorre.
+ * La colonna che resta agganciata al bordo **sinistro** mentre la tabella scorre.
  *
  * In regime ordinario le colonne sono di più — IVA, deducibilità — e la tabella
- * scorre di lato: le azioni di riga, che stanno in fondo, finivano fuori campo.
- * Si vedevano solo scorrendo fino in fondo, e nel frattempo non si capiva
+ * scorre di lato: le azioni di riga finivano fuori campo, e non si capiva
  * nemmeno che ci fossero. Ancorate restano dove uno le cerca.
+ *
+ * Erano ancorate a destra, ed è lì che stava il difetto: una cella
+ * `sticky right-0` si àncora al bordo esterno dello scrollport, e a riposo
+ * copre le due colonne che capitano lì sotto. Nel registro dei costi a 1440 px
+ * erano «Totale» e «Deducibile»: `453,84 €` si leggeva `4`, alla prima
+ * apertura, senza toccare niente. In un prodotto che vende numeri è il difetto
+ * peggiore che ci sia.
+ *
+ * Lo spazio per una colonna ancorata a destra **non è riservabile**: misurato
+ * in Chromium, né `padding-right` sul contenitore che scorre né
+ * `margin-right` sulla tabella la spostano di un pixel.
+ *
+ * A sinistra il problema non esiste: a scorrimento zero la cella sta
+ * esattamente dove starebbe comunque, quindi non copre niente — a nessuna
+ * larghezza. Scorrendo verso destra copre la prima colonna, che è l'identità
+ * della riga: e quella, mentre si guardano le colonne di destra, è la cosa che
+ * si vuole vedere. Il costo si è trasformato in un effetto utile.
  */
 const ANCORATA =
-  "sticky right-0 bg-inherit before:pointer-events-none before:absolute before:inset-y-0 before:-left-3 before:w-3 before:bg-gradient-to-l before:from-inchiostro/10 before:to-transparent";
+  "sticky left-0 bg-inherit after:pointer-events-none after:absolute after:inset-y-0 after:-right-3 after:w-3 after:bg-gradient-to-r after:from-inchiostro/10 after:to-transparent";
 
 export function TabellaIntestazione({
   className,

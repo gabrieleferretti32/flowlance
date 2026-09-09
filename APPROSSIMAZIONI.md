@@ -364,9 +364,29 @@ parametri aggiornati per gli anni coperti dalla licenza. Il giorno in cui la
 promessa non è ancora mantenuta deve dirlo l'app, non scoprirlo il cliente
 confrontando il prospetto col commercialista.
 
-Una parte del buco è già chiusa: chi **importa** un backup con un anno del genere
-adesso lo legge nell'avviso dell'import, che nomina l'anno da cui vengono i
-valori. Manca sulle schermate e sulla stampa, che è dove conta.
+Il buco è chiuso dove conta, ma **non per costruzione**:
+
+- L'avviso in cima alla schermata c'era già: `AvvisoParametri` distingue i due
+  casi e dice «per il 2028 non ci sono parametri censiti».
+- L'export e la stampa del prospetto adesso si bloccano quando l'anno chiesto
+  non è quello dei parametri, e il motivo nomina tutti e due gli anni.
+- Il documento stampato porta la cosa **nell'intestazione, accanto all'anno
+  d'imposta**: «2028 — calcolato con i parametri di legge del 2027, non
+  definitivi per il 2028». Non nella nota in fondo, che è piccola e grigia e
+  sparisce in fotocopia.
+- L'import di un backup lo dice nel suo avviso, nominando l'anno da cui vengono
+  i valori.
+
+Quello che resta approssimato è **quanto tutto questo si regge da solo**. Il
+2027 oggi ha `provvisorio: true`, quindi anche senza il controllo nuovo il
+blocco scatterebbe: il caso puro — anno di ripiego definitivo e anno chiesto
+senza file — non si presenta finché non si aggiorna il 2027. I test lo
+esercitano su un anno lontano, dove il caso è puro, ma nel prodotto vero la
+protezione non è ancora stata messa alla prova da un utente. Lo sarà a gennaio.
+
+E resta il fatto che nessuno dei quattro punti dice **quali** valori sarebbero
+cambiati: non si sa, e fingere di saperlo sarebbe peggio che dire da dove
+vengono.
 
 ## Il promemoria del backup ha due punti ciechi
 

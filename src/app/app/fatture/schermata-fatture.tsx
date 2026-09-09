@@ -285,6 +285,18 @@ export function SchermataFatture() {
               <Tabella>
                 <TabellaTesta>
                   <tr>
+                    {/*
+                      Le azioni aprono la riga, non la chiudono. Ancorate a
+                      destra coprivano le due colonne che a riposo capitavano
+                      sotto di loro — nei costi, a 1440 px, «Totale» e
+                      «Deducibile», con 453,84 € che si leggeva «4». A sinistra,
+                      a scorrimento zero, la cella sta dove starebbe comunque e
+                      non copre niente; scorrendo copre la prima colonna, che è
+                      l'identità della riga: quella la si vuole vedere.
+                    */}
+                    <TabellaIntestazione ancorata>
+                      <span className="sr-only">Azioni</span>
+                    </TabellaIntestazione>
                     <IntestazioneOrdinabile colonna="emissione" ordinamento={ordinamento} onOrdina={ordina}>
                       Emissione
                     </IntestazioneOrdinabile>
@@ -317,15 +329,41 @@ export function SchermataFatture() {
                     <IntestazioneOrdinabile colonna="stato" ordinamento={ordinamento} onOrdina={ordina}>
                       Stato
                     </IntestazioneOrdinabile>
-                    <TabellaIntestazione ancorata>
-                      <span className="sr-only">Azioni</span>
-                    </TabellaIntestazione>
                   </tr>
                 </TabellaTesta>
 
                 <TabellaCorpo>
                   {righe.map((f) => (
                     <TabellaRiga key={f.id}>
+                      <TabellaCella ancorata className="w-24">
+                        <div className="flex items-center justify-start gap-1">
+                          {f.stato === "incassato" ? (
+                            <Button scrive
+                              variante="quieto" taglia="icona"
+                              aria-label={`Annulla l'incasso della fattura ${f.numero}`}
+                              onClick={() => void annullaIncasso(f)}
+                            >
+                              <Undo2 className="size-4" />
+                            </Button>
+                          ) : (
+                            <Button scrive
+                              variante="quieto" taglia="icona"
+                              aria-label={`Segna la fattura ${f.numero} come incassata oggi`}
+                              onClick={() => void segnaIncassata(f)}
+                            >
+                              <CheckCheck className="size-4" />
+                            </Button>
+                          )}
+                          <Button scrive
+                            variante="quieto" taglia="icona"
+                            aria-label={`Elimina la fattura ${f.numero}`}
+                            onClick={() => void eliminaFattura(f)}
+                            className="hover:bg-negativo-tenue hover:text-negativo"
+                          >
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TabellaCella>
                       <TabellaCella className="p-1">
                         <CellaModificabile
                           tipo="data" etichetta="Data di emissione" valore={f.dataEmissione}
@@ -401,35 +439,6 @@ export function SchermataFatture() {
                               ? `da ${f.giorniRitardo} giorni`
                               : `scade il ${fmtData(f.scadenza)}`}
                         </span>
-                      </TabellaCella>
-                      <TabellaCella ancorata className="w-24">
-                        <div className="flex items-center justify-end gap-1">
-                          {f.stato === "incassato" ? (
-                            <Button scrive
-                              variante="quieto" taglia="icona"
-                              aria-label={`Annulla l'incasso della fattura ${f.numero}`}
-                              onClick={() => void annullaIncasso(f)}
-                            >
-                              <Undo2 className="size-4" />
-                            </Button>
-                          ) : (
-                            <Button scrive
-                              variante="quieto" taglia="icona"
-                              aria-label={`Segna la fattura ${f.numero} come incassata oggi`}
-                              onClick={() => void segnaIncassata(f)}
-                            >
-                              <CheckCheck className="size-4" />
-                            </Button>
-                          )}
-                          <Button scrive
-                            variante="quieto" taglia="icona"
-                            aria-label={`Elimina la fattura ${f.numero}`}
-                            onClick={() => void eliminaFattura(f)}
-                            className="hover:bg-negativo-tenue hover:text-negativo"
-                          >
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
                       </TabellaCella>
                     </TabellaRiga>
                   ))}

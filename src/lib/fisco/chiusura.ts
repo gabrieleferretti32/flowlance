@@ -540,7 +540,32 @@ export type EsitoEsportazione =
 export function esportazioneProspettoConsentita(
   par: ParametriAnno,
   imp?: Impostazioni,
+  /**
+   * L'anno d'imposta del prospetto, quando è diverso da quello dei parametri.
+   *
+   * Serve per un caso che oggi non si vede e che si presenterà da solo: un
+   * anno **oltre** l'ultimo file di parametri. `parametriDi` ricade sull'anno
+   * più recente disponibile, e quell'anno può benissimo essere definitivo —
+   * quindi `provvisorio` è `false` e il blocco qui sotto lascia passare un
+   * prospetto calcolato su aliquote di un altro anno.
+   *
+   * Oggi non succede solo perché il 2027 è provvisorio: il giorno in cui il
+   * 2027 diventa definitivo e il 2028 non esiste ancora, il documento esce
+   * stampato senza che niente lo dica. È il modo peggiore in cui la promessa
+   * del punto 8 dei Termini si può rompere — per una distrazione, in silenzio,
+   * su un foglio che qualcuno porta dal commercialista.
+   *
+   * Assente vale «l'anno è quello dei parametri», che è il caso di chi chiama
+   * senza saperne di più.
+   */
+  anno: number = par.anno,
 ): EsitoEsportazione {
+  if (anno !== par.anno) {
+    return {
+      consentita: false,
+      motivo: `Per il ${anno} non ci sono ancora parametri di legge censiti: il calcolo usa quelli del ${par.anno}. L'export resta bloccato finché i valori del ${anno} non entrano nell'app.`,
+    };
+  }
   if (par.provvisorio) {
     return {
       consentita: false,

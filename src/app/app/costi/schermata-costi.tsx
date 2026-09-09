@@ -256,6 +256,16 @@ export function SchermataCosti() {
               <Tabella>
                 <TabellaTesta>
                   <tr>
+                    {/*
+                      Le azioni aprono la riga, non la chiudono. Ancorate a
+                      destra coprivano le due colonne che a riposo capitavano
+                      sotto di loro — nei costi, a 1440 px, «Totale» e
+                      «Deducibile», con 453,84 € che si leggeva «4». A sinistra,
+                      a scorrimento zero, la cella sta dove starebbe comunque e
+                      non copre niente; scorrendo copre la prima colonna, che è
+                      l'identità della riga: quella la si vuole vedere.
+                    */}
+                    <TabellaIntestazione ancorata><span className="sr-only">Azioni</span></TabellaIntestazione>
                     <IntestazioneOrdinabile colonna="documento" ordinamento={ordinamento} onOrdina={ordina}>
                       Documento
                     </IntestazioneOrdinabile>
@@ -296,13 +306,35 @@ export function SchermataCosti() {
                     <IntestazioneOrdinabile colonna="pagamento" ordinamento={ordinamento} onOrdina={ordina}>
                       Pagamento
                     </IntestazioneOrdinabile>
-                    <TabellaIntestazione ancorata><span className="sr-only">Azioni</span></TabellaIntestazione>
                   </tr>
                 </TabellaTesta>
 
                 <TabellaCorpo>
                   {righe.map((c) => (
                     <TabellaRiga key={c.id}>
+                      <TabellaCella ancorata className="w-24">
+                        <div className="flex items-center justify-start gap-1">
+                          {c.stato === "pagato" ? (
+                            <Button scrive variante="quieto" taglia="icona"
+                              aria-label={`Annulla il pagamento del costo ${c.fornitore}`}
+                              onClick={() => aggiorna(c, { dataPagamento: null })}>
+                              <Undo2 className="size-4" />
+                            </Button>
+                          ) : (
+                            <Button scrive variante="quieto" taglia="icona"
+                              aria-label={`Segna il costo ${c.fornitore} come pagato oggi`}
+                              onClick={() => void segnaPagato(c)}>
+                              <CheckCheck className="size-4" />
+                            </Button>
+                          )}
+                          <Button scrive variante="quieto" taglia="icona"
+                            aria-label={`Elimina il costo ${c.fornitore}`}
+                            onClick={() => void eliminaCosto(c)}
+                            className="hover:bg-negativo-tenue hover:text-negativo">
+                            <Trash2 className="size-4" />
+                          </Button>
+                        </div>
+                      </TabellaCella>
                       <TabellaCella className="p-1">
                         <CellaModificabile tipo="data" etichetta="Data del documento" valore={c.dataDocumento}
                           onSalva={(v) => { if (v) aggiorna(c, { dataDocumento: String(v) }); }} />
@@ -348,29 +380,6 @@ export function SchermataCosti() {
                         <CellaModificabile tipo="data" etichetta="Data di pagamento"
                           valore={c.dataPagamento ?? null} className="whitespace-nowrap"
                           onSalva={(v) => aggiorna(c, { dataPagamento: v ? String(v) : null })} />
-                      </TabellaCella>
-                      <TabellaCella ancorata className="w-24">
-                        <div className="flex items-center justify-end gap-1">
-                          {c.stato === "pagato" ? (
-                            <Button scrive variante="quieto" taglia="icona"
-                              aria-label={`Annulla il pagamento del costo ${c.fornitore}`}
-                              onClick={() => aggiorna(c, { dataPagamento: null })}>
-                              <Undo2 className="size-4" />
-                            </Button>
-                          ) : (
-                            <Button scrive variante="quieto" taglia="icona"
-                              aria-label={`Segna il costo ${c.fornitore} come pagato oggi`}
-                              onClick={() => void segnaPagato(c)}>
-                              <CheckCheck className="size-4" />
-                            </Button>
-                          )}
-                          <Button scrive variante="quieto" taglia="icona"
-                            aria-label={`Elimina il costo ${c.fornitore}`}
-                            onClick={() => void eliminaCosto(c)}
-                            className="hover:bg-negativo-tenue hover:text-negativo">
-                            <Trash2 className="size-4" />
-                          </Button>
-                        </div>
                       </TabellaCella>
                     </TabellaRiga>
                   ))}

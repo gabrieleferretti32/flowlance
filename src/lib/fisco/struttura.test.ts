@@ -217,6 +217,12 @@ const LETTURE_AMMESSE: { campo: string; file: string; motivo: string }[] = [
     motivo: "Stesso caso: l'avviso nomina l'anno dei parametri ereditati.",
   },
   {
+    campo: "anno",
+    file: "src/lib/fisco/stampa.ts",
+    motivo:
+      "Qui il confronto fra le due fonti è il punto: se l'anno dei parametri non è quello del prospetto, i numeri vengono da un altro anno e l'intestazione del documento stampato lo dice. È l'unico posto dove leggerne una sola sarebbe il difetto.",
+  },
+  {
     campo: "limiteForfettario",
     file: "src/lib/fisco/regime.ts",
     motivo:

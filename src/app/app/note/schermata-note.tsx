@@ -150,6 +150,10 @@ export function SchermataNote() {
               <Tabella>
                 <TabellaTesta>
                   <tr>
+                    {/* Ancorate a sinistra: vedi `ANCORATA` in ui/tabella.tsx. */}
+                    <TabellaIntestazione ancorata className="w-20">
+                      <span className="sr-only">Azioni</span>
+                    </TabellaIntestazione>
                     <TabellaIntestazione>Data</TabellaIntestazione>
                     <TabellaIntestazione>Numero</TabellaIntestazione>
                     <TabellaIntestazione className="min-w-40">Cliente</TabellaIntestazione>
@@ -158,9 +162,6 @@ export function SchermataNote() {
                     <TabellaIntestazione numerica>IVA</TabellaIntestazione>
                     <TabellaIntestazione className="min-w-52">Riferita a</TabellaIntestazione>
                     <TabellaIntestazione>Rimborso</TabellaIntestazione>
-                    <TabellaIntestazione ancorata className="w-20">
-                      <span className="sr-only">Azioni</span>
-                    </TabellaIntestazione>
                   </tr>
                 </TabellaTesta>
                 <TabellaCorpo>
@@ -168,6 +169,41 @@ export function SchermataNote() {
                     const problemi = avvisiDi(n.id);
                     return (
                       <TabellaRiga key={n.id}>
+                        <TabellaCella ancorata>
+                          <div className="flex items-center justify-start gap-1">
+                            {n.dataRimborso ? (
+                              <Button
+                                scrive
+                                variante="quieto"
+                                taglia="icona"
+                                aria-label={`Annulla il rimborso della nota ${n.numero}`}
+                                onClick={() => void annullaRimborso(notaGrezza(n))}
+                              >
+                                <Undo2 className="size-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                scrive
+                                variante="quieto"
+                                taglia="icona"
+                                aria-label={`Segna la nota ${n.numero} come rimborsata oggi`}
+                                onClick={() => void segnaRimborsata(notaGrezza(n))}
+                              >
+                                <RotateCcw className="size-4" />
+                              </Button>
+                            )}
+                            <Button
+                              scrive
+                              variante="quieto"
+                              taglia="icona"
+                              aria-label={`Elimina la nota ${n.numero}`}
+                              onClick={() => void eliminaNota(notaGrezza(n))}
+                              className="hover:bg-negativo-tenue hover:text-negativo"
+                            >
+                              <Trash2 className="size-4" />
+                            </Button>
+                          </div>
+                        </TabellaCella>
                         <TabellaCella className="p-1">
                           <CellaModificabile
                             tipo="data"
@@ -221,41 +257,6 @@ export function SchermataNote() {
                             vuoto="Non rimborsata"
                             onSalva={(v) => aggiorna(n, { dataRimborso: v ? String(v) : null })}
                           />
-                        </TabellaCella>
-                        <TabellaCella ancorata>
-                          <div className="flex items-center justify-end gap-1">
-                            {n.dataRimborso ? (
-                              <Button
-                                scrive
-                                variante="quieto"
-                                taglia="icona"
-                                aria-label={`Annulla il rimborso della nota ${n.numero}`}
-                                onClick={() => void annullaRimborso(notaGrezza(n))}
-                              >
-                                <Undo2 className="size-4" />
-                              </Button>
-                            ) : (
-                              <Button
-                                scrive
-                                variante="quieto"
-                                taglia="icona"
-                                aria-label={`Segna la nota ${n.numero} come rimborsata oggi`}
-                                onClick={() => void segnaRimborsata(notaGrezza(n))}
-                              >
-                                <RotateCcw className="size-4" />
-                              </Button>
-                            )}
-                            <Button
-                              scrive
-                              variante="quieto"
-                              taglia="icona"
-                              aria-label={`Elimina la nota ${n.numero}`}
-                              onClick={() => void eliminaNota(notaGrezza(n))}
-                              className="hover:bg-negativo-tenue hover:text-negativo"
-                            >
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </div>
                         </TabellaCella>
                       </TabellaRiga>
                     );

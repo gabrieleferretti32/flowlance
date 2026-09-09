@@ -74,9 +74,28 @@ export function documentoProspetto(
 ): DocumentoProspetto {
   const forfettario = imp.regime === "forfettario";
 
+  /*
+    I parametri applicati sono di un altro anno.
+
+    Sta nell'intestazione, accanto all'anno d'imposta, e non nella nota in
+    fondo: la nota è piccola e grigia, e questo foglio viene fotocopiato,
+    scannerizzato e letto da qualcuno che non l'ha stampato. Se il prospetto
+    dice «2028» e i numeri vengono dal 2027, la riga che lo spiega deve stare
+    dove si legge l'anno.
+
+    Non elenca quali valori sarebbero cambiati: non lo sappiamo, e fingere di
+    saperlo sarebbe peggio che dire da dove vengono.
+  */
+  const parametriDiUnAltroAnno = par.anno !== p.anno;
+
   const identificazione: VoceIntestazione[] = [
     { etichetta: "Intestatario", valore: imp.nome?.trim() || "Non impostato" },
-    { etichetta: "Anno d'imposta", valore: String(p.anno) },
+    {
+      etichetta: "Anno d'imposta",
+      valore: parametriDiUnAltroAnno
+        ? `${p.anno} — calcolato con i parametri di legge del ${par.anno}, non definitivi per il ${p.anno}`
+        : String(p.anno),
+    },
     {
       etichetta: "Apertura partita IVA",
       valore: imp.dataAperturaPiva ? dataEstesa(imp.dataAperturaPiva) : "Non impostata",
@@ -173,8 +192,12 @@ export function documentoProspetto(
  * l'utente non ha mai confermato — il documento avrebbe l'aria di essere
  * definitivo e poggerebbe su aliquote che non sono le sue.
  */
-export function stampaConsentita(par: ParametriAnno, imp?: Impostazioni): EsitoEsportazione {
-  return esportazioneProspettoConsentita(par, imp);
+export function stampaConsentita(
+  par: ParametriAnno,
+  imp?: Impostazioni,
+  anno: number = par.anno,
+): EsitoEsportazione {
+  return esportazioneProspettoConsentita(par, imp, anno);
 }
 
 /**

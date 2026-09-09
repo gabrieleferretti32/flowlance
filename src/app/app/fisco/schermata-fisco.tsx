@@ -51,7 +51,7 @@ export function SchermataFisco() {
   const { prospetto: p, impostazioni: imp } = calcolo;
   const soglia = dettaglioSoglia(p, imp);
   const parametri = parametriDi(anno);
-  const stampa = stampaConsentita(parametri, imp);
+  const stampa = stampaConsentita(parametri, imp, anno);
   // Le aliquote che bloccano l'export e che l'utente può sbloccare da solo. I
   // parametri di legge provvisori bloccano allo stesso modo, ma lì non c'è
   // niente da dichiarare: mandare ai Parametri sarebbe mandare a vuoto.
