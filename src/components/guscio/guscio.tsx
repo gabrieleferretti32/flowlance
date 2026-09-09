@@ -15,6 +15,7 @@ import { ErroreSolaLettura } from "@/lib/dati/sola-lettura";
 import { toast } from "@/components/ui/toast";
 import { BarraLicenza } from "./barra-licenza";
 import { BarraDemo } from "./barra-demo";
+import { Piede } from "@/components/sito/piede";
 import { useArchivioScelto } from "@/components/dati/guardia-archivio";
 import { SegnoFlowlance } from "./marchio";
 import { RegimeAttuale } from "./regime-attuale";
@@ -167,6 +168,12 @@ export function Guscio({
         </header>
 
         <main className="flex-1 px-4 py-5 sm:px-5 sm:py-6 lg:px-8 print:p-0">{children}</main>
+        {/*
+          Lo stesso piede del sito, dentro l'applicazione: i documenti si
+          raggiungono da dove si sta lavorando, non solo dalla pagina di
+          vendita. Chi ha comprato è la persona a cui i Termini si applicano.
+        */}
+        <Piede />
       </div>
     </div>
   );

@@ -136,6 +136,123 @@
   }
 }
 
+@layer components {
+  /*
+    I documenti pubblicati: privacy, termini, cookie, «cosa non calcola».
+
+    Il loro HTML arriva da `marked`, che converte un file Markdown del
+    repository: i tag non li scrive nessun componente, quindi la tipografia si
+    dà qui, una volta, per elemento. Il patto con `contenuti/LEGGIMI.md` è che
+    aggiornare un testo sia cambiare un file solo — e questo blocco è ciò che
+    lo rende possibile: qualunque costrutto il legale usi domani, una tabella o
+    un elenco annidato, esce impaginato senza toccare il codice.
+
+    Misura di lettura sui 46 rem del contenitore: sono circa settanta battute
+    per riga, che è quanto si legge senza perdere la riga su un documento
+    lungo.
+  */
+  .prosa {
+    color: var(--color-inchiostro);
+    font-size: var(--text-corpo);
+    line-height: 1.65;
+  }
+
+  .prosa > * + * {
+    margin-top: 1em;
+  }
+
+  .prosa h2 {
+    margin-top: 2.5em;
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+  }
+
+  .prosa h3 {
+    margin-top: 2em;
+    font-weight: 600;
+  }
+
+  /* Un titolo appena sotto un altro non prende il distacco pieno. */
+  .prosa h2 + h3 {
+    margin-top: 1em;
+  }
+
+  .prosa strong {
+    font-weight: 600;
+  }
+
+  .prosa a {
+    color: var(--color-accento);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .prosa ul,
+  .prosa ol {
+    padding-left: 1.25rem;
+  }
+
+  .prosa ul {
+    list-style: disc;
+  }
+
+  .prosa ol {
+    list-style: decimal;
+  }
+
+  .prosa li + li {
+    margin-top: 0.4em;
+  }
+
+  .prosa hr {
+    margin-top: 2.5em;
+    border: 0;
+    border-top: 1px solid var(--color-bordo);
+  }
+
+  .prosa blockquote {
+    border-left: 3px solid var(--color-bordo);
+    padding-left: 1rem;
+    color: var(--color-inchiostro-tenue);
+  }
+
+  .prosa code {
+    background: var(--color-superficie-alt);
+    border-radius: 4px;
+    padding: 0.1em 0.35em;
+    font-size: 0.9em;
+  }
+
+  /*
+    Le tabelle scorrono dentro il loro riquadro invece di allargare la pagina:
+    la privacy ne ha una con sette righe di responsabili, e su un telefono
+    sfonderebbe.
+  */
+  .prosa table {
+    display: block;
+    overflow-x: auto;
+    border-collapse: collapse;
+    width: 100%;
+    font-size: var(--text-etichetta);
+  }
+
+  .prosa th,
+  .prosa td {
+    border: 1px solid var(--color-bordo);
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  .prosa th {
+    background: var(--color-superficie-alt);
+    font-weight: 600;
+  }
+}
+
 @layer base {
   html {
     -webkit-text-size-adjust: 100%;

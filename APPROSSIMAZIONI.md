@@ -1,4 +1,6 @@
-# Approssimazioni note
+# Cosa Flowlance non calcola
+
+*Ultimo aggiornamento: 9 settembre 2026*
 
 Quello che Flowlance **non** calcola, o calcola in modo semplificato. È l'elenco
 da leggere prima di vendere il prodotto: ogni voce è una differenza possibile
@@ -256,12 +258,12 @@ N+1 è acconto, dopo è saldo — che funziona ma resta una deduzione.
 
 ---
 
-# Interfaccia: cose viste e rimandate
+## Interfaccia: cose viste e rimandate
 
 Non sono difetti scoperti dopo. Sono misurati, e la ragione per cui restano
 sta accanto.
 
-## Le pagine lunghe non si paginano
+### Le pagine lunghe non si paginano
 
 Su un telefono da 375 px, con l'archivio dimostrativo, **Costi è alta 14.509
 px**: sessantanove schede una sotto l'altra, senza paginazione e senza «carica
@@ -273,7 +275,7 @@ decidere *cosa* pagina — una finestra scorrevole, un «mostra altri 20», o il
 filtro per mese già presente in cima usato come navigazione vera. Con un
 archivio di tre anni la domanda si pone da sola; con uno di un anno, no.
 
-## La riconciliazione delle note si fa solo da computer
+### La riconciliazione delle note si fa solo da computer
 
 Agganciare una nota di credito alle fatture su cui cade lo storno è un pannello
 che vive nella tabella, cioè da 768 px in su. Sulla scheda del telefono
@@ -289,7 +291,7 @@ basta scoprire il pulsante: servirebbe una forma diversa dal pannello a lista,
 perché il gesto è «distribuisci questo importo fra queste fatture» e su 375 px
 non ci stanno né le fatture né gli importi da confrontare.
 
-## Il conto delle tasse non si può marcare
+### Il conto delle tasse non si può marcare
 
 Il Patrimonio ha voci libere e nessun modo di dire che *quella* voce è il conto
 dove finiscono i soldi delle imposte. Senza, la domanda «sono in pari o sono
@@ -298,7 +300,7 @@ sé stesso. È la stessa cosa scritta sopra sotto «Il ÷ 12 della quota mensile
 sta anche qui perché è un campo da aggiungere al modello, non solo una domanda
 aperta.
 
-## Che cosa succede a licenza scaduta
+### Che cosa succede a licenza scaduta
 
 Non è un'approssimazione: è il comportamento, misurato con una licenza vera —
 chiave Ed25519 firmata dallo strumento di emissione, dodici mesi, verificata
@@ -341,7 +343,7 @@ scadenza si scrive ancora: la scadenza è compresa.
 Senza nessuna chiave valgono **quattordici giorni di prova** dal primo avvio,
 poi lo stesso stato di sola lettura.
 
-## Un anno senza parametri censiti usa quelli dell'anno prima, in silenzio
+### Un anno senza parametri censiti usa quelli dell'anno prima, in silenzio
 
 `parametriDi(anno)` restituisce i parametri dell'anno richiesto, e se quell'anno
 non è ancora censito **ricade sull'anno più recente disponibile**. Il commento
@@ -388,7 +390,7 @@ E resta il fatto che nessuno dei quattro punti dice **quali** valori sarebbero
 cambiati: non si sa, e fingere di saperlo sarebbe peggio che dire da dove
 vengono.
 
-## Il promemoria del backup ha due punti ciechi
+### Il promemoria del backup ha due punti ciechi
 
 L'app ricorda l'ultimo export in `localStorage`, non nell'archivio: dentro
 l'archivio finirebbe nel file di backup, e chi importa il backup di un altro si
@@ -406,7 +408,7 @@ registro delle modifiche: chi cancella dieci fatture e ne inserisce dieci non
 risulta avere niente di nuovo. Un avviso mancato su un lavoro fatto, quindi,
 ma solo in un caso che si riconosce da sé.
 
-## Chi svuota l'archivio si lascia dietro una copia
+### Chi svuota l'archivio si lascia dietro una copia
 
 Ogni gesto che sostituisce l'archivio intero — importare, ricaricare il
 dataset dimostrativo, svuotare — ne mette da parte una copia che sopravvive
@@ -418,7 +420,7 @@ con un tocco — ma è un secondo passo, e va conosciuto. L'alternativa sarebbe
 non tenere niente e rendere lo svuotamento irreversibile, che su un gesto che
 si può premere per sbaglio è peggio.
 
-## La card «Prossima scadenza» non mostra sempre la prima scadenza
+### La card «Prossima scadenza» non mostra sempre la prima scadenza
 
 Mostra il primo versamento **di cui si conosce l'importo**, e nomina quelli che
 ha scavalcato con la loro data. Gli adempimenti senza importo stimato non sono
@@ -438,7 +440,7 @@ scadenza vera più vicina. Trattare lo zero come «nessun importo» non si può:
 un trimestre coperto da un credito vale zero davvero, e chiamarlo «senza
 importo stimato» sarebbe falso.
 
-## Due «netto», e il motore ne conosce uno solo
+### Due «netto», e il motore ne conosce uno solo
 
 Il semaforo del cruscotto scompone il denaro **entrato in cassa**: i suoi
 quattro segmenti — netto, imposte, contributi, IVA incassata — devono sommare a
@@ -458,7 +460,7 @@ e il semaforo non è coperto dai test del motore perché la sua formula non sta 
 del prospetto; l'alternativa — portare il netto del semaforo dentro il motore —
 metterebbe nel motore una grandezza che serve a una sola schermata.
 
-## Il «Come si calcola» si apre in due modi
+### Il «Come si calcola» si apre in due modi
 
 Sotto i 768 px il dettaglio del prospetto si apre **sotto la riga**, spingendo
 in giù il contenuto; da 768 in su resta il riquadro che compare accanto. Non è
@@ -475,7 +477,7 @@ differenza sia di dimensioni o disposizione, resta Tailwind.
 Conseguenza sul telefono: il dettaglio in linea non ripete etichetta e valore,
 che il riquadro invece porta con sé. La riga è visibile subito sopra.
 
-## I pulsanti principali sono alti 40 px, non 44
+### I pulsanti principali sono alti 40 px, non 44
 
 Sotto la soglia consigliata per il tocco, sopra la soglia in cui si sbaglia:
 Nuova fattura, Nuovo costo, Stampa il prospetto, Esporta, Importa, Attiva,
@@ -495,7 +497,7 @@ sul cruscotto (29 px di larghezza — è largo quanto la quota che rappresenta, 
 allargarlo vorrebbe dire mentire sulla proporzione; da questa fase risponde
 anche al tocco, non solo al passaggio del mouse).
 
-## Le aliquote territoriali del dataset da vetrina: verificate, tranne una
+### Le aliquote territoriali del dataset da vetrina: verificate, tranne una
 
 Il dataset da vetrina (`src/lib/dati/vetrina.ts`) è quello che finisce negli
 screenshot. Persone, clienti e importi sono inventati e non c'è niente da
@@ -540,7 +542,7 @@ dalle fonti secondarie, non lo è nemmeno l'aliquota che sta sulla stessa riga.*
 Sono lo stesso documento; sapere di non poterne leggere metà significa non
 poterne leggere l'altra metà.
 
-## Quello che il dataset da vetrina non attraversa
+### Quello che il dataset da vetrina non attraversa
 
 Il difetto delle aliquote regionali è passato perché il calcolo non ci arrivava:
 l'imponibile della vetrina sta fra 15.000 e 28.000 € in tutti e due gli anni, e
