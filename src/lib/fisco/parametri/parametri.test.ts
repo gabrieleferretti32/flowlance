@@ -281,22 +281,69 @@ describe("previdenza · aliquote, minimali, massimali", () => {
   });
 
   /*
-    Due valori del 2025 sono ereditati dal 2026 e non verificati: la prima
-    fascia pensionabile e i due importi dei contributi fissi, che si rivalutano
-    ogni anno come il minimale. Questo test **non** li dichiara giusti: fissa
-    che sono ancora quelli del 2026, così quando arriveranno i valori veri il
-    test cade e ricorda che vanno messi.
+    Artigiani e commercianti 2025 — Circolare INPS n. 38 del 7 febbraio 2025.
+
+    Le aliquote non cambiano fra i due anni; cambiano minimale, prima fascia,
+    massimale e i due importi fissi, che si rivalutano con l'indice ISTAT.
   */
-  it("2025 · fissi e prima fascia sono ancora quelli del 2026, in attesa della circolare", () => {
-    expect(PARAMETRI_2025.artigianiCommercianti.primaFasciaPensionabile).toBe(
-      PARAMETRI_2026.artigianiCommercianti.primaFasciaPensionabile,
-    );
-    expect(PARAMETRI_2025.artigianiCommercianti.artigiani.fissi).toBe(
-      PARAMETRI_2026.artigianiCommercianti.artigiani.fissi,
-    );
-    // Minimale e massimale invece sono quelli veri del 2025.
-    expect(PARAMETRI_2025.artigianiCommercianti.minimale).toBe(18_555);
-    expect(PARAMETRI_2025.artigianiCommercianti.massimale).toBe(120_607);
+  it("2025 · minimale 18.555 €, prima fascia 55.448 €, massimale 120.607 € — circ. INPS 38/2025", () => {
+    const c = PARAMETRI_2025.artigianiCommercianti;
+    expect(c.minimale).toBe(18_555);
+    expect(c.primaFasciaPensionabile).toBe(55_448);
+    expect(c.massimale).toBe(120_607);
+  });
+
+  it("2025 · fissi 4.460,64 € artigiani e 4.549,70 € commercianti — circ. INPS 38/2025 par. 2", () => {
+    expect(PARAMETRI_2025.artigianiCommercianti.artigiani.fissi).toBe(4_460.64);
+    expect(PARAMETRI_2025.artigianiCommercianti.commercianti.fissi).toBe(4_549.7);
+  });
+
+  /*
+    I contributi sul minimale si ricalcolano dai loro stessi ingredienti.
+
+    È il controllo incrociato più forte del file: il minimale per l'aliquota,
+    più 7,44 € di maternità — che sono 0,62 € al mese, un importo e non una
+    percentuale — deve dare l'importo pubblicato. Se una delle tre componenti
+    fosse sbagliata, la somma non tornerebbe.
+
+    Vale doppio sui commercianti del 2025, il cui importo non è stato letto sulla
+    circolare ma su fonti secondarie: qui si vede che è coerente con il metodo
+    che sugli artigiani riproduce il valore pubblicato al centesimo.
+  */
+  it("i fissi tornano dal minimale più i 7,44 € di maternità, in tutti e due gli anni", () => {
+    const MATERNITA = 7.44; // 0,62 € al mese
+    for (const par of [PARAMETRI_2025, PARAMETRI_2026]) {
+      const c = par.artigianiCommercianti;
+      for (const g of ["artigiani", "commercianti"] as const) {
+        expect(c[g].fissi, `${g} ${par.anno}`).toBeCloseTo(
+          Math.round(c.minimale * c[g].aliquota * 100) / 100 + MATERNITA,
+          2,
+        );
+      }
+    }
+  });
+
+  it("prima fascia e fissi si rivalutano: nel 2026 sono più alti che nel 2025", () => {
+    const a = PARAMETRI_2025.artigianiCommercianti;
+    const b = PARAMETRI_2026.artigianiCommercianti;
+    expect(b.primaFasciaPensionabile).toBeGreaterThan(a.primaFasciaPensionabile);
+    expect(b.artigiani.fissi).toBeGreaterThan(a.artigiani.fissi);
+    expect(b.commercianti.fissi).toBeGreaterThan(a.commercianti.fissi);
+  });
+
+  /*
+    Il massimale che l'app **non** applica.
+
+    Chi ha anzianità contributiva al 31 dicembre 1995 ha un massimale più basso:
+    92.413 € nel 2025, 93.707 € nel 2026. Non stanno nei parametri — l'app non
+    chiede l'anzianità e applica sempre quello dei nuovi iscritti — ma la
+    relazione da cui discendono si può verificare, ed è la prima fascia più due
+    terzi. Se un domani la prima fascia fosse sbagliata, anche questo salterebbe.
+  */
+  it("il massimale ante-1996 è la prima fascia più due terzi: 92.413 € e 93.707 €", () => {
+    const ante = (fascia: number) => Math.round((fascia * 5) / 3);
+    expect(ante(PARAMETRI_2025.artigianiCommercianti.primaFasciaPensionabile)).toBe(92_413);
+    expect(ante(PARAMETRI_2026.artigianiCommercianti.primaFasciaPensionabile)).toBe(93_707);
   });
 
   /*

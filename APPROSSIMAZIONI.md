@@ -115,24 +115,29 @@ massimale ci sono. Restano fuori tre cose:
 
 **Il massimale applicato è quello dei nuovi iscritti.** L'art. 2 comma 18 della
 L. 335/1995 fissa il massimale per chi è privo di anzianità contributiva al
-31 dicembre 1995: 122.295 € per il 2026. Chi ha anzianità precedente ha invece
-un massimale più basso — 93.707 €, cioè la prima fascia di retribuzione
-pensionabile più due terzi — e l'app **non chiede l'anzianità**, quindi applica
-sempre il primo.
+31 dicembre 1995: 120.607 € nel 2025, 122.295 € nel 2026. Chi ha anzianità
+precedente ha invece un massimale più basso — 92.413 € e 93.707 €, cioè la
+prima fascia di retribuzione pensionabile più due terzi — e l'app **non chiede
+l'anzianità**, quindi applica sempre il primo.
 
 È la direzione giusta in cui sbagliare per il pubblico di Flowlance, dove quasi
 nessuno era già iscritto prima del 1996, ma per chi lo era il contributo
-calcolato è più alto del dovuto sopra i 93.707 €. Chiederlo significherebbe una
-domanda in più nella configurazione per un caso che riguarda pochi; per ora è
-dichiarato qui.
+calcolato è più alto del dovuto sopra quella soglia. Chiederlo significherebbe
+una domanda in più nella configurazione per un caso che riguarda pochi; per ora
+è dichiarato qui, e un test verifica almeno la relazione da cui i due valori
+discendono.
 
-**Due valori del 2025 sono ereditati dal 2026.** La prima fascia di
-retribuzione pensionabile e i due importi dei contributi fissi si rivalutano
-ogni anno come il minimale, e per il 2025 non sono stati letti sulla circolare:
-`parametri/2025.ts` porta quelli del 2026, e un test lo dichiara invece di
-lasciarlo scoprire. Minimale e massimale del 2025 sono invece quelli veri. Chi
-calcola un 2025 in questa gestione paga qualche decina di euro di troppo sui
-fissi. Si chiude con due numeri.
+**Un importo del 2025 non è letto sulla fonte primaria.** I contributi fissi
+dei commercianti per il 2025 — 4.549,70 € — non sono stati verificati sulla
+Circolare INPS n. 38 del 7 febbraio 2025: né inps.it né i mirror sono
+raggiungibili dall'ambiente in cui il file è stato scritto. Più fonti
+secondarie indipendenti riportano quel valore con la stessa scomposizione
+(4.542,26 € di IVS e indennizzo di cessazione, più 7,44 € di maternità), e il
+metodo si autoverifica sugli artigiani: 18.555 × 24 % = 4.453,20, più 7,44, dà
+esattamente i 4.460,64 € pubblicati. Un test rifà quel conto su tutti e quattro
+gli importi dei due anni.
+
+È una corroborazione, non una lettura. Resta da confermare sulla circolare.
 
 **Gestione Separata: una sola aliquota.** L'aliquota cambia a seconda che il
 professionista abbia o no un'altra copertura previdenziale; l'app usa quella

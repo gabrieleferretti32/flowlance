@@ -23,7 +23,7 @@ export const PARAMETRI_2025: ParametriAnno = {
     "Legge di Bilancio 2025 (L. 207/2024) — tre aliquote IRPEF rese strutturali",
     "Allegato n. 2 alla Legge 190/2014 — coefficienti di redditività",
     "Circolare INPS n. 27 del 30 gennaio 2025 — Gestione Separata: aliquote, minimale e massimale",
-    "Circolare INPS n. 38 del 7 febbraio 2025 — artigiani e commercianti",
+    "Circolare INPS n. 38 del 7 febbraio 2025 — artigiani e commercianti: aliquote, minimale, fissi e massimale",
     "Art. 13 TUIR — detrazione per redditi di lavoro autonomo",
     "Art. 1 comma 4 D.Lgs. 360/1998 — acconto dell'addizionale comunale",
   ],
@@ -41,22 +41,31 @@ export const PARAMETRI_2025: ParametriAnno = {
   massimaleGestioneSeparata: 120_607,
   minimaleAnnuo: 18_555,
   /*
-    Artigiani e commercianti 2025.
+    Artigiani e commercianti 2025 — Circolare INPS n. 38 del 7 febbraio 2025.
 
-    ┌────────────────────────────────────────────────────────────────────┐
-    │ DUE DI QUESTI NUMERI NON SONO DEL 2025.                            │
-    │ `minimale` e `massimale` sono i valori 2025, che si conoscono.     │
-    │ `primaFasciaPensionabile` e i due importi `fissi` sono invece      │
-    │ ereditati dal 2026 in attesa della circolare INPS di inizio 2025:  │
-    │ si rivalutano ogni anno come il minimale, quindi nel 2025 erano    │
-    │ più bassi. Chi calcola un 2025 in questa gestione paga qualche     │
-    │ decina di euro di troppo sui fissi.                                │
-    │ Dichiarato in APPROSSIMAZIONI.md; si chiude con due numeri.        │
-    └────────────────────────────────────────────────────────────────────┘
+    Reddito minimale 18.555 € (era 18.415 nel 2024), prima fascia di
+    retribuzione annua pensionabile 55.448 €, massimale 120.607 € per gli
+    iscritti dal 1° gennaio 1996.
+
+    I contributi sul minimale si autoverificano, e vale la pena rifare il conto
+    leggendo: 18.555 × 24 % = 4.453,20 di IVS, più 7,44 € di maternità — che
+    sono 0,62 € al mese, non una percentuale — fa esattamente i 4.460,64 €
+    pubblicati per gli artigiani. La stessa formula al 24,48 % dà 4.542,26 +
+    7,44 = 4.549,70 € per i commercianti.
+
+    Sul valore dei commercianti: la circolare non è stata letta direttamente —
+    inps.it è irraggiungibile dall'ambiente in cui questo file è stato scritto —
+    ma più fonti secondarie indipendenti riportano 4.549,70 € con la stessa
+    scomposizione, e il metodo si verifica sugli artigiani al centesimo.
+    Dichiarato in APPROSSIMAZIONI.md.
   */
   artigianiCommercianti: {
-    ...PARAMETRI_2026.artigianiCommercianti,
     minimale: 18_555,
+    primaFasciaPensionabile: 55_448,
     massimale: 120_607,
+    // 4.453,20 IVS + 7,44 di maternità
+    artigiani: { fissi: 4_460.64, aliquota: 0.24, aliquotaOltreFascia: 0.25 },
+    // 4.542,26 IVS e indennizzo di cessazione + 7,44 di maternità
+    commercianti: { fissi: 4_549.7, aliquota: 0.2448, aliquotaOltreFascia: 0.2548 },
   },
 };
