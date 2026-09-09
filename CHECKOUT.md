@@ -64,6 +64,30 @@ ordini esisteranno servirà poter dire *quale* testo una persona ha accettato.
 
 ---
 
+## 5 · Le righe non dicono da dove vengono
+
+Non è un obbligo dei Termini: è una **mancanza del modello** che si è vista
+quando è servita, e che qui sta perché la prossima volta si vedrà di nuovo.
+
+Fatture, costi e note non portano la loro provenienza. Chi le ha scritte — la
+mano, un file CSV, un backup importato — non è ricostruibile: la tabella
+`importazioni` esiste ma tiene **solo l'ultimo import**, perché è la rete per
+annullarlo e non un registro storico, e al secondo import il primo sparisce.
+
+La conseguenza si è vista con il difetto dell'aliquota IVA proposta
+dall'import: `strumenti/diagnosi-iva-importata.js` deve cercare le righe **per
+sintomo** — quelle al 22 % dove l'utente dichiara un'altra aliquota — invece
+che per origine, e quindi elenca anche righe scritte a mano che al 22 % ci
+stavano benissimo. È una diagnosi approssimata, e lo è per questa ragione.
+
+Un campo `origine` sulle righe la renderebbe esatta, e renderebbe esatta ogni
+diagnosi futura della stessa forma: «cosa è entrato da un import e non da una
+mano». Non si aggiunge adesso — cambia lo schema, e va deciso insieme a cosa
+farne nell'interfaccia — ma quando si toccherà lo schema per un'altra ragione,
+questa è la cosa da infilarci dentro.
+
+---
+
 ## Quello che invece è già mantenuto
 
 Perché non venga rifatto per sbaglio, e perché la prossima revisione dei

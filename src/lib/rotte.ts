@@ -53,6 +53,19 @@ export const ROTTE = {
 export type NomeRotta = keyof typeof ROTTE;
 
 /**
+ * L'indirizzo che apre la demo: l'app vera, con un dataset già dentro.
+ *
+ * Sta qui e non nella pagina di vendita perché è un indirizzo, e gli indirizzi
+ * stanno in un posto solo — il pulsante «Apri la demo» ne è un consumatore
+ * come la barra che ci si trova dentro. Il parametro accende la demo per
+ * questa scheda: da lì in poi la tiene accesa `sessionStorage`, e l'indirizzo
+ * torna pulito alla prima navigazione.
+ */
+export function rottaDemo(dataset: string): string {
+  return `${ROTTE.cruscotto}/?demo=${encodeURIComponent(dataset)}`;
+}
+
+/**
  * Le pagine pubbliche: la vendita e i documenti legali.
  *
  * Stanno accanto alle rotte dell'app perché il piede le nomina tutte e cinque

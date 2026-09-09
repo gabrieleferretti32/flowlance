@@ -14,6 +14,8 @@ import { useAvvioLicenza } from "@/lib/stato/licenza";
 import { ErroreSolaLettura } from "@/lib/dati/sola-lettura";
 import { toast } from "@/components/ui/toast";
 import { BarraLicenza } from "./barra-licenza";
+import { BarraDemo } from "./barra-demo";
+import { useArchivioScelto } from "@/components/dati/guardia-archivio";
 import { SegnoFlowlance } from "./marchio";
 import { RegimeAttuale } from "./regime-attuale";
 import { Paletta, Tasto } from "@/components/comandi/paletta";
@@ -43,6 +45,7 @@ export function Guscio({
 }) {
   const periodo = usePreferenze((s) => s.periodo);
   const impostaPeriodo = usePreferenze((s) => s.impostaPeriodo);
+  const { demo } = useArchivioScelto();
 
   // Lo stato di interfaccia è persistito: va reidratato dopo il montaggio,
   // altrimenti il primo render nel browser partirebbe da uno stato diverso
@@ -56,7 +59,7 @@ export function Guscio({
   const regime = calcolo?.impostazioni.regime ?? "forfettario";
 
   // Verifica la chiave salvata e accende la guardia dell'archivio.
-  useAvvioLicenza(oggi);
+  useAvvioLicenza(oggi, demo !== null);
   useAvvisoSolaLettura();
 
   // I parametri provvisori vincono sullo stato di chiusura: sono la cosa che
@@ -80,7 +83,12 @@ export function Guscio({
       <BarraLaterale />
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <BarraLicenza />
+        {/*
+          Una barra sola, mai due. Dentro la demo la licenza non è la tua e il
+          conto alla rovescia della prova non riguarda nessuno: dirlo sarebbe
+          un avviso falso in cima a ogni schermata.
+        */}
+        {demo ? <BarraDemo /> : <BarraLicenza />}
         <header className="sticky top-0 z-30 border-b border-bordo bg-fondo/85 backdrop-blur-sm print:hidden">
           <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 sm:gap-3 sm:px-5 sm:py-3 lg:px-8">
             <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 sm:min-w-72 sm:flex-nowrap sm:gap-2">

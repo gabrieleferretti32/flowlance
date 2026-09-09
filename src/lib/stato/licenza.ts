@@ -73,9 +73,17 @@ export const useLicenza = create<StatoStore>()(
  * lampeggiare mezza interfaccia e, alla prima riga scritta in quell'istante,
  * darebbe un errore a chi la licenza ce l'ha.
  */
-export function useAvvioLicenza(oggi: string): void {
+export function useAvvioLicenza(oggi: string, demo = false): void {
   React.useEffect(() => {
     let vivo = true;
+    /*
+      Nella demo la licenza non c'entra: l'archivio è un altro, i dati sono
+      inventati, e la prova che scade sarebbe il conto alla rovescia di
+      qualcun altro. Peggio: alla scadenza la demo diventerebbe di sola
+      lettura, e chi è entrato per provare l'app si troverebbe metà dei
+      pulsanti che non rispondono senza capire perché.
+    */
+    if (demo) return;
 
     void (async () => {
       await useLicenza.persist.rehydrate();
@@ -116,10 +124,10 @@ export function useAvvioLicenza(oggi: string): void {
     return () => {
       vivo = false;
     };
-  }, [oggi]);
+  }, [oggi, demo]);
 
   const stato = useStatoLicenza(oggi);
-  const bloccata = solaLettura(stato);
+  const bloccata = !demo && solaLettura(stato);
 
   // La guardia dell'archivio legge questo, a ogni scrittura.
   React.useEffect(() => {
