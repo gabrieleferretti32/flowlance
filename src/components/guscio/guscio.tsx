@@ -23,6 +23,7 @@ import { SelettorePeriodo } from "./selettore-periodo";
 import type { StatoDellAnno } from "./stato-anno";
 import type { Periodo } from "@/lib/periodo";
 import type { Regime } from "@/lib/fisco/tipi";
+import { ROTTE, rottaAttiva } from "@/lib/rotte";
 
 /**
  * Il guscio dell'applicazione: navigazione a sinistra, selettore di periodo e
@@ -216,8 +217,14 @@ function BottoneCerca() {
 }
 
 function Marchio() {
+  /*
+    Dentro l'app il marchio riporta al cruscotto. Puntava alla radice, e dopo
+    lo spostamento la radice è la pagina di vendita: premerlo faceva uscire
+    dall'applicazione. `eslint` non poteva vederlo — `"/"` è un percorso
+    legittimo — e nemmeno il controllo dei link, perché la pagina esiste.
+  */
   return (
-    <Link href="/" className="flex items-center gap-2.5 px-2">
+    <Link href={ROTTE.cruscotto} className="flex items-center gap-2.5 px-2">
       <SegnoFlowlance className="size-8 shrink-0" />
       <span className="font-display text-corpo font-semibold leading-tight">
         Flowlance
@@ -241,7 +248,7 @@ function ElencoSezioni({ onNaviga }: { onNaviga?: () => void }) {
                   key={voce.href}
                   className={SOLO_CON_TASTIERA.has(voce.href) ? "hidden md:block" : undefined}
                 >
-                  <VoceNav voce={voce} attiva={percorso === voce.href} onNaviga={onNaviga} />
+                  <VoceNav voce={voce} attiva={rottaAttiva(percorso, voce.href)} onNaviga={onNaviga} />
                 </li>
               ))}
             </ul>
@@ -416,7 +423,7 @@ function RiepilogoPeriodo({
           </div>
           <p className="text-etichetta text-inchiostro-tenue">
             Le aliquote che dipendono da te — addizionali, contributi — si dichiarano nei{" "}
-            <Link href="/parametri" className="underline underline-offset-2" onClick={() => setAperto(false)}>
+            <Link href={ROTTE.parametri} className="underline underline-offset-2" onClick={() => setAperto(false)}>
               Parametri
             </Link>
             .

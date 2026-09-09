@@ -31,6 +31,7 @@ import type { GruppoAteco, Impostazioni, ParametriAnno, Regime } from "@/lib/fis
 import type { ContestoCalcolo } from "@/lib/onboarding/percorso";
 import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 export type Modifica = (modifiche: Partial<Impostazioni>) => void;
 
@@ -545,7 +546,7 @@ export function PartenzaConDati({
           <p className="text-etichetta text-inchiostro-tenue">
             Un anno intero di fatture, costi e movimenti inventati: le schermate si
             riempiono e si capisce cosa aspettarsi da ognuna. Si svuota in un clic da{" "}
-            <Link href="/dati" className="underline underline-offset-2">
+            <Link href={ROTTE.dati} className="underline underline-offset-2">
               Dati e backup
             </Link>
             .
@@ -571,7 +572,7 @@ export function PartenzaConDati({
             torna.
           </p>
           <Button variante="contorno" className="self-start" asChild>
-            <Link href="/importa">
+            <Link href={ROTTE.importa}>
               <Upload className="size-4" aria-hidden />
               Importa da CSV
             </Link>

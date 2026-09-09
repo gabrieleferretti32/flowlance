@@ -20,6 +20,7 @@ import { useSolaLettura } from "@/lib/stato/licenza";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { toast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * La palette dei comandi.
@@ -86,23 +87,23 @@ export function Paletta() {
         router.push(azione.href);
         return;
       case "nuovaFattura":
-        router.push("/fatture");
+        router.push(ROTTE.fatture);
         chiedi({ tipo: "nuovaFattura" });
         return;
       case "nuovaNota":
-        router.push("/note");
+        router.push(ROTTE.note);
         chiedi({ tipo: "nuovaNota" });
         return;
       case "nuovoCosto":
-        router.push("/costi");
+        router.push(ROTTE.costi);
         chiedi({ tipo: "nuovoCosto" });
         return;
       case "apriFattura":
-        router.push("/fatture");
+        router.push(ROTTE.fatture);
         chiedi({ tipo: "cercaFatture", testo: azione.numero });
         return;
       case "apriCliente":
-        router.push("/clienti");
+        router.push(ROTTE.clienti);
         chiedi({ tipo: "cercaClienti", testo: azione.nome });
         return;
       case "cambiaAnno":
@@ -247,7 +248,7 @@ export function Paletta() {
             <span>
               <Tasto>Esc</Tasto> chiudi
             </span>
-            <a href="/scorciatoie" className="ml-auto underline underline-offset-2 hover:text-inchiostro">
+            <a href={ROTTE.scorciatoie} className="ml-auto underline underline-offset-2 hover:text-inchiostro">
               Tutte le scorciatoie
             </a>
           </div>

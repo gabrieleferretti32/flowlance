@@ -21,6 +21,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { DESTINAZIONI, type Destinazione } from "@/lib/comandi/vocabolario";
+import { ROTTE } from "@/lib/rotte";
 
 export type Voce = Destinazione & { icona: LucideIcon };
 
@@ -30,25 +31,25 @@ export type Voce = Destinazione & { icona: LucideIcon };
  * elenco: una schermata nuova compare in entrambe, o in nessuna delle due.
  */
 const ICONE: Record<string, LucideIcon> = {
-  "/": LayoutDashboard,
-  "/fatture": FileText,
-  "/note": FileMinus2,
-  "/costi": Receipt,
-  "/clienti": Users,
-  "/fisco": Percent,
-  "/iva": Coins,
-  "/confronto": Scale,
-  "/scadenzario": CalendarClock,
-  "/chiusura": CalendarCheck,
-  "/cashflow": BarChart3,
-  "/patrimonio": PiggyBank,
-  "/pianificazione": Target,
-  "/avvio": Compass,
-  "/parametri": Settings,
-  "/dati": Database,
-  "/importa": FileSpreadsheet,
-  "/licenza": Key,
-  "/scorciatoie": Keyboard,
+  [ROTTE.cruscotto]: LayoutDashboard,
+  [ROTTE.fatture]: FileText,
+  [ROTTE.note]: FileMinus2,
+  [ROTTE.costi]: Receipt,
+  [ROTTE.clienti]: Users,
+  [ROTTE.fisco]: Percent,
+  [ROTTE.iva]: Coins,
+  [ROTTE.confronto]: Scale,
+  [ROTTE.scadenzario]: CalendarClock,
+  [ROTTE.chiusura]: CalendarCheck,
+  [ROTTE.cashflow]: BarChart3,
+  [ROTTE.patrimonio]: PiggyBank,
+  [ROTTE.pianificazione]: Target,
+  [ROTTE.avvio]: Compass,
+  [ROTTE.parametri]: Settings,
+  [ROTTE.dati]: Database,
+  [ROTTE.importa]: FileSpreadsheet,
+  [ROTTE.licenza]: Key,
+  [ROTTE.scorciatoie]: Keyboard,
 };
 
 /**
@@ -56,7 +57,7 @@ const ICONE: Record<string, LucideIcon> = {
  * palette le trova ancora, e l'indirizzo funziona — ma sotto i 768 non si
  * offrono nel menu: elencare ⌘K, N e ? a chi ha solo un vetro è rumore.
  */
-export const SOLO_CON_TASTIERA = new Set(["/scorciatoie"]);
+export const SOLO_CON_TASTIERA = new Set<string>([ROTTE.scorciatoie]);
 
 /** L'ordine dei gruppi nel menu, che non è quello alfabetico. */
 const ORDINE = ["Ogni giorno", "Fisco", "Finanza", "Impostazioni"];

@@ -12,6 +12,7 @@ import {
   INDIRIZZO_ACQUISTO,
 } from "@/lib/licenza/stato";
 import { useStatoLicenza } from "@/lib/stato/licenza";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * La riga sulla licenza, sopra il contenuto.
@@ -63,7 +64,7 @@ export function BarraLicenza() {
             <ExternalLink className="size-3.5" aria-hidden />
           </a>
           <Link
-            href="/licenza"
+            href={ROTTE.licenza}
             className="flex min-h-11 items-center text-etichetta font-medium text-accento underline underline-offset-2 sm:min-h-0 sm:py-0"
           >
             Inserisci una chiave
@@ -100,7 +101,7 @@ export function BarraLicenza() {
           <ExternalLink className="size-3" aria-hidden />
         </a>
         <Link
-          href="/licenza"
+          href={ROTTE.licenza}
           className="flex min-h-11 items-center px-1 text-micro text-inchiostro-tenue underline underline-offset-2 hover:text-inchiostro sm:min-h-0 sm:py-0"
         >
           Gestisci

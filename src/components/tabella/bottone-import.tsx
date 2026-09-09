@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { FileSpreadsheet } from "lucide-react";
 import { Button, type ButtonProps } from "@/components/ui/button";
 import { useComandi } from "@/lib/stato/comandi";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * «Importa da CSV», da mettere accanto a «Nuova fattura» e nello stato vuoto.
@@ -36,7 +37,7 @@ export function BottoneImport({
       variante={variante}
       taglia={taglia}
       onClick={() => {
-        router.push("/importa");
+        router.push(ROTTE.importa);
         chiedi({ tipo: "importaCsv", destinazione });
       }}
     >

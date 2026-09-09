@@ -4,6 +4,7 @@ import Link from "next/link";
 import { ChevronRight, Percent } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Regime } from "@/lib/fisco/tipi";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * Il regime in testata: un rimando, non un interruttore.
@@ -32,7 +33,7 @@ export function RegimeAttuale({
 }) {
   return (
     <Link
-      href="/avvio?passo=regime"
+      href={`${ROTTE.avvio}?passo=regime`}
       onClick={onNaviga}
       title="Il regime si cambia dalla configurazione, che spiega cosa comporta"
       className={cn(

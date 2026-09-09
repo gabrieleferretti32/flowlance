@@ -26,6 +26,7 @@ import { parametriDi } from "@/lib/fisco/parametri";
 import { dettaglioSoglia, prospettoDettagliato } from "@/lib/fisco/spiegazioni";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { euro, percentuale } from "@/lib/format";
+import { ROTTE } from "@/lib/rotte";
 
 export function SchermataFisco() {
   const anno = usePreferenze((s) => s.periodo.anno);
@@ -73,7 +74,7 @@ export function SchermataFisco() {
         // telefono, dove il `title` non si vede, era un vicolo cieco muto.
         daDichiarare.length > 0 ? (
           <Button variante="contorno" asChild>
-            <Link href="/parametri">
+            <Link href={ROTTE.parametri}>
               <Lock className="size-4" aria-hidden />
               Sblocca la stampa
             </Link>
@@ -128,7 +129,7 @@ export function SchermataFisco() {
                 fatture emesse.
               </p>
               <Link
-                href="/fatture"
+                href={ROTTE.fatture}
                 className="mt-4 inline-block rounded-campo bg-accento px-4 py-2 text-corpo font-medium text-white transition-colors hover:bg-[#3D4CE8]"
               >
                 Vai alle fatture
@@ -224,7 +225,7 @@ function AvvisoParametriUtente({ impostazioni }: { impostazioni: Impostazioni })
             usa per poter calcolare qualcosa.
             {bloccanti.length > 0 &&
               " Finché restano così il prospetto non si esporta: è il documento che va dal commercialista."}{" "}
-            <Link href="/parametri" className="font-medium underline underline-offset-2">
+            <Link href={ROTTE.parametri} className="font-medium underline underline-offset-2">
               Dichiarali nei Parametri
             </Link>
             .

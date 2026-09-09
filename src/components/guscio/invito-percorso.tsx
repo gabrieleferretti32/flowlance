@@ -5,6 +5,7 @@ import { ArrowRight, Compass } from "lucide-react";
 import { Card, CardCorpo } from "@/components/ui/card";
 import { useSituazione } from "@/lib/dati/hooks";
 import { contestoSuggerito, NOME_CONTESTO } from "@/lib/onboarding/percorso";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * L'invito al percorso di configurazione, quando ce n'è uno in sospeso.
@@ -32,7 +33,7 @@ export function InvitoPercorso({ anno, oggi }: { anno: number; oggi: string }) {
           </div>
         </div>
         <Link
-          href="/avvio"
+          href={ROTTE.avvio}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-accento px-4 py-2 text-etichetta font-medium text-white transition-colors hover:brightness-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accento focus-visible:ring-offset-2"
         >
           Comincia

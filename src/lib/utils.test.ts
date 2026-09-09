@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cn } from "./utils";
+import { ROTTE, rottaAttiva } from "@/lib/rotte";
 
 describe("cn", () => {
   it("tiene insieme dimensione e colore del testo", () => {
@@ -36,5 +37,27 @@ describe("cn", () => {
 
   it("non confonde raggio e colore del bordo", () => {
     expect(cn("rounded-interna", "border-bordo")).toBe("rounded-interna border-bordo");
+  });
+});
+
+describe("rottaAttiva", () => {
+  /*
+    Con `trailingSlash: true` l'indirizzo corrente arriva con lo slash in coda e
+    le rotte non ce l'hanno: il confronto secco non era mai vero, e nella barra
+    laterale non si illuminava nessuna voce, su nessuna schermata.
+  */
+  it("riconosce la rotta anche con lo slash in coda", () => {
+    expect(rottaAttiva("/app/fatture/", ROTTE.fatture)).toBe(true);
+    expect(rottaAttiva("/app/fatture", ROTTE.fatture)).toBe(true);
+  });
+
+  it("il cruscotto è la radice dell'app, non la radice del sito", () => {
+    expect(rottaAttiva("/app/", ROTTE.cruscotto)).toBe(true);
+    expect(rottaAttiva("/", ROTTE.cruscotto)).toBe(false);
+  });
+
+  it("non confonde due schermate diverse", () => {
+    expect(rottaAttiva("/app/note/", ROTTE.fatture)).toBe(false);
+    expect(rottaAttiva(null, ROTTE.fatture)).toBe(false);
   });
 });

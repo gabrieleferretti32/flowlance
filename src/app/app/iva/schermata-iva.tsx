@@ -29,6 +29,7 @@ import { useCalcoloAnno } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { data as fmtData, euro } from "@/lib/format";
 import type { PeriodoIva } from "@/lib/fisco/iva";
+import { ROTTE } from "@/lib/rotte";
 
 export function SchermataIva() {
   const anno = usePreferenze((s) => s.periodo.anno);
@@ -69,7 +70,7 @@ export function SchermataIva() {
             </p>
             <p className="mx-auto mt-3 max-w-md text-etichetta text-inchiostro-tenue">
               Se passi al regime ordinario questa schermata si popola da sola.{" "}
-              <Link href="/confronto" className="py-1.5 text-accento underline underline-offset-2">
+              <Link href={ROTTE.confronto} className="py-1.5 text-accento underline underline-offset-2">
                 Vedi il confronto fra i due regimi
               </Link>
               .
@@ -263,7 +264,7 @@ export function SchermataIva() {
               Oltre al versamento, chi è in regime ordinario invia la LIPE entro la fine del
               secondo mese successivo a ogni trimestre, e la dichiarazione IVA annuale entro
               il 30 aprile.{" "}
-              <Link href="/scadenzario" className="py-1.5 text-accento underline underline-offset-2">
+              <Link href={ROTTE.scadenzario} className="py-1.5 text-accento underline underline-offset-2">
                 Trovi tutte le date nello scadenzario
               </Link>
               .

@@ -41,6 +41,7 @@ import {
 } from "@/lib/dati/istantanee";
 import { DialogoConfermaImport } from "./conferma-import";
 import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
+import { ROTTE } from "@/lib/rotte";
 
 const ETICHETTE: Record<NomeCollezione, string> = {
   impostazioni: "Impostazioni per anno",
@@ -222,7 +223,7 @@ export function PannelloDati() {
           </Button>
           {/* Il CSV è un flusso a quattro passi: vive in una schermata sua. */}
           <Button variante="contorno" asChild>
-            <Link href="/importa">Da CSV</Link>
+            <Link href={ROTTE.importa}>Da CSV</Link>
           </Button>
         </>
       }

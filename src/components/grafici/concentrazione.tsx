@@ -7,6 +7,7 @@ import { Vuoto } from "@/components/ui/vuoto";
 import { Users } from "lucide-react";
 import { euro, iniziali, percentuale } from "@/lib/format";
 import type { RigaCliente } from "@/lib/analisi/dashboard";
+import { ROTTE } from "@/lib/rotte";
 
 const SOGLIA_ESPOSIZIONE = 0.4;
 
@@ -83,7 +84,7 @@ export function GraficoConcentrazione({ righe }: { righe: RigaCliente[] }) {
           <p className="border-t border-bordo px-4 py-3 text-micro text-inchiostro-tenue sm:px-6">
             La concentrazione è il rischio numero uno di chi lavora da solo.{" "}
             <Link
-              href="/fatture"
+              href={ROTTE.fatture}
               className="py-1.5 text-accento underline underline-offset-2"
             >
               Apri il registro fatture

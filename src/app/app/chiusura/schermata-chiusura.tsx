@@ -28,6 +28,7 @@ import { istantaneaDa, type ChiusuraAnno, type Riporto } from "@/lib/fisco/chius
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { data as fmtData, euro } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 export function SchermataChiusura() {
   const anno = usePreferenze((s) => s.periodo.anno);
@@ -298,7 +299,7 @@ export function SchermataChiusura() {
             {regime.daProporre && (
               <div className="mt-4">
                 <Button variante="contorno" asChild>
-                  <Link href="/avvio">Vedi cosa cambia, sui tuoi numeri</Link>
+                  <Link href={ROTTE.avvio}>Vedi cosa cambia, sui tuoi numeri</Link>
                 </Button>
               </div>
             )}
@@ -356,7 +357,7 @@ export function SchermataChiusura() {
                     Riapri il {anno}
                   </Button>
                   <Button variante="quieto" asChild>
-                    <Link href="/fisco">Vedi il prospetto</Link>
+                    <Link href={ROTTE.fisco}>Vedi il prospetto</Link>
                   </Button>
                 </div>
               </>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { ROTTE_PER_TASTO } from "@/lib/comandi/scorciatoie";
 import { useComandi } from "@/lib/stato/comandi";
 import { useSolaLettura } from "@/lib/stato/licenza";
+import { ROTTE } from "@/lib/rotte";
 
 /** Quanto tempo si ha per premere la lettera dopo `g`. */
 const ATTESA_SEQUENZA = 2000;
@@ -85,7 +86,7 @@ export function ScorciatoieGlobali() {
         case "n":
           e.preventDefault();
           if (bloccato) return;
-          router.push("/fatture");
+          router.push(ROTTE.fatture);
           chiedi({ tipo: "nuovaFattura" });
           return;
         case "/": {
@@ -104,7 +105,7 @@ export function ScorciatoieGlobali() {
         }
         case "?":
           e.preventDefault();
-          router.push("/scorciatoie");
+          router.push(ROTTE.scorciatoie);
           return;
       }
     }

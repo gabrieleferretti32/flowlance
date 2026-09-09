@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Lock, LockOpen, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 export type StatoDellAnno = "aperto" | "chiuso" | "provvisorio";
 
@@ -44,7 +45,7 @@ export function StatoAnno({ stato, className }: { stato: StatoDellAnno; classNam
   const { icona: Icona, etichetta, classe, titolo } = ASPETTO[stato];
   return (
     <Link
-      href="/chiusura"
+      href={ROTTE.chiusura}
       title={titolo}
       className={cn(
         "inline-flex items-center gap-1 rounded-full px-2.5 py-2 text-etichetta font-medium transition-colors sm:py-1",

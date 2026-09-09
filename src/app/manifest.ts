@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { BASE_APP } from "@/lib/rotte";
 
 /**
  * Il manifest serve a una cosa sola: se qualcuno installa l'app sul telefono o
@@ -16,7 +17,14 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Il cruscotto economico, fiscale e finanziario del libero professionista italiano. I dati restano nel tuo browser.",
     lang: "it",
-    start_url: "/",
+    /*
+      Chi installa Flowlance sulla home installa l'**applicazione**, non la
+      pagina di vendita: `start_url` segue l'app sotto /app. Uno scorciatoia
+      che apre la pagina di vendita sarebbe la peggiore delle due sviste —
+      silenziosa, e visibile solo a chi ha già comprato.
+    */
+    start_url: `${BASE_APP}/`,
+    scope: `${BASE_APP}/`,
     display: "standalone",
     background_color: "#F2F4F9",
     theme_color: "#F2F4F9",

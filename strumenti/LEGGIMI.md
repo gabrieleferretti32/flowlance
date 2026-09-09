@@ -5,10 +5,50 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 
 | Strumento | A cosa serve |
 |---|---|
+| `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
+
+---
+
+## `verifica-link.mjs`
+
+```sh
+npm run build          # lo esegue da solo in coda a next build
+npm run verifica:link  # su un out/ già costruito
+```
+
+Lo spostamento dell'app sotto `/app` è il tipo di modifica che rompe **in
+silenzio**: un `href="/fatture"` rimasto indietro compila, passa i test, e in
+produzione mostra la pagina di errore dell'hosting. Il compilatore non può
+vederlo — per lui è una stringa — e nessun test di unità apre una pagina.
+
+Lo strumento serve `out/` da un server statico, apre ogni pagina in Chromium,
+raccoglie ogni `href` e ogni `src` interno dal DOM **vivo** e chiede al
+filesystem se c'è un file dall'altra parte. Segnala anche le pagine che si
+aprono senza contenuto. Esce con codice 1 se trova qualcosa, così il build si
+ferma.
+
+**Perché un browser e non i file `.html`.** Le schermate dell'app stanno dentro
+`SoloClient`: l'HTML esportato contiene un segnaposto, e la barra laterale —
+cioè quasi tutti i link interni del prodotto — nasce dopo il montaggio. La
+prima stesura leggeva i file, trovava cinque link per pagina (tutti fogli di
+stile) e dichiarava che andava tutto bene. Quella col browser, alla prima
+esecuzione, ha trovato un `/avvio/` rotto su diciannove pagine.
+
+**Quello che non vede.** Le navigazioni fatte da codice — `router.push` — che
+non sono link finché qualcuno non preme. Quelle le tiene la regola
+`no-restricted-syntax` in `eslint.config.mjs`, che vieta di scrivere un
+percorso a mano: le rotte stanno in `src/lib/rotte.ts` e si nominano da lì. Le
+due cose si dividono il lavoro, il sorgente a una e il sito all'altra.
+
+### Opzioni
+
+```sh
+node strumenti/verifica-link.mjs --cartella=out --chromium=/percorso/al/binario
+```
 
 ---
 

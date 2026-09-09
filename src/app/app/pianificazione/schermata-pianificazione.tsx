@@ -16,6 +16,7 @@ import { oreFatturabiliAnno } from "@/lib/fisco/impostazioni";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { analizzaNumero, analizzaPercentuale, euro, num, perCampo, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 export function SchermataPianificazione() {
   const anno = usePreferenze((s) => s.periodo.anno);
@@ -257,7 +258,7 @@ export function SchermataPianificazione() {
                 {capacitaDaDichiarare ? (
                   <>
                     , valori predefiniti.{" "}
-                    <Link href="/parametri" className="underline underline-offset-2">
+                    <Link href={ROTTE.parametri} className="underline underline-offset-2">
                       Dichiara i tuoi
                     </Link>
                     .

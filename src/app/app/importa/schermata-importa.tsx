@@ -32,6 +32,7 @@ import { useSolaLettura } from "@/lib/stato/licenza";
 import type { Importazione } from "@/lib/dati/tipi";
 import { data as fmtData } from "@/lib/format";
 import { Anteprima, Mappa, ScelteNature } from "./passi-import";
+import { ROTTE } from "@/lib/rotte";
 
 type Passo = "file" | "mappa" | "esito";
 
@@ -380,7 +381,7 @@ export function SchermataImporta() {
               )}
               <div className="flex flex-wrap gap-2">
                 <Button variante="contorno" asChild>
-                  <Link href={esito.destinazione === "fattura" ? "/fatture" : "/costi"}>
+                  <Link href={esito.destinazione === "fattura" ? ROTTE.fatture : ROTTE.costi}>
                     Vedi il risultato
                   </Link>
                 </Button>

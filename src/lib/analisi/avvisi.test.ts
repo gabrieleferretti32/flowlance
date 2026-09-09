@@ -11,6 +11,7 @@ import {
 } from "@/lib/fisco/fixture";
 import type { Fattura, Impostazioni } from "@/lib/fisco/tipi";
 import { generaAvvisi } from "./avvisi";
+import { ROTTE } from "@/lib/rotte";
 
 const par = PARAMETRI_2026;
 
@@ -41,7 +42,7 @@ describe("avvisi del cruscotto", () => {
     const scaduto = avvisi.find((a) => a.id === "scadute");
     expect(scaduto).toBeDefined();
     expect(scaduto?.tono).toBe("negativo"); // la fattura è ferma da 135 giorni
-    expect(scaduto?.azione?.href).toBe("/fatture?stato=scadute");
+    expect(scaduto?.azione?.href).toBe(`${ROTTE.fatture}?stato=scadute`);
     expect(scaduto?.testo).toContain("135 giorni");
   });
 
@@ -111,7 +112,7 @@ describe("avvisi del cruscotto", () => {
     const avvisi = avvisiDi(impostazioniForfettario(), [], []);
     expect(avvisi).toHaveLength(1);
     expect(avvisi[0].id).toBe("tutto-in-ordine");
-    expect(avvisi[0].azione?.href).toBe("/fatture");
+    expect(avvisi[0].azione?.href).toBe(ROTTE.fatture);
     expect(avvisi[0].testo).toContain("Registra la prima fattura");
   });
 

@@ -10,6 +10,7 @@ import type { Adempimento } from "@/lib/fisco/scadenze";
 import type { Prospetto } from "@/lib/fisco/motore";
 import type { CostoCalcolato, FatturaCalcolata, Impostazioni } from "@/lib/fisco/tipi";
 import { euro, euroTondo, percentuale } from "@/lib/format";
+import { ROTTE } from "@/lib/rotte";
 
 export type TonoAvviso = "positivo" | "attenzione" | "negativo" | "accento";
 
@@ -63,7 +64,7 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
         scadute.length === 1
           ? `${euro(totale)} scaduti da ${piuVecchia.giorniRitardo} giorni: una fattura da sollecitare.`
           : `${euro(totale)} scaduti su ${scadute.length} fatture, la più vecchia da ${piuVecchia.giorniRitardo} giorni.`,
-      azione: { etichetta: "Vedi le fatture scadute", href: "/fatture?stato=scadute" },
+      azione: { etichetta: "Vedi le fatture scadute", href: `${ROTTE.fatture}?stato=scadute` },
     });
   }
 
@@ -75,7 +76,7 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
       id: "costi-da-pagare",
       tono: "attenzione",
       testo: `${euro(totale)} di costi registrati e non ancora pagati.`,
-      azione: { etichetta: "Vedi i costi da pagare", href: "/costi?stato=daPagare" },
+      azione: { etichetta: "Vedi i costi da pagare", href: `${ROTTE.costi}?stato=daPagare` },
     });
   }
 
@@ -104,7 +105,7 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
       id: "versamenti-senza-anno",
       tono: "attenzione",
       testo: `${euro(p.versamentiSenzaAnno)} di versamenti F24 non hanno un anno d'imposta: sono contati sul ${p.anno} per la data di pagamento. Se erano il saldo del ${p.anno - 1} stanno abbassando il dovuto dell'anno sbagliato.`,
-      azione: { etichetta: "Assegna l'anno ai versamenti", href: "/cashflow" },
+      azione: { etichetta: "Assegna l'anno ai versamenti", href: ROTTE.cashflow },
     });
   }
 
@@ -153,7 +154,7 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
         p.ricaviRilevanti > 0
           ? "Niente da segnalare: incassi in ordine, accantonamento adeguato, nessuna scadenza imminente."
           : "Registra la prima fattura incassata: da lì in poi il cruscotto ti dice quanto di quei soldi è davvero tuo.",
-      ...(p.ricaviRilevanti > 0 ? {} : { azione: { etichetta: "Vai alle fatture", href: "/fatture" } }),
+      ...(p.ricaviRilevanti > 0 ? {} : { azione: { etichetta: "Vai alle fatture", href: ROTTE.fatture } }),
     });
   }
 

@@ -244,7 +244,7 @@ const LETTURE_AMMESSE: { campo: string; file: string; motivo: string }[] = [
   },
   {
     campo: "aliquotaGestioneSeparata",
-    file: "src/app/(app)/avvio/passi.tsx",
+    file: "src/app/app/avvio/passi.tsx",
     motivo:
       "L'avvio mostra l'aliquota di ogni gestione **prima** che una gestione sia scelta: il gemello nelle impostazioni non è ancora stato deciso.",
   },

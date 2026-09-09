@@ -50,6 +50,7 @@ import type { Impostazioni, ScaglioneIrpef } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { aliquota, analizzaNumero, euro, perCampo } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * I parametri che l'app non può conoscere.
@@ -156,7 +157,7 @@ export function SchermataParametri() {
                 tuo comune. Se passi al regime ordinario ricompaiono qui, e diventano le
                 due aliquote che tengono bloccato l&apos;export del prospetto finché non le
                 scrivi.{" "}
-                <Link href="/confronto" className="underline underline-offset-2">
+                <Link href={ROTTE.confronto} className="underline underline-offset-2">
                   Il confronto fra i due regimi
                 </Link>{" "}
                 le mette già nel conto.
@@ -180,7 +181,7 @@ export function SchermataParametri() {
         <p className="px-1 text-etichetta text-inchiostro-tenue">
           Il resto della configurazione — regime, coefficiente, cassa, termini di pagamento —
           si risponde dalla{" "}
-          <Link href="/avvio" className="underline underline-offset-2">
+          <Link href={ROTTE.avvio} className="underline underline-offset-2">
             Configurazione
           </Link>
           .

@@ -9,6 +9,7 @@ import { esportaBackup } from "@/lib/dati/azioni";
 import { useDati } from "@/lib/dati/hooks";
 import { avvisoBackup, contaDocumenti } from "@/lib/dati/promemoria-backup";
 import { useStatoBackup } from "@/lib/stato/backup";
+import { ROTTE } from "@/lib/rotte";
 
 /**
  * «Fai un backup», detto solo quando serve.
@@ -49,7 +50,7 @@ export function PromemoriaBackup() {
             <p className="text-etichetta font-semibold text-[#B8791A]">{avviso.titolo}</p>
             <p className="mt-1 text-etichetta text-[#B8791A]">
               {avviso.testo}{" "}
-              <Link href="/dati" className="underline underline-offset-2">
+              <Link href={ROTTE.dati} className="underline underline-offset-2">
                 Dati e backup
               </Link>{" "}
               spiega cosa contiene il file.

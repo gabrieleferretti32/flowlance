@@ -11,6 +11,7 @@
  * sei mesi la palette conosce una schermata che il menu ha perso.
  */
 import { euro } from "@/lib/format";
+import { ROTTE } from "@/lib/rotte";
 import { riscontro, riscontroMigliore } from "./fuzzy";
 
 export type Azione =
@@ -44,25 +45,25 @@ export type Destinazione = {
  * nella schermata delle scorciatoie, che è dove si imparano.
  */
 export const DESTINAZIONI: Destinazione[] = [
-  { href: "/", etichetta: "Cruscotto", gruppo: "Ogni giorno", tasto: "c", sinonimi: ["home", "dashboard", "riepilogo"], pronta: true },
-  { href: "/fatture", etichetta: "Fatture", gruppo: "Ogni giorno", tasto: "f", sinonimi: ["ricavi", "incassi", "emesse"], pronta: true },
-  { href: "/note", etichetta: "Note di credito", gruppo: "Ogni giorno", tasto: "e", sinonimi: ["storno", "storni", "nota credito", "reso", "rimborso"], pronta: true },
-  { href: "/costi", etichetta: "Costi", gruppo: "Ogni giorno", tasto: "o", sinonimi: ["spese", "uscite", "fornitori"], pronta: true },
-  { href: "/clienti", etichetta: "Clienti", gruppo: "Ogni giorno", tasto: "l", sinonimi: ["portafoglio", "anagrafica"], pronta: true },
-  { href: "/fisco", etichetta: "Imposte e contributi", gruppo: "Fisco", tasto: "i", sinonimi: ["tasse", "prospetto", "irpef", "inps"], pronta: true },
-  { href: "/iva", etichetta: "IVA", gruppo: "Fisco", tasto: "v", sinonimi: ["liquidazione"], pronta: true },
-  { href: "/confronto", etichetta: "Confronto regimi", gruppo: "Fisco", tasto: "r", sinonimi: ["forfettario", "ordinario", "convenienza"], pronta: true },
-  { href: "/scadenzario", etichetta: "Scadenzario", gruppo: "Fisco", tasto: "s", sinonimi: ["scadenze", "adempimenti", "f24"], pronta: true },
-  { href: "/chiusura", etichetta: "Chiusura d'anno", gruppo: "Fisco", tasto: "a", sinonimi: ["passaggio d'anno", "riporti"], pronta: true },
-  { href: "/cashflow", etichetta: "Cashflow", gruppo: "Finanza", tasto: "w", sinonimi: ["flusso di cassa", "liquidita"], pronta: true },
-  { href: "/patrimonio", etichetta: "Patrimonio", gruppo: "Finanza", tasto: "p", sinonimi: ["attivi", "passivi", "netto"], pronta: true },
-  { href: "/pianificazione", etichetta: "Pianificazione", gruppo: "Finanza", tasto: "n", sinonimi: ["obiettivi", "scenari"], pronta: true },
-  { href: "/avvio", etichetta: "Configurazione", gruppo: "Impostazioni", sinonimi: ["onboarding", "percorso", "regime"], pronta: true },
-  { href: "/parametri", etichetta: "Parametri", gruppo: "Impostazioni", sinonimi: ["addizionale", "aliquote", "regione", "comune", "cassa", "contributi fissi", "ore fatturabili"], pronta: true },
-  { href: "/dati", etichetta: "Dati e backup", gruppo: "Impostazioni", tasto: "d", sinonimi: ["esporta", "importa", "demo", "backup"], pronta: true },
-  { href: "/importa", etichetta: "Importa da CSV", gruppo: "Impostazioni", tasto: "m", sinonimi: ["csv", "excel", "carica storico", "esporta csv", "tracciato"], pronta: true },
-  { href: "/licenza", etichetta: "Licenza", gruppo: "Impostazioni", sinonimi: ["chiave", "scadenza", "abbonamento", "attiva"], pronta: true },
-  { href: "/scorciatoie", etichetta: "Scorciatoie da tastiera", gruppo: "Impostazioni", sinonimi: ["tasti", "aiuto", "comandi"], pronta: true },
+  { href: ROTTE.cruscotto, etichetta: "Cruscotto", gruppo: "Ogni giorno", tasto: "c", sinonimi: ["home", "dashboard", "riepilogo"], pronta: true },
+  { href: ROTTE.fatture, etichetta: "Fatture", gruppo: "Ogni giorno", tasto: "f", sinonimi: ["ricavi", "incassi", "emesse"], pronta: true },
+  { href: ROTTE.note, etichetta: "Note di credito", gruppo: "Ogni giorno", tasto: "e", sinonimi: ["storno", "storni", "nota credito", "reso", "rimborso"], pronta: true },
+  { href: ROTTE.costi, etichetta: "Costi", gruppo: "Ogni giorno", tasto: "o", sinonimi: ["spese", "uscite", "fornitori"], pronta: true },
+  { href: ROTTE.clienti, etichetta: "Clienti", gruppo: "Ogni giorno", tasto: "l", sinonimi: ["portafoglio", "anagrafica"], pronta: true },
+  { href: ROTTE.fisco, etichetta: "Imposte e contributi", gruppo: "Fisco", tasto: "i", sinonimi: ["tasse", "prospetto", "irpef", "inps"], pronta: true },
+  { href: ROTTE.iva, etichetta: "IVA", gruppo: "Fisco", tasto: "v", sinonimi: ["liquidazione"], pronta: true },
+  { href: ROTTE.confronto, etichetta: "Confronto regimi", gruppo: "Fisco", tasto: "r", sinonimi: ["forfettario", "ordinario", "convenienza"], pronta: true },
+  { href: ROTTE.scadenzario, etichetta: "Scadenzario", gruppo: "Fisco", tasto: "s", sinonimi: ["scadenze", "adempimenti", "f24"], pronta: true },
+  { href: ROTTE.chiusura, etichetta: "Chiusura d'anno", gruppo: "Fisco", tasto: "a", sinonimi: ["passaggio d'anno", "riporti"], pronta: true },
+  { href: ROTTE.cashflow, etichetta: "Cashflow", gruppo: "Finanza", tasto: "w", sinonimi: ["flusso di cassa", "liquidita"], pronta: true },
+  { href: ROTTE.patrimonio, etichetta: "Patrimonio", gruppo: "Finanza", tasto: "p", sinonimi: ["attivi", "passivi", "netto"], pronta: true },
+  { href: ROTTE.pianificazione, etichetta: "Pianificazione", gruppo: "Finanza", tasto: "n", sinonimi: ["obiettivi", "scenari"], pronta: true },
+  { href: ROTTE.avvio, etichetta: "Configurazione", gruppo: "Impostazioni", sinonimi: ["onboarding", "percorso", "regime"], pronta: true },
+  { href: ROTTE.parametri, etichetta: "Parametri", gruppo: "Impostazioni", sinonimi: ["addizionale", "aliquote", "regione", "comune", "cassa", "contributi fissi", "ore fatturabili"], pronta: true },
+  { href: ROTTE.dati, etichetta: "Dati e backup", gruppo: "Impostazioni", tasto: "d", sinonimi: ["esporta", "importa", "demo", "backup"], pronta: true },
+  { href: ROTTE.importa, etichetta: "Importa da CSV", gruppo: "Impostazioni", tasto: "m", sinonimi: ["csv", "excel", "carica storico", "esporta csv", "tracciato"], pronta: true },
+  { href: ROTTE.licenza, etichetta: "Licenza", gruppo: "Impostazioni", sinonimi: ["chiave", "scadenza", "abbonamento", "attiva"], pronta: true },
+  { href: ROTTE.scorciatoie, etichetta: "Scorciatoie da tastiera", gruppo: "Impostazioni", sinonimi: ["tasti", "aiuto", "comandi"], pronta: true },
 ];
 
 export type SezioneComandi = "Azioni" | "Vai a" | "Fatture" | "Clienti" | "Anno";

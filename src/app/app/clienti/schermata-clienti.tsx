@@ -35,6 +35,7 @@ import { useRichiesta } from "@/lib/stato/comandi";
 import { toast } from "@/components/ui/toast";
 import { coloreDaNome, euro, iniziali, num, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { ROTTE } from "@/lib/rotte";
 
 const SOGLIA_ESPOSIZIONE = 0.4;
 
@@ -373,7 +374,7 @@ export function SchermataClienti() {
                       l'area toccabile: su un collegamento dentro una frase è
                       tutto quello che si può fare senza spezzarla. */}
                   <Link
-                    href="/fatture"
+                    href={ROTTE.fatture}
                     className="py-1.5 text-accento underline underline-offset-2"
                   >
                     Il registro fatture
