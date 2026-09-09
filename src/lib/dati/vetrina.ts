@@ -727,7 +727,6 @@ function impostazioniVetrina(anno: number): Impostazioni {
       schermata che deve essere pulita.
     */
     percentualeAccantonamento: anno === ANNO_PRIMA ? 0.17 : 0.12,
-    mesiFondoEmergenza: 6,
   };
 }
 

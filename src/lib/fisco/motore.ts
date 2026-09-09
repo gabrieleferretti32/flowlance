@@ -13,8 +13,7 @@ import {
   addizionaleRegionaleDi,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
-import { aliquotaSostitutivaEffettiva } from "./impostazioni";
-import { dichiarato } from "./parametri-utente";
+import { aliquotaSostitutivaEffettiva, contributiFissiApplicati } from "./impostazioni";
 import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
 import { interoIt } from "../format";
@@ -331,7 +330,7 @@ export function contributiCommerciali(
   if (!eGestioneCommerciale(imp.gestione)) return 0;
   const regole = par.artigianiCommercianti;
   const sua = regole[imp.gestione];
-  const fissi = dichiarato(imp, "contributiFissi") ? imp.contributiFissi : sua.fissi;
+  const fissi = contributiFissiApplicati(imp, par).importo;
 
   // Sopra il massimale non si versa più niente: il reddito eccedente non è
   // imponibile ai fini contributivi.
@@ -500,14 +499,25 @@ function conCredito(
   };
 }
 
-function messaggioSoglia(stato: StatoSoglia, par: ParametriAnno): string {
+/*
+  Il messaggio cita le stesse soglie con cui lo stato è stato deciso.
+  Leggeva `par` mentre la decisione leggeva `imp`: finché nessuno tocca quei
+  campi i due numeri coincidono, ma sono due fonti per una cosa sola, e la
+  frase che spiega una decisione non può poggiare su un valore diverso da
+  quello che l'ha presa.
+*/
+function messaggioSoglia(
+  stato: StatoSoglia,
+  imp: Impostazioni,
+  par: ParametriAnno,
+): string {
   switch (stato) {
     case "nessunLimite":
       return "Regime ordinario: nessun limite di ricavi.";
     case "uscitaImmediata":
-      return `Soglia di ${interoIt.format(par.sogliaUscitaImmediata)} € superata: esci dal forfettario nello stesso anno, con IVA dovuta dall'operazione che la supera.`;
+      return `Soglia di ${interoIt.format(imp.sogliaUscita)} € superata: esci dal forfettario nello stesso anno, con IVA dovuta dall'operazione che la supera.`;
     case "limiteSuperato":
-      return `Limite di ${interoIt.format(par.limiteForfettario)} € superato: resti forfettario quest'anno, esci dal 1° gennaio successivo.`;
+      return `Limite di ${interoIt.format(imp.limiteForfettario)} € superato: resti forfettario quest'anno, esci dal 1° gennaio successivo.`;
     case "avviso":
       return `Hai usato oltre l'${Math.round(par.sogliaAvviso * 100)}% del limite. Pianifica il cambio di regime prima di superarlo.`;
     default:
@@ -884,7 +894,7 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
       baseCompetenza: fatturatoEmesso,
       inSospeso,
       utilizzoLimite: forfettario ? rapporto(ricaviRilevanti, imp.limiteForfettario) : 0,
-      messaggio: messaggioSoglia(statoSoglia, par),
+      messaggio: messaggioSoglia(statoSoglia, imp, par),
     },
 
     redditoLordo,

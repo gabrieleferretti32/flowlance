@@ -410,7 +410,6 @@ export type Impostazioni = {
 
   nettoDesiderato: number | null;
   percentualeAccantonamento: number;
-  mesiFondoEmergenza: number;
   costiFissiAnnui: number | null;
 };
 

@@ -70,8 +70,16 @@ export function SchermataImporta() {
   // Il tipo arriva già scelto da chi apre l'import da Fatture o da Costi.
   useRichiesta("importaCsv", (r) => setDestinazione(r.destinazione));
 
+  /*
+    L'aliquota che l'utente ha dichiarato, non quella ordinaria di legge: il
+    modulo delle fatture e quello dei costi propongono già `aliquotaIva`, e
+    l'import proponeva il 22 % dei parametri. Chi fattura al 10 % si ritrovava
+    ogni riga importata con dodici punti di IVA in più — un valore proposto che
+    non parla con quello che il motore poi usa, visto che `documenti.ts`
+    ripiega su `imp.aliquotaIva` quando la riga non ne porta una.
+  */
   const aliquotaPredefinita =
-    calcolo?.impostazioni.regime === "forfettario" ? 0 : (calcolo?.parametri.aliquotaIvaOrdinaria ?? 0.22);
+    calcolo?.impostazioni.regime === "forfettario" ? 0 : (calcolo?.impostazioni.aliquotaIva ?? 0.22);
 
   async function scegliFile() {
     const testo = await scegliFileTesto("text/csv,.csv,text/plain,.txt");

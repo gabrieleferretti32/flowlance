@@ -490,7 +490,6 @@ const convalidaImpostazioni: Convalida<Dati["impostazioni"][number]> = (riga, i,
     tariffaOraria: numeroOpzionale(riga.tariffaOraria),
     nettoDesiderato: numeroOpzionale(riga.nettoDesiderato),
     percentualeAccantonamento: fraZeroEUno(riga.percentualeAccantonamento, 0.3),
-    mesiFondoEmergenza: numero(riga.mesiFondoEmergenza, 6),
     costiFissiAnnui: numeroOpzionale(riga.costiFissiAnnui),
     // Le addizionali possono avere scaglioni propri: un backup più vecchio non
     // li ha, e l'assenza vale «aliquota unica», che è com'era davvero.

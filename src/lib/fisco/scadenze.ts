@@ -12,7 +12,7 @@ import { slittaAGiornoLavorativo } from "./calendario";
 import type { LiquidazioneIva } from "./iva";
 import type { Prospetto } from "./motore";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
-import { dichiarato } from "./parametri-utente";
+import { contributiFissiApplicati } from "./impostazioni";
 import { round2 } from "./aritmetica";
 
 export type Adempimento = {
@@ -95,15 +95,13 @@ export function scadenzeAnno(
 
   /*
     La rata è un quarto dei contributi fissi **della sua gestione**, non della
-    media che l'app teneva prima: l'importo di legge lo conosce il motore, e
-    `contributiFissi` lo scavalca solo se l'utente l'ha dichiarato.
+    media che l'app teneva prima. Quale importo si applichi — quello di legge o
+    quello dichiarato da chi ha una riduzione — lo decide una funzione sola, la
+    stessa che usa il motore: qui la regola era riscritta, e una rata dello
+    scadenzario che non coincide col contributo del prospetto è il difetto che
+    non si vede.
   */
-  const fissiAnnui = eGestioneCommerciale(imp.gestione)
-    ? dichiarato(imp, "contributiFissi")
-      ? imp.contributiFissi
-      : par.artigianiCommercianti[imp.gestione].fissi
-    : 0;
-  const rataArtigiani = round2(fissiAnnui / 4);
+  const rataArtigiani = round2(contributiFissiApplicati(imp, par).importo / 4);
   const trimestre = (indice: number) => iva.trimestri[indice]?.totaleDaVersare ?? 0;
   const mese = (indice: number) => iva.mesi[indice]?.totaleDaVersare ?? 0;
 

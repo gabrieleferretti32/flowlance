@@ -276,7 +276,13 @@ export function proponiRegime(
     // Il rientro nel forfettario è possibile ma dipende da requisiti che l'app
     // non conosce (spese per dipendenti, partecipazioni, redditi da lavoro
     // dipendente). Si segnala, non si propone.
-    const sottoLimite = p.ricaviRilevanti <= par.limiteForfettario;
+    /*
+      Il limite è quello delle impostazioni dell'anno, lo stesso su cui il
+      motore decide `statoSoglia`. Qui si leggeva quello dei parametri: due
+      fonti per la stessa soglia, e la chiusura poteva dire «saresti sotto il
+      limite» misurando su un numero che il prospetto non aveva usato.
+    */
+    const sottoLimite = p.ricaviRilevanti <= imp.limiteForfettario;
     return {
       regimeAttuale: "ordinario",
       regimeProposto: "ordinario",
@@ -288,7 +294,7 @@ export function proponiRegime(
         ? "Resti in ordinario, ma il forfettario tornerebbe accessibile"
         : "Nessun cambio di regime",
       spiegazione: sottoLimite
-        ? `Con ${euro(p.ricaviRilevanti)} di ricavi saresti sotto il limite di ${euro(par.limiteForfettario)}. Il rientro nel forfettario dipende anche da requisiti che l'app non conosce: valutalo con il commercialista prima di cambiare.`
+        ? `Con ${euro(p.ricaviRilevanti)} di ricavi saresti sotto il limite di ${euro(imp.limiteForfettario)}. Il rientro nel forfettario dipende anche da requisiti che l'app non conosce: valutalo con il commercialista prima di cambiare.`
         : "I ricavi non fanno scattare alcun passaggio automatico di regime.",
       conseguenze: [],
     };
@@ -326,7 +332,7 @@ export function proponiRegime(
       decorrenza: primoGennaio,
       fatturaCheSupera: null,
       titolo: `Dal 1° gennaio ${anno + 1} sei in regime ordinario`,
-      spiegazione: `Con ${euro(p.ricaviRilevanti)} di ricavi incassati hai superato il limite di ${euro(par.limiteForfettario)}. Il ${anno} resta forfettario fino in fondo; è l'anno successivo che cambia, e cambia per legge.`,
+      spiegazione: `Con ${euro(p.ricaviRilevanti)} di ricavi incassati hai superato il limite di ${euro(imp.limiteForfettario)}. Il ${anno} resta forfettario fino in fondo; è l'anno successivo che cambia, e cambia per legge.`,
       conseguenze: conseguenzeOrdinario(imp, par),
     };
   }
@@ -339,7 +345,7 @@ export function proponiRegime(
     decorrenza: primoGennaio,
     fatturaCheSupera: null,
     titolo: "Resti in regime forfettario",
-    spiegazione: `Con ${euro(p.ricaviRilevanti)} di ricavi sei sotto il limite di ${euro(par.limiteForfettario)}: il ${anno + 1} parte con lo stesso regime.`,
+    spiegazione: `Con ${euro(p.ricaviRilevanti)} di ricavi sei sotto il limite di ${euro(imp.limiteForfettario)}: il ${anno + 1} parte con lo stesso regime.`,
     conseguenze: [],
   };
 }

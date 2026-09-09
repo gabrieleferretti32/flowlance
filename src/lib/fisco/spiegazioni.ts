@@ -18,8 +18,8 @@ import {
   descriviAddizionale,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
-import { dichiarato, noteDelValore } from "./parametri-utente";
-import { aliquotaSostitutivaEffettiva } from "./impostazioni";
+import { noteDelValore } from "./parametri-utente";
+import { aliquotaSostitutivaEffettiva, contributiFissiApplicati } from "./impostazioni";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 import { eGestioneCommerciale } from "./tipi";
@@ -469,8 +469,7 @@ export function prospettoDettagliato(
   } else if (eGestioneCommerciale(imp.gestione)) {
     const regole = par.artigianiCommercianti;
     const sua = regole[imp.gestione];
-    const scavalcati = dichiarato(imp, "contributiFissi");
-    const fissi = scavalcati ? imp.contributiFissi : sua.fissi;
+    const { importo: fissi, scavalcati } = contributiFissiApplicati(imp, par);
     const oltreLaFascia = p.redditoLordo > regole.primaFasciaPensionabile;
     contributi.push({
       id: "artigiani",
