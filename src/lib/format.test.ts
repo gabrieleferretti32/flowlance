@@ -93,3 +93,28 @@ describe("aliquota", () => {
     expect(aliquota(null)).toBe("—");
   });
 });
+
+describe("aliquota e la virgola mobile", () => {
+  /*
+    `aliquota` esiste per non scrivere «78,00 %» dentro una frase. Decideva i
+    decimali con `Number.isInteger(frazione * 100)`, che in virgola mobile è
+    falso per otto percentuali intere su cento: 0,29 × 100 fa
+    28,999999999999996.
+  */
+  it("le otto percentuali che la virgola mobile non rappresenta esatte restano intere", () => {
+    for (const punti of [7, 14, 28, 29, 55, 56, 57, 58]) {
+      expect(aliquota(punti / 100), `${punti} punti`).toBe(`${punti} %`);
+    }
+  });
+
+  it("i decimali veri restano", () => {
+    expect(aliquota(0.2607)).toBe("26,07 %");
+    expect(aliquota(0.0333)).toBe("3,33 %");
+  });
+
+  it("le percentuali intere di sempre non cambiano", () => {
+    expect(aliquota(0.22)).toBe("22 %");
+    expect(aliquota(0.05)).toBe("5 %");
+    expect(aliquota(1)).toBe("100 %");
+  });
+});

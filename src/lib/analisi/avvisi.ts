@@ -9,7 +9,7 @@ import { giorniAllaData } from "@/lib/fisco/calendario";
 import type { Adempimento } from "@/lib/fisco/scadenze";
 import type { Prospetto } from "@/lib/fisco/motore";
 import type { CostoCalcolato, FatturaCalcolata, Impostazioni } from "@/lib/fisco/tipi";
-import { euro, euroTondo, percentuale } from "@/lib/format";
+import { aliquota, euro, euroTondo, percentuale } from "@/lib/format";
 import { ROTTE } from "@/lib/rotte";
 
 export type TonoAvviso = "positivo" | "attenzione" | "negativo" | "accento";
@@ -84,14 +84,15 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
   // Sotto la tolleranza non si avvisa: un avviso che chiede di alzare la
   // percentuale per coprire trenta euro costa più del buco che segnala.
   if (p.ricaviRilevanti > 0 && p.scostamentoAccantonamento < 0 && !p.accantonamentoSufficiente) {
-    const minima = Math.ceil(p.percentualeTeoricaAccantonamento * 100);
+    // Arrotondata per eccesso: consigliare il 34,12 % non è un consiglio.
+    const minima = aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100);
     avvisi.push({
       id: "accantonamento",
       tono: "attenzione",
       // Sul fabbisogno di cassa, non sul carico: con le ritenute in mezzo i due
       // numeri divergono, e consigliare la percentuale sbagliata qui vorrebbe
       // dire far accantonare due volte la stessa imposta.
-      testo: `Stai accantonando il ${percentuale(p.percentualeImpostata, 0)} ma da mettere da parte ce n'è il ${percentuale(p.percentualeTeoricaAccantonamento, 0)}: mancano ${euro(-p.scostamentoAccantonamento)}. Porta la percentuale almeno al ${minima}%.`,
+      testo: `Stai accantonando il ${percentuale(p.percentualeImpostata, 0)} ma da mettere da parte ce n'è il ${percentuale(p.percentualeTeoricaAccantonamento, 0)}: mancano ${euro(-p.scostamentoAccantonamento)}. Porta la percentuale almeno al ${minima}.`,
     });
   }
 

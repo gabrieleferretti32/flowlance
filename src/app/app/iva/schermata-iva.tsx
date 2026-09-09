@@ -256,7 +256,7 @@ export function SchermataIva() {
             </p>
             <p className="text-etichetta text-inchiostro-tenue">
               Il credito di un periodo si riporta al successivo e abbatte il debito, finché
-              si esaurisce. La maggiorazione dell&apos;1% sui trimestrali{" "}
+              si esaurisce. La maggiorazione dell&apos;1 % sui trimestrali{" "}
               <strong className="font-medium text-inchiostro">non si applica al quarto
               trimestre</strong>, che confluisce nella dichiarazione annuale.
             </p>

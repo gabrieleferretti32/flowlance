@@ -16,7 +16,7 @@ import { detrazioneLavoroAutonomo } from "./detrazioni";
 import { aliquotaSostitutivaEffettiva, contributiFissiApplicati } from "./impostazioni";
 import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
-import { interoIt } from "../format";
+import { aliquota, interoIt } from "../format";
 import { annoDi, calcolaCosto, calcolaFattura } from "./documenti";
 import { dateCosto, dateFattura, ripartisci } from "./competenza";
 import { calcolaNota, dateNota, type NotaCalcolata } from "./note";
@@ -519,7 +519,7 @@ function messaggioSoglia(
     case "limiteSuperato":
       return `Limite di ${interoIt.format(imp.limiteForfettario)} € superato: resti forfettario quest'anno, esci dal 1° gennaio successivo.`;
     case "avviso":
-      return `Hai usato oltre l'${Math.round(par.sogliaAvviso * 100)}% del limite. Pianifica il cambio di regime prima di superarlo.`;
+      return `Hai usato oltre l'${aliquota(par.sogliaAvviso)} del limite. Pianifica il cambio di regime prima di superarlo.`;
     default:
       return "Nei limiti del regime forfettario.";
   }

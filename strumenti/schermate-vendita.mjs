@@ -19,6 +19,20 @@
  * — **Orologio fermo.** La vetrina finisce il 5 settembre 2026 e le schermate
  *   parlano di «oggi»: senza fermare l'orologio, due esecuzioni a distanza di
  *   un mese darebbero scadenze diverse e importi diversi.
+ * — **Una licenza attiva, vera.** La domanda non era «quale barra mettiamo»,
+ *   era «cosa vede chi ha comprato»: e chi ha comprato, il terzo giorno, non
+ *   vede **nessuna** barra — il preavviso comincia a quindici giorni dalla
+ *   scadenza e prima di allora la riga non esiste. Fotografare la barra della
+ *   prova significherebbe vendere una prova invece di un prodotto.
+ *
+ *   La licenza non è finta e non è una scorciatoia nello stato dell'app: lo
+ *   strumento genera una coppia Ed25519 usa-e-getta, firma una licenza col
+ *   formato di `strumenti/licenza/genera-licenza.mjs`, e la incolla nella
+ *   schermata Licenza come farebbe un cliente. Perché la firma torni,
+ *   sostituisce la chiave pubblica **nella copia servita del sito**, mai nel
+ *   sorgente: `out/` viene copiato in una cartella temporanea e la stringa
+ *   della chiave viene cambiata lì dentro. La verifica che l'app fa è quella
+ *   vera, con la crittografia vera.
  * — **Stessa proporzione per tutte e quattro**, 16:10, perché la pagina di
  *   vendita è impaginata attorno a quella. Il guscio resta dentro — barra
  *   laterale e testata — perché sono immagini di un'applicazione, non ritagli
@@ -41,7 +55,9 @@
  *   --chromium=percorso     un binario diverso da quello predefinito
  */
 import { createServer } from "node:http";
-import { mkdirSync, readFileSync, statSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { generateKeyPairSync, sign } from "node:crypto";
+import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 import { chromium } from "playwright-core";
 
@@ -50,7 +66,7 @@ const opzione = (nome, predefinito = "") => {
   return trovata ? trovata.slice(nome.length + 3) : predefinito;
 };
 
-const RADICE = resolve("out");
+const COSTRUITO = resolve("out");
 const DOVE = resolve(opzione("dove", "public/schermate"));
 const LARGHEZZA = Number(opzione("larghezza", "1440"));
 const ALTEZZA = Number(opzione("altezza", "900"));
@@ -67,12 +83,99 @@ const SCHERMATE = [
 ];
 
 try {
-  statSync(RADICE);
+  statSync(COSTRUITO);
 } catch {
   console.error("Non trovo out/. Esegui prima «npm run build».");
   process.exit(1);
 }
 mkdirSync(DOVE, { recursive: true });
+
+// ————————————————————————————————————————————————————————————
+// Una licenza attiva, vera, su una copia del sito
+// ————————————————————————————————————————————————————————————
+
+const ALFABETO = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+/** base64url, identico a quello di `src/lib/licenza/chiave.ts`. */
+function inBase64Url(byte) {
+  let out = "";
+  for (let i = 0; i < byte.length; i += 3) {
+    const a = byte[i];
+    const b = byte[i + 1];
+    const c = byte[i + 2];
+    out += ALFABETO[a >> 2];
+    out += ALFABETO[((a & 3) << 4) | ((b ?? 0) >> 4)];
+    if (b === undefined) break;
+    out += ALFABETO[((b & 15) << 2) | ((c ?? 0) >> 6)];
+    if (c === undefined) break;
+    out += ALFABETO[c & 63];
+  }
+  return out;
+}
+
+/** La chiave pubblica com'è scritta nel sorgente, letta a occhio dal file. */
+function chiavePubblicaDelProgetto() {
+  const sorgente = readFileSync(resolve("src/lib/licenza/chiave-pubblica.ts"), "utf8");
+  const m = sorgente.match(/CHIAVE_PUBBLICA[^"]*"([A-Za-z0-9_-]{43})"/);
+  if (!m) {
+    console.error("Non riesco a leggere CHIAVE_PUBBLICA dal sorgente.");
+    process.exit(1);
+  }
+  return m[1];
+}
+
+function file(cartella, acc = []) {
+  for (const voce of readdirSync(cartella, { withFileTypes: true })) {
+    const p = join(cartella, voce.name);
+    if (voce.isDirectory()) file(p, acc);
+    else acc.push(p);
+  }
+  return acc;
+}
+
+/**
+ * Copia il sito, ci mette una chiave pubblica usa-e-getta, e restituisce una
+ * licenza firmata con la privata corrispondente.
+ *
+ * Il sorgente non viene toccato: la sostituzione avviene sui file già
+ * costruiti, in una cartella temporanea che sparisce col processo. La firma è
+ * Ed25519 vera e l'app la verifica per davvero — se la sostituzione fallisse,
+ * la licenza risulterebbe non valida e lo strumento se ne accorgerebbe.
+ */
+function sitoConLicenzaAttiva(scadenza) {
+  const vecchia = chiavePubblicaDelProgetto();
+  const { privateKey, publicKey } = generateKeyPairSync("ed25519");
+  const nuova = inBase64Url(publicKey.export({ type: "spki", format: "der" }).subarray(12));
+
+  const cartella = mkdtempSync(join(tmpdir(), "flowlance-schermate-"));
+  cpSync(COSTRUITO, cartella, { recursive: true });
+
+  let sostituzioni = 0;
+  for (const f of file(cartella)) {
+    if (!/\.(js|html|json|webmanifest)$/.test(f)) continue;
+    const testo = readFileSync(f, "utf8");
+    if (!testo.includes(vecchia)) continue;
+    writeFileSync(f, testo.split(vecchia).join(nuova));
+    sostituzioni++;
+  }
+  if (sostituzioni === 0) {
+    console.error("Non ho trovato la chiave pubblica nei file costruiti: la licenza non sarebbe valida.");
+    process.exit(1);
+  }
+
+  const carico = inBase64Url(
+    Buffer.from(JSON.stringify({ e: "vetrina@flowlance.it", s: scadenza, d: "2026-09-02" }), "utf8"),
+  );
+  const firma = sign(null, Buffer.from(`FLW1.${carico}`, "utf8"), privateKey);
+  return { cartella, chiave: `FLW1.${carico}.${inBase64Url(firma)}` };
+}
+
+/*
+  Scadenza fra quasi un anno: il preavviso comincia a quindici giorni, quindi
+  qui la barra non deve comparire. È esattamente lo stato di chi ha comprato tre
+  giorni fa.
+*/
+const { cartella: RADICE, chiave: LICENZA } = sitoConLicenzaAttiva("2027-08-20");
 
 const TIPI = {
   ".html": "text/html; charset=utf-8", ".js": "text/javascript", ".css": "text/css",
@@ -110,6 +213,27 @@ await page.clock.setFixedTime(new Date(GIORNO));
 // — Carico la vetrina dalla schermata vera, non scrivendo in IndexedDB da
 //   fuori: se un giorno il caricamento cambia, queste immagini devono
 //   cambiare con lui invece di continuare a uscire da una scorciatoia.
+/*
+  La licenza si attiva dalla schermata Licenza, incollandola come farebbe un
+  cliente. Non si scrive nello stato dell'app da fuori: l'app deve verificarla
+  davvero, e se la verifica fallisse queste immagini mostrerebbero un prodotto
+  in periodo di prova senza che nessuno se ne accorga.
+*/
+await page.goto(`${BASE}/app/licenza/`, { waitUntil: "networkidle" });
+await page.waitForTimeout(2_000);
+await page.getByPlaceholder("FLW1.").fill(LICENZA);
+await page.getByRole("button", { name: "Attiva" }).click();
+await page.waitForTimeout(2_500);
+
+const licenzaAttiva = await page.evaluate(() => document.body.innerText.includes("Licenza attiva"));
+if (!licenzaAttiva) {
+  console.error("La licenza non risulta attiva: le immagini mostrerebbero il periodo di prova.");
+  console.error(await page.evaluate(() => document.body.innerText.slice(0, 400)));
+  await browser.close();
+  server.close();
+  process.exit(1);
+}
+
 await page.goto(`${BASE}/app/dati/`, { waitUntil: "networkidle" });
 /*
   L'etichetta cambia con lo stato dell'archivio — «Vetrina · …» quando è

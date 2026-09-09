@@ -148,7 +148,7 @@ export function scadenzeAnno(
     },
     {
       id: "rinvio-luglio", mese: 7, giorno: 31, categoria: "imposte",
-      titolo: "Versamento differito con maggiorazione dello 0,40%",
+      titolo: "Versamento differito con maggiorazione dello 0,40 %",
       importo: null, quando: () => true,
     },
     {

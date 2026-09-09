@@ -131,7 +131,7 @@ export function SchermataClienti() {
             etichetta="Concentrazione del primo cliente"
             valore={percentuale(primo?.quota ?? 0, 0)}
             taglia="kpiSm"
-            nota={esposto ? "sopra il 40% sei esposto" : "portafoglio distribuito"}
+            nota={esposto ? "sopra il 40 % sei esposto" : "portafoglio distribuito"}
           />
         </section>
 
@@ -367,7 +367,7 @@ export function SchermataClienti() {
               <CardCorpo className="py-4">
                 <p className="text-etichetta text-inchiostro-tenue">
                   La concentrazione è il rischio numero uno di chi lavora da solo: se un
-                  cliente supera il 40% del fatturato, una sua disdetta ti dimezza l&apos;anno.
+                  cliente supera il 40 % del fatturato, una sua disdetta ti dimezza l&apos;anno.
                   Il canale di acquisizione serve a decidere dove investire tempo
                   commerciale.{" "}
                   {/* Il padding verticale non muove la riga di testo ma allarga

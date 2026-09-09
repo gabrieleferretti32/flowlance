@@ -28,7 +28,7 @@ import { periodoIvaCorrente } from "@/lib/fisco/iva";
 import { prossimeScadenze, scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
 import { nomeGestione } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
-import { coloreDaNome, data as fmtData, euro, percentuale } from "@/lib/format";
+import { aliquota, coloreDaNome, data as fmtData, euro, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 /**
@@ -369,7 +369,7 @@ export function Cruscotto() {
                 ) : (
                   <p className="text-[#B8791A]">
                     mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
-                    {Math.ceil(p.percentualeTeoricaAccantonamento * 100)}%
+                    {aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100)}
                   </p>
                 )
               ) : undefined

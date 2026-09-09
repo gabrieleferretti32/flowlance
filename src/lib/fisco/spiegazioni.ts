@@ -10,7 +10,7 @@
  * Vive qui, fuori dalla schermata, perché serve anche all'esportazione da
  * mandare al commercialista.
  */
-import { euro, interoIt, percentuale } from "@/lib/format";
+import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
 import { rapporto, round2 } from "./aritmetica";
 import {
   addizionaleComunaleDi,
@@ -194,7 +194,7 @@ export function prospettoDettagliato(
       formato: "euro",
       formula:
         "Imponibile di ogni costo pagato, moltiplicato per la sua percentuale di deducibilità.",
-      nota: "Auto al 20%, ristoranti al 75%, telefonia al 50% dell'IVA: la percentuale è per documento.",
+      nota: "Auto al 20 %, ristoranti al 75 %, telefonia al 50 % dell'IVA: la percentuale è per documento.",
     });
     base.push({
       id: "iva-detraibile",
@@ -593,7 +593,7 @@ export function prospettoDettagliato(
             ? "Copri il fabbisogno stimato con un margine."
             : p.accantonamentoSufficiente
               ? `Mancano ${euro(-p.scostamentoAccantonamento)}, dentro la tolleranza di ${euro(p.tolleranzaAccantonamento)}: la percentuale va bene com'è.`
-              : `Non basta: porta la percentuale almeno al ${Math.ceil(p.percentualeTeoricaAccantonamento * 100)}%.`,
+              : `Non basta: porta la percentuale almeno al ${aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100)}.`,
       },
     ],
   });

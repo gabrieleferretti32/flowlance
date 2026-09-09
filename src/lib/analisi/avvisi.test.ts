@@ -75,7 +75,7 @@ describe("avvisi del cruscotto", () => {
     const avvisi = avvisiDi({ ...impostazioniForfettario(), percentualeAccantonamento: 0.1 });
     const accantonamento = avvisi.find((a) => a.id === "accantonamento");
     expect(accantonamento?.testo).toContain("mancano");
-    expect(accantonamento?.testo).toContain("29%");
+    expect(accantonamento?.testo).toContain("29 %");
   });
 
   it("tace sull'accantonamento quando basta", () => {

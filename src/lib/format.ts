@@ -74,7 +74,22 @@ export function percentuale(frazione: number | null | undefined, decimali = 2): 
  */
 export function aliquota(frazione: number | null | undefined): string {
   if (frazione == null || !Number.isFinite(frazione)) return "—";
-  return percentuale(frazione, Number.isInteger(frazione * 100) ? 0 : 2);
+  return percentuale(frazione, percentualeIntera(frazione) ? 0 : 2);
+}
+
+/**
+ * La frazione vale un numero intero di punti percentuali?
+ *
+ * `Number.isInteger(frazione * 100)` sembra la stessa domanda e non lo è: in
+ * virgola mobile `0.29 * 100` fa 28,999999999999996, e otto percentuali intere
+ * su cento — 7, 14, 28, 29, 55, 56, 57, 58 — finivano stampate «29,00 %»
+ * dentro una frase, che è esattamente ciò che `aliquota` esiste per evitare.
+ * Si è visto quando un avviso del cruscotto ha cominciato a consigliare di
+ * «portare la percentuale almeno al 29,00 %».
+ */
+function percentualeIntera(frazione: number): boolean {
+  const punti = frazione * 100;
+  return Math.abs(punti - Math.round(punti)) < 1e-9;
 }
 
 /** +12,4 % oppure −3,1 %, con il segno esplicito per i chip di variazione. */
