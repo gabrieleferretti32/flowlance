@@ -8,6 +8,7 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
+| `diagnosi-iva-importata.js` | Elenca le righe la cui aliquota IVA non è quella dichiarata, dopo il difetto dell'import da CSV |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
 
@@ -132,6 +133,41 @@ niente nomi di clienti, niente descrizioni. Serve quando le due schermate danno
 risultati diversi sullo stesso anno e la differenza non si riproduce altrove.
 
 Le istruzioni per l'utente stanno in testa al file stesso.
+
+---
+
+## `diagnosi-iva-importata.js`
+
+Come `diagnosi-riporti.js`: si incolla nella console del browser, con l'app
+aperta.
+
+Fino alla correzione, l'import da CSV proponeva alle righe **senza aliquota nel
+file** l'aliquota ordinaria di legge — il 22 % dei parametri — invece di quella
+dichiarata nelle impostazioni. Chi fattura al 10 % o al 4 % si è visto scrivere
+22 su quelle righe. La correzione vale da adesso: le righe già in archivio
+restano come sono, e questo script le elenca senza toccarle.
+
+**Nessuna migrazione automatica è possibile**, e non è una scorciatoia: un 22 %
+può essere giustissimo anche dentro un'attività che di norma fattura al 10 %.
+Correggerle d'ufficio sarebbe rifare lo stesso errore al contrario.
+
+Tre limiti da sapere prima di leggere l'elenco:
+
+- **Non sa quali righe vengono da un CSV.** Le righe non portano la loro
+  provenienza, e la tabella `importazioni` tiene solo l'ultimo import, perché è
+  la rete per annullarlo e non un registro storico. L'elenco è per **sintomo**,
+  non per origine: una riga scritta a mano al 22 % ci finisce dentro come una
+  importata.
+- **Il sospetto è il 22 % esatto**, perché è il valore che il codice sbagliato
+  scriveva. Se in un anno l'aliquota dichiarata è già il 22 %, in quell'anno il
+  difetto non può aver prodotto niente: l'anno viene saltato e lo script lo
+  dice.
+- **In forfettario non si applica**: l'import proponeva zero, che è corretto.
+
+Per ogni riga stampa imponibile, aliquota sulla riga, aliquota dichiarata e le
+due IVA a confronto — quella che c'è e quella che ci sarebbe. A differenza di
+`diagnosi-riporti.js` questo elenco contiene dati veri: è da guardare, non da
+incollare in una segnalazione.
 
 ---
 
