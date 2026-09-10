@@ -10,7 +10,7 @@ import {
   PREZZO,
   pagamentoConfigurato,
 } from "@/lib/sito/acquisto";
-import { euro, percentuale } from "@/lib/format";
+import { euro, euroTondo, percentuale } from "@/lib/format";
 import { SITO } from "@/lib/rotte";
 
 /**
@@ -60,8 +60,15 @@ export function SchermataAcquisto({
       <h1 className="font-display text-kpi font-semibold tracking-tight">Acquista Flowlance</h1>
       <p className="mt-3 text-corpo leading-relaxed">
         <strong className="font-semibold">
-          {euro(PREZZO.imponibile)} all&apos;anno, oltre IVA al {percentuale(PREZZO.aliquotaIva, 0)}:{" "}
-          {euro(PREZZO.totale)} in tutto.
+          {/*
+            `euroTondo` sul prezzo intero e `euro` sul totale: 97 € non ha
+            centesimi da mostrare, 118,34 € sì. È la stessa scelta della pagina
+            di vendita, e le due pagine dicono la cifra nello stesso modo —
+            altrimenti chi passa dall'una all'altra si chiede quale sia il
+            prezzo vero.
+          */}
+          {euroTondo(PREZZO.imponibile)} all&apos;anno, oltre IVA al{" "}
+          {percentuale(PREZZO.aliquotaIva, 0)}: {euro(PREZZO.totale)} in tutto.
         </strong>{" "}
         Licenza di 12 mesi, nominativa, per un solo titolare di partita IVA. Il rinnovo non è
         automatico.

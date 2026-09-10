@@ -499,6 +499,158 @@ const demo = await righeDelProspetto();
 }
 
 // ————————————————————————————————————————————————————————————
+// 5 · La pagina di vendita: i pulsanti portano dove dicono
+// ————————————————————————————————————————————————————————————
+
+{
+  /*
+    Un pulsante che dice «Acquista» e porta altrove è la stessa famiglia di
+    difetti di un numero mostrato e uno calcolato: l'etichetta è plausibile,
+    la destinazione è sbagliata, e nessuno dei due segnala l'altro. Qui si
+    legge l'`href` vero dal DOM e lo si confronta con l'indirizzo che deve
+    avere — non si controlla che il pulsante ci sia.
+
+    E le immagini: un `<img>` che punta a un file mancante **esiste** nel DOM
+    e si misura 0×0. Contare i tag avrebbe promosso una pagina con quattro
+    riquadri vuoti, che è esattamente come si presenterebbe se qualcuno
+    dimenticasse di rigenerare le schermate.
+  */
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "it-IT" });
+  const p = await ctx.newPage();
+  await p.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(1_000);
+
+  const collegamenti = await p.evaluate(() =>
+    [...document.querySelectorAll("a")].map((a) => ({
+      testo: (a.textContent ?? "").trim(),
+      href: a.getAttribute("href"),
+    })),
+  );
+
+  const acquisti = collegamenti.filter((c) => /^Acquista/.test(c.testo));
+  const demo = collegamenti.filter((c) => /^Apri la demo$/.test(c.testo));
+
+  sostiene(acquisti.length >= 3, `la landing porta ${acquisti.length} pulsanti «Acquista»`);
+  sostiene(demo.length >= 3, `la landing porta ${demo.length} pulsanti «Apri la demo»`);
+
+  const fuoriStrada = acquisti.filter((c) => c.href !== "/acquista/");
+  sostiene(
+    fuoriStrada.length === 0,
+    `ogni «Acquista» va a /acquista/ e non su Stripe${fuoriStrada.length ? `: ${fuoriStrada.map((c) => c.href).join(", ")}` : ""}`,
+  );
+  const demoFuori = demo.filter((c) => c.href !== "/app/?demo=vetrina");
+  sostiene(
+    demoFuori.length === 0,
+    `ogni «Apri la demo» va a /app/?demo=vetrina${demoFuori.length ? `: ${demoFuori.map((c) => c.href).join(", ")}` : ""}`,
+  );
+
+  // Il piede condiviso, con le sue cinque voci, anche qui.
+  const vociPiede = collegamenti.filter((c) =>
+    /^(Privacy|Termini|Cookie|Cosa Flowlance non calcola)$/.test(c.testo),
+  );
+  const preferenze = await p.evaluate(() =>
+    [...document.querySelectorAll("button")].some((b) =>
+      /Preferenze cookie/i.test(b.textContent ?? ""),
+    ),
+  );
+  sostiene(
+    vociPiede.length === 4 && preferenze,
+    `il piede porta le cinque voci (${vociPiede.map((v) => v.testo).join(", ")}${preferenze ? ", Preferenze cookie" : ""})`,
+  );
+
+  /*
+    Prima di misurare le immagini bisogna arrivarci: quelle sotto la piega si
+    caricano pigramente, e misurarle subito le trova a 0×0 — cioè le dichiara
+    rotte quando sono soltanto ancora in strada. È la trappola dell'altra
+    regola: quando misuri un'assenza, verifica prima che la tua misura veda la
+    cosa quando c'è.
+  */
+  await p.evaluate(async () => {
+    for (let y = 0; y <= document.body.scrollHeight; y += 600) {
+      window.scrollTo(0, y);
+      await new Promise((ok) => setTimeout(ok, 60));
+    }
+    window.scrollTo(0, 0);
+    await Promise.all(
+      [...document.querySelectorAll("img")].map(
+        (i) =>
+          i.complete ||
+          new Promise((ok) => {
+            i.addEventListener("load", ok, { once: true });
+            i.addEventListener("error", ok, { once: true });
+          }),
+      ),
+    );
+  });
+  await p.waitForTimeout(600);
+
+  const immagini = await p.evaluate(() =>
+    [...document.querySelectorAll("img")].map((i) => ({
+      src: i.getAttribute("src"),
+      larghezza: i.naturalWidth,
+      altezza: i.naturalHeight,
+    })),
+  );
+  const vuote = immagini.filter((i) => i.larghezza === 0 || i.altezza === 0);
+  sostiene(
+    immagini.length >= 4 && vuote.length === 0,
+    `le ${immagini.length} schermate sono caricate davvero${vuote.length ? `: ${vuote.map((i) => i.src).join(", ")} a zero` : ""}`,
+  );
+
+  /*
+    Il prezzo della landing è quello del contratto. Sono due pagine diverse che
+    citano lo stesso numero, e una landing che dice una cifra mentre i Termini
+    ne dicono un'altra è la promessa che si scopre alla fattura.
+  */
+  const testoVendita = await p.evaluate(() => document.body.innerText);
+  await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(600);
+  const testoAcquisto = await p.evaluate(() => document.body.innerText);
+  /*
+    Tutti e due i numeri, non «il primo importo che trovo»: la prima stesura
+    prendeva la prima cifra in euro della pagina d'acquisto — 97,00 € — e la
+    trovava anche sulla landing, quindi passava. Ma il numero che conta è il
+    **totale**, ed era proprio quello che il controllo non stava guardando. Un
+    test che passa per la ragione sbagliata è peggio di uno che manca.
+  */
+  /*
+    Si confrontano i **valori**, non le stringhe.
+
+    La prima stesura cercava la stessa cifra scritta uguale, e ha segnalato una
+    divergenza che non c'era: la landing dice «97 €» e la pagina d'acquisto
+    diceva «97,00 €» — lo stesso prezzo, due formati, perché un titolone i
+    centesimi di un prezzo intero non li mostra. Il controllo giusto è sul
+    numero: due pagine che dicono cifre diverse sono un difetto, due che le
+    formattano diversamente sono una scelta tipografica.
+
+    (Le due pagine adesso lo formattano anche allo stesso modo, ma il controllo
+    non deve dipendere da quello: legherebbe una verifica sul prezzo a una
+    decisione sui centesimi.)
+  */
+  const cifre = (testo) =>
+    [...new Set(testo.match(/\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*\u20ac/g) ?? [])].map((v) =>
+      Number(v.replace(/[\u20ac\s\u00a0]/g, "").replace(/\./g, "").replace(",", ".")),
+    );
+  const suAcquisto = cifre(testoAcquisto);
+  const suVendita = cifre(testoVendita);
+
+  for (const [nome, atteso] of [
+    ["imponibile", 97],
+    ["totale", 118.34],
+  ]) {
+    const qua = suAcquisto.some((v) => Math.abs(v - atteso) < 0.005);
+    const la = suVendita.some((v) => Math.abs(v - atteso) < 0.005);
+    sostiene(
+      qua && la,
+      `${atteso} € (${nome}) compare su tutte e due le pagine`
+        + (qua && la ? "" : ` — acquisto: ${qua ? "sì" : "no"}, vendita: ${la ? "sì" : "no"}`),
+    );
+  }
+
+  await ctx.close();
+}
+
+// ————————————————————————————————————————————————————————————
 
 await browser.close();
 server.close();

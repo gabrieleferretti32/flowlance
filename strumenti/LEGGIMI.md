@@ -89,10 +89,18 @@ mostrato e uno calcolato che non si parlano, con nessuno dei due che segnala
 l'altro**.
 
 Lo strumento fa i conti della formula e li confronta con l'importo scritto
-accanto, su due dataset e su undici affermazioni: il contributo della Gestione
+accanto, su due dataset: il contributo della Gestione
 Separata, il reddito lordo nei due regimi, il coefficiente ATECO, l'imposta
 sostitutiva, l'accredito contributivo, la capacità in ore, e i segmenti del
 semaforo che devono sommare il denaro entrato in cassa.
+
+Poi esce dal prospetto e verifica le altre due cose della stessa forma: che
+l'impronta SHA-256 stampata accanto al PDF dei Termini sia quella del file che
+il sito serve davvero, e che sulla pagina di vendita ogni pulsante **porti dove
+dice** — «Acquista» a `/acquista`, non su Stripe; «Apri la demo» all'app con la
+vetrina. Un pulsante con l'etichetta giusta e la destinazione sbagliata è la
+stessa famiglia di difetti di un numero mostrato e uno calcolato: tutti e due
+plausibili, nessuno dei due segnala l'altro.
 
 Non controlla che le righe ci siano, non conta elementi, non cerca una parola in
 una pagina: prende i numeri che l'app mostra e verifica che uno sia il risultato
