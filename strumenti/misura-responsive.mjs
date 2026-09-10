@@ -37,6 +37,10 @@ import { chromium } from "playwright-core";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
+import { esigiArtefattoFresco } from "./artefatto.mjs";
+
+// Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
+esigiArtefattoFresco();
 
 const opzione = (nome, predefinito) => {
   const trovata = process.argv.find((a) => a.startsWith(`--${nome}=`));

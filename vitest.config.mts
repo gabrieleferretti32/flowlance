@@ -9,6 +9,11 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.ts"],
+    /*
+      Anche gli strumenti, dove hanno una logica che vale la pena verificare
+      senza aprire un browser: la guardia sull'artefatto decide se una verifica
+      può partire, e se sbagliasse a decidere lo farebbe in silenzio.
+    */
+    include: ["src/**/*.test.ts", "strumenti/**/*.test.mjs"],
   },
 });

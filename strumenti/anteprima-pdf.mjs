@@ -23,6 +23,10 @@ import { createServer } from "node:http";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
 import { chromium } from "playwright-core";
+import { esigiArtefattoFresco } from "./artefatto.mjs";
+
+// Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
+esigiArtefattoFresco();
 
 const opzione = (nome, predefinito = "") => {
   const trovata = process.argv.slice(2).find((a) => a.startsWith(`--${nome}=`));

@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build && node strumenti/verifica-link.mjs",
+    "build": "next build && node strumenti/timbra-artefatto.mjs && node strumenti/verifica-link.mjs",
     "anteprima": "npx --yes serve out",
     "test": "vitest run",
     "test:watch": "vitest",

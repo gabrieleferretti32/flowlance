@@ -32,11 +32,10 @@ acquisto professionale come **casella obbligatoria**: senza spunta il
 collegamento al pagamento non ha un indirizzo, quindi non è raggiungibile
 neanche da tastiera.
 
-Il Payment Link non esiste ancora: `PAYMENT_LINK` in `src/lib/sito/acquisto.ts`
-vale `"DA-CREARE"`, e finché è così la pagina lo **dichiara** invece di mostrare
-un pulsante muto. Stessa forma del segnaposto della chiave pubblica, stessa
-ragione: una pagina che manda su un indirizzo inventato prende i soldi di
-nessuno e li perde in silenzio.
+Il Payment Link **c'è**, dal 10 settembre 2026: sta in `PAYMENT_LINK`, dentro
+`src/lib/sito/impostazioni.ts`. Il riquadro del segnaposto è sparito e il
+pulsante «Paga 118,34 € con Stripe» ha preso il suo posto, con la riga sull'IVA
+attaccata sotto.
 
 ---
 
@@ -94,14 +93,16 @@ che non chiederla, perché farebbe credere di averla.
 
 ## Cosa resta da fare, in ordine
 
-1. **Creare il Payment Link su Stripe** — 97 € + IVA 22 %, prodotto «Flowlance
-   — licenza 12 mesi», raccolta dei dati di fatturazione attiva. Incollarlo in
-   `PAYMENT_LINK`, che è l'unico posto in cui va.
+1. ~~Creare il Payment Link su Stripe~~ — **fatto** il 10 settembre 2026.
 2. **Attivare la notifica email di Stripe a ogni pagamento riuscito**: è
    l'unico segnale che l'acquisto è avvenuto, e senza non parte niente.
 3. **Preparare le due email**, quella dei Termini e quella della chiave. La
    sequenza dei passi sta in `strumenti/licenza/LEGGIMI.md`, sotto «L'ordine dei
    passi, per un acquisto vero».
+4. **Un acquisto vero, con una carta vera, rimborsato subito**: è l'unico modo
+   di vedere tutto il giro — la ricevuta, i dati che Stripe raccoglie e quelli
+   che non raccoglie, l'email, la chiave, l'attivazione. Va fatto **prima** di
+   togliere il noindex, ed è l'ultimo gesto prima del lancio.
 4. **Niente da decidere sulla fatturazione elettronica: è deciso.** Vedi il
    punto qui sotto.
 

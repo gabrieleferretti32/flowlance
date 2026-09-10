@@ -29,18 +29,20 @@ export const DOMINIO = "https://flowlance.it";
 /**
  * Il Payment Link di Stripe.
  *
- * `"DA-CREARE"` finché il collegamento non esiste: stessa forma del segnaposto
- * della chiave pubblica, e stessa ragione. Una pagina che manda su un indirizzo
- * inventato prende i soldi di nessuno e li perde in silenzio; una che dichiara
- * di non essere pronta si vede subito.
- *
  * Sta qui e non accanto al resto dell'acquisto perché **lo legge
  * `next.config.ts`**, che gira in Node prima di qualunque cosa React: il
  * presidio che impedisce di aprire il sito ai motori senza saper vendere ha
  * bisogno di questo valore, e questo file non importa niente da nessuna parte.
  * `src/lib/sito/acquisto.ts` lo riespone per le pagine, che è dove si usa.
+ *
+ * Finché valeva `"DA-CREARE"` la pagina d'acquisto lo dichiarava, invece di
+ * mostrare un pulsante muto: stessa forma del segnaposto della chiave pubblica,
+ * e stessa ragione — una pagina che manda su un indirizzo inventato prende i
+ * soldi di nessuno e li perde in silenzio. Il segnaposto resta riconosciuto da
+ * `presidio.ts`, che ferma un build di produzione in cui il sito è aperto ai
+ * motori e questo è ancora da creare.
  */
-export const PAYMENT_LINK = "DA-CREARE";
+export const PAYMENT_LINK = "https://buy.stripe.com/fZudRa3S772u65z9DmcAo05";
 
 /**
  * I codici dei due strumenti di misurazione.

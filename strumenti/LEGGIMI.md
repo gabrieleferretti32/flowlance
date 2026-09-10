@@ -6,6 +6,8 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | Strumento | A cosa serve |
 |---|---|
 | `schermate-vendita.mjs` | Rifà le quattro schermate della pagina di vendita dal prodotto vero, sul dataset vetrina |
+| `artefatto.mjs` | La guardia: rifiuta di misurare `out/` se non è il sito del sorgente di adesso |
+| `timbra-artefatto.mjs` | Timbra il sito appena costruito, dentro `npm run build` |
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `verifica-derivati.mjs` | Rifà i conti delle formule del prospetto e li confronta con gli importi mostrati accanto |
 | `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
@@ -17,6 +19,38 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `diagnosi-coefficiente.js` | Dice, anno per anno, se il coefficiente in archivio coincide con quello del gruppo ATECO dichiarato |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
+
+---
+
+## `artefatto.mjs` — la guardia, e perché c'è
+
+Non si lancia: la chiamano tutti gli strumenti che aprono `out/`, come prima
+cosa. Se `out/` non è il sito del sorgente di adesso, si fermano.
+
+Serve per un difetto che è **un piano sopra** tutti gli altri di questo
+progetto. Le verifiche misurano il sito costruito e non il sorgente — è la
+scelta giusta, perché online finisce `out/` — ma vuol dire che una verifica non
+sa se sta guardando il sito appena costruito o quello di ieri. È successo: un
+`npm run build` si è fermato a metà, la verifica lanciata subito dopo ha
+misurato la cartella rimasta dal build precedente e ha detto verde su un sito
+che non esisteva più. L'unico sintomo era un codice d'uscita 1 in mezzo a un
+`&&`.
+
+Non misurare la cosa sbagliata, ma **la copia sbagliata**. Stessa risposta:
+meglio fermarsi dicendo «non ho niente da misurare» che promuovere un artefatto
+vecchio.
+
+Come funziona: `npm run build` esegue `timbra-artefatto.mjs` subito dopo
+`next build`, che scrive in `.artefatto.json` percorso, dimensione e data di
+ogni file che decide cosa esce — `src/`, `contenuti/`, `public/` e i file di
+configurazione alla radice. Chi verifica ricalcola quell'impronta e la
+confronta; se qualcosa è cambiato, si ferma **e dice quale file**.
+
+Sbaglia nella direzione giusta: un build fallito lascia il timbro vecchio, il
+sorgente nel frattempo è cambiato, e il controllo non parte. `strumenti/`, i
+`*.test.ts` e `out/` stesso restano fuori dall'impronta: cambiarli non cambia il
+sito, e farli entrare vorrebbe dire rifiutare una verifica perché qualcuno ha
+corretto un'asserzione — cioè addestrare chi lavora a ignorare il messaggio.
 
 ---
 

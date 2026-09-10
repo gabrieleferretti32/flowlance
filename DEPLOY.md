@@ -114,10 +114,41 @@ Una riga: `CHIUSO_AI_MOTORI = false` in `src/lib/sito/impostazioni.ts`. Da lì
 cambiano insieme il `robots.txt` e i meta di ogni pagina. Non c'è nient'altro da
 ricordarsi, ed è il motivo per cui è una costante sola.
 
+**È l'ultimo gesto, e va dopo un acquisto vero.** Prima di toglierlo si compra
+Flowlance con una carta vera e ci si rimborsa: è l'unico modo di vedere tutto il
+giro — la ricevuta di Stripe, i dati che raccoglie e quelli che no, l'email dei
+Termini, la chiave, l'attivazione. Un checkout che funziona in ogni sua parte
+presa da sola e non funziona insieme è esattamente il difetto che questo
+progetto continua a incontrare.
+
+Un presidio tiene la combinazione impossibile: `next.config.ts` ferma un build
+di produzione in cui il sito è aperto ai motori e `PAYMENT_LINK` vale ancora
+`"DA-CREARE"` — un sito che si fa trovare e poi chiede di scrivere una mail per
+comprare. Da quando il collegamento esiste, quel presidio è a riposo: c'è per il
+giorno in cui qualcuno reimposta il segnaposto senza rimettere il noindex.
+
+---
+
+## Prima di spingere, sempre
+
+```sh
+npm run test
+npm run build                 # timbra out/ e verifica i link
+npm run verifica:derivati     # i conti delle formule, i pulsanti, i prezzi
+npm run verifica:allineamento # i totali sotto la colonna che sommano
+npm run verifica:consenso     # niente misurazione prima del sì, mai su /app
+```
+
+Le verifiche che aprono `out/` si **rifiutano di partire** se il sorgente è
+cambiato dopo l'ultimo build riuscito: `npm run build` lascia un timbro in
+`.artefatto.json`, e chi misura lo confronta. Serve perché è già capitato di
+leggere verde su una cartella rimasta da un build fallito — vedi
+`strumenti/LEGGIMI.md`, alla voce `artefatto.mjs`.
+
 ---
 
 ## Cosa resta fuori da questo documento
 
-Il **checkout** non si costruisce finché il legale non ha risposto alla domanda
-in `CHECKOUT.md`. Il sito va online senza: il pulsante d'acquisto raccoglie
-l'indirizzo email, che è quello che fa oggi.
+Il **checkout** è deciso e in piedi: pagina ponte, Payment Link, chiave a mano.
+Quello che resta — la notifica di Stripe, le due email, l'acquisto di prova —
+sta in [`CHECKOUT.md`](CHECKOUT.md), sotto «Cosa resta da fare, in ordine».

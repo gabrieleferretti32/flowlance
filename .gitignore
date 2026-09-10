@@ -43,3 +43,6 @@ next-env.d.ts
 # Le chiavi di licenza: la privata firma le licenze, e non deve esistere
 # da nessun'altra parte che sul computer di chi le emette.
 strumenti/licenza/chiavi/
+
+# Il timbro del sito costruito: descrive out/, che non sta in git.
+.artefatto.json
