@@ -15,7 +15,7 @@ import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
 import { esportazioneProspettoConsentita, type EsitoEsportazione } from "./chiusura";
 import { prospettoDettagliato, type SezioneProspetto } from "./spiegazioni";
 import { nomeRegione } from "./regioni";
-import { aliquotaSostitutivaEffettiva } from "./impostazioni";
+import { derivato, sostitutivaAgevolata } from "./derivati/registro";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 
@@ -103,7 +103,7 @@ export function documentoProspetto(
     { etichetta: "Documento emesso il", valore: dataEstesa(emessoIl) },
   ];
 
-  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
+  const sostitutiva = derivato("aliquotaSostitutiva", imp, par);
   const parametri: VoceIntestazione[] = [
     { etichetta: "Regime fiscale", valore: forfettario ? "Forfettario" : "Ordinario" },
   ];
@@ -115,7 +115,7 @@ export function documentoProspetto(
       },
       {
         etichetta: "Imposta sostitutiva",
-        valore: `${percentuale(sostitutiva.aliquota)}${sostitutiva.agevolata ? " (nuova attività)" : ""}`,
+        valore: `${percentuale(sostitutiva.valore)}${sostitutivaAgevolata(imp, par) ? " (nuova attività)" : ""}`,
       },
       {
         etichetta: "Limite di ricavi del regime",
@@ -124,8 +124,8 @@ export function documentoProspetto(
     );
   } else {
     parametri.push(
-      voceAddizionale("regionale", imp),
-      voceAddizionale("comunale", imp),
+      voceAddizionale("regionale", imp, par),
+      voceAddizionale("comunale", imp, par),
       {
         etichetta: "Scaglioni IRPEF",
         valore: imp.scaglioniIrpef
@@ -216,6 +216,7 @@ export function stampaConsentita(
 function voceAddizionale(
   quale: "regionale" | "comunale",
   imp: Impostazioni,
+  par: ParametriAnno,
 ): VoceIntestazione {
   const regionale = quale === "regionale";
   const etichetta = regionale ? "Addizionale regionale" : "Addizionale comunale";
@@ -231,7 +232,9 @@ function voceAddizionale(
     : imp.scaglioniAddizionaleComunale;
   const aliquota = scaglioni?.length
     ? "a scaglioni"
-    : percentuale(regionale ? imp.addizionaleRegionale : imp.addizionaleComunale);
+    : percentuale(
+        derivato(regionale ? "addizionaleRegionale" : "addizionaleComunale", imp, par).valore,
+      );
   return { etichetta, valore: `${aliquota} · ${territorio}` };
 }
 

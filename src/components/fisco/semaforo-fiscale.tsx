@@ -4,7 +4,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { euro, percentuale } from "@/lib/format";
 import { round2 } from "@/lib/fisco/aritmetica";
-import { aliquotaSostitutivaEffettiva } from "@/lib/fisco/impostazioni";
+import { derivato } from "@/lib/fisco/derivati/registro";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "@/lib/fisco/tipi";
 import type { Prospetto } from "@/lib/fisco/motore";
 import type { LiquidazioneIva } from "@/lib/fisco/iva";
@@ -190,7 +190,7 @@ export function segmentiSemaforo(
   par: ParametriAnno,
   iva: LiquidazioneIva,
 ): SegmentoSemaforo[] {
-  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
+  const sostitutiva = derivato("aliquotaSostitutiva", imp, par);
   return [
     {
       chiave: "netto",
@@ -206,7 +206,7 @@ export function segmentiSemaforo(
       colore: COLORI_SEMAFORO.imposte,
       dettaglio:
         p.regime === "forfettario"
-          ? `Imposta sostitutiva: ${euro(p.imponibile)} × ${percentuale(sostitutiva.aliquota, 0)} = ${euro(p.impostaSostitutiva)}.`
+          ? `Imposta sostitutiva: ${euro(p.imponibile)} × ${percentuale(sostitutiva.valore, 0)} = ${euro(p.impostaSostitutiva)}.`
           : `IRPEF ${euro(p.irpefNetta)} più addizionali per ${euro(p.addizionaleRegionale + p.addizionaleComunale)}.`,
     },
     {

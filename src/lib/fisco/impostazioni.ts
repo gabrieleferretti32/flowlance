@@ -3,8 +3,7 @@
  * quell'anno. L'utente le sovrascrive dal pannello di controllo; i valori di
  * legge restano quelli marcati «da rivedere ogni gennaio».
  */
-import { aliquota } from "../format";
-import { conValoreProposto, dichiarato } from "./parametri-utente";
+import { conValoreProposto } from "./parametri-utente";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
 
 export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
@@ -75,80 +74,6 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
     nettoDesiderato: null,
     percentualeAccantonamento: 0.3,
     costiFissiAnnui: null,
-  };
-}
-
-/**
- * L'aliquota sostitutiva, **derivata** e non dichiarata.
- *
- * L'app la data di apertura della partita IVA ce l'ha, e l'anno d'imposta pure:
- * contare cinque anni è un conto che sa fare da sola. Chiederlo all'utente
- * significava chiedergli di dichiarare una cosa che il sistema può dedurre — e
- * questa funzione esisteva già per farlo, ma non la chiamava nessuno. Il motore
- * moltiplicava per un campo scritto da un interruttore, e chi aveva acceso
- * quell'interruttore restava al 5 % anche al sesto anno: **dieci punti di
- * aliquota sbagliati su un documento che va dal commercialista.**
- *
- * Quello che l'utente dichiara è l'unica cosa che una data non dice: se
- * l'attività ha i **requisiti di novità** — non aver svolto la stessa attività
- * nei tre anni precedenti, non proseguire quella di qualcun altro. È un fatto,
- * non un'aliquota, ed è la sola domanda che resta.
- *
- * Senza data di apertura l'agevolazione non si applica. È la direzione giusta
- * in cui sbagliare, e lo dice la schermata stessa: pagare di meno e scoprire
- * dopo di non averne diritto è il modo peggiore di sbagliare.
- *
- * Restituisce anche il **perché**, con dentro gli anni di chi legge: un'aliquota
- * derivata che non spiega la derivazione è un numero che cambia sotto le mani.
- */
-export type SostitutivaApplicata = {
-  /** Quella che il motore usa. */
-  aliquota: number;
-  /** L'agevolazione dei primi cinque anni è in corso. */
-  agevolata: boolean;
-  /** La derivazione in una frase, con gli anni dentro. */
-  motivo: string;
-};
-
-export function aliquotaSostitutivaEffettiva(
-  imp: Impostazioni,
-  par: ParametriAnno,
-): SostitutivaApplicata {
-  const ordinaria = par.aliquotaSostitutiva;
-  const agevolata = par.aliquotaSostitutivaNuovaAttivita;
-
-  if (!imp.nuovaAttivita) {
-    return {
-      aliquota: ordinaria,
-      agevolata: false,
-      motivo: `${aliquota(ordinaria)}: l'attività non è dichiarata nuova ai fini dell'agevolazione.`,
-    };
-  }
-  if (!imp.dataAperturaPiva) {
-    return {
-      aliquota: ordinaria,
-      agevolata: false,
-      motivo: `${aliquota(ordinaria)}: manca la data di apertura della partita IVA, e senza quella i cinque anni non si contano. Scrivila nel profilo e l'aliquota si aggiorna da sola.`,
-    };
-  }
-
-  const annoApertura = Number(imp.dataAperturaPiva.slice(0, 4));
-  const trascorsi = imp.anno - annoApertura;
-  // Il primo anno è quello dell'apertura: chi apre nel 2021 è agevolato dal
-  // 2021 al 2025, e il 2026 è il sesto.
-  const quale = trascorsi + 1;
-
-  if (trascorsi < par.anniNuovaAttivita) {
-    return {
-      aliquota: agevolata,
-      agevolata: true,
-      motivo: `${aliquota(agevolata)}: hai aperto nel ${annoApertura}, quindi il ${imp.anno} è il ${quale}° dei ${par.anniNuovaAttivita} anni agevolati.`,
-    };
-  }
-  return {
-    aliquota: ordinaria,
-    agevolata: false,
-    motivo: `${aliquota(ordinaria)}: hai aperto nel ${annoApertura}, quindi il ${imp.anno} è il ${quale}° anno e i ${par.anniNuovaAttivita} agevolati sono passati.`,
   };
 }
 
@@ -242,36 +167,6 @@ export function impostazioniPrecedenti(
 /** Ore fatturabili all'anno: giorni lavorativi × ore al giorno. */
 export function oreFatturabiliAnno(imp: Impostazioni): number {
   return imp.giorniLavorativi * imp.oreFatturabiliGiorno;
-}
-
-/**
- * I contributi fissi che il calcolo applica davvero, e se sono scavalcati.
- *
- * La regola è una: **l'importo di legge della sua gestione, salvo che l'utente
- * ne abbia dichiarato uno suo.** Era scritta in tre posti — il motore, lo
- * scadenzario e le spiegazioni del prospetto — con lo stesso ternario copiato
- * tre volte. Tre copie di una regola sola divergono alla prima riduzione
- * nuova, e nessuna delle tre segnala le altre: la rata di maggio dello
- * scadenzario e il contributo del prospetto sarebbero due numeri diversi
- * costruiti sulla stessa domanda.
- *
- * `scavalcati` esce insieme all'importo perché chi lo mostra deve poterlo
- * dire: un valore dichiarato dall'utente e uno pubblicato dall'INPS si
- * scrivono in modo diverso, e ricavare la condizione una seconda volta sul
- * posto rifarebbe il difetto in piccolo.
- */
-export type FissiApplicati = { importo: number; scavalcati: boolean };
-
-export function contributiFissiApplicati(
-  imp: Impostazioni,
-  par: ParametriAnno,
-): FissiApplicati {
-  if (!eGestioneCommerciale(imp.gestione)) return { importo: 0, scavalcati: false };
-  const scavalcati = dichiarato(imp, "contributiFissi");
-  return {
-    importo: scavalcati ? imp.contributiFissi : par.artigianiCommercianti[imp.gestione].fissi,
-    scavalcati,
-  };
 }
 
 /**

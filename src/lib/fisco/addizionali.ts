@@ -16,7 +16,8 @@
 import { round2 } from "./aritmetica";
 import { impostaProgressiva } from "./scaglioni";
 import { aliquota as formattaAliquota, euro } from "@/lib/format";
-import type { Impostazioni, ScaglioneIrpef } from "./tipi";
+import type { Impostazioni, ParametriAnno, ScaglioneIrpef } from "./tipi";
+import { derivato } from "./derivati/registro";
 
 export type Addizionale = {
   /** Usata quando `scaglioni` è `null`: l'aliquota unica sull'intero imponibile. */
@@ -27,17 +28,17 @@ export type Addizionale = {
   esenzione: number;
 };
 
-export function addizionaleRegionaleDi(imp: Impostazioni): Addizionale {
+export function addizionaleRegionaleDi(imp: Impostazioni, par: ParametriAnno): Addizionale {
   return {
-    aliquota: imp.addizionaleRegionale,
+    aliquota: derivato("addizionaleRegionale", imp, par).valore,
     scaglioni: imp.scaglioniAddizionaleRegionale ?? null,
     esenzione: imp.esenzioneAddizionaleRegionale ?? 0,
   };
 }
 
-export function addizionaleComunaleDi(imp: Impostazioni): Addizionale {
+export function addizionaleComunaleDi(imp: Impostazioni, par: ParametriAnno): Addizionale {
   return {
-    aliquota: imp.addizionaleComunale,
+    aliquota: derivato("addizionaleComunale", imp, par).valore,
     scaglioni: imp.scaglioniAddizionaleComunale ?? null,
     esenzione: imp.esenzioneAddizionaleComunale ?? 0,
   };
@@ -117,9 +118,13 @@ export function descriviAddizionale(imponibile: number, a: Addizionale): string 
 }
 
 /** Somma gli importi come li scriverebbe la dichiarazione: già arrotondati. */
-export function totaleAddizionali(imp: Impostazioni, imponibile: number): number {
+export function totaleAddizionali(
+  imp: Impostazioni,
+  imponibile: number,
+  par: ParametriAnno,
+): number {
   return round2(
-    addizionaleDovuta(imponibile, addizionaleRegionaleDi(imp)) +
-      addizionaleDovuta(imponibile, addizionaleComunaleDi(imp)),
+    addizionaleDovuta(imponibile, addizionaleRegionaleDi(imp, par)) +
+      addizionaleDovuta(imponibile, addizionaleComunaleDi(imp, par)),
   );
 }

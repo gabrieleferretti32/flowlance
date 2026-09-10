@@ -19,12 +19,12 @@ import {
 import { PARAMETRI_2026 } from "./parametri/2026";
 import { conValoreDichiarato } from "./parametri-utente";
 import {
-  aliquotaSostitutivaEffettiva,
   conFissiDiLegge,
   impostazioniDaPrecedente,
 } from "./impostazioni";
 import { parametriDi } from "./parametri";
 import type { Costo, Fattura, Impostazioni, NotaCredito, VersamentoF24 } from "./tipi";
+import { derivato, sostitutivaAgevolata } from "./derivati/registro";
 
 const par = PARAMETRI_2026;
 
@@ -982,17 +982,19 @@ describe("imposta sostitutiva · derivata dalla data di apertura", () => {
   it("dentro i cinque anni si applica il 5 %", () => {
     // Apertura 2023: agevolati il 2023, 2024, 2025, 2026 e 2027.
     for (const anno of [2023, 2024, 2025, 2026, 2027]) {
-      const e = aliquotaSostitutivaEffettiva(nel(anno, "2023-04-10"), parametriDi(anno));
-      expect(e.aliquota, `anno ${anno}`).toBe(0.05);
-      expect(e.agevolata).toBe(true);
+      const imp = nel(anno, "2023-04-10");
+      const e = derivato("aliquotaSostitutiva", imp, parametriDi(anno));
+      expect(e.valore, `anno ${anno}`).toBe(0.05);
+      expect(sostitutivaAgevolata(imp, parametriDi(anno))).toBe(true);
     }
   });
 
   it("al sesto anno torna al 15 %, da sola", () => {
     // È il caso che sbagliava: il campo restava al 5 % per sempre.
-    const e = aliquotaSostitutivaEffettiva(nel(2028, "2023-04-10"), PARAMETRI_2026);
-    expect(e.aliquota).toBe(0.15);
-    expect(e.agevolata).toBe(false);
+    const imp = nel(2028, "2023-04-10");
+    const e = derivato("aliquotaSostitutiva", imp, PARAMETRI_2026);
+    expect(e.valore).toBe(0.15);
+    expect(sostitutivaAgevolata(imp, PARAMETRI_2026)).toBe(false);
     expect(e.motivo).toContain("2023");
     expect(e.motivo).toContain("6°");
   });
@@ -1021,8 +1023,8 @@ describe("imposta sostitutiva · derivata dalla data di apertura", () => {
   });
 
   it("senza requisiti di novità resta l'ordinaria, per quanto recente sia l'apertura", () => {
-    const e = aliquotaSostitutivaEffettiva(nel(2026, "2026-01-02", false), PARAMETRI_2026);
-    expect(e.aliquota).toBe(0.15);
+    const e = derivato("aliquotaSostitutiva", nel(2026, "2026-01-02", false), PARAMETRI_2026);
+    expect(e.valore).toBe(0.15);
     expect(e.motivo).toContain("non è dichiarata nuova");
   });
 
@@ -1032,9 +1034,10 @@ describe("imposta sostitutiva · derivata dalla data di apertura", () => {
     l'aveva scritta.
   */
   it("senza data di apertura l'agevolazione non parte, e la schermata dice perché", () => {
-    const e = aliquotaSostitutivaEffettiva(nel(2026, null), PARAMETRI_2026);
-    expect(e.aliquota).toBe(0.15);
-    expect(e.agevolata).toBe(false);
+    const imp = nel(2026, null);
+    const e = derivato("aliquotaSostitutiva", imp, PARAMETRI_2026);
+    expect(e.valore).toBe(0.15);
+    expect(sostitutivaAgevolata(imp, PARAMETRI_2026)).toBe(false);
     expect(e.motivo).toContain("manca la data");
   });
 
@@ -1043,6 +1046,6 @@ describe("imposta sostitutiva · derivata dalla data di apertura", () => {
     const primo = nel(2024, "2024-03-01");
     const secondo = impostazioniDaPrecedente(PARAMETRI_2026, 2025, primo);
     expect(secondo.nuovaAttivita).toBe(true);
-    expect(aliquotaSostitutivaEffettiva(secondo, PARAMETRI_2026).aliquota).toBe(0.05);
+    expect(derivato("aliquotaSostitutiva", secondo, PARAMETRI_2026).valore).toBe(0.05);
   });
 });

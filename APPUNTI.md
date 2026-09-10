@@ -23,6 +23,39 @@ lasciarla.
 
 ---
 
+## 10 settembre 2026 · Un accesso calcolato è invisibile alle tagliole
+
+Le tre tagliole di `struttura.test.ts` leggono il **sorgente**: cercano
+`imp.contributiFissi` come testo. Una lettura scritta `imp[campo]`, con `campo`
+in una variabile, non la vedono — né quella che cerca i campi morti, né quella
+sulle due fonti, né quella che tiene il registro dei derivati.
+
+Si è visto costruendo il registro: le due addizionali venivano lette con
+`imp[campo]` dentro una funzione parametrica, e la prima tagliola le ha
+dichiarate morte mentre erano lette eccome. **Le due tagliole si
+contraddicevano, e avevano ragione tutte e due.** La lettura è stata scritta per
+esteso, così quello che il codice fa e quello che i test vedono tornano a
+coincidere.
+
+Il limite resta, e non ha una soluzione a buon mercato: chi scrivesse
+`imp[nome]` in un file qualunque scavalcherebbe tutti e tre i controlli senza
+che niente lo segnali. Le vie d'uscita sono due, e costano entrambe:
+
+- **leggere l'albero sintattico** invece del testo, con il compilatore
+  TypeScript come libreria. Vede gli accessi calcolati, ma non sa comunque
+  dire *quale* campo si sta leggendo quando il nome arriva da una variabile:
+  sposta il confine, non lo toglie;
+- **rendere i campi inaccessibili**, con `Impostazioni` che espone i valori
+  derivati solo attraverso il registro. È la soluzione vera, ed è una
+  riscrittura del modello dati.
+
+Nel frattempo vale una regola scritta: **nel motore fiscale i campi delle
+impostazioni si leggono per nome, mai per indice.** Dove serve una funzione
+parametrica, il lettore si passa come argomento — è quello che fa
+`addizionale()` nel registro.
+
+---
+
 ## 9 settembre 2026 · La stessa trappola, guardata da un lato solo
 
 La più utile delle cose emerse oggi, e non è un difetto: è una forma.

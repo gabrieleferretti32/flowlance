@@ -12,7 +12,7 @@
  * domani, poi l'imposta, poi gli obblighi.
  */
 import { aliquota, euro } from "@/lib/format";
-import { aliquotaSostitutivaEffettiva } from "./impostazioni";
+import { derivato } from "./derivati/registro";
 import type { Impostazioni, ParametriAnno, Regime } from "./tipi";
 
 export type Cambiamento = {
@@ -67,7 +67,7 @@ function versoOrdinario(imp: Impostazioni, par: ParametriAnno): Cambiamento[] {
     },
     {
       id: "imposta",
-      titolo: `Al posto della sostitutiva al ${aliquota(aliquotaSostitutivaEffettiva(imp, par).aliquota)} si applicano IRPEF a scaglioni e addizionali.`,
+      titolo: `Al posto della sostitutiva al ${aliquota(derivato("aliquotaSostitutiva", imp, par).valore)} si applicano IRPEF a scaglioni e addizionali.`,
       dettaglio:
         "Tornano utilizzabili detrazioni, deduzioni e fondo pensione, che nel forfettario non abbattevano niente.",
     },

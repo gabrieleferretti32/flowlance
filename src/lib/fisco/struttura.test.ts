@@ -22,6 +22,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { DERIVATI, NOMI_DERIVATI } from "./derivati/registro";
 
 const RADICE = "src";
 
@@ -112,6 +113,11 @@ const CAMPI_IMPOSTAZIONI = campiDelTipo(TIPI, "Impostazioni");
 const CAMPI_PARAMETRI = campiDelTipo(TIPI, "ParametriAnno");
 const SORGENTI = sorgenti();
 
+/** I file dei parametri: lì le costanti di legge si dichiarano, non si leggono. */
+const PARAMETRI_DI_LEGGE = SORGENTI.map((s) => s.percorso).filter((p) =>
+  p.startsWith("src/lib/fisco/parametri/"),
+);
+
 const nomiImpostazioni = (t: string) => nomiUsatiPer(t, "Impostazioni", ["imp", "impostazioni"]);
 const nomiParametri = (t: string) => nomiUsatiPer(t, "ParametriAnno", ["par", "parametri"]);
 
@@ -195,7 +201,17 @@ const PARENTELE: Record<string, string> = {
 };
 
 /** I file che costruiscono impostazioni a partire dai parametri di legge. */
-const COSTRUTTORI = ["src/lib/fisco/impostazioni.ts", "src/lib/dati/backup.ts"];
+const COSTRUTTORI = [
+  "src/lib/fisco/impostazioni.ts",
+  "src/lib/dati/backup.ts",
+  /*
+    Il registro dei derivati è il terzo posto in cui un valore di legge e il
+    suo gemello nelle impostazioni si incontrano legittimamente — anzi, è il
+    posto per cui esiste: lì il confronto fra le due fonti **è** il lavoro, e
+    quello che esce porta scritto da dove viene.
+  */
+  "src/lib/fisco/derivati/registro.ts",
+];
 
 /**
  * Le letture del lato parametri fuori dai costruttori, con il perché.
@@ -295,10 +311,11 @@ describe("nessuna costante di legge letta da due fonti", () => {
     const dove = SORGENTI.filter(({ testo }) => /\.fissi\b/.test(testo)).map((s) => s.percorso);
     expect(
       dove,
-      "La scelta fra l'importo di legge e quello dichiarato sta in `contributiFissiApplicati`.\n" +
+      "La scelta fra l'importo di legge e quello dichiarato sta nel registro dei derivati.\n" +
         "Era ricopiata in motore.ts, scadenze.ts e spiegazioni.ts: tre ternari identici che\n" +
-        "nessuno teneva insieme.",
-    ).toEqual(["src/lib/fisco/impostazioni.ts"]);
+        "nessuno teneva insieme. `impostazioni.ts` la legge ancora per allineare il campo\n" +
+        "alla gestione scelta, che è una scrittura e non un calcolo.",
+    ).toEqual(["src/lib/fisco/derivati/registro.ts", "src/lib/fisco/impostazioni.ts"]);
   });
 
   it("le letture ammesse portano tutte un motivo, e nessuna è rimasta senza uso", () => {
@@ -309,6 +326,95 @@ describe("nessuna costante di legge letta da due fonti", () => {
       expect(
         legge(file!.testo, nomiParametri(file!.testo), a.campo),
         `${a.file} non legge più par.${a.campo}: togli la voce da LETTURE_AMMESSE`,
+      ).toBe(true);
+    }
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// 3 · Il registro dei derivati è l'unica fonte
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Chi può leggere un campo di cui il registro è padrone.
+ *
+ * Solo chi lo **scrive**. `impostazioni.ts` allinea `contributiFissi` alla
+ * gestione scelta e riempie i valori iniziali dell'anno; `backup.ts` lo
+ * ricostruisce da un file; i dataset lo mettono nei loro dati finti. Nessuno
+ * di questi calcola: mettono un numero dentro le impostazioni, e il numero
+ * esce da lì passando dal registro come per tutti gli altri.
+ */
+const SCRIVONO_I_CAMPI = [
+  "src/lib/fisco/tipi.ts",
+  "src/lib/fisco/impostazioni.ts",
+  "src/lib/fisco/parametri-utente.ts",
+  "src/lib/dati/backup.ts",
+  "src/lib/dati/demo.ts",
+  "src/lib/dati/vetrina.ts",
+  "src/lib/fisco/fixture.ts",
+  "src/lib/fisco/derivati/registro.ts",
+  ...PARAMETRI_DI_LEGGE,
+];
+
+/**
+ * Le letture grezze ammesse fuori dal registro, con il perché.
+ *
+ * Una sola, e non è un calcolo: `regime.ts` descrive **il regime in cui
+ * l'utente non è**, cioè quello che troverebbe cambiando. Lì l'aliquota
+ * sostitutiva non è la sua e non va derivata dalla sua data: è quella che la
+ * legge pubblica, citata in una frase che parla di un'ipotesi.
+ */
+const LETTURE_GREZZE_AMMESSE: { campo: string; file: string; motivo: string }[] = [
+  {
+    campo: "aliquotaSostitutiva",
+    file: "src/lib/fisco/regime.ts",
+    motivo:
+      "Descrive il regime in cui l'utente non è: l'aliquota citata è quella di legge in un'ipotesi, non quella derivata dalla sua data di apertura.",
+  },
+];
+
+describe("il registro dei derivati è l'unica fonte", () => {
+  const posseduti = NOMI_DERIVATI.flatMap((n) =>
+    DERIVATI[n].possiede.map((campo) => ({ campo, voce: n })),
+  );
+
+  it("qualche campo è posseduto, altrimenti il registro non sta tenendo niente", () => {
+    expect(posseduti.length).toBeGreaterThan(3);
+  });
+
+  it("i campi posseduti non si leggono fuori dal registro", () => {
+    const fuori: string[] = [];
+    for (const { campo, voce } of posseduti) {
+      for (const { percorso, testo } of SORGENTI) {
+        if (SCRIVONO_I_CAMPI.includes(percorso)) continue;
+        const nomi = [...nomiImpostazioni(testo), ...nomiParametri(testo)];
+        if (!legge(testo, nomi, campo)) continue;
+        const ammessa = LETTURE_GREZZE_AMMESSE.some(
+          (a) => a.campo === campo && a.file === percorso,
+        );
+        if (!ammessa) fuori.push(`${percorso} legge «${campo}», che appartiene a «${voce}»`);
+      }
+    }
+
+    expect(
+      fuori,
+      `Campi del registro letti fuori dal registro:\n${fuori.join("\n")}\n\n` +
+        "Il valore si chiede con `derivato(\"<voce>\", imp, par)`, che lo restituisce\n" +
+        "insieme alla sua origine e al suo motivo. Leggere il campo grezzo salta la\n" +
+        "derivazione: è così che l'imponibile è stato moltiplicato per un 5 % che\n" +
+        "nessuno faceva più scadere.",
+    ).toEqual([]);
+  });
+
+  it("le letture ammesse portano un motivo, e nessuna è rimasta senza uso", () => {
+    for (const a of LETTURE_GREZZE_AMMESSE) {
+      expect(a.motivo.length, `${a.file} / ${a.campo}`).toBeGreaterThan(30);
+      const file = SORGENTI.find((s) => s.percorso === a.file);
+      expect(file, `${a.file} non esiste più`).toBeDefined();
+      const nomi = [...nomiImpostazioni(file!.testo), ...nomiParametri(file!.testo)];
+      expect(
+        legge(file!.testo, nomi, a.campo),
+        `${a.file} non legge più «${a.campo}»: togli la voce`,
       ).toBe(true);
     }
   });

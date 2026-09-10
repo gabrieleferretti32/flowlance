@@ -12,7 +12,7 @@ import { slittaAGiornoLavorativo } from "./calendario";
 import type { LiquidazioneIva } from "./iva";
 import type { Prospetto } from "./motore";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
-import { contributiFissiApplicati } from "./impostazioni";
+import { derivato } from "./derivati/registro";
 import { round2 } from "./aritmetica";
 
 export type Adempimento = {
@@ -101,7 +101,7 @@ export function scadenzeAnno(
     scadenzario che non coincide col contributo del prospetto è il difetto che
     non si vede.
   */
-  const rataArtigiani = round2(contributiFissiApplicati(imp, par).importo / 4);
+  const rataArtigiani = round2((derivato("contributiFissi", imp, par).valore ?? 0) / 4);
   const trimestre = (indice: number) => iva.trimestri[indice]?.totaleDaVersare ?? 0;
   const mese = (indice: number) => iva.mesi[indice]?.totaleDaVersare ?? 0;
 

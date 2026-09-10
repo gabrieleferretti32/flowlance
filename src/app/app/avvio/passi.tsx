@@ -26,7 +26,7 @@ import { cercaGruppi } from "@/lib/fisco/ateco";
 import { cambiamentiDiRegime } from "@/lib/fisco/regime";
 import type { Riporto } from "@/lib/fisco/chiusura";
 import { nomeGestione } from "@/lib/fisco/tipi";
-import { aliquotaSostitutivaEffettiva } from "@/lib/fisco/impostazioni";
+import { derivato } from "@/lib/fisco/derivati/registro";
 import type { GruppoAteco, Impostazioni, ParametriAnno, Regime } from "@/lib/fisco/tipi";
 import type { ContestoCalcolo } from "@/lib/onboarding/percorso";
 import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
@@ -111,7 +111,7 @@ function ControlloDelPasso({
             derivazione è un numero che cambia sotto le mani.
           */}
           <p className="text-etichetta text-inchiostro-tenue">
-            {aliquotaSostitutivaEffettiva(imp, par).motivo}
+            {derivato("aliquotaSostitutiva", imp, par).motivo}
           </p>
           <p className="text-etichetta text-inchiostro-tenue">
             Nel dubbio lascia l&apos;interruttore spento: pagare di meno e scoprire dopo di
@@ -933,7 +933,7 @@ export function riepilogoImpostazioni(
       voce: "Imposta sostitutiva",
       valore:
         imp.regime === "forfettario"
-          ? percentuale(aliquotaSostitutivaEffettiva(imp, par).aliquota)
+          ? percentuale(derivato("aliquotaSostitutiva", imp, par).valore)
           : "—",
     },
     {

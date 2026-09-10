@@ -158,7 +158,7 @@ describe("gli scaglioni nel motore", () => {
   it("dichiarare gli scaglioni conferma il parametro", () => {
     const dopo = conScaglioni(impostazioniOrdinario(), "addizionaleRegionale", PIEMONTE);
     expect(dichiarato(dopo, "addizionaleRegionale")).toBe(true);
-    expect(addizionaleRegionaleDi(dopo).scaglioni).toEqual(PIEMONTE);
+    expect(addizionaleRegionaleDi(dopo, PARAMETRI_2026).scaglioni).toEqual(PIEMONTE);
   });
 
   it("la soglia da sola non conferma niente", () => {
@@ -166,7 +166,7 @@ describe("gli scaglioni nel motore", () => {
     // dire «confermato» qui sbloccherebbe il PDF su un numero inventato.
     const dopo = conEsenzione(impostazioniOrdinario(), "addizionaleComunale", 12_000);
     expect(dichiarato(dopo, "addizionaleComunale")).toBe(false);
-    expect(addizionaleComunaleDi(dopo).esenzione).toBe(12_000);
+    expect(addizionaleComunaleDi(dopo, PARAMETRI_2026).esenzione).toBe(12_000);
   });
 
   it("tornare a «non lo so» toglie anche scaglioni e soglia", () => {
@@ -177,8 +177,8 @@ describe("gli scaglioni nel motore", () => {
     );
     const pulito = senzaDichiarazione(con, "addizionaleRegionale", 0.0173);
     expect(dichiarato(pulito, "addizionaleRegionale")).toBe(false);
-    expect(addizionaleRegionaleDi(pulito).scaglioni).toBe(null);
-    expect(addizionaleRegionaleDi(pulito).esenzione).toBe(0);
+    expect(addizionaleRegionaleDi(pulito, PARAMETRI_2026).scaglioni).toBe(null);
+    expect(addizionaleRegionaleDi(pulito, PARAMETRI_2026).esenzione).toBe(0);
     expect(pulito.addizionaleRegionale).toBe(0.0173);
   });
 });
@@ -203,7 +203,7 @@ describe("scegliere la forma non è ancora rispondere", () => {
     ];
     const forma = conScaglioni(impostazioniOrdinario(), "addizionaleRegionale", seme, false);
     expect(dichiarato(forma, "addizionaleRegionale")).toBe(false);
-    expect(addizionaleRegionaleDi(forma).scaglioni).toEqual(seme);
+    expect(addizionaleRegionaleDi(forma, PARAMETRI_2026).scaglioni).toEqual(seme);
 
     // Toccare una riga sì.
     const risposta = conScaglioni(forma, "addizionaleRegionale", PIEMONTE);

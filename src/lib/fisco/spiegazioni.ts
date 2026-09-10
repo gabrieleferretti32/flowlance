@@ -19,7 +19,7 @@ import {
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
 import { noteDelValore } from "./parametri-utente";
-import { aliquotaSostitutivaEffettiva, contributiFissiApplicati } from "./impostazioni";
+import { derivato } from "./derivati/registro";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 import { eGestioneCommerciale } from "./tipi";
@@ -290,14 +290,14 @@ export function prospettoDettagliato(
 
   // — C · Imposte ————————————————————————————————
   const imposte: RigaProspetto[] = [];
-  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
+  const sostitutiva = derivato("aliquotaSostitutiva", imp, par);
   if (forfettario) {
     imposte.push({
       id: "sostitutiva",
       etichetta: "Imposta sostitutiva",
       valore: p.impostaSostitutiva,
       formato: "euro",
-      formula: `${euro(p.imponibile)} × ${percentuale(sostitutiva.aliquota, 0)}.`,
+      formula: `${euro(p.imponibile)} × ${percentuale(sostitutiva.valore, 0)}.`,
       // Il perché dell'aliquota, non solo l'aliquota: è derivata dalla data di
       // apertura, e un numero derivato che non spiega la derivazione è un
       // numero che cambia sotto le mani senza dire perché.
@@ -360,7 +360,7 @@ export function prospettoDettagliato(
       // Finché è la media dell'app va scritto, altrimenti nessuno riaprirebbe
       // la domanda: le aliquote vere vanno dall'1,23 % a oltre il 3 %, e in
       // molte regioni sono scaglioni, non un'aliquota sola.
-      formula: `${descriviAddizionale(p.imponibile, addizionaleRegionaleDi(imp))}, ${noteDelValore(imp, "addizionaleRegionale")}.`,
+      formula: `${descriviAddizionale(p.imponibile, addizionaleRegionaleDi(imp, par))}, ${noteDelValore(imp, "addizionaleRegionale")}.`,
       nota: perche,
     });
     imposte.push({
@@ -368,7 +368,7 @@ export function prospettoDettagliato(
       etichetta: "Addizionale comunale",
       valore: p.addizionaleComunale,
       formato: "euro",
-      formula: `${descriviAddizionale(p.imponibile, addizionaleComunaleDi(imp))}, ${noteDelValore(imp, "addizionaleComunale")}.`,
+      formula: `${descriviAddizionale(p.imponibile, addizionaleComunaleDi(imp, par))}, ${noteDelValore(imp, "addizionaleComunale")}.`,
       nota: perche,
     });
   }
@@ -469,7 +469,9 @@ export function prospettoDettagliato(
   } else if (eGestioneCommerciale(imp.gestione)) {
     const regole = par.artigianiCommercianti;
     const sua = regole[imp.gestione];
-    const { importo: fissi, scavalcati } = contributiFissiApplicati(imp, par);
+    const applicati = derivato("contributiFissi", imp, par);
+    const fissi = applicati.valore ?? 0;
+    const scavalcati = applicati.scavalcato;
     const oltreLaFascia = p.redditoLordo > regole.primaFasciaPensionabile;
     contributi.push({
       id: "artigiani",

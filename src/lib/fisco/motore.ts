@@ -13,7 +13,7 @@ import {
   addizionaleRegionaleDi,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
-import { aliquotaSostitutivaEffettiva, contributiFissiApplicati } from "./impostazioni";
+import { derivato } from "./derivati/registro";
 import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
 import { aliquota, interoIt } from "../format";
@@ -330,7 +330,7 @@ export function contributiCommerciali(
   if (!eGestioneCommerciale(imp.gestione)) return 0;
   const regole = par.artigianiCommercianti;
   const sua = regole[imp.gestione];
-  const fissi = contributiFissiApplicati(imp, par).importo;
+  const fissi = derivato("contributiFissi", imp, par).valore ?? 0;
 
   // Sopra il massimale non si versa più niente: il reddito eccedente non è
   // imponibile ai fini contributivi.
@@ -637,8 +637,8 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   // — C · Imposte ————————————————————————————————————
   // L'aliquota si deriva dalla data di apertura, non si legge da un campo: la
   // regola dei cinque anni è un conto, e i conti li fa il motore.
-  const sostitutiva = aliquotaSostitutivaEffettiva(imp, par);
-  const impostaSostitutiva = forfettario ? round2(imponibile * sostitutiva.aliquota) : 0;
+  const sostitutiva = derivato("aliquotaSostitutiva", imp, par);
+  const impostaSostitutiva = forfettario ? round2(imponibile * sostitutiva.valore) : 0;
   const irpefLorda = forfettario ? 0 : irpefScaglioni(imponibile, imp.scaglioniIrpef);
   const detrazioni = forfettario ? 0 : imp.detrazioniPersonali;
   /*
@@ -668,10 +668,10 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   // Aliquota unica o scaglioni, e la soglia di esenzione: la regola sta in un
   // posto solo, perché qui e nel confronto fra regimi deve dare lo stesso conto.
   const addizionaleRegionale = irpefDovuta
-    ? addizionaleDovuta(imponibile, addizionaleRegionaleDi(imp))
+    ? addizionaleDovuta(imponibile, addizionaleRegionaleDi(imp, par))
     : 0;
   const addizionaleComunale = irpefDovuta
-    ? addizionaleDovuta(imponibile, addizionaleComunaleDi(imp))
+    ? addizionaleDovuta(imponibile, addizionaleComunaleDi(imp, par))
     : 0;
   const totaleImposte = somma(
     impostaSostitutiva,
@@ -778,7 +778,19 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
           gestione: imp.gestione,
           contributiGestioneSeparata: contributi.separata,
           contributiArtigiani: contributi.artigiani,
-          contributiFissi: imp.contributiFissi,
+          /*
+            L'importo applicato, non il campo grezzo.
+
+            `imp.contributiFissi` parte dal valore degli **artigiani** — è così
+            che `impostazioniPredefinite` lo inizializza — e viene allineato
+            alla gestione solo quando le impostazioni passano da
+            `conFissiDiLegge`, cioè al salvataggio. Un prospetto calcolato su
+            impostazioni che non ci sono passate riportava agli artigiani il
+            numero giusto e ai commercianti quello degli artigiani, e questo
+            valore **entra in un conto**: la base dell'acconto contributivo è
+            il contributo sull'eccedenza, cioè il totale meno i fissi.
+          */
+          contributiFissi: derivato("contributiFissi", imp, par).valore ?? 0,
         }),
         regola: par.accontoContributi[imp.gestione],
       },
