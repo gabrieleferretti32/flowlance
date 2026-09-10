@@ -9,6 +9,7 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `verifica-derivati.mjs` | Rifà i conti delle formule del prospetto e li confronta con gli importi mostrati accanto |
 | `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
+| `verifica-consenso.mjs` | Intercetta la rete: niente misurazione prima di un sì, e mai dentro l'app nemmeno a consenso dato |
 | `anteprima-pdf.mjs` | Rende ogni pagina di un PDF in PNG, per guardarlo invece di leggerne il testo |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
@@ -16,6 +17,39 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `diagnosi-coefficiente.js` | Dice, anno per anno, se il coefficiente in archivio coincide con quello del gruppo ATECO dichiarato |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
+
+---
+
+## `verifica-consenso.mjs`
+
+```sh
+npm run build
+npm run verifica:consenso
+```
+
+Che gli `<Script>` di statistica stiano dentro un ramo condizionale si vede
+leggendo `statistiche.tsx`; che quel componente sia montato solo dal layout di
+`(sito)` si vede nell'albero delle rotte. Tutte e due le cose sono vere, e tutte
+e due sono **argomenti**, non prove.
+
+La prova è la rete. Lo strumento intercetta ogni richiesta che il browser tenta
+e la confronta con i domini di misurazione. Tre passaggi:
+
+1. **prima di rispondere al banner**, cinque pagine del sito non contattano
+   nessuno — e nemmeno nessun altro: niente caratteri da Google, niente icone da
+   una CDN;
+2. **dopo «Accetta tutto»** le richieste partono davvero, e portano i codici
+   configurati. Se fossero zero, il consenso non starebbe accendendo niente e il
+   primo controllo passerebbe per la ragione sbagliata;
+3. **con il consenso ACCETTATO, dentro `/app`**: sei schermate, demo compresa,
+   e non parte niente. È il caso che conta — la promessa «dentro l'applicazione
+   non c'è nessuna misurazione, in nessun caso» può cadere solo lì, e a consenso
+   spento non si potrebbe distinguere da un sito che non misura mai.
+
+Il sì si dà premendo il pulsante vero, non scrivendo nel `localStorage` da
+fuori: se un giorno cambia il formato di quella riga, una scorciatoia
+continuerebbe a scrivere il formato vecchio e il controllo misurerebbe una
+pagina che non ha mai acconsentito.
 
 ---
 
@@ -94,13 +128,21 @@ Separata, il reddito lordo nei due regimi, il coefficiente ATECO, l'imposta
 sostitutiva, l'accredito contributivo, la capacità in ore, e i segmenti del
 semaforo che devono sommare il denaro entrato in cassa.
 
-Poi esce dal prospetto e verifica le altre due cose della stessa forma: che
-l'impronta SHA-256 stampata accanto al PDF dei Termini sia quella del file che
-il sito serve davvero, e che sulla pagina di vendita ogni pulsante **porti dove
-dice** — «Acquista» a `/acquista`, non su Stripe; «Apri la demo» all'app con la
-vetrina. Un pulsante con l'etichetta giusta e la destinazione sbagliata è la
-stessa famiglia di difetti di un numero mostrato e uno calcolato: tutti e due
-plausibili, nessuno dei due segnala l'altro.
+Poi esce dal prospetto e verifica le altre cose della stessa forma:
+
+- che l'impronta SHA-256 stampata accanto al PDF dei Termini sia quella del file
+  che il sito serve davvero;
+- che ogni pulsante **porti dove dice** — «Acquista» a `/acquista` e non su
+  Stripe, «Apri la demo» all'app con la vetrina, e dalla demo «Esci» torni alla
+  pagina di vendita invece che a un cruscotto vuoto. Un pulsante con l'etichetta
+  giusta e la destinazione sbagliata è la stessa famiglia di difetti di un
+  numero mostrato e uno calcolato: tutti e due plausibili, nessuno dei due
+  segnala l'altro;
+- che il prezzo sia scritto **nella stessa forma** ovunque compaia. Il controllo
+  precedente confrontava i valori, e non vedeva che la testata diceva
+  «97,00 € + IVA» mentre la sezione del prezzo diceva «97 €»;
+- che a 390 × 844, col banner dei cookie aperto, i due inviti dell'apertura
+  stiano tutti e due sopra il banner.
 
 Non controlla che le righe ci siano, non conta elementi, non cerca una parola in
 una pagina: prende i numeri che l'app mostra e verifica che uno sia il risultato

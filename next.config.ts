@@ -2,6 +2,8 @@ import type { NextConfig } from "next";
 import { CHIAVE_PUBBLICA } from "./src/lib/licenza/chiave-pubblica";
 import { controlloChiavePubblica } from "./src/lib/licenza/presidio";
 import { generaPdfTermini } from "./src/lib/contenuti/pdf-termini";
+import { CHIUSO_AI_MOTORI, PAYMENT_LINK } from "./src/lib/sito/impostazioni";
+import { controlloVendita } from "./src/lib/sito/presidio";
 
 /**
  * Nessun build di produzione senza una chiave pubblica vera.
@@ -13,6 +15,25 @@ import { generaPdfTermini } from "./src/lib/contenuti/pdf-termini";
  */
 const problema = controlloChiavePubblica(CHIAVE_PUBBLICA, process.env.NODE_ENV);
 if (problema) throw new Error(problema);
+
+/**
+ * E nessun build di produzione che apra il sito ai motori senza saper vendere.
+ *
+ * Stessa forma del presidio qui sopra e stessa ragione di stare in questo file:
+ * lo legge ogni `next build`, comunque lo si invochi. Le due condizioni — sito
+ * indicizzabile, pagamento ancora al segnaposto — sono legittime da sole e
+ * impossibili insieme.
+ */
+/*
+  I due valori arrivano da `impostazioni.ts`, che non importa niente: Next
+  compila questo file in `next.config.compiled.js` alla radice del progetto, e
+  da lì gli alias `@/` non si risolvono. La prima stesura importava
+  `PAYMENT_LINK` da `acquisto.ts`, che a sua volta importa `@/lib/format`, e il
+  build si fermava con «Cannot find module ./src/lib/format» — un errore che
+  non nomina né il presidio né la pagina d'acquisto.
+*/
+const vendita = controlloVendita(PAYMENT_LINK, CHIUSO_AI_MOTORI, process.env.NODE_ENV);
+if (vendita) throw new Error(vendita);
 
 const nextConfig: NextConfig = {
   /**

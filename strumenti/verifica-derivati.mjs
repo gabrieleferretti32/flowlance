@@ -738,6 +738,65 @@ const demo = await righeDelProspetto();
 }
 
 // ————————————————————————————————————————————————————————————
+// 7 · Dalla demo si può comprare, e uscire riporta in negozio
+// ————————————————————————————————————————————————————————————
+
+{
+  /*
+    La demo si apre nella stessa scheda, di proposito: una scheda nuova aiuta
+    chi guarda le schede e su un telefono non aiuta nessuno. Ma allora dalla
+    demo deve esistere una strada per comprare, altrimenti chi si convince
+    provando il prodotto resta chiuso dentro — il buco più caro che ci sia,
+    perché perde chi era già convinto.
+
+    Si misura dove portano i due comandi, non che ci siano.
+  */
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "it-IT" });
+  const p = await ctx.newPage();
+  await p.goto(`${BASE}/app/?demo=vetrina`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(3_000);
+
+  const barra = await p.evaluate(() => {
+    const b = document.querySelector('[role="status"]');
+    if (!b) return null;
+    return [...b.querySelectorAll("a,button")].map((e) => ({
+      testo: (e.textContent ?? "").trim(),
+      href: e.getAttribute("href"),
+    }));
+  });
+
+  if (barra === null) {
+    problemi.push("la barra della demo non compare: senza, la demo non si distingue dall'app");
+  } else {
+    const compra = barra.find((c) => /^Acquista/.test(c.testo));
+    const esci = barra.find((c) => /Esci dalla demo/.test(c.testo));
+    sostiene(
+      compra !== undefined && compra.href === "/acquista",
+      `dalla demo si compra: «${compra?.testo}» → ${compra?.href}`,
+    );
+    sostiene(esci !== undefined, "la barra porta anche la via d'uscita");
+
+    // E uscire riporta alla pagina di vendita, non al cruscotto vuoto.
+    await p.getByRole("button", { name: /Esci dalla demo/ }).click();
+    await p.waitForTimeout(2_500);
+    const dove = p.url().replace(BASE, "");
+    sostiene(dove === "/" || dove === "/index.html", `«Esci dalla demo» riporta a ${dove}`);
+  }
+
+  // E il pulsante d'acquisto chiude la demo dietro di sé.
+  await p.goto(`${BASE}/app/?demo=vetrina`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(3_000);
+  await p.getByRole("link", { name: /^Acquista/ }).click();
+  await p.waitForTimeout(2_500);
+  const arrivo = p.url().replace(BASE, "");
+  const demoSpenta = await p.evaluate(() => window.sessionStorage.getItem("flowlance:demo") === null);
+  sostiene(arrivo.startsWith("/acquista"), `«Acquista» dalla demo arriva a ${arrivo}`);
+  sostiene(demoSpenta, "e la demo resta chiusa alle spalle");
+
+  await ctx.close();
+}
+
+// ————————————————————————————————————————————————————————————
 
 await browser.close();
 server.close();

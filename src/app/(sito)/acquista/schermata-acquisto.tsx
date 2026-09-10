@@ -52,7 +52,6 @@ export function SchermataAcquisto({
   impronta: string;
 }) {
   const [dichiara, setDichiara] = React.useState(false);
-  const pronto = pagamentoConfigurato();
 
   return (
     <main className="mx-auto w-full max-w-[46rem] px-5 py-12 sm:px-6 sm:py-16">
@@ -166,68 +165,7 @@ export function SchermataAcquisto({
           consegna della chiave: qui non si approva niente.
         </p>
 
-        <div className="mt-6">
-          {pronto ? (
-            <a
-              href={dichiara ? PAYMENT_LINK : undefined}
-              aria-disabled={!dichiara}
-              /*
-                Senza la spunta il collegamento non ha un `href`: un `<a>` senza
-                indirizzo non è raggiungibile con il tabulatore e non si apre in
-                nessun modo, mentre un pulsante «disabilitato» via CSS resta
-                cliccabile da chi naviga da tastiera. La condizione dell'acquisto
-                dev'essere una condizione, non un aspetto.
-              */
-              className={
-                dichiara
-                  ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-campo bg-accento px-6 text-corpo font-medium text-white transition-colors hover:bg-[#3D4CE8]"
-                  : "inline-flex min-h-12 cursor-not-allowed items-center justify-center gap-2 rounded-campo bg-bordo px-6 text-corpo font-medium text-inchiostro-tenue"
-              }
-            >
-              Paga {PREZZO_SCRITTO.totale} con Stripe
-              {dichiara && <ExternalLink className="size-4" aria-hidden />}
-            </a>
-          ) : (
-            <p className="rounded-campo border border-attenzione/40 bg-attenzione-tenue px-4 py-3 text-corpo">
-              Il pagamento non è ancora attivo su questo sito. Scrivi a{" "}
-              <a
-                href="mailto:info@flowlance.it"
-                className="font-medium underline underline-offset-2"
-              >
-                info@flowlance.it
-              </a>{" "}
-              e ti mando io il collegamento.
-            </p>
-          )}
-          {pronto && !dichiara && (
-            <p className="mt-2 text-etichetta text-inchiostro-tenue" role="status">
-              Spunta la dichiarazione per proseguire.
-            </p>
-          )}
-          {/*
-            La sorpresa dell'IVA, tolta nel punto in cui nascerebbe.
-
-            Stripe non può calcolare l'IVA prima di sapere il paese, quindi la
-            sua prima schermata mostra 97 € e il totale sale dopo l'indirizzo.
-            È corretto e sembra un rincaro — ed è il momento peggiore per
-            sembrarlo, con la carta già in mano. Detto qui, un attimo prima, è
-            una conferma invece di un dubbio.
-
-            Sulla pagina di vendita questa riga non c'è, ed è giusto così: là i
-            pulsanti portano già l'«+ IVA» scritto accanto al prezzo, e nessuno
-            sta per pagare.
-
-            Compare anche quando il collegamento a Stripe non è ancora
-            configurato: il pagamento passa da lì comunque — l'avviso qui sopra
-            dice solo che il link arriva per email — e la riga dice una cosa
-            vera in tutti e due i casi.
-          */}
-          <p className="mt-4 max-w-[52ch] text-etichetta leading-relaxed text-inchiostro-tenue">
-            {PREZZO_SCRITTO.imponibile} l&apos;anno + IVA {PREZZO_SCRITTO.aliquota} —{" "}
-            {PREZZO_SCRITTO.totale} in fattura. Su Stripe l&apos;IVA compare dopo che hai inserito i
-            dati di fatturazione: il totale che vedi all&apos;inizio è imponibile.
-          </p>
-        </div>
+        <PagaConStripe dichiara={dichiara} />
 
         <p className="mt-8 text-etichetta text-inchiostro-tenue">
           Prima di comprare vale la pena leggere anche{" "}
@@ -239,5 +177,77 @@ export function SchermataAcquisto({
         </p>
       </section>
     </main>
+  );
+}
+
+/**
+ * Il pulsante di pagamento, **con addosso la sua nota sull'IVA**.
+ *
+ * Stanno insieme in un componente e non uno sotto l'altro nella pagina, perché
+ * la nota parla di quello che succede **dopo aver premuto lì**: Stripe non può
+ * calcolare l'IVA prima di sapere il paese, quindi la sua prima schermata mostra
+ * l'imponibile e il totale sale dopo l'indirizzo. È corretto, e sembra un
+ * rincaro — nel momento peggiore per sembrarlo, con la carta già in mano.
+ *
+ * Scritta nella pagina invece che qui, la nota è finita sotto il riquadro del
+ * segnaposto, staccata da tutto: parlava di un pulsante che stava altrove. Il
+ * giorno in cui il Payment Link arriverà davvero, il riquadro sparirà e il
+ * pulsante prenderà il suo posto — e la nota si sposterà con lui, perché è la
+ * stessa cosa.
+ *
+ * Sulla pagina di vendita non c'è: là i pulsanti dicono già «+ IVA» accanto al
+ * prezzo, e nessuno sta per pagare.
+ */
+function PagaConStripe({ dichiara }: { dichiara: boolean }) {
+  const pronto = pagamentoConfigurato();
+
+  return (
+    <div className="mt-6">
+      {pronto ? (
+        <a
+          href={dichiara ? PAYMENT_LINK : undefined}
+          aria-disabled={!dichiara}
+          /*
+            Senza la spunta il collegamento non ha un `href`: un `<a>` senza
+            indirizzo non è raggiungibile con il tabulatore e non si apre in
+            nessun modo, mentre un pulsante «disabilitato» via CSS resta
+            cliccabile da chi naviga da tastiera. La condizione dell'acquisto
+            dev'essere una condizione, non un aspetto.
+          */
+          className={
+            dichiara
+              ? "inline-flex min-h-12 items-center justify-center gap-2 rounded-campo bg-accento px-6 text-corpo font-medium text-white transition-colors hover:bg-[#3D4CE8]"
+              : "inline-flex min-h-12 cursor-not-allowed items-center justify-center gap-2 rounded-campo bg-bordo px-6 text-corpo font-medium text-inchiostro-tenue"
+          }
+        >
+          Paga {PREZZO_SCRITTO.totale} con Stripe
+          {dichiara && <ExternalLink className="size-4" aria-hidden />}
+        </a>
+      ) : (
+        <p className="rounded-campo border border-attenzione/40 bg-attenzione-tenue px-4 py-3 text-corpo">
+          Il pagamento non è ancora attivo su questo sito. Scrivi a{" "}
+          <a href="mailto:info@flowlance.it" className="font-medium underline underline-offset-2">
+            info@flowlance.it
+          </a>{" "}
+          e ti mando io il collegamento.
+        </p>
+      )}
+
+      {/* Attaccata al pulsante, non alla pagina: è la riga che si legge un attimo prima di premere. */}
+      <p className="mt-3 max-w-[52ch] text-etichetta leading-relaxed text-inchiostro">
+        {PREZZO_SCRITTO.imponibile} l&apos;anno + IVA {PREZZO_SCRITTO.aliquota} —{" "}
+        {PREZZO_SCRITTO.totale} in fattura.{" "}
+        <span className="text-inchiostro-tenue">
+          Su Stripe l&apos;IVA compare dopo che hai inserito i dati di fatturazione: il totale che
+          vedi all&apos;inizio è imponibile.
+        </span>
+      </p>
+
+      {pronto && !dichiara && (
+        <p className="mt-2 text-etichetta text-inchiostro-tenue" role="status">
+          Spunta la dichiarazione per proseguire.
+        </p>
+      )}
+    </div>
   );
 }

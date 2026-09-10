@@ -4,6 +4,7 @@ import * as React from "react";
 import { FlaskConical, LogOut } from "lucide-react";
 import { esciDallaDemo } from "@/lib/dati/demo-isolata";
 import { useArchivioScelto } from "@/components/dati/guardia-archivio";
+import { PREZZO_SCRITTO } from "@/lib/sito/acquisto";
 import { SITO } from "@/lib/rotte";
 
 /**
@@ -17,6 +18,20 @@ import { SITO } from "@/lib/rotte";
  * Dice anche **dove finiscono le cose che scrivi qui**, perché è la prima
  * domanda che si fa chi prova a toccare qualcosa, e perché la risposta è buona:
  * restano, e restano separate.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * E porta la via per comprare
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * La demo si apre nella stessa scheda, di proposito: aprirne una nuova aiuta
+ * chi guarda le schede e su un telefono non aiuta nessuno. Ma finché questa
+ * barra portava solo «Esci dalla demo», chi si convinceva provando il prodotto
+ * non aveva **nessun modo di comprarlo** senza tornare indietro a mano: il buco
+ * più caro possibile, perché perde chi era già convinto.
+ *
+ * Quindi qui ci sono due strade, e sono diverse per peso: comprare è un
+ * pulsante pieno, uscire è un collegamento. Chi ha finito di guardare trova la
+ * prima cosa, non la seconda.
  */
 export function BarraDemo() {
   const { demo } = useArchivioScelto();
@@ -43,14 +58,36 @@ export function BarraDemo() {
           separato sul tuo dispositivo, e non toccano niente di tuo.
         </span>
       </p>
-      <button
-        type="button"
-        onClick={() => esciDallaDemo(SITO.vendita)}
-        className="-my-1 ml-auto flex shrink-0 items-center gap-1.5 rounded-campo px-2 py-1 text-etichetta font-medium text-accento underline underline-offset-2 hover:bg-accento/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accento"
-      >
-        <LogOut className="size-4" aria-hidden />
-        Esci dalla demo
-      </button>
+      <div className="ml-auto flex shrink-0 items-center gap-1">
+        {/*
+          `<a>` e non `<Link>`: si esce dalla demo, e uscire vuol dire ricaricare
+          la pagina davvero. Una navigazione interna terrebbe in piedi lo stesso
+          documento — e con lui l'archivio della demo, che deve restare chiuso
+          alle spalle di chi va a comprare.
+        */}
+        <a
+          href={SITO.acquisto}
+          onClick={(e) => {
+            e.preventDefault();
+            esciDallaDemo(SITO.acquisto);
+          }}
+          className="rounded-campo bg-accento px-3 py-1.5 text-etichetta font-medium text-white transition-colors hover:bg-[#3D4CE8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accento focus-visible:ring-offset-2"
+        >
+          Acquista — {PREZZO_SCRITTO.imponibile} + IVA
+        </a>
+        {/*
+          Uscire riporta alla pagina di vendita, non al cruscotto: chi esce da
+          una vetrina torna in negozio, non in un magazzino vuoto.
+        */}
+        <button
+          type="button"
+          onClick={() => esciDallaDemo(SITO.vendita)}
+          className="-my-1 flex items-center gap-1.5 rounded-campo px-2 py-1 text-etichetta font-medium text-accento underline underline-offset-2 hover:bg-accento/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accento"
+        >
+          <LogOut className="size-4" aria-hidden />
+          Esci dalla demo
+        </button>
+      </div>
     </div>
   );
 }

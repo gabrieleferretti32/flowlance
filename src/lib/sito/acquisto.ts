@@ -31,20 +31,18 @@
  * davvero, e un promemoria di cosa arriverà via email.
  */
 import { euro, euroTondo, percentuale } from "@/lib/format";
-import { DOMINIO } from "./impostazioni";
+import { DOMINIO, PAYMENT_LINK } from "./impostazioni";
 import { SITO } from "@/lib/rotte";
 
 /**
- * Il Payment Link di Stripe.
+ * Il Payment Link, riesposto da `impostazioni.ts`.
  *
- * `"DA-CREARE"` finché il collegamento non esiste: stessa forma del segnaposto
- * della chiave pubblica, e stessa ragione. Una pagina che manda su un
- * indirizzo inventato prende i soldi di nessuno e li perde in silenzio; una
- * che dichiara di non essere pronta si vede subito.
- *
- * Quando il link esiste, si incolla qui e basta. Non va altrove.
+ * Il valore sta là perché lo legge anche `next.config.ts`, che non può
+ * attraversare un modulo con gli alias `@/`. Qui c'è il nome con cui lo
+ * chiedono le pagine, che è dove si usa: quando il link esiste, si incolla in
+ * `src/lib/sito/impostazioni.ts` e basta.
  */
-export const PAYMENT_LINK = "DA-CREARE";
+export { PAYMENT_LINK };
 
 /** Il collegamento è configurato, o siamo ancora al segnaposto? */
 export function pagamentoConfigurato(link: string = PAYMENT_LINK): boolean {

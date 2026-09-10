@@ -4,6 +4,7 @@ import * as React from "react";
 import Script from "next/script";
 import { BannerCookie } from "./banner-cookie";
 import { NIENTE, type Consenso } from "@/lib/sito/consenso";
+import { MISURAZIONE } from "@/lib/sito/impostazioni";
 
 /**
  * Le statistiche: caricate **solo** dopo un sì, e **solo** qui.
@@ -28,8 +29,12 @@ import { NIENTE, type Consenso } from "@/lib/sito/consenso";
  * Le due categorie sono separate davvero: chi accende le statistiche e non le
  * registrazioni ottiene GA4 e non Clarity.
  */
-const GA4 = "G-QGDZ2CZBEW";
-const CLARITY = "yfg22ehfxn";
+/*
+  I codici stanno in `src/lib/sito/impostazioni.ts`, insieme a `CHIUSO_AI_MOTORI`
+  e al dominio: sono decisioni sul sito pubblico, non dettagli di questo
+  componente. Qui si legge quello che c'è scritto là.
+*/
+const { ga4: GA4, clarity: CLARITY } = MISURAZIONE;
 
 export function Statistiche() {
   const [consenso, setConsenso] = React.useState<Consenso>(NIENTE);
