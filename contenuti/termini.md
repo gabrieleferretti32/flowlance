@@ -71,8 +71,6 @@ L'acquirente titolare di partita IVA è tenuto a fornire i dati fiscali necessar
 
 Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nuova licenza.
 
-## 7. Diritto di recesso e garanzia di rimborso
-
 ## 7. Garanzia di rimborso
 
 Poiché Flowlance è offerto esclusivamente a chi acquista nell'esercizio della propria attività professionale, la disciplina del recesso prevista dal Codice del Consumo non trova applicazione.

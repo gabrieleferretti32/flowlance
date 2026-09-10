@@ -91,9 +91,15 @@ chiave, non al pagamento. Quindi la chiave è **l'ultimo** passo, non il primo:
 
 1. arriva la notifica di pagamento da Stripe;
 2. mandi all'acquirente, allo stesso indirizzo, i Termini in PDF — quello con
-   l'impronta SHA-256 stampata accanto al link su `/termini/` — e chiedi la
-   dichiarazione di acquisto professionale e l'approvazione delle clausole del
-   punto 13, elencate per numero;
+   l'impronta SHA-256 stampata accanto al link su `/termini/` — e chiedi tre
+   cose nella stessa email:
+   - la dichiarazione di acquisto professionale;
+   - l'approvazione delle clausole del punto 13, elencate per numero;
+   - **i dati che Stripe non raccoglie**: codice destinatario (o PEC) e codice
+     fiscale. Ragione sociale, indirizzo e partita IVA arrivano già da Stripe.
+     Se non risponde con un codice destinatario, la fattura si trasmette al
+     convenzionale `0000000`, che lo SdI recapita nel cassetto fiscale: è la
+     rete di sicurezza, non la scelta normale;
 3. quando risponde, generi la chiave con la riga qui sopra e gliela mandi;
 4. nel fascicolo dell'ordine finiscono: la ricevuta Stripe, il PDF dei Termini
    con la sua impronta, l'email di risposta, e la riga di `emesse.jsonl`.

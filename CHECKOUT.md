@@ -23,7 +23,7 @@ più niente da registrare *durante* il pagamento.
 |---|---|---|
 | 1 · Lettura e dichiarazione | `/acquista` sul sito | niente, ed è voluto — vedi sotto |
 | 2 · Pagamento | Payment Link di Stripe | ricevuta e dati di fatturazione, in Stripe |
-| 3 · Termini in PDF + richiesta di approvazione | email, a mano | il PDF con la sua impronta, nel fascicolo |
+| 3 · Termini in PDF, richiesta di approvazione **e dei dati di fatturazione** | email, a mano | il PDF con la sua impronta, nel fascicolo |
 | 4 · Risposta dell'acquirente, poi la chiave | email, a mano | l'email di risposta, e la riga in `emesse.jsonl` |
 
 La pagina `/acquista` esiste ed è `src/app/(sito)/acquista/`. Mostra il testo
@@ -102,21 +102,39 @@ che non chiederla, perché farebbe credere di averla.
 3. **Preparare le due email**, quella dei Termini e quella della chiave. La
    sequenza dei passi sta in `strumenti/licenza/LEGGIMI.md`, sotto «L'ordine dei
    passi, per un acquisto vero».
-4. **Decidere cosa fare della fatturazione elettronica.** Stripe raccoglie
-   partita IVA e indirizzo, **non** il codice destinatario e non la PEC. Per una
-   fattura elettronica verso un titolare di partita IVA italiano serve uno dei
-   due. Le opzioni:
-   - chiederli nella stessa email in cui si chiede l'approvazione delle clausole
-     (nessun codice da scrivere, un giro in più per l'acquirente — ma il giro
-     c'è già);
-   - trasmettere al codice convenzionale `0000000`, che lo SdI accetta e recapita
-     nel cassetto fiscale del destinatario. È legittimo e va detto in fattura;
-   - aggiungere un campo personalizzato al Payment Link. Stripe ne ammette tre e
-     nessuno è obbligatorio in modo condizionale: chi non ha una PEC scriverebbe
-     qualcosa lo stesso.
+4. **Niente da decidere sulla fatturazione elettronica: è deciso.** Vedi il
+   punto qui sotto.
 
-   **La prima è la scelta suggerita**, perché l'email c'è comunque e perché un
-   campo compilato male in un checkout non si corregge più.
+---
+
+## I dati di fatturazione: chiesti per email, e non altrove
+
+**Deciso il 10 settembre 2026.** Stripe raccoglie quello che raccoglie —
+ragione sociale, indirizzo, partita IVA — e **non** raccoglie il codice
+destinatario, la PEC né il codice fiscale, che per una fattura elettronica
+verso un titolare di partita IVA italiano servono.
+
+I tre mancanti si chiedono **nella stessa email in cui si chiede la
+dichiarazione e l'approvazione delle clausole del punto 13**. Non c'è un giro in
+più per l'acquirente: quel giro esiste già, perché il contratto si conclude alla
+consegna della chiave e la chiave parte dopo la sua risposta.
+
+Le due strade scartate, e perché:
+
+- **Un campo personalizzato sul Payment Link.** Stripe ne ammette tre, e nessuno
+  può essere obbligatorio *in modo condizionale*: chi non ha una PEC scriverebbe
+  qualcosa lo stesso, e un campo compilato male in un checkout non si corregge
+  più — la fattura la si emette con quello.
+- **Il codice convenzionale `0000000`.** Lo SdI lo accetta e recapita nel
+  cassetto fiscale del destinatario: è legittimo, e resta la rete di sicurezza
+  per chi non risponde. Ma usarlo *per scelta*, quando l'email c'è comunque,
+  scaricherebbe sull'acquirente il compito di andarsi a cercare la fattura.
+
+Conseguenza sul prodotto: **nessuna.** Non c'è codice da scrivere — è una riga
+del mansionario, e sta in `strumenti/licenza/LEGGIMI.md` sotto «L'ordine dei
+passi, per un acquisto vero». È il vantaggio di aver messo la conclusione del
+contratto dopo il pagamento: i dati che mancano si chiedono a voce, una volta,
+a chi ha già pagato.
 
 ---
 
