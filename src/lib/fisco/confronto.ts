@@ -82,8 +82,13 @@ function scenario(
 ): ScenarioRegime {
   const forfettario = regime === "forfettario";
   const costiRiconosciuti = forfettario ? 0 : ing.costiDeducibili;
+  /*
+    Il coefficiente arriva dal registro anche qui, dove il regime simulato non è
+    quello dell'utente: è il coefficiente del suo gruppo ATECO, che non cambia
+    con lo scenario. È la ragione per cui la voce non si annulla nell'ordinario.
+  */
   const redditoLordo = forfettario
-    ? round2(ing.ricavi * imp.coefficienteRedditivita)
+    ? round2(ing.ricavi * derivato("coefficienteRedditivita", imp, par).valore)
     : round2(ing.ricavi - costiRiconosciuti);
 
   const contributi = contributiPrevidenziali(redditoLordo, imp, par).totale;

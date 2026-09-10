@@ -5,7 +5,7 @@ import { impostazioniPredefinite } from "../impostazioni";
 import { conValoreDichiarato } from "../parametri-utente";
 import { parametriDi } from "../parametri";
 import { GESTIONI, type Impostazioni, type ParametriAnno } from "../tipi";
-import { aliquota, euro } from "@/lib/format";
+import { aliquota, euro, num } from "@/lib/format";
 
 /**
  * Un test solo, per tutto il registro.
@@ -45,12 +45,35 @@ function matrice(): { nome: string; imp: Impostazioni; par: ParametriAnno }[] {
       }
     }
 
-    // Con i valori dichiarati dall'utente, che è il caso in cui si scavalca.
-    let dichiarato: Impostazioni = { ...base, gestione: "commercianti" };
-    dichiarato = conValoreDichiarato(dichiarato, "contributiFissi", 2_940.88);
-    dichiarato = conValoreDichiarato(dichiarato, "addizionaleRegionale", 0.0173);
-    dichiarato = conValoreDichiarato(dichiarato, "addizionaleComunale", 0.008);
-    casi.push({ nome: `${anno} · tutto dichiarato`, imp: dichiarato, par });
+    /*
+      I casi in cui l'utente ha risposto, uno per gestione che ha qualcosa da
+      dichiarare. Due e non uno: `aliquotaSoggettivaCassa` si dichiara solo in
+      cassa e `contributiFissi` solo fra i commercianti, e un caso solo avrebbe
+      lasciato metà delle voci a non provare mai il ramo «dichiarato» — che è
+      esattamente il ramo dove si scavalca un valore di legge.
+    */
+    let commerciante: Impostazioni = { ...base, gestione: "commercianti" };
+    commerciante = conValoreDichiarato(commerciante, "contributiFissi", 2_940.88);
+    commerciante = conValoreDichiarato(commerciante, "addizionaleRegionale", 0.0173);
+    commerciante = conValoreDichiarato(commerciante, "addizionaleComunale", 0.008);
+    commerciante = conValoreDichiarato(commerciante, "giorniLavorativi", 210);
+    commerciante = conValoreDichiarato(commerciante, "oreFatturabiliGiorno", 6);
+    casi.push({ nome: `${anno} · commerciante, tutto dichiarato`, imp: commerciante, par });
+
+    let inCassa: Impostazioni = { ...base, gestione: "cassa" };
+    inCassa = conValoreDichiarato(inCassa, "aliquotaSoggettivaCassa", 0.145);
+    casi.push({ nome: `${anno} · cassa, aliquota dichiarata`, imp: inCassa, par });
+
+    /*
+      Un gruppo ATECO che l'elenco dell'anno non conosce: è la riga arrivata da
+      un backup vecchio, e il coefficiente deve restare quello salvato invece
+      di scivolare sul primo gruppo dell'elenco.
+    */
+    casi.push({
+      nome: `${anno} · gruppo ATECO sconosciuto`,
+      imp: { ...base, gruppoAteco: "gruppo-che-non-esiste", coefficienteRedditivita: 0.62 },
+      par,
+    });
   }
   return casi;
 }
@@ -59,8 +82,8 @@ const CASI = matrice();
 
 describe("il registro dei valori derivati", () => {
   it("copre una matrice larga, altrimenti non sta verificando granché", () => {
-    // 3 anni × 2 regimi × 4 gestioni × 2 × 3 aperture, più uno dichiarato per anno.
-    expect(CASI.length).toBe(3 * (2 * 4 * 2 * 3 + 1));
+    // 3 anni × 2 regimi × 4 gestioni × 2 × 3 aperture, più tre casi a mano per anno.
+    expect(CASI.length).toBe(3 * (2 * 4 * 2 * 3 + 3));
     expect(NOMI_DERIVATI.length).toBeGreaterThan(0);
   });
 
@@ -98,7 +121,16 @@ describe("il registro dei valori derivati", () => {
             expect(d.motivo, `${nome} · ${c.nome}`).toMatch(/non si applica/i);
             continue;
           }
-          const scritto = d.motivo.includes(euro(d.valore)) || d.motivo.includes(aliquota(d.valore));
+          /*
+            I tre formatter, non uno: un conteggio di giorni non si scrive in
+            euro né in percentuale, e accettare solo quei due avrebbe spinto a
+            infilare «220 giorni» a mano nella frase — cioè a saltare
+            `src/lib/format.ts`, che è l'altra regola della casa.
+          */
+          const scritto =
+            d.motivo.includes(euro(d.valore))
+            || d.motivo.includes(aliquota(d.valore))
+            || d.motivo.includes(num(d.valore));
           expect(scritto, `${nome} · ${c.nome}\n  valore: ${d.valore}\n  motivo: ${d.motivo}`).toBe(true);
         }
       });

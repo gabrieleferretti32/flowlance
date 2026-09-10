@@ -359,10 +359,16 @@ const SCRIVONO_I_CAMPI = [
 /**
  * Le letture grezze ammesse fuori dal registro, con il perché.
  *
- * Una sola, e non è un calcolo: `regime.ts` descrive **il regime in cui
- * l'utente non è**, cioè quello che troverebbe cambiando. Lì l'aliquota
- * sostitutiva non è la sua e non va derivata dalla sua data: è quella che la
- * legge pubblica, citata in una frase che parla di un'ipotesi.
+ * Sono due, e nessuna delle due è un calcolo: tutte e due parlano di una
+ * **scelta non ancora fatta**. `regime.ts` descrive il regime in cui l'utente
+ * non è, cioè quello che troverebbe cambiando; il menù della gestione
+ * previdenziale elenca quanto costa ciascuna delle quattro. In tutti e due i
+ * casi il valore di legge è il valore giusto proprio perché non è ancora di
+ * nessuno — e derivarlo dalle impostazioni direbbe a chi sta scegliendo la
+ * Gestione Separata l'aliquota di quella che ha adesso.
+ *
+ * La regola che le distingue dagli abusi: si legge il lato parametri quando la
+ * frase parla di un'ipotesi, mai quando accompagna un numero calcolato.
  */
 const LETTURE_GREZZE_AMMESSE: { campo: string; file: string; motivo: string }[] = [
   {
@@ -370,6 +376,12 @@ const LETTURE_GREZZE_AMMESSE: { campo: string; file: string; motivo: string }[] 
     file: "src/lib/fisco/regime.ts",
     motivo:
       "Descrive il regime in cui l'utente non è: l'aliquota citata è quella di legge in un'ipotesi, non quella derivata dalla sua data di apertura.",
+  },
+  {
+    campo: "aliquotaGestioneSeparata",
+    file: "src/app/app/avvio/passi.tsx",
+    motivo:
+      "È il menù in cui si sceglie la gestione previdenziale: elenca quanto costa ciascuna delle quattro prima che una sia scelta, e quella della Separata è di legge finché non lo diventa. Il riepilogo dello stesso file, che accompagna un valore calcolato, passa invece dal registro.",
   },
 ];
 

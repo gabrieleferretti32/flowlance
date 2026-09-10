@@ -4,6 +4,7 @@
  * legge restano quelli marcati «da rivedere ogni gennaio».
  */
 import { conValoreProposto } from "./parametri-utente";
+import { derivato } from "./derivati/registro";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
 
 export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
@@ -164,9 +165,20 @@ export function impostazioniPrecedenti(
   return prima[0] ?? null;
 }
 
-/** Ore fatturabili all'anno: giorni lavorativi × ore al giorno. */
-export function oreFatturabiliAnno(imp: Impostazioni): number {
-  return imp.giorniLavorativi * imp.oreFatturabiliGiorno;
+/**
+ * Ore fatturabili all'anno: giorni lavorativi × ore al giorno.
+ *
+ * I due fattori si chiedono al registro anche qui, dentro un file che i campi
+ * li scrive e quindi potrebbe leggerli. È una scelta, non un obbligo: questa
+ * funzione non scrive niente, **calcola**, e il numero che ne esce diventa la
+ * tariffa oraria minima consigliata. Leggere i campi grezzi per la comodità di
+ * stare in un file esentato è il modo in cui una regola diventa una formalità.
+ */
+export function oreFatturabiliAnno(imp: Impostazioni, par: ParametriAnno): number {
+  return (
+    derivato("giorniLavorativi", imp, par).valore
+    * derivato("oreFatturabiliGiorno", imp, par).valore
+  );
 }
 
 /**

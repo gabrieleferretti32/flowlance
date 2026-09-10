@@ -232,6 +232,13 @@ export function prospettoDettagliato(
   });
 
   // — B · Reddito imponibile ————————————————————————
+  /*
+    Il coefficiente arriva dal registro: è lo stesso oggetto per cui il motore
+    ha moltiplicato due righe più su, non una seconda lettura del campo. La
+    riga del prospetto e il numero calcolato non possono più divergere perché
+    non sono più due cose.
+  */
+  const coefficiente = derivato("coefficienteRedditivita", imp, par);
   const reddito: RigaProspetto[] = [
     {
       id: "reddito-lordo",
@@ -239,7 +246,7 @@ export function prospettoDettagliato(
       valore: p.redditoLordo,
       formato: "euro",
       formula: forfettario
-        ? `${euro(p.ricaviRilevanti)} × ${percentuale(imp.coefficienteRedditivita, 0)}, il coefficiente di redditività del tuo gruppo ATECO.`
+        ? `${euro(p.ricaviRilevanti)} × ${percentuale(coefficiente.valore, 0)}, il coefficiente di redditività del tuo gruppo ATECO.`
         : `${euro(p.ricaviRilevanti)} di ricavi meno ${euro(p.costiDeducibiliPagati)} di costi deducibili.`,
     },
     {
@@ -447,13 +454,22 @@ export function prospettoDettagliato(
       formula: "Il reddito lordo prima della deduzione dei contributi stessi.",
     },
   ];
-  if (imp.gestione === "separata") {
+  /*
+    La condizione non è più `gestione === "separata"` scritta qui: è il valore
+    stesso a dire se la voce esiste. Un `null` e le due righe non compaiono —
+    la stessa risposta che il motore usa per non calcolare il contributo.
+  */
+  const aliquotaGs = derivato("aliquotaGestioneSeparata", imp, par);
+  const massimaleGs = derivato("massimaleGs", imp, par);
+  const minimaleGs = derivato("minimaleGs", imp, par);
+  const soggettivaCassa = derivato("aliquotaSoggettivaCassa", imp, par);
+  if (aliquotaGs.valore !== null && massimaleGs.valore !== null && minimaleGs.valore !== null) {
     contributi.push({
       id: "gestione-separata",
       etichetta: "Gestione Separata INPS",
       valore: p.contributiGestioneSeparata,
       formato: "euro",
-      formula: `${euro(Math.min(p.baseContributiva, imp.massimaleGs))} × ${percentuale(imp.aliquotaGestioneSeparata, 2)}, fino al massimale di ${euro(imp.massimaleGs)}.`,
+      formula: `${euro(Math.min(p.baseContributiva, massimaleGs.valore))} × ${percentuale(aliquotaGs.valore, 2)}, fino al massimale di ${euro(massimaleGs.valore)}.`,
       nota: "Per i professionisti senza cassa non esiste un contributo minimo obbligatorio.",
     });
     contributi.push({
@@ -461,7 +477,7 @@ export function prospettoDettagliato(
       etichetta: "Accredito contributivo dell'anno",
       valore: p.accreditoIntero ? "Anno intero accreditato" : "Accredito parziale",
       formato: "testo",
-      formula: `Il minimale di reddito per l'accredito intero è ${euro(imp.minimaleGs)}; il tuo reddito lordo è ${euro(p.redditoLordo)}.`,
+      formula: `Il minimale di reddito per l'accredito intero è ${euro(minimaleGs.valore)}; il tuo reddito lordo è ${euro(p.redditoLordo)}.`,
       nota: p.accreditoIntero
         ? undefined
         : "Sotto il minimale l'anno non viene accreditato per intero ai fini pensionistici. È un'informazione che quasi nessuno dà.",
@@ -499,7 +515,7 @@ export function prospettoDettagliato(
           ? ` Oltre il massimale di ${euro(regole.massimale)} non si versa: il reddito eccedente non è imponibile.`
           : ""),
     });
-  } else {
+  } else if (soggettivaCassa.valore !== null) {
     contributi.push({
       id: "cassa",
       etichetta: "Contributo soggettivo di cassa",
@@ -507,7 +523,7 @@ export function prospettoDettagliato(
       formato: "euro",
       // Ogni cassa professionale ha le sue aliquote: Forense, Inarcassa e le
       // altre non si somigliano. Il 15 % è un punto di partenza, non la tua.
-      formula: `${euro(p.baseContributiva)} × ${percentuale(imp.aliquotaSoggettivaCassa, 0)}, ${noteDelValore(imp, "aliquotaSoggettivaCassa")}.`,
+      formula: `${euro(p.baseContributiva)} × ${percentuale(soggettivaCassa.valore, 0)}, ${noteDelValore(imp, "aliquotaSoggettivaCassa")}.`,
       nota: `Il contributo integrativo del ${percentuale(imp.aliquotaIntegrativaCassa, 0)} si addebita in fattura al cliente e non concorre al tuo reddito.`,
     });
   }

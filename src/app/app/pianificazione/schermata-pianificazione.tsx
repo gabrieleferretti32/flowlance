@@ -13,6 +13,8 @@ import { round2 } from "@/lib/fisco/aritmetica";
 import { campiDaDichiarare } from "@/lib/fisco/parametri-utente";
 import { useCalcoloAnno } from "@/lib/dati/hooks";
 import { oreFatturabiliAnno } from "@/lib/fisco/impostazioni";
+import { derivato } from "@/lib/fisco/derivati/registro";
+import { parametriDi } from "@/lib/fisco/parametri";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { analizzaNumero, analizzaPercentuale, euro, num, perCampo, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -67,7 +69,10 @@ export function SchermataPianificazione() {
   }
 
   const imp = calcolo.impostazioni;
-  const ore = oreFatturabiliAnno(imp);
+  const par = parametriDi(anno);
+  const giorni = derivato("giorniLavorativi", imp, par);
+  const oreGiorno = derivato("oreFatturabiliGiorno", imp, par);
+  const ore = oreFatturabiliAnno(imp, par);
   const { netto, costi, tariffa, costiFissi } = campi;
   // Senza il netto voluto e i costi previsti non c'è nessun piano da fare: le
   // schermate che ne dipendono dicono cosa manca invece di riempire il buco.
@@ -81,7 +86,7 @@ export function SchermataPianificazione() {
           tassoChiusura: campi.chiusura,
           tassoConversione: campi.conversione,
           oreFatturabiliAnno: ore,
-          oreFatturabiliGiorno: imp.oreFatturabiliGiorno,
+          oreFatturabiliGiorno: oreGiorno.valore,
           tariffaOraria: tariffa ?? 0,
           costiFissiAnnui: costiFissi ?? 0,
         })
@@ -93,7 +98,7 @@ export function SchermataPianificazione() {
           costiFissiAnnui: costiFissi,
           pressione: campi.pressione,
           tariffaOraria: tariffa,
-          oreFatturabiliGiorno: imp.oreFatturabiliGiorno,
+          oreFatturabiliGiorno: oreGiorno.valore,
         })
       : null;
   const capacitaDaDichiarare = campiDaDichiarare(imp).some((c) => c.incideSu === "capacita");
@@ -253,8 +258,8 @@ export function SchermataPianificazione() {
                 convenzione dell'app che nessuno poteva smentire.
               */}
               <CardSottotitolo>
-                {num(ore)} ore fatturabili all&apos;anno: {imp.giorniLavorativi} giorni per{" "}
-                {imp.oreFatturabiliGiorno} ore
+                {num(ore)} ore fatturabili all&apos;anno: {num(giorni.valore)} giorni per{" "}
+                {num(oreGiorno.valore)} ore
                 {capacitaDaDichiarare ? (
                   <>
                     , valori predefiniti.{" "}

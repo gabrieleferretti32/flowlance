@@ -182,3 +182,31 @@ anche qui: fatture, costi e note non portano la loro provenienza, e la tabella
 `importazioni` tiene solo l'ultimo import. Ogni diagnosi della forma «cosa è
 entrato da un import e non da una mano» è quindi per **sintomo**, non per
 origine, e resta approssimata.
+
+---
+
+## 10 settembre 2026 · La tagliola dell'allineamento non copre le schede a 375
+
+`strumenti/verifica-allineamento.mjs` misura i registri a 1440 e a 1024, dove
+sono tabelle. Sotto i 640 gli stessi dati diventano **schede**, con etichetta e
+valore uno sotto l'altro: lì non c'è nessuna colonna da sbagliare, e infatti il
+difetto del `colSpan` non poteva manifestarsi. Ma lo strumento non guarda
+affatto quella forma, e un'etichetta accoppiata al valore sbagliato dentro una
+scheda avrebbe esattamente la stessa faccia — un numero plausibile nella
+casella di un altro — senza che niente lo veda.
+
+Non supera la soglia: le schede non stampano prospetti e non scrivono in
+archivio. Ma è il posto dove nessuno ha ancora guardato, che in questo progetto
+è finora stata la definizione operativa di «dove sta il prossimo difetto».
+
+## 10 settembre 2026 · La colonna IVA dei costi si verifica solo di posizione
+
+Nel registro dei costi il totale dell'IVA si controlla sulla colonna che sta
+sopra, non sommando le righe: alcune righe portano «—» invece di un importo —
+i costi senza IVA detraibile — e la somma delle sole righe con un numero non
+farebbe il totale. Il controllo resta quello posizionale, che è più debole:
+vede un totale finito sotto la colonna sbagliata, non un totale sbagliato nella
+colonna giusta.
+
+Per chiuderla servirebbe che «—» dicesse *quale* zero è, e quella è una
+decisione sul modello, non sul controllo.

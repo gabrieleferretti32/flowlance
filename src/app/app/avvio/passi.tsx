@@ -89,7 +89,7 @@ function ControlloDelPasso({
         <SceltaAteco
           gruppi={par.gruppiAteco}
           scelto={imp.gruppoAteco}
-          coefficiente={imp.coefficienteRedditivita}
+          coefficiente={derivato("coefficienteRedditivita", imp, par).valore}
           onScegli={(gruppo) =>
             onModifica({ gruppoAteco: gruppo.codice, coefficienteRedditivita: gruppo.coefficiente })
           }
@@ -921,12 +921,16 @@ export function riepilogoImpostazioni(
   imp: Impostazioni,
   par: ParametriAnno,
 ): { passo: string; voce: string; valore: string; nonDichiarato?: boolean }[] {
+  const aliquotaSeparata = derivato("aliquotaGestioneSeparata", imp, par).valore;
   return [
     { passo: "regime", voce: "Regime", valore: imp.regime === "forfettario" ? "Forfettario" : "Ordinario" },
     {
       passo: "ateco",
       voce: "Coefficiente di redditività",
-      valore: imp.regime === "forfettario" ? percentuale(imp.coefficienteRedditivita) : "—",
+      valore:
+        imp.regime === "forfettario"
+          ? percentuale(derivato("coefficienteRedditivita", imp, par).valore)
+          : "—",
     },
     {
       passo: "sostitutiva",
@@ -939,10 +943,16 @@ export function riepilogoImpostazioni(
     {
       passo: "gestione",
       voce: "Cassa previdenziale",
+      /*
+        Il riepilogo mostra l'aliquota che il motore userà, non quella
+        dell'elenco qui sopra: sono lo stesso numero finché nessuno tocca la
+        copia nelle impostazioni, ed è proprio quel «finché» che questa
+        schermata non deve dare per scontato.
+      */
       valore:
-        imp.gestione === "separata"
-          ? `Gestione Separata (${percentuale(par.aliquotaGestioneSeparata)})`
-          : nomeGestione(imp.gestione),
+        aliquotaSeparata === null
+          ? nomeGestione(imp.gestione)
+          : `Gestione Separata (${percentuale(aliquotaSeparata)})`,
     },
     {
       passo: "iva",

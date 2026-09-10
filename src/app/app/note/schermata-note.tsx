@@ -264,9 +264,14 @@ export function SchermataNote() {
                 </TabellaCorpo>
                 <TabellaPiede>
                   <tr>
-                    <TabellaCella colSpan={4}>Totale · {note.length} note</TabellaCella>
+                    {/* Cinque prima e tre dopo: la colonna delle azioni apre
+                        la riga. Restata a quattro, il totale degli storni
+                        finiva sotto «Descrizione» e la colonna «Storno»
+                        restava vuota. Stesso difetto del registro delle
+                        fatture e di quello dei costi, stesso giorno. */}
+                    <TabellaCella colSpan={5}>Totale · {note.length} note</TabellaCella>
                     <TabellaCella numerica className="font-semibold">{euro(totale)}</TabellaCella>
-                    <TabellaCella colSpan={4} />
+                    <TabellaCella colSpan={3} />
                   </tr>
                 </TabellaPiede>
               </Tabella>

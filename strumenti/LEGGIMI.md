@@ -7,11 +7,81 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 |---|---|
 | `schermate-vendita.mjs` | Rifà le quattro schermate della pagina di vendita dal prodotto vero, sul dataset vetrina |
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
+| `verifica-derivati.mjs` | Rifà i conti delle formule del prospetto e li confronta con gli importi mostrati accanto |
+| `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
 | `diagnosi-iva-importata.js` | Elenca le righe la cui aliquota IVA non è quella dichiarata, dopo il difetto dell'import da CSV |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
+
+---
+
+## `verifica-allineamento.mjs`
+
+```sh
+npm run build
+npm run verifica:allineamento
+```
+
+Il piede del registro dei costi aveva un `colSpan` sbagliato di una unità, e i
+totali erano scivolati di una colonna: «15.057,50 € sotto Natura». Le somme erano
+**giuste** — il conto tornava — e solo le posizioni erano sbagliate. Nessun test
+l'ha visto: quelli sui numeri non guardano dove finiscono, quelli sul DOM contano
+le celle, che erano il numero giusto.
+
+Il difetto vive fra il numero e il posto in cui è scritto, e fra quei due c'è
+solo il rendering: un browser. Lo strumento apre i registri a 1440 e a 1024,
+prende i rettangoli veri di intestazioni, righe e piede, e per ogni totale
+afferma due cose — che cada sopra una colonna di cifre, e, dove tutte le righe
+sommate sono a schermo, che la somma della colonna faccia esattamente quel
+totale.
+
+Alla prima esecuzione ha trovato lo stesso difetto in altri due registri: nelle
+Fatture «48.940,00 €» stava sotto «Tipo» e la colonna «Totale» era vuota; nelle
+Note di credito il totale degli storni stava sotto «Descrizione». La colonna
+delle azioni si era spostata in testa alla riga e i due piedi non l'avevano
+contata.
+
+---
+
+## `verifica-derivati.mjs`
+
+```sh
+npm run build
+npm run verifica:derivati
+```
+
+Ogni riga del prospetto porta la propria formula, coi numeri dentro: «32.429,55 €
+× 26,07 %, fino al massimale di 122.295,00 €» accanto a un importo. Sono due cose
+che l'app calcola separatamente e mostra insieme — la formula la scrive
+`spiegazioni.ts`, l'importo lo calcola `motore.ts` — ed è la forma esatta della
+famiglia di difetti che questo progetto continua a incontrare: **un valore
+mostrato e uno calcolato che non si parlano, con nessuno dei due che segnala
+l'altro**.
+
+Lo strumento fa i conti della formula e li confronta con l'importo scritto
+accanto, su due dataset e su undici affermazioni: il contributo della Gestione
+Separata, il reddito lordo nei due regimi, il coefficiente ATECO, l'imposta
+sostitutiva, l'accredito contributivo, la capacità in ore, e i segmenti del
+semaforo che devono sommare il denaro entrato in cassa.
+
+Non controlla che le righe ci siano, non conta elementi, non cerca una parola in
+una pagina: prende i numeri che l'app mostra e verifica che uno sia il risultato
+degli altri. È la sola forma di verifica che il difetto non riesce ad
+attraversare, perché il difetto **è** la divergenza fra quei due numeri.
+
+Due trappole imparate scrivendolo, ed è per questo che sono commentate nel
+sorgente:
+
+- **Il dimostrativo conserva le impostazioni.** Caricato sopra la vetrina, mette
+  i suoi documenti sotto il profilo ordinario di Elena Marani: il prospetto
+  mostrava una sottrazione dove doveva esserci la moltiplicazione per il
+  coefficiente, e il controllo non falliva — non trovava la riga, che è il modo
+  peggiore di passare. Ogni dataset si carica in un contesto nuovo.
+- **Le sezioni C e D nascono chiuse**, e le loro righe non stanno nel DOM finché
+  il `<details>` non si apre. Un controllo che non le aprisse direbbe «manca la
+  riga della Gestione Separata» ogni volta, cioè misurerebbe sé stesso.
 
 ---
 

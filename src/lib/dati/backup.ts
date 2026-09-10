@@ -8,6 +8,7 @@
  * L'import ripulisce anche i campi derivati: se un file ne contiene, vengono
  * scartati. Nel database non deve finire nulla che si possa ricalcolare.
  */
+import { aliquota } from "@/lib/format";
 import { VERSIONE_SCHEMA } from "./db";
 import { parametriDi, parametriSonoDellAnno } from "@/lib/fisco/parametri";
 import { GESTIONI, type Gestione, type ScaglioneIrpef } from "@/lib/fisco/tipi";
@@ -517,6 +518,31 @@ function costruisciConvalidaImpostazioni(
     return null;
   }
 
+  /*
+    Il gruppo ATECO, e il coefficiente che ne discende.
+
+    Il ripiego era `par.gruppiAteco[0].coefficiente`, cioè il **primo gruppo
+    dell'elenco** — i professionali, 78 % — qualunque cosa la riga dichiarasse.
+    Una riga con «intermediari» e senza coefficiente entrava in archivio al
+    78 % invece che al 62 %: un reddito imponibile più alto di un quarto, per
+    ogni anno importato, senza che niente lo dicesse. Il ripiego giusto è il
+    coefficiente **di quel gruppo**.
+
+    Un gruppo che l'elenco dell'anno non conosce non si accetta in silenzio:
+    diventa quello predefinito e l'avviso lo nomina, perché il codice sbagliato
+    in un file è un errore di chi l'ha scritto e va restituito a lui.
+  */
+  const predefinito = par.gruppiAteco[0];
+  const gruppoScritto = testo(riga.gruppoAteco, predefinito.codice);
+  const gruppo = par.gruppiAteco.find((g) => g.codice === gruppoScritto);
+  if (!gruppo) {
+    avvisi.push(
+      `Impostazioni ${anno}: il gruppo ATECO «${gruppoScritto}» non è fra i ${par.gruppiAteco.length} previsti per il ${par.anno}. ` +
+        `Vale «${predefinito.descrizione}» al ${aliquota(predefinito.coefficiente)}: riscegli l'attività dal profilo per correggere il coefficiente.`,
+    );
+  }
+  const suo = gruppo ?? predefinito;
+
   const lette: Dati["impostazioni"][number] = {
     anno,
     nome: testo(riga.nome),
@@ -524,8 +550,8 @@ function costruisciConvalidaImpostazioni(
     saldoInizialeAttivita: numero(riga.saldoInizialeAttivita),
     saldoInizialePersonale: numero(riga.saldoInizialePersonale),
     regime,
-    gruppoAteco: testo(riga.gruppoAteco, "professionali"),
-    coefficienteRedditivita: preso("coefficienteRedditivita", par.gruppiAteco[0].coefficiente, fraZeroEUno),
+    gruppoAteco: suo.codice,
+    coefficienteRedditivita: preso("coefficienteRedditivita", suo.coefficiente, fraZeroEUno),
     nuovaAttivita: booleano(riga.nuovaAttivita),
     limiteForfettario: preso("limiteForfettario", par.limiteForfettario),
     sogliaUscita: preso("sogliaUscita", par.sogliaUscitaImmediata),

@@ -33,7 +33,7 @@
  * quelle che nessuno controlla: è lì che i valori invecchiano. Chi disegna una
  * vetrina chiede al registro come tutti gli altri.
  */
-import { aliquota, euro } from "@/lib/format";
+import { aliquota, euro, num } from "@/lib/format";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "../tipi";
 import { dichiarato } from "../parametri-utente";
 import type { Derivato } from "./tipi";
@@ -125,7 +125,6 @@ const aliquotaSostitutiva: VoceRegistro<number> = {
       return {
         valore: agevolata,
         origine: { tipo: "dedotto", da: "la data di apertura della partita IVA" },
-        agevolata: true,
         motivo: `${aliquota(agevolata)}: hai aperto nel ${annoApertura}, quindi il ${imp.anno} è il ${quale}° dei ${par.anniNuovaAttivita} anni agevolati.`,
         scavalcato: false,
       };
@@ -278,6 +277,180 @@ function addizionale(
   };
 }
 
+/**
+ * Il coefficiente di redditività: **il gruppo ATECO, non una copia del gruppo**.
+ *
+ * Il campo nelle impostazioni nasce come copia del coefficiente del gruppo
+ * scelto, scritta nel momento in cui lo si sceglie. Finché le due cose si
+ * muovono insieme nessuno se ne accorge — e infatti l'unico punto che le
+ * scriveva separate era l'import di un backup, che riempiva il coefficiente
+ * mancante con quello del **primo** gruppo dell'elenco: una riga che
+ * dichiarava «intermediari» si ritrovava il 78 % dei professionali invece del
+ * 62 %, e da lì in poi ogni imposta di quell'anno era sbagliata del 26 %.
+ *
+ * Qui il coefficiente si legge dal gruppo, sempre. La copia resta solo per i
+ * gruppi che l'elenco dell'anno non conosce — un codice arrivato da un file, o
+ * una voce ritirata da una legge successiva — e in quel caso il motivo lo dice
+ * invece di far finta di niente.
+ *
+ * **Non si annulla nell'ordinario**, a differenza delle voci previdenziali. Il
+ * coefficiente è un fatto dell'attività, non del regime: chi sta nell'ordinario
+ * ce l'ha lo stesso, e le due schermate che gli mostrano cosa cambierebbe
+ * passando al forfettario — il confronto fra regimi e l'elenco delle
+ * conseguenze — hanno bisogno proprio di quel numero. Restituire `null` le
+ * avrebbe fatte parlare di un reddito lordo pari ai ricavi interi. Quale sia il
+ * regime lo sa già chi chiama, ed è lì che la moltiplicazione si fa o non si fa.
+ */
+const coefficienteRedditivita: VoceRegistro<number> = {
+  etichetta: "Coefficiente di redditività",
+  possiede: ["coefficienteRedditivita"],
+  calcola: (imp, par) => {
+    const gruppo = par.gruppiAteco.find((g) => g.codice === imp.gruppoAteco);
+    if (!gruppo) {
+      return {
+        valore: imp.coefficienteRedditivita,
+        origine: { tipo: "dedotto", da: "la copia salvata nel profilo" },
+        motivo: `${aliquota(imp.coefficienteRedditivita)}: il gruppo «${imp.gruppoAteco}» non è fra i ${num(par.gruppiAteco.length)} previsti per il ${par.anno}, quindi vale la copia salvata nel profilo. Riscegli il gruppo dall'elenco e il coefficiente torna quello di legge.`,
+        scavalcato: false,
+      };
+    }
+    const soloNelForfettario =
+      imp.regime === "forfettario"
+        ? ""
+        : " Nell'ordinario non entra in nessun conto: il reddito sono i ricavi meno i costi veri.";
+    return {
+      valore: gruppo.coefficiente,
+      origine: { tipo: "legge", anno: par.anno },
+      motivo: `${aliquota(gruppo.coefficiente)}: il coefficiente che la legge assegna nel ${par.anno} al gruppo «${gruppo.descrizione}».${soloNelForfettario}`,
+      scavalcato: false,
+    };
+  },
+};
+
+/**
+ * L'aliquota soggettiva della cassa professionale.
+ *
+ * L'app ne tiene una del 15 % perché senza un numero non calcolerebbe niente,
+ * ma non è di nessuno: Forense, Inarcassa ed ENPAM hanno regolamenti diversi e
+ * scaglioni diversi. È la stessa bugia delle addizionali, con la stessa
+ * risposta — l'origine dice `media`, e il motivo dice dove sta la propria.
+ */
+const aliquotaSoggettivaCassa: VoceRegistro<number | null> = {
+  etichetta: "Aliquota soggettiva della cassa",
+  possiede: ["aliquotaSoggettivaCassa"],
+  calcola: (imp) => {
+    if (imp.gestione !== "cassa") {
+      return {
+        valore: null,
+        origine: { tipo: "dedotto", da: "la gestione previdenziale scelta" },
+        motivo:
+          "Non si applica: il contributo soggettivo lo versa solo chi è iscritto a una cassa professionale.",
+        scavalcato: false,
+      };
+    }
+    const valore = imp.aliquotaSoggettivaCassa;
+    if (dichiarato(imp, "aliquotaSoggettivaCassa")) {
+      return {
+        valore,
+        origine: { tipo: "dichiarato", campo: "aliquotaSoggettivaCassa" },
+        motivo: `${aliquota(valore)}: l'aliquota che hai dichiarato per la tua cassa.`,
+        scavalcato: false,
+      };
+    }
+    return {
+      valore,
+      origine: { tipo: "media" },
+      motivo: `${aliquota(valore)}: una media dell'app, non la tua. La tua sta nel regolamento dei contributi della cassa, o nell'ultimo modello reddituale che hai inviato.`,
+      scavalcato: false,
+    };
+  },
+};
+
+/**
+ * I tre numeri della Gestione Separata: aliquota, massimale, minimale.
+ *
+ * Sono di legge, hanno tutti e tre il gemello nei parametri dell'anno, e
+ * valgono **solo** per chi versa alla Separata. Fin qui ogni punto che li usava
+ * ripeteva per conto suo la condizione `gestione === "separata"`: il motore due
+ * volte, il semaforo una, il prospetto una. Quattro copie della stessa domanda
+ * sono quattro occasioni perché una risponda diversamente — e la schermata che
+ * la sbaglia mostra un massimale a chi non ce l'ha.
+ *
+ * Da qui la condizione è una sola, ed è dentro il valore: `null` vuol dire che
+ * la voce non esiste per questa persona, e chi la chiede lo scopre dal valore
+ * invece che ricordandosi di chiederlo.
+ */
+function gestioneSeparata(
+  etichetta: string,
+  campo: string,
+  /* Lettura per esteso, non `imp[campo]`: vedi la nota in `addizionale`. */
+  leggi: (imp: Impostazioni) => number,
+  frase: (valore: number, anno: number) => string,
+  nonSiApplica: string,
+): VoceRegistro<number | null> {
+  return {
+    etichetta,
+    possiede: [campo],
+    calcola: (imp) => {
+      if (imp.gestione !== "separata") {
+        return {
+          valore: null,
+          origine: { tipo: "dedotto", da: "la gestione previdenziale scelta" },
+          motivo: `Non si applica: ${nonSiApplica}`,
+          scavalcato: false,
+        };
+      }
+      const valore = leggi(imp);
+      return {
+        valore,
+        origine: { tipo: "legge", anno: imp.anno },
+        motivo: frase(valore, imp.anno),
+        scavalcato: false,
+      };
+    },
+  };
+}
+
+/**
+ * Giorni lavorativi e ore fatturabili: **medie, finché non sono risposte**.
+ *
+ * Non toccano un'imposta, e per questo erano rimaste fuori da ogni cautela: 220
+ * giorni e 5 ore sono comparsi in una schermata come se fossero dati
+ * dell'utente, e da lì sono usciti come tariffa oraria minima consigliata. Un
+ * numero che entra in una decisione di prezzo con l'aria di essere tuo è lo
+ * stesso difetto delle aliquote, in un'altra stanza.
+ */
+function capacita(
+  campo: "giorniLavorativi" | "oreFatturabiliGiorno",
+  leggi: (imp: Impostazioni) => number,
+  etichetta: string,
+  unita: string,
+  dichiaratoDove: string,
+  media: string,
+): VoceRegistro<number> {
+  return {
+    etichetta,
+    possiede: [campo],
+    calcola: (imp) => {
+      const valore = leggi(imp);
+      if (dichiarato(imp, campo)) {
+        return {
+          valore,
+          origine: { tipo: "dichiarato", campo },
+          motivo: `${num(valore)} ${unita}: ${dichiaratoDove}`,
+          scavalcato: false,
+        };
+      }
+      return {
+        valore,
+        origine: { tipo: "media" },
+        motivo: `${num(valore)} ${unita}: una media dell'app, non la tua. ${media}`,
+        scavalcato: false,
+      };
+    },
+  };
+}
+
 // ————————————————————————————————————————————————————————————
 // Il registro
 // ————————————————————————————————————————————————————————————
@@ -298,6 +471,48 @@ export const DERIVATI = {
     (imp) => imp.addizionaleComunale,
     "Addizionale comunale IRPEF",
     "La tua sta sul sito del comune, alla voce «addizionale IRPEF».",
+  ),
+  coefficienteRedditivita,
+  aliquotaSoggettivaCassa,
+  aliquotaGestioneSeparata: gestioneSeparata(
+    "Aliquota Gestione Separata",
+    "aliquotaGestioneSeparata",
+    (imp) => imp.aliquotaGestioneSeparata,
+    (v, anno) =>
+      `${aliquota(v)}: l'aliquota che l'INPS applica nel ${anno} ai liberi professionisti senza cassa iscritti alla Gestione Separata.`,
+    "l'aliquota della Gestione Separata riguarda solo chi versa lì.",
+  ),
+  massimaleGs: gestioneSeparata(
+    "Massimale contributivo",
+    "massimaleGs",
+    (imp) => imp.massimaleGs,
+    (v, anno) =>
+      `${euro(v)}: oltre questo reddito, nel ${anno}, non si versa altro alla Gestione Separata.`,
+    "il massimale contributivo è un tetto della Gestione Separata.",
+  ),
+  minimaleGs: gestioneSeparata(
+    "Minimale per l'accredito intero",
+    "minimaleGs",
+    (imp) => imp.minimaleGs,
+    (v, anno) =>
+      `${euro(v)}: sotto questo reddito, nel ${anno}, l'anno di contribuzione non si accredita per intero ma in proporzione.`,
+    "il minimale per l'accredito riguarda solo chi versa alla Gestione Separata.",
+  ),
+  giorniLavorativi: capacita(
+    "giorniLavorativi",
+    (imp) => imp.giorniLavorativi,
+    "Giorni lavorativi all'anno",
+    "giorni",
+    "quanti ne hai dichiarati nei Parametri, tolte ferie, festivi e malattia.",
+    "Un anno pieno con quattro settimane di ferie sta intorno ai 220 giorni: correggilo nei Parametri.",
+  ),
+  oreFatturabiliGiorno: capacita(
+    "oreFatturabiliGiorno",
+    (imp) => imp.oreFatturabiliGiorno,
+    "Ore fatturabili al giorno",
+    "ore al giorno",
+    "quante ne hai dichiarate nei Parametri come ore che finiscono davvero in fattura.",
+    "Chi ci prova onestamente arriva a quattro o cinque ore su otto: correggilo nei Parametri.",
   ),
 } as const;
 
@@ -328,6 +543,18 @@ export function derivato<N extends NomeDerivato>(
   par: ParametriAnno,
 ): ReturnType<(typeof DERIVATI)[N]["calcola"]> {
   return DERIVATI[nome].calcola(imp, par) as ReturnType<(typeof DERIVATI)[N]["calcola"]>;
+}
+
+/**
+ * Il nome con cui la voce compare a schermo.
+ *
+ * Sta accanto al valore per la stessa ragione per cui ci sta il motivo: due
+ * schermate che chiamano la stessa cosa con due nomi diversi sono il primo
+ * passo verso due valori diversi, e l'etichetta scritta a mano nel prospetto
+ * non sa quando quella del registro cambia.
+ */
+export function etichettaDi(nome: NomeDerivato): string {
+  return DERIVATI[nome].etichetta;
 }
 
 export const NOMI_DERIVATI = Object.keys(DERIVATI) as NomeDerivato[];

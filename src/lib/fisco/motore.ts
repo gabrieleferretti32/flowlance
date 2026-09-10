@@ -351,16 +351,43 @@ export function contributiPrevidenziali(
   par: ParametriAnno,
 ): { separata: number; artigiani: number; cassa: number; totale: number } {
   const positiva = nonNegativo(base);
+  /*
+    La condizione «questa gestione versa qui» non si ripete: sta dentro il
+    valore. Un derivato `null` vuol dire che la voce non esiste per questa
+    persona, e il contributo è zero perché non c'è, non perché l'aliquota è
+    zero. Prima la stessa domanda era scritta qui, nel semaforo, nel prospetto
+    e nelle spiegazioni: quattro copie, quattro occasioni di rispondere
+    diversamente.
+  */
+  const aliquotaGs = derivato("aliquotaGestioneSeparata", imp, par).valore;
+  const massimaleGs = derivato("massimaleGs", imp, par).valore;
   const separata =
-    imp.gestione === "separata"
-      ? round2(Math.min(positiva, imp.massimaleGs) * imp.aliquotaGestioneSeparata)
-      : 0;
+    aliquotaGs === null || massimaleGs === null
+      ? 0
+      : round2(Math.min(positiva, massimaleGs) * aliquotaGs);
   // Il nome del campo resta `artigiani` perché è la voce del prospetto, e
   // rinominarla romperebbe ogni schermata per un guadagno nullo.
   const artigiani = contributiCommerciali(positiva, imp, par);
-  const cassa =
-    imp.gestione === "cassa" ? round2(positiva * imp.aliquotaSoggettivaCassa) : 0;
+  const aliquotaCassa = derivato("aliquotaSoggettivaCassa", imp, par).valore;
+  const cassa = aliquotaCassa === null ? 0 : round2(positiva * aliquotaCassa);
   return { separata, artigiani, cassa, totale: somma(separata, artigiani, cassa) };
+}
+
+/**
+ * L'anno di contribuzione si accredita per intero?
+ *
+ * `null` — non `false` — per chi non versa alla Gestione Separata: lì la
+ * domanda non esiste, e rispondere «no» direbbe a un artigiano che quest'anno
+ * non gli viene accreditato, che è falso. La condizione arriva dal minimale
+ * derivato: se la voce non si applica, non si applica nemmeno la risposta.
+ */
+function accreditoIntero(
+  base: number,
+  imp: Impostazioni,
+  par: ParametriAnno,
+): boolean | null {
+  const minimale = derivato("minimaleGs", imp, par).valore;
+  return minimale === null ? null : base >= minimale;
 }
 
 /**
@@ -601,8 +628,9 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   }
 
   // — B · Reddito imponibile ————————————————————————————
+  const coefficiente = derivato("coefficienteRedditivita", imp, par).valore;
   const redditoLordo = forfettario
-    ? round2(ricaviRilevanti * imp.coefficienteRedditivita)
+    ? round2(ricaviRilevanti * coefficiente)
     : round2(ricaviRilevanti - costiDeducibiliPagati);
 
   const baseContributiva = redditoLordo;
@@ -937,8 +965,7 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     contributiArtigiani: contributi.artigiani,
     contributiCassa: contributi.cassa,
     totaleContributi: contributiCompetenza,
-    accreditoIntero:
-      imp.gestione === "separata" ? baseContributiva >= imp.minimaleGs : null,
+    accreditoIntero: accreditoIntero(baseContributiva, imp, par),
 
     caricoTotale,
     pressione,

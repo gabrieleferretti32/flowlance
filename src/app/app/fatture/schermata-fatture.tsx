@@ -446,13 +446,23 @@ export function SchermataFatture() {
 
                 <TabellaPiede>
                   <tr>
-                    <TabellaCella colSpan={5}>
+                    {/*
+                      Sei prima e due dopo: la colonna delle azioni apre la
+                      riga, e il piede deve contarla. Restata a cinque quando
+                      le azioni si sono spostate in testa, incolonnava
+                      «48.940,00 €» sotto «Tipo» e lasciava vuota la colonna
+                      «Totale». Le somme erano giuste — è sempre così in questa
+                      famiglia di difetti — e sbagliato era solo il posto.
+                      `strumenti/verifica-allineamento.mjs` misura i rettangoli
+                      veri in un browser, che è l'unico modo di vederlo.
+                    */}
+                    <TabellaCella colSpan={6}>
                       Totale · {righe.length} {righe.length === 1 ? "fattura" : "fatture"}
                     </TabellaCella>
                     <TabellaCella numerica>{euro(totali.imponibile)}</TabellaCella>
                     {mostraIva && <TabellaCella numerica>{euro(totali.iva)}</TabellaCella>}
                     <TabellaCella numerica>{euro(totali.totale)}</TabellaCella>
-                    <TabellaCella colSpan={3} />
+                    <TabellaCella colSpan={2} />
                   </tr>
                 </TabellaPiede>
               </Tabella>

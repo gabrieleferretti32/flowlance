@@ -111,6 +111,16 @@ export type Passo = {
 };
 
 const forfettario = (c: ContestoCalcolo) => c.impostazioni.regime === "forfettario";
+
+/**
+ * Il coefficiente del passo ATECO, chiesto al registro.
+ *
+ * Lo stesso numero per cui il motore ha moltiplicato i ricavi: qui si mostra
+ * quanto cambierebbe scegliendo un altro gruppo, e mostrarne uno che il calcolo
+ * non ha usato renderebbe la frase una bugia gentile.
+ */
+const coefficiente = (c: ContestoCalcolo) =>
+  derivato("coefficienteRedditivita", c.impostazioni, c.parametri).valore;
 const ordinario = (c: ContestoCalcolo) => c.impostazioni.regime === "ordinario";
 
 /**
@@ -171,12 +181,12 @@ export const PASSI: Passo[] = [
     perche:
       "Nel forfettario non si tiene la contabilità dei costi: lo Stato presume quanto costi svolgere la tua attività, e tassa solo la parte restante. Quella parte è il coefficiente di redditività, e dipende dal codice ATECO. Un consulente ha il 78 %, un commerciante al dettaglio il 40 %: significa che a parità di incassi il commerciante paga su molto meno.",
     seSalti: (c) =>
-      `Resta il ${aliquota(c.impostazioni.coefficienteRedditivita)}, il coefficiente delle attività professionali.`,
+      `Resta il ${aliquota(coefficiente(c))}, il coefficiente delle attività professionali.`,
     effetto: (c) => {
       const ricavi = c.prospetto.ricaviRilevanti;
       if (ricavi <= 0) return null;
-      const attuale = ricavi * c.impostazioni.coefficienteRedditivita;
-      return `Con ${euro(ricavi)} di ricavi, il ${aliquota(c.impostazioni.coefficienteRedditivita)} fa ${euro(attuale)} di reddito lordo. Con il ${aliquota(0.4)} ne farebbe ${euro(ricavi * 0.4)}.`;
+      const attuale = ricavi * coefficiente(c);
+      return `Con ${euro(ricavi)} di ricavi, il ${aliquota(coefficiente(c))} fa ${euro(attuale)} di reddito lordo. Con il ${aliquota(0.4)} ne farebbe ${euro(ricavi * 0.4)}.`;
     },
     sblocca:
       "Ora sa quanta parte dei tuoi incassi è reddito tassabile.",

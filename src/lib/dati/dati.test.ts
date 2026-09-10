@@ -620,4 +620,65 @@ describe("i ripieghi dell'import vengono dall'anno della riga", () => {
     if (!esito.ok) return;
     expect(esito.backup.dati.impostazioni[0].contributiFissi).toBe(2_940.88);
   });
+
+  /**
+   * Il coefficiente mancante veniva dal **primo gruppo dell'elenco**.
+   *
+   * Non dal gruppo dichiarato nella riga: dal primo, sempre. Una riga che
+   * diceva «intermediari» entrava in archivio al 78 % dei professionali invece
+   * che al 62 %, e ogni imposta di quell'anno usciva su un imponibile più alto
+   * di un quarto. Il difetto stava in una riga sola e non l'aveva visto
+   * nessuno perché il numero che scriveva era plausibile: 78 % è un
+   * coefficiente vero, solo di un'altra attività.
+   */
+  it("il coefficiente mancante viene dal gruppo dichiarato, non dal primo dell'elenco", () => {
+    const intermediari = PARAMETRI_2026.gruppiAteco.find((g) => g.codice === "intermediari");
+    expect(intermediari, "il gruppo «intermediari» non esiste più: aggiorna il test").toBeDefined();
+    // La prova che il test vedrebbe la differenza: i due coefficienti non
+    // coincidono, altrimenti passerebbe anche col difetto dentro.
+    expect(intermediari!.coefficiente).not.toBe(PARAMETRI_2026.gruppiAteco[0].coefficiente);
+
+    const esito = analizzaBackup(
+      fileConRigaScarna(2026, { regime: "forfettario", gruppoAteco: "intermediari" }),
+    );
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    const riga = esito.backup.dati.impostazioni[0];
+    expect(riga.gruppoAteco).toBe("intermediari");
+    expect(riga.coefficienteRedditivita).toBe(intermediari!.coefficiente);
+  });
+
+  it("un gruppo ATECO che non esiste non entra in silenzio: l'avviso lo nomina", () => {
+    const esito = analizzaBackup(
+      fileConRigaScarna(2026, { regime: "forfettario", gruppoAteco: "gruppo-inventato" }),
+    );
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    const avviso = esito.avvisi.find((a) => a.includes("gruppo-inventato"));
+    expect(avviso, `avvisi: ${esito.avvisi.join(" | ")}`).toBeDefined();
+    const riga = esito.backup.dati.impostazioni[0];
+    expect(riga.gruppoAteco).toBe(PARAMETRI_2026.gruppiAteco[0].codice);
+    expect(riga.coefficienteRedditivita).toBe(PARAMETRI_2026.gruppiAteco[0].coefficiente);
+  });
+
+  /**
+   * Il coefficiente scritto nel file vince sul gruppo.
+   *
+   * È la direzione giusta: chi esporta un archivio e lo reimporta deve
+   * ritrovare esattamente i numeri che aveva, anche se una legge successiva ha
+   * cambiato il coefficiente di quel gruppo. Il registro lo segnala altrove;
+   * l'import non riscrive.
+   */
+  it("il coefficiente scritto nel file resta quello", () => {
+    const esito = analizzaBackup(
+      fileConRigaScarna(2026, {
+        regime: "forfettario",
+        gruppoAteco: "intermediari",
+        coefficienteRedditivita: 0.55,
+      }),
+    );
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.backup.dati.impostazioni[0].coefficienteRedditivita).toBe(0.55);
+  });
 });

@@ -97,7 +97,7 @@ function versoForfettario(imp: Impostazioni, par: ParametriAnno): Cambiamento[] 
     },
     {
       id: "costi",
-      titolo: `I costi smettono di dedursi: conta solo il coefficiente del ${aliquota(imp.coefficienteRedditivita)}.`,
+      titolo: `I costi smettono di dedursi: conta solo il coefficiente del ${aliquota(derivato("coefficienteRedditivita", imp, par).valore)}.`,
       dettaglio:
         "Lo Stato presume quanto costa la tua attività. Se spendi più di così ci perdi, se spendi meno ci guadagni: è la scommessa del regime.",
     },

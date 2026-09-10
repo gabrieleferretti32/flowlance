@@ -15,7 +15,7 @@ import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
 import { esportazioneProspettoConsentita, type EsitoEsportazione } from "./chiusura";
 import { prospettoDettagliato, type SezioneProspetto } from "./spiegazioni";
 import { nomeRegione } from "./regioni";
-import { derivato, sostitutivaAgevolata } from "./derivati/registro";
+import { derivato, etichettaDi, sostitutivaAgevolata } from "./derivati/registro";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
 
@@ -111,7 +111,7 @@ export function documentoProspetto(
     parametri.push(
       {
         etichetta: "Coefficiente di redditività",
-        valore: percentuale(imp.coefficienteRedditivita),
+        valore: percentuale(derivato("coefficienteRedditivita", imp, par).valore),
       },
       {
         etichetta: "Imposta sostitutiva",
@@ -138,13 +138,25 @@ export function documentoProspetto(
     );
   }
   parametri.push({ etichetta: "Previdenza", valore: nomeGestione(imp.gestione) });
-  if (imp.gestione === "separata") {
+  /*
+    Le due righe compaiono se le due voci esistono, non se la gestione si
+    chiama «separata»: la condizione è dentro il valore, la stessa che il motore
+    usa per calcolare il contributo. Il prospetto è il documento che va dal
+    commercialista, ed è l'ultimo posto in cui una riga può comparire per una
+    ragione diversa da quella per cui il numero è stato calcolato.
+  */
+  const aliquotaGs = derivato("aliquotaGestioneSeparata", imp, par);
+  const massimaleGs = derivato("massimaleGs", imp, par);
+  if (aliquotaGs.valore !== null && massimaleGs.valore !== null) {
     parametri.push(
       {
-        etichetta: "Aliquota Gestione Separata",
-        valore: percentuale(imp.aliquotaGestioneSeparata),
+        etichetta: etichettaDi("aliquotaGestioneSeparata"),
+        valore: percentuale(aliquotaGs.valore),
       },
-      { etichetta: "Massimale contributivo", valore: `${interoIt.format(imp.massimaleGs)} €` },
+      {
+        etichetta: etichettaDi("massimaleGs"),
+        valore: `${interoIt.format(massimaleGs.valore)} €`,
+      },
     );
   }
   parametri.push({

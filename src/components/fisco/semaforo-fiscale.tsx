@@ -226,14 +226,25 @@ export function segmentiSemaforo(
   ];
 }
 
-/** La riga dei contributi cambia con la gestione: erano tre frasi diverse. */
+/**
+ * La riga dei contributi cambia con la gestione: erano tre frasi diverse.
+ *
+ * Le aliquote arrivano dal registro, non dalle impostazioni: questa frase sta
+ * sotto un segmento del semaforo, cioè accanto a un importo che il motore ha
+ * già calcolato. Se i due numeri si prendessero da due parti, il difetto
+ * sarebbe della forma peggiore — una spiegazione che smentisce la cifra che
+ * spiega, con tutte e due plausibili.
+ */
 function dettaglioContributi(p: Prospetto, imp: Impostazioni, par: ParametriAnno): string {
   if (eGestioneCommerciale(imp.gestione)) {
     const regole = par.artigianiCommercianti;
     return `Fissi più ${percentuale(regole[imp.gestione].aliquota, 2)} sul reddito oltre il minimale di ${euro(regole.minimale)}.`;
   }
-  if (imp.gestione === "cassa") {
-    return `${euro(p.baseContributiva)} × ${percentuale(imp.aliquotaSoggettivaCassa, 2)} di contributo soggettivo.`;
+  const cassa = derivato("aliquotaSoggettivaCassa", imp, par).valore;
+  if (cassa !== null) {
+    return `${euro(p.baseContributiva)} × ${percentuale(cassa, 2)} di contributo soggettivo.`;
   }
-  return `${euro(p.baseContributiva)} × ${percentuale(imp.aliquotaGestioneSeparata, 2)}, fino al massimale di ${euro(imp.massimaleGs)}.`;
+  const aliquotaGs = derivato("aliquotaGestioneSeparata", imp, par).valore;
+  const massimaleGs = derivato("massimaleGs", imp, par).valore;
+  return `${euro(p.baseContributiva)} × ${percentuale(aliquotaGs, 2)}, fino al massimale di ${euro(massimaleGs)}.`;
 }
