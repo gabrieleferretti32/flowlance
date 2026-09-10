@@ -109,6 +109,104 @@ oneroso — offerta a tutti — perché è quello che copre entrambi.
 
 ---
 
+## Come si collega Stripe, e dove finiscono le risposte
+
+Il sito è statico — `output: "export"`, nessuna rotta API, nessun segreto nel
+bundle — e la licenza si firma a mano con una chiave privata che sta fuori dal
+repository. Il collegamento con Stripe è quindi un **Payment Link**: il pulsante
+«Acquista» è un `<a href>` verso `buy.stripe.com`, e la notizia del pagamento
+arriva per email dalle notifiche di Stripe. Il collo di bottiglia è la mano
+sulla chiave privata, non la notifica.
+
+Quello che resta da decidere è **dove finiscono le risposte del modulo che
+precede il pagamento** — qualità dell'acquirente, codice fiscale, SDI o PEC, e
+le due caselle dei punti 2 e 3. Serve una pagina propria prima del checkout: i
+campi personalizzati di Stripe non bastano, e non per un campo di troppo ma per
+la natura di due di essi — un Payment Link non fa spuntare caselle.
+
+### La trappola che vale per qualunque strada
+
+`client_reference_id` si può passare a un Payment Link statico come parametro
+dell'indirizzo: alfanumerico, trattini e underscore, fino a 200 caratteri
+([documentazione Stripe](https://docs.stripe.com/payment-links/url-parameters)).
+Serve a legare una riga propria al pagamento senza accoppiarli a occhio.
+
+**Ma un valore non valido viene scartato in silenzio, e la pagina di pagamento
+continua a funzionare.** Lo dice la documentazione. Tradotto: un incasso senza
+riferimento, e nessun errore da nessuna parte — la stessa famiglia di difetti
+che questo progetto insegue da settimane. Qualunque strada si scelga, il
+riferimento va **verificato dopo**, non dato per riuscito.
+
+### A · Solo Brevo, due registri da riconciliare a mano
+
+Il form ospitato accetta i campi e ha un'impostazione «reindirizza a questo URL
+dopo l'iscrizione» che manda al Payment Link.
+
+- **Regge**: zero codice, zero servizi in più, lo stesso meccanismo del modulo
+  email già in uso.
+- **Costa**: l'URL di reindirizzamento è configurato *nel form*, uno solo e
+  fisso, quindi non può portare un `client_reference_id`. Si riconcilia a
+  occhio, per email e orario. Con due vendite al giorno funziona; con venti
+  diventa un lavoro.
+- **Si rompe**: chi compila e non paga lascia una riga senza pagamento, e non
+  si distingue «ci ha ripensato» da «il pagamento è fallito». Chi paga con
+  un'email diversa da quella del modulo lascia due righe che non si toccano. E
+  le due caselle diventano campi di un'iscrizione a una newsletter: **la prova
+  che sono state spuntate è una riga in un contatto Brevo**, che come prova di
+  un'approvazione specifica vale poco.
+
+### B · Brevo, con l'identificativo generato dalla pagina
+
+La pagina genera un identificativo, lo mette in `sessionStorage`, lo manda a
+Brevo come campo; Brevo rimanda a una pagina propria, che rilegge
+l'identificativo e costruisce il link Stripe con `?client_reference_id=`.
+
+- **Regge**, ed è tutto statico. La riconciliazione diventa esatta.
+- **Costa**: una catena di cinque passaggi in cui ogni anello può cedere, e uno
+  è fuori dal proprio controllo (l'impostazione di reindirizzamento nel
+  pannello Brevo). Serve JavaScript.
+- **Si rompe**: `sessionStorage` bloccato — navigazione privata, impostazioni
+  restrittive — e l'identificativo si perde. Si finisce nel caso A **senza
+  accorgersene**, perché Stripe scarta in silenzio il parametro assente. Chi
+  apre la pagina di pagamento a mano paga senza riferimento. E la prova delle
+  due caselle resta una riga Brevo, come in A.
+
+### C · Una funzione serverless su Vercel
+
+Il modulo fa POST alla funzione. Lei genera l'identificativo, registra la riga —
+email, foglio, o contatto Brevo via API — e risponde con un 302 al Payment Link
+con `client_reference_id` già dentro.
+
+- **Regge meglio delle altre due**: un salto solo, nessuno stato nel browser,
+  funziona anche senza JavaScript, e l'identificativo nasce dove non si può
+  perdere.
+- **È l'unica in cui l'accettazione si registra come si deve**: orario,
+  indirizzo IP, e soprattutto **la versione del testo dei Termini in vigore in
+  quel momento** — che è ciò che serve davvero per l'art. 1341 e per il punto 12
+  dei Termini, dove si dice che per le licenze in corso valgono i termini
+  accettati all'acquisto.
+- **Costa**: un segreto in una variabile d'ambiente, e un pezzo di
+  infrastruttura che prima non c'era. `output: "export"` resta intatto — la
+  funzione sta fuori dal build di Next — ma il progetto smette di essere «solo
+  file statici», che finora era una proprietà tenuta apposta.
+- **Si rompe**: la funzione va giù e nessuno può comprare, mentre con A e B il
+  peggio è perdere un dato. Se fallisce dopo aver preso i dati e prima del 302,
+  chi compra resta fermo.
+
+### La scelta non è tecnica
+
+Se l'offerta diventa ai **soli professionisti** (vedi la domanda per il legale
+qui sopra), l'attivazione immediata sparisce e resta l'art. 1341, che si può
+far approvare via email insieme alla chiave: **A basta, e C non serve.**
+
+Se l'offerta resta **aperta a tutti**, servono due caselle con una prova, e la
+prova non può stare in un contatto Brevo: **serve C.**
+
+Sono due progetti di dimensione diversa, e a deciderli è la risposta del
+legale. Nessuna delle due si costruisce prima.
+
+---
+
 ## 5 · Le righe non dicono da dove vengono
 
 Non è un obbligo dei Termini: è una **mancanza del modello** che si è vista
