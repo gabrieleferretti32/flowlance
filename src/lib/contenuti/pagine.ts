@@ -28,7 +28,23 @@ export type PaginaTesto = {
    * mostrare una data inventata sotto un documento legale.
    */
   aggiornatoIl: string | null;
-  /** Il corpo, già in HTML. Titolo e data sono stati tolti: li mette la pagina. */
+  /**
+   * Il numero di versione, dove il documento ne porta uno.
+   *
+   * **Si legge da qui e da nessun altro posto.** I Termini si trasmettono
+   * all'acquirente in PDF con l'indicazione della versione, e il punto 12 dice
+   * che per le licenze in corso valgono i termini «nella versione indicata in
+   * testa al documento trasmesso». Un numero scritto due volte — nel file e in
+   * una costante — è un numero che al giro dopo dice due cose diverse, e in
+   * quel caso la differenza sarebbe fra il contratto che si crede di aver
+   * concluso e quello che si è concluso davvero. Una tagliola lo verifica sul
+   * sorgente.
+   *
+   * `null` per i documenti che non sono contratti: la privacy policy e
+   * l'elenco delle approssimazioni portano una data e basta.
+   */
+  versione: number | null;
+  /** Il corpo, già in HTML. Titolo, data e versione sono stati tolti: li mette la pagina. */
   html: string;
 };
 
@@ -49,7 +65,18 @@ export const PAGINE_DI_TESTO = {
 
 export type IndirizzoDiTesto = keyof typeof PAGINE_DI_TESTO;
 
+/**
+ * Le due forme della riga in corsivo sotto il titolo.
+ *
+ * `*Ultimo aggiornamento: 9 settembre 2026*` per i documenti che si aggiornano,
+ * `*Versione 2 — 10 settembre 2026*` per quelli che si **sostituiscono**. La
+ * differenza non è di stile: un contratto non si aggiorna, se ne conclude un
+ * altro, e la versione è il nome di quello che governa un ordine già fatto.
+ *
+ * Tutte e due si tolgono dal corpo e si rimettono in testa alla pagina.
+ */
 const RIGA_DATA = /^\*Ultimo aggiornamento:\s*(.+?)\s*\*$/m;
+const RIGA_VERSIONE = /^\*Versione\s+(\d+)\s*[—–-]\s*(.+?)\s*\*$/m;
 
 export function leggiPagina(indirizzo: IndirizzoDiTesto): PaginaTesto {
   const { file } = PAGINE_DI_TESTO[indirizzo];
@@ -59,14 +86,19 @@ export function leggiPagina(indirizzo: IndirizzoDiTesto): PaginaTesto {
   if (!titolo) {
     throw new Error(`${file}: manca il titolo di primo livello. La pagina lo prende da lì.`);
   }
-  const aggiornatoIl = grezzo.match(RIGA_DATA)?.[1] ?? null;
+  const conVersione = grezzo.match(RIGA_VERSIONE);
+  const versione = conVersione ? Number(conVersione[1]) : null;
+  const aggiornatoIl = conVersione ? conVersione[2] : (grezzo.match(RIGA_DATA)?.[1] ?? null);
 
   /*
     Titolo e data escono dal corpo: la pagina li mette lei, in testa, con la
     sua tipografia. Lasciarli dentro avrebbe significato un `h1` dentro il
     corpo e un altro nell'intestazione, cioè due titoli per un documento solo.
   */
-  const corpo = grezzo.replace(/^#\s+.+$/m, "").replace(RIGA_DATA, "");
+  const corpo = grezzo
+    .replace(/^#\s+.+$/m, "")
+    .replace(RIGA_DATA, "")
+    .replace(RIGA_VERSIONE, "");
 
-  return { titolo, aggiornatoIl, html: marked.parse(corpo, { async: false }) };
+  return { titolo, aggiornatoIl, versione, html: marked.parse(corpo, { async: false }) };
 }

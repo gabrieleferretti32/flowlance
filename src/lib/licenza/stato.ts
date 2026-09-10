@@ -27,7 +27,13 @@ export const GIORNI_PREAVVISO = 15;
  * l'abbia: chi vuole rinnovare non aveva nessun posto dove andare, e il
  * momento in cui se ne va un cliente è proprio quello.
  */
-export const INDIRIZZO_ACQUISTO = "https://flowlance.it";
+/*
+  Non più la radice del dominio: la pagina d'acquisto. Chi arriva qui da una
+  licenza scaduta deve trovarsi davanti la dichiarazione e i Termini, come
+  chiunque altro — mandarlo sulla landing gli farebbe rifare il giro, e a chi ha
+  già comprato una volta il giro non serve.
+*/
+export { INDIRIZZO_ACQUISTO_PUBBLICO as INDIRIZZO_ACQUISTO } from "@/lib/sito/acquisto";
 
 /**
  * Quanto dura la prova prima di inserire una chiave.

@@ -1,6 +1,6 @@
 # Termini di servizio
 
-*Ultimo aggiornamento: 9 settembre 2026*
+*Versione 2 — 10 settembre 2026*
 
 ## 1. Oggetto
 
@@ -8,14 +8,11 @@ I presenti termini regolano l'acquisto e l'uso di Flowlance, applicazione web di
 
 L'acquisto della licenza comporta l'accettazione integrale di questi termini.
 
-**Definizioni.** Nei presenti termini si intende per:
+**Destinatari dell'offerta.** Flowlance è offerto **esclusivamente a chi acquista nell'esercizio della propria attività imprenditoriale, commerciale, artigianale o professionale** e per finalità connesse a tale attività («il Professionista»). Il prodotto non è destinato ai consumatori.
 
-- **Consumatore**, la persona fisica che acquista per scopi estranei all'attività imprenditoriale, commerciale, artigianale o professionale eventualmente svolta;
-- **Professionista**, chi acquista nell'esercizio della propria attività imprenditoriale, commerciale, artigianale o professionale.
+In fase di acquisto l'acquirente dichiara di agire in tale qualità. La dichiarazione è condizione dell'acquisto.
 
-Il possesso di una partita IVA non determina di per sé la qualifica: rileva lo scopo per cui l'acquisto è effettuato. In fase di acquisto è richiesto all'acquirente di dichiarare in quale delle due qualità agisce.
-
-Dove i presenti termini usano il termine «utente» senza ulteriore specificazione, la disposizione si applica a entrambe le categorie.
+Qualora, nonostante tale dichiarazione, l'acquirente rivestisse in concreto la qualità di consumatore, restano impregiudicati i diritti inderogabili a lui riconosciuti dalla legge.
 
 ## 2. Natura del servizio
 
@@ -27,11 +24,15 @@ Il Fornitore mantiene pubblico un elenco delle semplificazioni e dei calcoli non
 
 L'utente resta l'unico responsabile della correttezza dei dati inseriti, della verifica dei risultati e dei propri adempimenti fiscali.
 
-## 3. Licenza
+## 3. Conclusione del contratto e licenza
+
+**L'ordine e il pagamento costituiscono proposta contrattuale dell'acquirente.** Il contratto si conclude nel momento in cui il Fornitore invia la chiave di licenza all'indirizzo email indicato.
+
+Prima dell'invio della chiave il Fornitore trasmette all'acquirente, allo stesso indirizzo, i presenti Termini in formato PDF con l'indicazione della versione, e richiede la dichiarazione di acquisto professionale e l'approvazione specifica delle clausole indicate al punto 13. **La chiave viene inviata dopo il ricevimento di tale dichiarazione**, di norma entro 24 ore lavorative dal ricevimento.
+
+In assenza di risposta entro 14 giorni dal pagamento, il contratto non si conclude e il Fornitore rimborsa integralmente l'importo versato.
 
 **L'acquisto dà diritto a una licenza d'uso personale, non esclusiva e non trasferibile, della durata di 12 mesi** dalla data di emissione.
-
-La chiave di licenza viene inviata all'indirizzo email indicato in fase di acquisto, di norma entro 24 ore lavorative.
 
 La licenza è nominativa e destinata a un singolo titolare di partita IVA. Non è consentito condividerla, rivenderla o distribuirla.
 
@@ -72,15 +73,11 @@ Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nu
 
 ## 7. Diritto di recesso e garanzia di rimborso
 
-**Il Consumatore ha diritto di recedere dal contratto entro 14 giorni** dalla sua conclusione, senza obbligo di motivazione e senza alcun costo, ai sensi degli artt. 52 e seguenti del Codice del Consumo. Il Fornitore non esclude né limita tale diritto.
+## 7. Garanzia di rimborso
 
-Il recesso si esercita con una comunicazione a info@flowlance.it, anche in forma libera. Il Fornitore rimborsa l'intero importo pagato entro 14 giorni dal ricevimento della comunicazione, con lo stesso mezzo di pagamento usato per l'acquisto. La chiave di licenza cessa di essere valida.
+Poiché Flowlance è offerto esclusivamente a chi acquista nell'esercizio della propria attività professionale, la disciplina del recesso prevista dal Codice del Consumo non trova applicazione.
 
-Il diritto di recesso non spetta al Professionista, che non rientra nell'ambito di applicazione del Codice del Consumo.
-
-**In ogni caso, e per tutti gli acquirenti, il Fornitore concede una garanzia contrattuale di rimborso entro 30 giorni dall'acquisto,** senza obbligo di motivazione. È sufficiente scrivere a info@flowlance.it. Il rimborso è pari all'intero importo pagato, IVA compresa, viene effettuato entro 14 giorni con lo stesso mezzo di pagamento usato per l'acquisto ed è accompagnato da nota di credito. La licenza cessa di essere valida.
-
-Questa garanzia è più ampia del diritto di recesso per durata e per platea: chi vuole essere rimborsato può avvalersene senza doversi chiedere in quale delle due qualità ha acquistato.
+**Il Fornitore concede in ogni caso una garanzia contrattuale di rimborso entro 30 giorni dalla conclusione del contratto,** senza obbligo di motivazione. È sufficiente scrivere a info@flowlance.it. Il rimborso è pari all'intero importo pagato, IVA compresa, viene effettuato entro 14 giorni con lo stesso mezzo di pagamento usato per l'acquisto ed è accompagnato da nota di credito. La licenza cessa di essere valida.
 
 ## 8. Disponibilità e aggiornamenti
 
@@ -112,4 +109,17 @@ Per le controversie con utenti che agiscono in qualità di consumatori è compet
 
 ## 12. Modifiche
 
-Il Fornitore può modificare i presenti termini. Le modifiche si applicano alle licenze acquistate successivamente; per le licenze in corso valgono i termini accettati all'acquisto.
+Il Fornitore può modificare i presenti termini. Le modifiche si applicano alle licenze acquistate successivamente; per le licenze in corso valgono i termini accettati all'acquisto, nella versione indicata in testa al documento trasmesso all'acquirente.
+
+## 13. Clausole soggette ad approvazione specifica
+
+Ai sensi e per gli effetti degli artt. 1341 e 1342 del Codice civile, l'acquirente approva specificamente le seguenti clausole:
+
+- **art. 3** — conclusione del contratto alla consegna della chiave; durata, non trasferibilità e nominatività della licenza;
+- **art. 4** — limitazione dell'applicazione alla sola lettura alla scadenza della licenza;
+- **art. 5** — esclusione di responsabilità del Fornitore per la conservazione, il backup e il recupero dei dati dell'utente;
+- **art. 9** — limitazione di responsabilità e relativo massimale;
+- **art. 11** — legge applicabile e foro competente;
+- **art. 12** — facoltà del Fornitore di modificare i presenti termini.
+
+L'approvazione avviene con la dichiarazione richiesta al punto 3, trasmessa dall'acquirente dall'indirizzo email indicato in fase di acquisto.

@@ -38,6 +38,7 @@
  * `formula` che il popover mostra, resa dallo stesso componente.
  */
 import { createServer } from "node:http";
+import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { chromium } from "playwright-core";
@@ -410,6 +411,91 @@ const demo = await righeDelProspetto();
 
   // Nel forfettario i segmenti sono tre: l'IVA non si incassa.
   await verificaSemaforo("dimostrativo");
+}
+
+// ————————————————————————————————————————————————————————————
+// 4 · L'impronta del PDF dei Termini è quella del file che si scarica
+// ————————————————————————————————————————————————————————————
+
+{
+  /*
+    L'impronta stampata accanto al link serve a dimostrare, fra due anni, che il
+    PDF nel fascicolo di un ordine è quello. Una pagina che ne mostrasse una
+    qualunque — di un file precedente, di un file vuoto — non direbbe di essere
+    sbagliata: sessantaquattro cifre esadecimali si somigliano tutte, ed è la
+    forma perfetta di questo difetto.
+
+    Qui l'impronta si ricalcola sul file **come lo serve il sito**, e si cerca
+    nel testo della pagina. Non si controlla che una impronta ci sia.
+  */
+  const ctx = await browser.newContext({ viewport: { width: 1024, height: 900 }, locale: "it-IT" });
+  const p = await ctx.newPage();
+
+  for (const rotta of ["/termini/", "/acquista/"]) {
+    await p.goto(`${BASE}${rotta}`, { waitUntil: "networkidle" });
+    await p.waitForTimeout(800);
+    const testo = await p.evaluate(() => document.body.innerText);
+    const link = await p.evaluate(() => {
+      const a = [...document.querySelectorAll("a[href$='.pdf']")][0];
+      return a ? a.getAttribute("href") : null;
+    });
+
+    if (!link) {
+      problemi.push(`${rotta}: non c'è nessun collegamento a un PDF`);
+      continue;
+    }
+    let byte;
+    try {
+      byte = readFileSync(join(RADICE, link));
+    } catch {
+      problemi.push(`${rotta}: il PDF «${link}» non esiste nel sito costruito`);
+      continue;
+    }
+    const vera = createHash("sha256").update(byte).digest("hex");
+    sostiene(
+      byte.length > 2_000,
+      `${rotta}: il PDF pesa ${byte.length} byte`,
+    );
+    sostiene(
+      testo.includes(vera),
+      `${rotta}: l'impronta a schermo è quella del file (${vera.slice(0, 16)}…)`,
+    );
+  }
+
+  /*
+    La casella della dichiarazione è una condizione, non un aspetto: senza
+    spunta il collegamento al pagamento non deve avere un indirizzo. Si misura
+    l'attributo `href`, che è ciò che rende un link raggiungibile — non il
+    colore, che un utente da tastiera non vede.
+  */
+  await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(800);
+  const casella = p.locator('input[type="checkbox"]').first();
+  if ((await casella.count()) === 0) {
+    problemi.push("/acquista/: manca la casella della dichiarazione professionale");
+  } else {
+    const paga = p.locator("a", { hasText: /^Paga / }).first();
+    if ((await paga.count()) === 0) {
+      // Col Payment Link ancora al segnaposto la pagina mostra l'avviso, non il
+      // pulsante: è il comportamento voluto, e va detto invece che dato per
+      // buono in silenzio.
+      const avviso = await p.evaluate(() => document.body.innerText);
+      sostiene(
+        avviso.includes("non è ancora attivo"),
+        "/acquista/: senza Payment Link la pagina lo dichiara invece di mostrare un pulsante muto",
+      );
+    } else {
+      const prima = await paga.getAttribute("href");
+      await casella.check();
+      await p.waitForTimeout(200);
+      const dopo = await paga.getAttribute("href");
+      sostiene(
+        prima === null && typeof dopo === "string" && dopo.length > 0,
+        `/acquista/: senza spunta il pulsante non ha indirizzo (${prima}), con la spunta sì`,
+      );
+    }
+  }
+  await ctx.close();
 }
 
 // ————————————————————————————————————————————————————————————

@@ -40,19 +40,67 @@ bene). Perderla significa non poter più emettere licenze per i clienti che
 hai già: dovresti generare una coppia nuova, aggiornare l'app e riemettere
 tutto.
 
-## Dopo ogni acquisto
+## Dopo ogni acquisto — la riga da tenere nel mansionario
+
+Una sola, con l'email dell'acquirente al posto di quella d'esempio:
+
+```sh
+node strumenti/licenza/genera-licenza.mjs cliente@esempio.it --anni 1
+```
+
+Genera **e firma**: non ci sono due passaggi. Lo script legge la chiave privata
+da `chiavi/privata.pem`, firma con Ed25519 e stampa la chiave già pronta da
+incollare nella risposta.
+
+Cosa stampa, per esteso:
 
 ```
-node strumenti/licenza/genera-licenza.mjs cliente@esempio.it --anni 1
+  Licenza per cliente@esempio.it
+  Valida fino al 2027-09-10 compreso · emessa il 2026-09-10
+  Annotata in strumenti/licenza/chiavi/emesse.jsonl
+
+  Da mandare all'acquirente — si incolla in Impostazioni › Licenza:
+
+FLW1.eyJlIjoiY2xpZW50ZUBlc2VtcGlvLml0IiwicyI6IjIwMjctMDktMTAiLCJkIjoiMjAyNi0wOS0xMCJ9.yFoEwgLt7B2ThQ7VsYVqjee00SRYW3HEyLD2RbcXIkYbOXKxSPaq-zySVt20gVOvHEzhHADqyeeNGY78NdzUBA
+```
+
+L'ultima riga è la chiave: si copia per intero, `FLW1.` compreso, e va
+nell'email. Le due parti dopo il punto sono i dati in chiaro — email, scadenza,
+data di emissione — e la firma: chiunque può leggerli, nessuno può cambiarli
+senza la privata.
+
+> La chiave d'esempio qui sopra è vera nella forma e **inutilizzabile**: viene
+> da una coppia usa-e-getta creata per scrivere questa pagina e buttata subito
+> dopo. Con la chiave pubblica di Flowlance non verifica.
+
+Le altre due durate, se servono:
+
+```sh
 node strumenti/licenza/genera-licenza.mjs cliente@esempio.it --mesi 6
 node strumenti/licenza/genera-licenza.mjs cliente@esempio.it 2027-09-30
 ```
 
-Stampa la chiave da incollare nella risposta all'acquirente. Ogni emissione
-viene annotata in `chiavi/emesse.jsonl`, una riga per licenza: serve a
-ritrovare una chiave quando un cliente la perde, e a sapere quando scade.
+Ogni emissione viene annotata in `chiavi/emesse.jsonl`, una riga per licenza:
+serve a ritrovare una chiave quando un cliente la perde, e a sapere quando
+scade.
 
-L'acquirente la incolla in **Impostazioni › Licenza**.
+### L'ordine dei passi, per un acquisto vero
+
+Il punto 3 dei Termini dice che il contratto si conclude alla consegna della
+chiave, non al pagamento. Quindi la chiave è **l'ultimo** passo, non il primo:
+
+1. arriva la notifica di pagamento da Stripe;
+2. mandi all'acquirente, allo stesso indirizzo, i Termini in PDF — quello con
+   l'impronta SHA-256 stampata accanto al link su `/termini/` — e chiedi la
+   dichiarazione di acquisto professionale e l'approvazione delle clausole del
+   punto 13, elencate per numero;
+3. quando risponde, generi la chiave con la riga qui sopra e gliela mandi;
+4. nel fascicolo dell'ordine finiscono: la ricevuta Stripe, il PDF dei Termini
+   con la sua impronta, l'email di risposta, e la riga di `emesse.jsonl`.
+
+Se non risponde entro 14 giorni il contratto non si conclude e l'importo va
+rimborsato per intero: lo dice il punto 3, ed è l'unica scadenza da tenere
+d'occhio.
 
 ## Rinnovi
 

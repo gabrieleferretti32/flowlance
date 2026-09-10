@@ -1,6 +1,7 @@
 import type { NextConfig } from "next";
 import { CHIAVE_PUBBLICA } from "./src/lib/licenza/chiave-pubblica";
 import { controlloChiavePubblica } from "./src/lib/licenza/presidio";
+import { generaPdfTermini } from "./src/lib/contenuti/pdf-termini";
 
 /**
  * Nessun build di produzione senza una chiave pubblica vera.
@@ -27,4 +28,22 @@ const nextConfig: NextConfig = {
   trailingSlash: true,
 };
 
-export default nextConfig;
+/**
+ * Il PDF dei Termini si rifà a ogni build, dal Markdown.
+ *
+ * Qui, e non in uno script `prebuild`, per la stessa ragione del presidio sulla
+ * chiave: questo file lo legge **ogni** `next build`, comunque lo si invochi —
+ * `npm run build`, `next build` a mano, la pipeline di Vercel — mentre un
+ * `prebuild` si salta scavalcando npm. Un PDF vecchio accanto a Termini nuovi
+ * sarebbe il contratto sbagliato nel fascicolo di un ordine, ed è il genere di
+ * divergenza che non si vede finché non serve.
+ *
+ * La configurazione diventa una funzione asincrona perché pdfkit impagina su
+ * uno stream. Next la aspetta prima di cominciare: se il Markdown contiene una
+ * forma che il renderer non sa impaginare, il build si ferma qui.
+ */
+export default async function configurazione(): Promise<NextConfig> {
+  const pdf = await generaPdfTermini();
+  console.log(`Termini in PDF: ${pdf.indirizzo} · ${pdf.byte} byte · sha256 ${pdf.impronta.slice(0, 16)}…`);
+  return nextConfig;
+}

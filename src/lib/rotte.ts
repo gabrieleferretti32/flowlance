@@ -78,6 +78,16 @@ export const SITO = {
   termini: "/termini",
   cookie: "/cookie",
   approssimazioni: "/cosa-non-calcola",
+  /**
+   * La pagina ponte prima del pagamento.
+   *
+   * Il pulsante d'acquisto porta qui e non su Stripe: il punto 1 dei Termini
+   * offre il prodotto ai soli professionisti e vuole che l'acquirente lo
+   * dichiari, e una dichiarazione non si può raccogliere dentro un Payment
+   * Link — i campi personalizzati di Stripe sono tre e non sanno fare una
+   * casella obbligatoria con un testo accanto.
+   */
+  acquisto: "/acquista",
   /** Dove Stripe rimanda dopo il pagamento. Non sa chi sia arrivato, e lo dice. */
   grazie: "/grazie",
 } as const;

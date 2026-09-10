@@ -75,7 +75,15 @@ function esiste(indirizzo) {
   ];
   return candidati.some((c) => {
     try {
-      return statSync(c).isFile();
+      const stato = statSync(c);
+      /*
+        Non basta che il file ci sia: deve avere qualcosa dentro. Il PDF dei
+        Termini viene generato dal build, e la prima stesura del generatore ne
+        scriveva uno da **zero byte** — un link che non è rotto, un file che si
+        scarica, e dentro niente. Un controllo di sola esistenza l'avrebbe
+        promosso.
+      */
+      return stato.isFile() && stato.size > 0;
     } catch {
       return false;
     }

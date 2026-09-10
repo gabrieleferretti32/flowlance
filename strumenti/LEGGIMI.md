@@ -12,6 +12,7 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
 | `diagnosi-iva-importata.js` | Elenca le righe la cui aliquota IVA non è quella dichiarata, dopo il difetto dell'import da CSV |
+| `diagnosi-coefficiente.js` | Dice, anno per anno, se il coefficiente in archivio coincide con quello del gruppo ATECO dichiarato |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
 
