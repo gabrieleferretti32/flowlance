@@ -53,9 +53,16 @@ export type MetadatiPagina = {
  */
 export const METADATI: Record<string, MetadatiPagina> = {
   [SITO.vendita]: {
-    titolo: "Flowlance — il conto delle tasse per freelance con partita IVA",
+    titolo: "Flowlance — il conto delle tasse per freelance italiani",
+    /*
+      «Partita IVA» è passata dal titolo alla descrizione, e la descrizione se
+      l'è dovuta prendere: prima non la conteneva. Nel titolo «italiani» dice di
+      più — chi cerca lo fa in italiano, e la qualifica fiscale la porta la riga
+      sotto, che ha lo spazio per dirla senza spendere il taglio dei 60
+      caratteri.
+    */
     descrizione:
-      "Ti dice ogni giorno quanto dei tuoi incassi è davvero tuo, quanto mettere da parte e quando esce. "
+      "Quanto dei tuoi incassi con partita IVA è davvero tuo, quanto mettere da parte e quando esce. "
       + "Forfettario e ordinario. I dati restano nel tuo browser.",
     indicizzabile: true,
   },
@@ -153,7 +160,12 @@ export function rotteIndicizzabili(): string[] {
  * prendono lo stesso `chiuso` e non leggono niente per conto loro, e un test le
  * confronta in tutti e due gli stati.
  */
-export function regoleRobots(chiuso: boolean) {
+export type RegoleRobots = {
+  rules: { userAgent: string; allow?: string; disallow: string }[];
+  sitemap?: string;
+};
+
+export function regoleRobots(chiuso: boolean): RegoleRobots {
   if (chiuso) {
     return { rules: [{ userAgent: "*", disallow: "/" }] };
   }

@@ -70,8 +70,16 @@ describe("il presidio sulla vendita", () => {
     expect(controlloVendita(link, false, "production")).not.toBeNull();
   });
 
-  it("oggi il sito è chiuso ai motori, quindi il build passa", () => {
-    expect(CHIUSO_AI_MOTORI).toBe(true);
+  /**
+   * E la combinazione di oggi, qualunque sia, lascia costruire.
+   *
+   * Non «oggi il sito è chiuso»: quella era un'asserzione da riscrivere il
+   * giorno dell'apertura, cioè un test rosso per una ragione che non è un
+   * difetto — ed è successo, il giorno dell'apertura. Quello che deve valere
+   * sempre è che lo stato in cui il progetto si trova non sia quello
+   * impossibile.
+   */
+  it("la combinazione di oggi non è quella impossibile", () => {
     expect(controlloVendita(PAYMENT_LINK as string, CHIUSO_AI_MOTORI, "production")).toBeNull();
   });
 });

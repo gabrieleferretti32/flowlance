@@ -53,16 +53,30 @@ describe("i testi delle pagine pubbliche", () => {
   });
 
   /**
-   * Il titolo della pagina di vendita dice **cosa fa e per chi**.
+   * La pagina di vendita dice **cosa fa e per chi**, fra titolo e descrizione.
    *
    * «Flowlance» da solo non lo cerca nessuno: chi non conosce il nome non lo
-   * digita, e chi lo trova non sa ancora se lo riguarda. È l'unico titolo del
+   * digita, e chi lo trova non sa ancora se lo riguarda. È l'unica coppia del
    * sito che deve reggere davanti a una persona che non ha mai sentito il nome.
+   *
+   * L'asserzione è sui **due insieme** e non sul solo titolo, ed è una lezione:
+   * la versione di prima pretendeva «partita IVA» nel titolo, e quando la
+   * qualifica si è spostata nella descrizione — dove sta meglio, perché il
+   * titolo ha sessanta caratteri e la descrizione centocinquanta — il test
+   * chiedeva ancora di trovarla dove non doveva più stare. Quello che conta è
+   * che ci sia, non in quale dei due.
    */
-  it("il titolo della landing non è soltanto il nome", () => {
-    const titolo = METADATI[SITO.vendita].titolo;
+  it("titolo e descrizione della landing dicono cosa fa e per chi", () => {
+    const { titolo, descrizione } = METADATI[SITO.vendita];
     expect(titolo.length).toBeGreaterThan("Flowlance".length + 20);
-    expect(titolo.toLowerCase()).toContain("partita iva");
+    const insieme = `${titolo} ${descrizione}`.toLowerCase();
+    expect(insieme, "non si capisce a chi si rivolge").toMatch(/partita iva|freelance/);
+    expect(insieme, "non si capisce di che si occupa").toMatch(/tass|incass|imposte/);
+    // E la qualifica fiscale c'è, in uno dei due: è la parola che cerca chi
+    // cerca, e non comparire da nessuna parte è il modo di non essere trovati.
+    expect(insieme, "«partita IVA» non compare né nel titolo né nella descrizione").toContain(
+      "partita iva",
+    );
   });
 
   it("nessun titolo ripete il nome due volte", () => {
@@ -115,7 +129,7 @@ describe("robots, noindex e sitemap dicono la stessa cosa", () => {
 
     it("robots.txt blocca tutto", () => {
       expect(regole.rules[0].disallow).toBe("/");
-      expect("allow" in regole.rules[0]).toBe(false);
+      expect(regole.rules[0].allow).toBeUndefined();
     });
 
     it("ogni pagina porta noindex", () => {

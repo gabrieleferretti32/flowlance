@@ -108,18 +108,23 @@ richiede senza che nessuno debba chiederglielo.
 
 ---
 
-## Il giorno in cui si apre ai motori
+## Il sito è aperto ai motori
 
-Una riga: `CHIUSO_AI_MOTORI = false` in `src/lib/sito/impostazioni.ts`. Da lì
-cambiano insieme il `robots.txt` e i meta di ogni pagina. Non c'è nient'altro da
-ricordarsi, ed è il motivo per cui è una costante sola.
+Dal **10 settembre 2026**: `CHIUSO_AI_MOTORI = false` in
+`src/lib/sito/impostazioni.ts`. Da quella riga discendono insieme il
+`robots.txt`, il `<meta name="robots">` di ogni pagina e la `sitemap.xml`. Non
+c'è nient'altro da ricordarsi, ed è il motivo per cui è una costante sola —
+`metadati.test.ts` verifica che le tre facce dicano la stessa cosa in tutti e
+due gli stati.
 
-**È l'ultimo gesto, e va dopo un acquisto vero.** Prima di toglierlo si compra
-Flowlance con una carta vera e ci si rimborsa: è l'unico modo di vedere tutto il
-giro — la ricevuta di Stripe, i dati che raccoglie e quelli che no, l'email dei
-Termini, la chiave, l'attivazione. Un checkout che funziona in ogni sua parte
-presa da sola e non funziona insieme è esattamente il difetto che questo
-progetto continua a incontrare.
+È stato l'ultimo gesto, ed è arrivato **dopo un acquisto vero**: pagamento con
+una carta vera, IVA, dati fiscali, codice SDI, ricevuta al cliente, notifica al
+Fornitore, e il rimborso. Un checkout che funziona in ogni sua parte presa da
+sola e non funziona insieme è esattamente il difetto che questo progetto
+continua a incontrare, e l'unico modo di escluderlo era percorrerlo.
+
+Per richiuderlo, se mai servisse, si rimette `true` e si ricostruisce: `/app` e
+`/grazie` restano fuori dagli indici in tutti e due gli stati.
 
 Un presidio tiene la combinazione impossibile: `next.config.ts` ferma un build
 di produzione in cui il sito è aperto ai motori e `PAYMENT_LINK` vale ancora

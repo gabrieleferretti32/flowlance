@@ -21,7 +21,7 @@
  * ha niente da indicizzare, e resta fuori dai motori anche il giorno in cui la
  * pagina di vendita ci entra.
  */
-export const CHIUSO_AI_MOTORI = true;
+export const CHIUSO_AI_MOTORI = false;
 
 /** Il dominio, per gli indirizzi assoluti che i metadati richiedono. */
 export const DOMINIO = "https://flowlance.it";
