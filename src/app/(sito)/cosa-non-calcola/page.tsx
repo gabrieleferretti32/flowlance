@@ -1,6 +1,6 @@
-import type { Metadata } from "next";
 import { leggiPagina } from "@/lib/contenuti/pagine";
 import { SITO } from "@/lib/rotte";
+import { metadatiDi } from "@/lib/sito/metadati";
 import { PaginaDiTesto } from "../pagina-di-testo";
 
 /*
@@ -10,7 +10,7 @@ import { PaginaDiTesto } from "../pagina-di-testo";
 */
 const pagina = leggiPagina(SITO.approssimazioni);
 
-export const metadata: Metadata = { title: `${pagina.titolo} · Flowlance` };
+export const metadata = metadatiDi(SITO.approssimazioni);
 
 export default function Pagina() {
   return <PaginaDiTesto pagina={pagina} />;

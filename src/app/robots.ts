@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
-import { BASE_APP } from "@/lib/rotte";
-import { CHIUSO_AI_MOTORI, DOMINIO } from "@/lib/sito/impostazioni";
+import { CHIUSO_AI_MOTORI } from "@/lib/sito/impostazioni";
+import { regoleRobots } from "@/lib/sito/metadati";
 
 // Con `output: "export"` una route di metadata va dichiarata statica in modo
 // esplicito, altrimenti Next la tratta come dinamica e il build fallisce.
@@ -15,11 +15,5 @@ export const dynamic = "force-static";
  * frugasse dentro archivierebbe la pagina «Apertura dell'archivio locale…».
  */
 export default function robots(): MetadataRoute.Robots {
-  if (CHIUSO_AI_MOTORI) {
-    return { rules: [{ userAgent: "*", disallow: "/" }] };
-  }
-  return {
-    rules: [{ userAgent: "*", allow: "/", disallow: `${BASE_APP}/` }],
-    sitemap: `${DOMINIO}/sitemap.xml`,
-  };
+  return regoleRobots(CHIUSO_AI_MOTORI);
 }

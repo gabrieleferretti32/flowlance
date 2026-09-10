@@ -52,17 +52,26 @@ describe("il presidio sulla vendita", () => {
    * caso per cui esiste, in silenzio. Qui i due si guardano.
    */
   it("riconosce il segnaposto che il progetto usa davvero", () => {
-    if (PAYMENT_LINK !== SEGNAPOSTO_PAGAMENTO) {
+    /*
+      Il tipo si allarga a `string` di proposito. `PAYMENT_LINK` è una costante
+      letterale, e TypeScript sa che oggi non è il segnaposto: senza questo, il
+      confronto qui sotto diventa un errore di compilazione — «questi due tipi
+      non si sovrappongono» — e il test smetterebbe di esistere proprio adesso
+      che il collegamento c'è. Ma deve continuare a valere anche il giorno in
+      cui qualcuno rimette il segnaposto.
+    */
+    const link: string = PAYMENT_LINK;
+    if (link !== SEGNAPOSTO_PAGAMENTO) {
       // Il collegamento è stato creato: il presidio non ha più niente da fare,
       // e questo test lo dice invece di fallire.
-      expect(PAYMENT_LINK).toMatch(/^https:\/\//);
+      expect(link).toMatch(/^https:\/\//);
       return;
     }
-    expect(controlloVendita(PAYMENT_LINK, false, "production")).not.toBeNull();
+    expect(controlloVendita(link, false, "production")).not.toBeNull();
   });
 
   it("oggi il sito è chiuso ai motori, quindi il build passa", () => {
     expect(CHIUSO_AI_MOTORI).toBe(true);
-    expect(controlloVendita(PAYMENT_LINK, CHIUSO_AI_MOTORI, "production")).toBeNull();
+    expect(controlloVendita(PAYMENT_LINK as string, CHIUSO_AI_MOTORI, "production")).toBeNull();
   });
 });

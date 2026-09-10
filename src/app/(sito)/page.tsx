@@ -1,13 +1,12 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { SegnoFlowlance } from "@/components/guscio/marchio";
+import { DatiStrutturati } from "@/components/sito/dati-strutturati";
 import { PREZZO_SCRITTO } from "@/lib/sito/acquisto";
 import { SITO, rottaDemo } from "@/lib/rotte";
+import { metadatiDi } from "@/lib/sito/metadati";
 
-export const metadata: Metadata = {
-  title: "Flowlance — il conto delle tasse per chi lavora in proprio",
-};
+export const metadata = metadatiDi(SITO.vendita);
 
 /**
  * La pagina di vendita.
@@ -87,6 +86,7 @@ const PREZZO_INTERO = `Acquista — ${PREZZO_SCRITTO.imponibile} + IVA`;
 export default function Vendita() {
   return (
     <div style={{ background: COLORI.fondo, color: COLORI.testo }}>
+      <DatiStrutturati />
       <Testata />
       <Apertura />
       <IlProblema />

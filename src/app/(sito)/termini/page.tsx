@@ -1,12 +1,12 @@
-import type { Metadata } from "next";
 import { leggiPagina } from "@/lib/contenuti/pagine";
 import { improntaPdfTermini, indirizzoPdfTermini } from "@/lib/contenuti/pdf-termini";
 import { SITO } from "@/lib/rotte";
+import { metadatiDi } from "@/lib/sito/metadati";
 import { PaginaDiTesto } from "../pagina-di-testo";
 
 const pagina = leggiPagina(SITO.termini);
 
-export const metadata: Metadata = { title: `${pagina.titolo} · Flowlance` };
+export const metadata = metadatiDi(SITO.termini);
 
 /**
  * I Termini, con accanto il file che si allega agli ordini.

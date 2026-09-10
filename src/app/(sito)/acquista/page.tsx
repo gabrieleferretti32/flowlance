@@ -1,10 +1,10 @@
-import type { Metadata } from "next";
 import { leggiPagina } from "@/lib/contenuti/pagine";
 import { improntaPdfTermini, indirizzoPdfTermini } from "@/lib/contenuti/pdf-termini";
 import { SITO } from "@/lib/rotte";
+import { metadatiDi } from "@/lib/sito/metadati";
 import { SchermataAcquisto } from "./schermata-acquisto";
 
-export const metadata: Metadata = { title: "Acquista Flowlance" };
+export const metadata = metadatiDi(SITO.acquisto);
 
 /**
  * La pagina ponte fra il pulsante d'acquisto e Stripe.

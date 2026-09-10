@@ -1,8 +1,8 @@
-import type { Metadata } from "next";
 import Link from "next/link";
 import { SITO } from "@/lib/rotte";
+import { metadatiDi } from "@/lib/sito/metadati";
 
-export const metadata: Metadata = { title: "Grazie · Flowlance" };
+export const metadata = metadatiDi(SITO.grazie);
 
 /**
  * Dove Stripe rimanda dopo il pagamento.
