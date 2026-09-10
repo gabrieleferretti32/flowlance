@@ -614,39 +614,126 @@ const demo = await righeDelProspetto();
     test che passa per la ragione sbagliata è peggio di uno che manca.
   */
   /*
-    Si confrontano i **valori**, non le stringhe.
+    Il prezzo si scrive **sempre allo stesso modo**, su tutte le pagine.
 
-    La prima stesura cercava la stessa cifra scritta uguale, e ha segnalato una
-    divergenza che non c'era: la landing dice «97 €» e la pagina d'acquisto
-    diceva «97,00 €» — lo stesso prezzo, due formati, perché un titolone i
-    centesimi di un prezzo intero non li mostra. Il controllo giusto è sul
-    numero: due pagine che dicono cifre diverse sono un difetto, due che le
-    formattano diversamente sono una scelta tipografica.
+    Il controllo di prima confrontava i valori — 97 di qua, 97 di là — ed era
+    giusto ma cieco al difetto che c'era davvero: il pulsante della testata
+    diceva «97,00 € + IVA» e la sezione del prezzo «97 €». Stesso numero, due
+    formati, nessun valore sbagliato: il controllo passava.
 
-    (Le due pagine adesso lo formattano anche allo stesso modo, ma il controllo
-    non deve dipendere da quello: legherebbe una verifica sul prezzo a una
-    decisione sui centesimi.)
+    Qui si raccolgono tutte le scritture di ciascun importo, su tutte le
+    pagine, e si pretende che siano **una sola forma**. Due modi di scrivere lo
+    stesso prezzo, in una pagina che chiede dei soldi, si leggono come un
+    rincaro o come un refuso.
   */
-  const cifre = (testo) =>
-    [...new Set(testo.match(/\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*\u20ac/g) ?? [])].map((v) =>
-      Number(v.replace(/[\u20ac\s\u00a0]/g, "").replace(/\./g, "").replace(",", ".")),
-    );
-  const suAcquisto = cifre(testoAcquisto);
-  const suVendita = cifre(testoVendita);
+  const scritture = async (rotta) => {
+    await p.goto(`${BASE}${rotta}`, { waitUntil: "networkidle" });
+    await p.waitForTimeout(500);
+    const testo = await p.evaluate(() => document.body.innerText);
+    return (testo.match(/\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*\u20ac/g) ?? []).map((v) => v.trim());
+  };
+
+  const tutte = [...(await scritture("/")), ...(await scritture("/acquista/"))];
+  const valore = (v) =>
+    Number(v.replace(/[\u20ac\s\u00a0]/g, "").replace(/\./g, "").replace(",", "."));
 
   for (const [nome, atteso] of [
     ["imponibile", 97],
     ["totale", 118.34],
   ]) {
-    const qua = suAcquisto.some((v) => Math.abs(v - atteso) < 0.005);
-    const la = suVendita.some((v) => Math.abs(v - atteso) < 0.005);
+    /*
+      Gli spazi si normalizzano prima di confrontare, e non è una scorciatoia.
+      `euro()` mette uno spazio unificatore (U+00A0) prima del simbolo — perché
+      la cifra non vada a capo dal suo euro — ma `innerText` lo restituisce a
+      volte come spazio normale, secondo com'è spezzato il testo fra i nodi.
+      Sono lo stesso formatter e la stessa forma: distinguerli qui vorrebbe
+      dire far fallire il controllo per una differenza che nessuno vede e che
+      non viene dal codice. Quello che si confronta sono le cifre e i
+      separatori, che è dove il difetto stava davvero.
+    */
+    const forme = [
+      ...new Set(
+        tutte
+          .filter((v) => Math.abs(valore(v) - atteso) < 0.005)
+          .map((v) => v.replace(/[\s\u00a0]+/g, " ")),
+      ),
+    ];
     sostiene(
-      qua && la,
-      `${atteso} € (${nome}) compare su tutte e due le pagine`
-        + (qua && la ? "" : ` — acquisto: ${qua ? "sì" : "no"}, vendita: ${la ? "sì" : "no"}`),
+      forme.length === 1,
+      forme.length === 1
+        ? `${nome}: scritto «${forme[0]}» ovunque, su vendita e acquisto`
+        : `${nome}: scritto in ${forme.length} modi diversi — ${forme.join(" e ")}`,
     );
   }
 
+  await ctx.close();
+}
+
+// ————————————————————————————————————————————————————————————
+// 6 · Sul telefono i due inviti stanno sopra il banner
+// ————————————————————————————————————————————————————————————
+
+{
+  /*
+    Misurato in pixel, non guardato.
+
+    Il banner dei cookie è una finestra fissa in fondo allo schermo, e sul
+    telefono copriva il secondo pulsante dell'eroe: «Acquista» cadeva
+    **dietro** il banner, e la prima schermata di una pagina di vendita offriva
+    un invito su due. Non si vedeva da nessuna parte se non aprendo un telefono
+    — le due cose stanno in componenti diversi, e ognuna delle due, da sola,
+    era a posto.
+
+    Il confronto è fra rettangoli veri: il fondo del pulsante contro il bordo
+    alto del banner. Con il banner **aperto**, che è come lo trova chi arriva
+    la prima volta.
+  */
+  // 390 × 844: iPhone 14/15, il telefono più diffuso. Su uno schermo alto 667
+  // — un SE — l'eroe non ci sta comunque, e restano i pulsanti della testata,
+  // che sono appiccicati in alto e non spariscono mai: sta in APPUNTI.md.
+  const ctx = await browser.newContext({
+    viewport: { width: 390, height: 844 },
+    locale: "it-IT",
+    isMobile: true,
+    hasTouch: true,
+    deviceScaleFactor: 2,
+  });
+  const p = await ctx.newPage();
+  await p.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(1_500);
+
+  const misure = await p.evaluate(() => {
+    const rett = (el) => {
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { alto: Math.round(b.top), basso: Math.round(b.bottom) };
+    };
+    const eroe = document.querySelectorAll("section")[0];
+    const inviti = [...document.querySelectorAll("a")]
+      .filter((a) => eroe?.contains(a))
+      .map((a) => ({ testo: a.textContent.trim(), ...rett(a) }));
+    return {
+      piega: window.innerHeight,
+      banner: rett(document.querySelector('[role="dialog"]')),
+      inviti,
+    };
+  });
+
+  if (misure.banner === null) {
+    problemi.push("a 390 px il banner dei cookie non compare: la misura non prova niente");
+  } else {
+    const limite = Math.min(misure.banner.alto, misure.piega);
+    sostiene(
+      misure.inviti.length === 2,
+      `l'apertura porta ${misure.inviti.length} inviti`,
+    );
+    for (const invito of misure.inviti) {
+      sostiene(
+        invito.basso <= limite,
+        `390×844 · «${invito.testo}» finisce a ${invito.basso}, sopra il banner (${limite})`,
+      );
+    }
+  }
   await ctx.close();
 }
 

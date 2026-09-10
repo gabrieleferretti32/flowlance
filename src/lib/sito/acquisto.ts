@@ -30,6 +30,7 @@
  * **un filtro all'ingresso**, che impedisce di comprare a chi consumatore lo è
  * davvero, e un promemoria di cosa arriverà via email.
  */
+import { euro, euroTondo, percentuale } from "@/lib/format";
 import { DOMINIO } from "./impostazioni";
 import { SITO } from "@/lib/rotte";
 
@@ -62,6 +63,31 @@ export function pagamentoConfigurato(link: string = PAYMENT_LINK): boolean {
  * documenti si muove senza l'altro.
  */
 export const PREZZO = { imponibile: 97, aliquotaIva: 0.22, totale: 118.34 } as const;
+
+/**
+ * Il prezzo **già scritto**, nella forma in cui si mostra. Sempre questa.
+ *
+ * Non è cerimonia: il pulsante della testata diceva «97,00 € + IVA» mentre la
+ * sezione del prezzo, due schermate più giù, diceva «97 € all'anno». Stesso
+ * numero, due formati, due chiamate diverse — e il controllo che confrontava i
+ * **valori** ci passava attraverso senza vedere niente, perché di valori
+ * sbagliati non ce n'erano.
+ *
+ * È la stessa forma di difetto del registro dei derivati, spostata dal numero
+ * alla sua scrittura: due strade per mostrare la stessa cosa, e prima o poi ne
+ * prendono una diversa. La risposta è la stessa — una strada sola. Qui non c'è
+ * più una scelta da fare al momento di stampare: `euroTondo` o `euro` è già
+ * stato deciso, una volta, per ciascuna delle tre voci.
+ *
+ * - `imponibile` è un prezzo intero e i centesimi sono rumore: «97 €».
+ * - `totale` i centesimi ce li ha davvero, ed è la cifra che finisce in
+ *   fattura: «118,34 €».
+ */
+export const PREZZO_SCRITTO = {
+  imponibile: euroTondo(PREZZO.imponibile),
+  totale: euro(PREZZO.totale),
+  aliquota: percentuale(PREZZO.aliquotaIva, 0),
+} as const;
 
 /**
  * La dichiarazione che si spunta, per esteso.

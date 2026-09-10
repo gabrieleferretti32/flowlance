@@ -7,10 +7,9 @@ import type { PaginaTesto } from "@/lib/contenuti/pagine";
 import {
   DICHIARAZIONE_PROFESSIONALE,
   PAYMENT_LINK,
-  PREZZO,
+  PREZZO_SCRITTO,
   pagamentoConfigurato,
 } from "@/lib/sito/acquisto";
-import { euro, euroTondo, percentuale } from "@/lib/format";
 import { SITO } from "@/lib/rotte";
 
 /**
@@ -61,14 +60,12 @@ export function SchermataAcquisto({
       <p className="mt-3 text-corpo leading-relaxed">
         <strong className="font-semibold">
           {/*
-            `euroTondo` sul prezzo intero e `euro` sul totale: 97 € non ha
-            centesimi da mostrare, 118,34 € sì. È la stessa scelta della pagina
-            di vendita, e le due pagine dicono la cifra nello stesso modo —
-            altrimenti chi passa dall'una all'altra si chiede quale sia il
-            prezzo vero.
+            Il prezzo arriva già scritto: chi passa dalla landing a questa
+            pagina deve trovare la stessa cifra scritta nello stesso modo,
+            altrimenti si chiede quale sia quella vera.
           */}
-          {euroTondo(PREZZO.imponibile)} all&apos;anno, oltre IVA al{" "}
-          {percentuale(PREZZO.aliquotaIva, 0)}: {euro(PREZZO.totale)} in tutto.
+          {PREZZO_SCRITTO.imponibile} all&apos;anno, oltre IVA al{" "}
+          {PREZZO_SCRITTO.aliquota}: {PREZZO_SCRITTO.totale} in tutto.
         </strong>{" "}
         Licenza di 12 mesi, nominativa, per un solo titolare di partita IVA. Il rinnovo non è
         automatico.
@@ -187,7 +184,7 @@ export function SchermataAcquisto({
                   : "inline-flex min-h-12 cursor-not-allowed items-center justify-center gap-2 rounded-campo bg-bordo px-6 text-corpo font-medium text-inchiostro-tenue"
               }
             >
-              Paga {euro(PREZZO.totale)} con Stripe
+              Paga {PREZZO_SCRITTO.totale} con Stripe
               {dichiara && <ExternalLink className="size-4" aria-hidden />}
             </a>
           ) : (
@@ -207,6 +204,29 @@ export function SchermataAcquisto({
               Spunta la dichiarazione per proseguire.
             </p>
           )}
+          {/*
+            La sorpresa dell'IVA, tolta nel punto in cui nascerebbe.
+
+            Stripe non può calcolare l'IVA prima di sapere il paese, quindi la
+            sua prima schermata mostra 97 € e il totale sale dopo l'indirizzo.
+            È corretto e sembra un rincaro — ed è il momento peggiore per
+            sembrarlo, con la carta già in mano. Detto qui, un attimo prima, è
+            una conferma invece di un dubbio.
+
+            Sulla pagina di vendita questa riga non c'è, ed è giusto così: là i
+            pulsanti portano già l'«+ IVA» scritto accanto al prezzo, e nessuno
+            sta per pagare.
+
+            Compare anche quando il collegamento a Stripe non è ancora
+            configurato: il pagamento passa da lì comunque — l'avviso qui sopra
+            dice solo che il link arriva per email — e la riga dice una cosa
+            vera in tutti e due i casi.
+          */}
+          <p className="mt-4 max-w-[52ch] text-etichetta leading-relaxed text-inchiostro-tenue">
+            {PREZZO_SCRITTO.imponibile} l&apos;anno + IVA {PREZZO_SCRITTO.aliquota} —{" "}
+            {PREZZO_SCRITTO.totale} in fattura. Su Stripe l&apos;IVA compare dopo che hai inserito i
+            dati di fatturazione: il totale che vedi all&apos;inizio è imponibile.
+          </p>
         </div>
 
         <p className="mt-8 text-etichetta text-inchiostro-tenue">

@@ -210,3 +210,38 @@ colonna giusta.
 
 Per chiuderla servirebbe che «—» dicesse *quale* zero è, e quella è una
 decisione sul modello, non sul controllo.
+
+---
+
+## 10 settembre 2026 · Due tavolozze a un digit di distanza
+
+La pagina di vendita porta le sue tinte — `#4b5bf0`, `#0d1428`, `#f4f6fb` — e i
+token dell'app ne hanno tre quasi uguali: `#4c5bf5`, `#0e1330`, `#f2f4f9`. Un
+digit di differenza, invisibile a occhio, e due posti da cui parte lo stesso
+colore.
+
+Sono due copie di una tavolozza, cioè la forma che questo progetto conosce
+meglio: prima o poi una si ritocca e l'altra no, e per mesi nessuno se ne
+accorge perché sono tutte e due plausibili. Vanno unificate.
+
+Non adesso, e non da chi scrive il codice: cambiare le tinte di un disegno
+approvato è una decisione di prodotto. Le tinte della landing stanno tutte in
+`COLORI`, in cima a `src/app/(sito)/page.tsx`, e la landing non ne usa altre:
+quando si deciderà, il posto da cui partire è uno.
+
+## 10 settembre 2026 · Su uno schermo alto 667 l'eroe non ci sta
+
+Misurato: a 390 × 844 — l'iPhone più diffuso — i due inviti dell'apertura
+stanno tutti e due sopra il banner dei cookie, e una verifica in
+`strumenti/verifica-derivati.mjs` lo controlla a ogni giro.
+
+Su uno schermo alto 667 (un iPhone SE) no: con il banner aperto la piega utile
+cade a 524 punti, e il primo pulsante comincia a 572. Non è questione di
+spaziature — il titolone, il paragrafo di apertura e i due pulsanti misurano
+insieme più di quello schermo. Farceli stare vuol dire accorciare il testo
+dell'apertura, che è una decisione sul disegno.
+
+Non è bloccante: i due pulsanti della testata sono appiccicati in alto e non
+spariscono mai, quindi l'invito resta a portata di pollice in ogni momento. Sta
+qui perché il giorno in cui la pagina di vendita si rimette mano, questo è il
+vincolo da tenere in mano prima di cominciare, non dopo.

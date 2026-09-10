@@ -2,8 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { SegnoFlowlance } from "@/components/guscio/marchio";
-import { PREZZO } from "@/lib/sito/acquisto";
-import { euro, euroTondo, percentuale } from "@/lib/format";
+import { PREZZO_SCRITTO } from "@/lib/sito/acquisto";
 import { SITO, rottaDemo } from "@/lib/rotte";
 
 export const metadata: Metadata = {
@@ -79,13 +78,11 @@ const SCHERMATE = {
 
 const DEMO = rottaDemo("vetrina");
 /*
-  `euroTondo` e non `euro`: sul pulsante e nel titolone i centesimi di un prezzo
-  intero sono rumore — «97 €», non «97,00 €», che è quello che dice il disegno.
-  Il totale con l'IVA invece i centesimi ce li ha davvero, e lì si usa `euro`.
-  Nessuno dei due si scrive a mano: il raggruppamento cambia fra Node e browser
-  e farebbe fallire l'idratazione.
+  Il prezzo arriva già scritto da `PREZZO_SCRITTO`: qui non si sceglie il
+  formato. Era proprio la scelta a divergere — la testata stampava «97,00 €» e
+  la sezione del prezzo «97 €», stesso numero e due formattazioni.
 */
-const PREZZO_INTERO = `Acquista — ${euroTondo(PREZZO.imponibile)} + IVA`;
+const PREZZO_INTERO = `Acquista — ${PREZZO_SCRITTO.imponibile} + IVA`;
 
 export default function Vendita() {
   return (
@@ -271,12 +268,21 @@ function Apertura() {
       style={{
         maxWidth: 1140,
         margin: "0 auto",
-        padding: "clamp(48px,8vw,96px) clamp(16px,4vw,32px) clamp(40px,6vw,72px)",
+        /*
+          Il fondo dei `clamp()` verticali è più basso di quello del disegno:
+          48 → 28 in testa, e altrettanto sulle spaziature interne qui sotto.
+          Non è un ritocco d'estetica — misurato a 390 × 844, con il banner dei
+          cookie aperto, il secondo pulsante dell'eroe cadeva **dietro il
+          banner**. Il disegno è quello, e sopra i 640 px non cambia di un
+          pixel: quello che cambia è quanto si comprime dove lo schermo è
+          corto. Una verifica lo misura a ogni giro, in un browser.
+        */
+        padding: "clamp(28px,8vw,96px) clamp(16px,4vw,32px) clamp(40px,6vw,72px)",
       }}
     >
       <p
         style={{
-          margin: "0 0 clamp(18px,2.4vw,26px)",
+          margin: "0 0 clamp(14px,2.4vw,26px)",
           fontSize: "clamp(13px,1.4vw,15px)",
           fontWeight: 700,
           letterSpacing: "0.12em",
@@ -302,7 +308,7 @@ function Apertura() {
       </h1>
       <p
         style={{
-          margin: "clamp(20px,3vw,30px) 0 0",
+          margin: "clamp(16px,3vw,30px) 0 0",
           fontSize: "clamp(17px,2vw,22px)",
           lineHeight: 1.5,
           color: COLORI.testoTenue,
@@ -321,7 +327,7 @@ function Apertura() {
           display: "flex",
           gap: 12,
           flexWrap: "wrap",
-          marginTop: "clamp(28px,4vw,40px)",
+          marginTop: "clamp(20px,4vw,40px)",
         }}
       >
         <BottoneDemo />
@@ -696,10 +702,10 @@ function Prezzo() {
             fontWeight: 800,
           }}
         >
-          {euroTondo(PREZZO.imponibile)} all&apos;anno
+          {PREZZO_SCRITTO.imponibile} all&apos;anno
         </h2>
         {/*
-          Il prezzo arriva da `PREZZO`, che è lo stesso da cui lo prende la
+          Il prezzo arriva da `PREZZO_SCRITTO`, lo stesso da cui lo prende la
           pagina d'acquisto, e una tagliola verifica che i tre numeri stiano
           anche nel punto 6 dei Termini. Una landing che dice una cifra e un
           contratto che ne dice un'altra è il difetto peggiore che questa
@@ -713,7 +719,7 @@ function Prezzo() {
             color: COLORI.accentoChiaro,
           }}
         >
-          + IVA {percentuale(PREZZO.aliquotaIva, 0)} · {euro(PREZZO.totale)} totali
+          + IVA {PREZZO_SCRITTO.aliquota} · {PREZZO_SCRITTO.totale} totali
         </p>
         <p
           style={{
@@ -753,7 +759,7 @@ function Prezzo() {
               padding: "17px 32px",
             }}
           >
-            Acquista Flowlance — {euroTondo(PREZZO.imponibile)} + IVA
+            Acquista Flowlance — {PREZZO_SCRITTO.imponibile} + IVA
           </Link>
         </div>
         <p style={{ margin: "20px 0 0", fontSize: 15, color: "#8b95b0", fontStyle: "italic" }}>

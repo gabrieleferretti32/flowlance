@@ -76,24 +76,57 @@ export function BannerCookie({ onCambia }: { onCambia: (c: Consenso) => void }) 
       role="dialog"
       aria-modal="false"
       aria-labelledby="titolo-cookie"
-      className="fixed inset-x-0 bottom-0 z-50 border-t border-bordo bg-superficie px-4 py-4 shadow-[0_-8px_32px_-16px_rgba(13,20,40,0.35)] sm:px-6 print:hidden"
+      className="fixed inset-x-0 bottom-0 z-50 border-t border-bordo bg-superficie px-4 py-3 shadow-[0_-8px_32px_-16px_rgba(13,20,40,0.35)] sm:px-6 sm:py-4 print:hidden"
     >
-      <div className="mx-auto flex max-w-[1140px] flex-col gap-4">
-        <div className="flex items-start gap-4">
+      <div className="mx-auto flex max-w-[1140px] flex-col gap-3 sm:gap-4">
+        <div className="flex items-start gap-3 sm:gap-4">
           <div className="min-w-0 flex-1">
             <p id="titolo-cookie" className="text-corpo font-semibold">
               Cookie di statistica
             </p>
+            {/*
+              Una riga sola in prima battuta.
+
+              Il testo lungo — cosa si misura, chi lo fa, cosa resta nel
+              browser — stava tutto qui, e su un telefono erano sette righe:
+              metà schermo coperto, sopra la pagina che la persona è appena
+              arrivata a leggere. Un banner che occupa lo schermo si chiude a
+              caso, e una risposta data per toglierselo davanti non è un
+              consenso, è un riflesso.
+
+              Le due cose che servono per rispondere stanno qui: cosa si misura,
+              e che dentro l'applicazione non si misura niente. Il resto sta
+              dietro «Scegli una categoria alla volta», che è dove va chi vuole
+              saperne di più — e dove serve davvero, perché lì si sceglie voce
+              per voce.
+            */}
             <p className="mt-1 max-w-[62ch] text-etichetta text-inchiostro-tenue">
-              Questo sito può misurare quante persone lo aprono e come lo leggono. Serve a
-              noi, non a te, e senza il tuo sì non parte niente.{" "}
-              <strong className="font-medium text-inchiostro">
-                Dentro l&apos;applicazione non c&apos;è nessuna misurazione, in nessun caso:
-              </strong>{" "}
-              i tuoi dati fiscali restano nel tuo browser.{" "}
+              Statistiche sul sito, solo col tuo sì. Nell&apos;app, mai.{" "}
               <Link href={SITO.cookie} className="text-accento underline underline-offset-2">
                 Cookie policy
               </Link>
+              {!dettaglio && (
+                <>
+                  {" · "}
+                  {/*
+                    Qui e non in una riga sua: su un telefono quel pulsante
+                    andava a capo da solo e si portava via un'altra riga di
+                    schermo — sessanta punti per un comando secondario, sopra la
+                    pagina che la persona è arrivata a leggere. `py-2 -my-2`
+                    allarga l'area toccabile senza allargare la riga.
+                  */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setScelte(consensoEffettivo(leggiScelta(), new Date()));
+                      setDettaglio(true);
+                    }}
+                    className="-my-2 py-2 underline underline-offset-2 hover:text-inchiostro"
+                  >
+                    Scegli una categoria alla volta
+                  </button>
+                </>
+              )}
             </p>
           </div>
           {/* La X vale rifiuto, e lo dice: chiudere non è acconsentire. */}
@@ -110,6 +143,15 @@ export function BannerCookie({ onCambia }: { onCambia: (c: Consenso) => void }) 
         {dettaglio && (
           <fieldset className="flex flex-col gap-3 rounded-interna border border-bordo bg-superficie-alt p-4">
             <legend className="sr-only">Scegli una categoria alla volta</legend>
+            {/* Il testo per esteso, dove chi apre il dettaglio lo sta cercando. */}
+            <p className="max-w-[62ch] text-etichetta text-inchiostro-tenue">
+              Questo sito può misurare quante persone lo aprono e come lo leggono. Serve a noi,
+              non a te, e senza il tuo sì non parte niente.{" "}
+              <strong className="font-medium text-inchiostro">
+                Dentro l&apos;applicazione non c&apos;è nessuna misurazione, in nessun caso:
+              </strong>{" "}
+              i tuoi dati fiscali restano nel tuo browser.
+            </p>
             {CATEGORIE.map((c) => (
               <label key={c.id} className="flex cursor-pointer items-start gap-3">
                 <input
@@ -138,20 +180,7 @@ export function BannerCookie({ onCambia }: { onCambia: (c: Consenso) => void }) 
           */}
           <Bottone onClick={() => rispondi(NIENTE)}>Rifiuta tutto</Bottone>
           <Bottone onClick={() => rispondi(TUTTO)}>Accetta tutto</Bottone>
-          {dettaglio ? (
-            <Bottone onClick={() => rispondi(scelte)}>Salva le scelte</Bottone>
-          ) : (
-            <button
-              type="button"
-              onClick={() => {
-                setScelte(consensoEffettivo(leggiScelta(), new Date()));
-                setDettaglio(true);
-              }}
-              className="min-h-11 px-2 text-etichetta text-inchiostro-tenue underline underline-offset-2 hover:text-inchiostro"
-            >
-              Scegli una categoria alla volta
-            </button>
-          )}
+          {dettaglio && <Bottone onClick={() => rispondi(scelte)}>Salva le scelte</Bottone>}
         </div>
       </div>
     </div>
