@@ -56,9 +56,22 @@ grassetto ed elenco puntato, e **si ferma** davanti a qualunque altra forma
 invece di saltarla. Un contratto con dentro un pezzo in meno, e nessuno che lo
 dica, è il caso peggiore che questa cartella possa produrre.
 
+In testa alla prima pagina c'è la carta intestata: il marchio — **letto da
+`src/app/icon.svg`**, non ridisegnato, così il logo del contratto e quello
+dell'app non possono divergere — e i dati della ditta. Sulle pagine successive
+non c'è niente in alto: le identifica il piede, che dice più di un logo —
+documento, versione e quale pagina è.
+
 Il file è deterministico: due build, gli stessi byte. La sua impronta SHA-256 è
 stampata accanto al link, e serve a chi fra due anni deve dimostrare che il PDF
 nel proprio fascicolo è questo.
+
+Che le pagine siano fatte bene lo verifica `termini.test.ts` **misurandole**:
+un piede per pagina, dentro quella pagina, nella fascia bassa; nessun foglio
+vuoto; nessuna pagina che si interrompe a metà. Non cercando il testo del
+piede — quella verifica c'era, e ha lasciato passare un PDF di otto pagine in
+cui il contratto stava sulle prime quattro e i quattro piedi su quattro pagine
+vuote in fondo. Per guardarlo davvero: `npm run anteprima:pdf`.
 
 Il PDF di ogni versione resta: `flowlance-termini-v2.pdf` non sostituisce
 `flowlance-termini-v1.pdf`. Il punto 12 dice che per le licenze in corso valgono

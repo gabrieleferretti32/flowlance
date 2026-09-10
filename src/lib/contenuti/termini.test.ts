@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { inflateSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { generaPdfTermini, indirizzoPdfTermini } from "./pdf-termini";
+import { FORNITORE, MARGINE, generaPdfTermini, indirizzoPdfTermini } from "./pdf-termini";
+import { leggiPagine, stessoColore, terna } from "./geometria-pdf";
+import { leggiMarchio } from "./marchio-pdf";
 import { leggiPagina } from "./pagine";
 import { SITO } from "@/lib/rotte";
 import { PREZZO } from "@/lib/sito/acquisto";
@@ -21,34 +22,25 @@ import { round2 } from "@/lib/fisco/aritmetica";
 const SORGENTE = "contenuti/termini.md";
 const markdown = readFileSync(SORGENTE, "utf8");
 
-/** Il testo dentro il PDF, estratto dai flussi di contenuto. */
-function testoDelPdf(byte: Buffer): string {
-  const pezzi: string[] = [];
-  const grezzo = byte.toString("latin1");
-  for (const m of grezzo.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
-    try {
-      pezzi.push(inflateSync(Buffer.from(m[1], "latin1")).toString("latin1"));
-    } catch {
-      // Non tutti i flussi sono testo compresso: i font, per esempio.
-    }
-  }
-  const contenuto = pezzi.join("\n");
-  let testo = "";
-  for (const m of contenuto.matchAll(/<([0-9a-fA-F]+)>/g)) {
-    for (let i = 0; i < m[1].length; i += 2) {
-      testo += String.fromCharCode(Number.parseInt(m[1].slice(i, i + 2), 16));
-    }
-  }
-  /*
-    WinAnsi non è Latin-1 nella fascia 0x80–0x9F, ed è proprio lì che stanno i
-    caratteri di questo documento: l'euro, le lineette, le virgolette basse.
-    Senza questa tabella il confronto fallirebbe su «97 €» e su ogni «—».
-  */
-  const WINANSI: Record<number, string> = {
-    0x80: "€", 0x91: "‘", 0x92: "’", 0x93: "“", 0x94: "”",
-    0x96: "–", 0x97: "—", 0xab: "«", 0xbb: "»",
-  };
-  return [...testo].map((c) => WINANSI[c.charCodeAt(0)] ?? c).join("");
+/**
+ * Il testo del contratto, senza il piede.
+ *
+ * Il piede si scrive in coda al flusso della **sua** pagina, quindi in un
+ * documento letto per intero finisce **in mezzo** al paragrafo che scavalca
+ * l'interruzione: «…la dichiarazione di acquisto  Flowlance — Termini…pagina 1
+ * di 4  professionale e l'approvazione…». Cercarci dentro le righe del
+ * Markdown fallirebbe su quella, e fallirebbe per una ragione che non c'entra
+ * niente col contratto.
+ *
+ * Toglierlo non è indebolire il controllo: il piede lo verifica il gruppo delle
+ * misure, pagina per pagina, dove sta e cosa dice.
+ */
+function corpoDelPdf(byte: Buffer): string {
+  return leggiPagine(byte)
+    .flatMap((p) => p.testi)
+    .filter((t) => !/pagina \d+ di \d+/.test(t.testo))
+    .map((t) => t.testo)
+    .join(" ");
 }
 
 /** Senza spazi e senza asterischi: l'impaginazione manda a capo dove vuole. */
@@ -57,7 +49,7 @@ const nudo = (s: string) => s.replace(/\*\*/g, "").replace(/\s+/g, "");
 describe("i Termini in PDF", () => {
   it("contiene tutte le righe del Markdown, nessuna esclusa", async () => {
     const { percorso } = await generaPdfTermini();
-    const dentro = nudo(testoDelPdf(readFileSync(percorso)));
+    const dentro = nudo(corpoDelPdf(readFileSync(percorso)));
 
     const righe = markdown
       .split("\n")
@@ -75,17 +67,168 @@ describe("i Termini in PDF", () => {
     expect(righe.length).toBeGreaterThan(50);
   });
 
-  it("porta il piede su ogni pagina, con il conto giusto", async () => {
-    const { percorso } = await generaPdfTermini();
-    const dentro = nudo(testoDelPdf(readFileSync(percorso)));
-    const piedi = [...dentro.matchAll(/pagina(\d+)di(\d+)/g)].map((m) => [+m[1], +m[2]]);
+  /**
+   * Il piede si verifica **in geometria**, non cercandone il testo.
+   *
+   * La versione precedente di questo test contava le stringhe «pagina N di M»
+   * nel testo estratto, le trovava tutte e quattro in fila e diceva che
+   * andava bene. Erano su quattro pagine vuote in fondo al documento, in alto,
+   * e il contratto stava sulle prime quattro senza nessun piede. Il testo era
+   * giusto e il documento sbagliato: è la seconda volta che questo generatore
+   * inganna un controllo scritto sulle parole.
+   */
+  describe("le pagine, misurate", () => {
+    /** La fascia in cui il piede può stare: sotto l'area di testo, dentro il foglio. */
+    const ALTO_DEL_PIEDE = MARGINE;
 
-    expect(piedi.length, "nessun piede di pagina nel PDF").toBeGreaterThan(0);
-    const totale = piedi[0][1];
-    // Un piede per pagina, numerati in fila, e il totale è quante sono davvero:
-    // «pagina 1 di 1» su un documento di quattro è già successo.
-    expect(piedi.map(([n]) => n)).toEqual(Array.from({ length: totale }, (_, i) => i + 1));
-    expect(piedi.every(([, t]) => t === totale)).toBe(true);
+    /**
+     * Quanto bianco si tollera in fondo a una pagina che non è l'ultima.
+     *
+     * Un'interruzione di pagina lascia libero al massimo l'ingombro del blocco
+     * che non ci stava — nel documento di adesso il caso peggiore sono 39 punti,
+     * poco più di tre righe. La soglia sta molto sopra perché il testo cambia e
+     * questo test non deve diventare un allarme da ignorare; resta sotto un
+     * quarto di pagina, che è il punto: una pagina mezza vuota, o vuota del
+     * tutto, non passa.
+     */
+    const BIANCO_TOLLERATO = 200;
+
+    it("una pagina sola per foglio, e nessun foglio vuoto", async () => {
+      const { percorso } = await generaPdfTermini();
+      const pagine = leggiPagine(readFileSync(percorso));
+
+      expect(pagine.length, "il PDF non ha pagine").toBeGreaterThan(2);
+      for (const p of pagine) {
+        const corpo = p.testi.filter((t) => !/pagina \d+ di \d+/.test(t.testo));
+        expect(
+          corpo.length,
+          `pagina ${p.numero} di ${pagine.length}: non ha nessun testo oltre al piede.\n`
+            + "Un foglio vuoto in un contratto è un foglio che qualcuno, un giorno, cercherà\n"
+            + "di capire cosa doveva contenere.",
+        ).toBeGreaterThan(0);
+      }
+    });
+
+    it("il piede sta su ogni pagina, dentro quella pagina, in fondo", async () => {
+      const { percorso } = await generaPdfTermini();
+      const pagine = leggiPagine(readFileSync(percorso));
+
+      for (const p of pagine) {
+        const piedi = p.testi.filter((t) => /pagina \d+ di \d+/.test(t.testo));
+        expect(
+          piedi.length,
+          `pagina ${p.numero}: ${piedi.length} piedi invece di uno`,
+        ).toBe(1);
+
+        const piede = piedi[0];
+        // Sotto l'area di testo e dentro il foglio: non in cima, non fuori.
+        expect(
+          piede.y,
+          `pagina ${p.numero}: il piede sta a y=${piede.y.toFixed(0)}, fuori dalla fascia bassa `
+            + `(0 – ${ALTO_DEL_PIEDE}) del foglio alto ${p.altezza.toFixed(0)}`,
+        ).toBeLessThan(ALTO_DEL_PIEDE);
+        expect(piede.y).toBeGreaterThan(0);
+
+        // E dice il numero di questa pagina, su quante sono davvero.
+        const numeri = piede.testo.match(/pagina (\d+) di (\d+)/)!;
+        expect(Number(numeri[1]), `pagina ${p.numero}: il piede dice un altro numero`).toBe(p.numero);
+        expect(Number(numeri[2]), `pagina ${p.numero}: il totale nel piede`).toBe(pagine.length);
+
+        // Il testo del contratto non scende dentro la fascia del piede.
+        const corpo = p.testi.filter((t) => t !== piede);
+        const piuBasso = Math.min(...corpo.map((t) => t.y));
+        expect(
+          piuBasso,
+          `pagina ${p.numero}: l'ultima riga di testo (y=${piuBasso.toFixed(0)}) scende sul piede `
+            + `(y=${piede.y.toFixed(0)})`,
+        ).toBeGreaterThan(piede.y + 8);
+      }
+    });
+
+    it("nessuna pagina si interrompe a metà, tranne l'ultima", async () => {
+      const { percorso } = await generaPdfTermini();
+      const pagine = leggiPagine(readFileSync(percorso));
+
+      for (const p of pagine.slice(0, -1)) {
+        const corpo = p.testi.filter((t) => !/pagina \d+ di \d+/.test(t.testo));
+        const piuBasso = Math.min(...corpo.map((t) => t.y));
+        const piede = p.testi.find((t) => /pagina \d+ di \d+/.test(t.testo))!;
+        const bianco = piuBasso - piede.y;
+        expect(
+          bianco,
+          `pagina ${p.numero}: fra l'ultima riga e il piede restano ${bianco.toFixed(0)} punti di `
+            + "bianco. Una pagina che si interrompe così presto vuol dire che il generatore\n"
+            + "sbaglia a calcolare dove finisce il foglio — è già successo, e la conseguenza\n"
+            + "visibile erano quattro pagine vuote in fondo al contratto.",
+        ).toBeLessThan(BIANCO_TOLLERATO);
+      }
+    });
+  });
+
+  describe("la carta intestata", () => {
+    it("il marchio è disegnato sulla prima pagina, e solo lì", async () => {
+      const { percorso } = await generaPdfTermini();
+      const pagine = leggiPagine(readFileSync(percorso));
+      const marchio = leggiMarchio();
+
+      /*
+        I colori si prendono dal file SVG, non da costanti scritte qui: se il
+        marchio cambia tinta, questo test segue senza che nessuno lo aggiorni —
+        ed è la stessa ragione per cui il PDF lo legge invece di ricopiarlo.
+      */
+      const attesi = [...new Set(marchio.rettangoli.map((r) => r.colore))].map(terna);
+      const usati = pagine[0].riempimenti;
+      const mancanti = attesi.filter((a) => !usati.some((u) => stessoColore(u, a)));
+      expect(
+        mancanti.length,
+        `Sulla prima pagina mancano ${mancanti.length} dei ${attesi.length} colori del marchio.`,
+      ).toBe(0);
+
+      // Sulle pagine successive il marchio non c'è: le identifica il piede, che
+      // dice più di un logo — documento, versione, e quale pagina è.
+      for (const p of pagine.slice(1)) {
+        const intrusi = attesi.filter((a) => p.riempimenti.some((u) => stessoColore(u, a)));
+        expect(intrusi.length, `pagina ${p.numero}: c'è il marchio, che va solo sulla prima`).toBe(0);
+      }
+    });
+
+    it("i dati del fornitore stanno sopra il titolo", async () => {
+      const { percorso } = await generaPdfTermini();
+      const prima = leggiPagine(readFileSync(percorso))[0];
+      const riga = (frammento: string) =>
+        prima.testi.find((t) => t.testo.replace(/\s+/g, " ").includes(frammento));
+
+      const titolo = riga("Termini di servizio");
+      expect(titolo, "sulla prima pagina non trovo il titolo").toBeDefined();
+      for (const atteso of [FORNITORE.nome, FORNITORE.partitaIva, FORNITORE.email]) {
+        const trovata = riga(atteso);
+        expect(trovata, `«${atteso}» non compare sulla prima pagina`).toBeDefined();
+        expect(
+          trovata!.y,
+          `«${atteso}» sta sotto il titolo: la carta intestata va sopra`,
+        ).toBeGreaterThan(titolo!.y);
+      }
+    });
+
+    /**
+     * I dati della carta intestata sono quelli del contratto.
+     *
+     * Sono scritti due volte — nell'intestazione e dentro il punto 1 — e non si
+     * può leggere l'una dall'altra: là stanno in una frase di contratto. Ma due
+     * copie che si muovono separate sono la solita cosa peggiore, quindi non si
+     * legge, si verifica.
+     */
+    it("partita IVA e indirizzo coincidono con quelli del punto 1", () => {
+      const punto1 = markdown.split(/^##\s+1\./m)[1]?.split(/^##\s/m)[0] ?? "";
+      const testo = punto1.replace(/\s+/g, " ");
+      for (const atteso of [FORNITORE.nome, FORNITORE.partitaIva, FORNITORE.indirizzo]) {
+        expect(
+          testo.includes(atteso),
+          `«${atteso}» è nella carta intestata del PDF ma non nel punto 1 dei Termini.\n`
+            + "Se la sede o la partita IVA cambiano, devono cambiare insieme.",
+        ).toBe(true);
+      }
+    });
   });
 
   /**

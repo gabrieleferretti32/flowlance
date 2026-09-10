@@ -44,14 +44,41 @@ import { createHash } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import PDFDocument from "pdfkit";
+import { disegnaMarchio, leggiMarchio } from "./marchio-pdf";
 
 /** Da dove viene il testo, e dove finisce il PDF. Le due estremità, qui. */
 const SORGENTE = "contenuti/termini.md";
 const CARTELLA = "public/termini";
 
-const MARGINE = 64;
+export const MARGINE = 64;
+/**
+ * Quanto si tiene libero in fondo per il piede.
+ *
+ * È il margine inferiore vero del testo: il piede sta **sotto** l'area di
+ * scrittura, e ci sta perché l'area finisce prima. Un numero più piccolo del
+ * piede lo farebbe finire sopra l'ultima riga.
+ */
+const FASCIA_PIEDE = 34;
 const NERO = "#14161c";
 const TENUE = "#5b6070";
+const RIGA = "#d9dce4";
+
+/**
+ * Chi emette il contratto, in testa alla prima pagina.
+ *
+ * Sono gli stessi dati del punto 1 dei Termini, e sono scritti due volte per
+ * una ragione: là stanno dentro una frase di contratto, qui sono
+ * un'intestazione. Un test verifica che partita IVA e indirizzo di questa
+ * carta intestata compaiano nel testo del punto 1 — se il legale cambia sede,
+ * la carta non resta indietro in silenzio.
+ */
+export const FORNITORE = {
+  nome: "Gabriele Ferretti",
+  forma: "ditta individuale",
+  partitaIva: "02649540065",
+  indirizzo: "Via Trinità 3/2 — 15068 Pozzolo Formigaro (AL)",
+  email: "info@flowlance.it",
+} as const;
 
 /** L'indirizzo pubblico del PDF di una versione. Il nome porta la versione. */
 export function indirizzoPdfTermini(versione: number): string {
@@ -192,7 +219,7 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
       plausibile e sbagliato su un foglio che va nel fascicolo di un ordine.
     */
     bufferPages: true,
-    margins: { top: MARGINE, bottom: MARGINE + 24, left: MARGINE, right: MARGINE },
+    margins: { top: MARGINE, bottom: MARGINE + FASCIA_PIEDE, left: MARGINE, right: MARGINE },
     info: {
       Title: `${titolo} — versione ${versione}`,
       Author: "Gabriele Ferretti",
@@ -213,7 +240,54 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
     doc.font(forte ? "Helvetica-Bold" : "Helvetica").text(testo, resto);
   };
 
-  doc.fillColor(NERO).fontSize(20).font("Helvetica-Bold").text(titolo);
+  /*
+    La carta intestata, sulla prima pagina.
+
+    Questo documento il cliente se lo tiene, e nel caso peggiore finisce sul
+    tavolo di un avvocato: deve dire chi lo emette senza che nessuno debba
+    cercarlo dentro il punto 1. Il marchio è lo stesso file SVG dell'app —
+    letto, non ricopiato — e i dati sono quelli della ditta.
+  */
+  const marchio = leggiMarchio(radice);
+  const LATO_MARCHIO = 30;
+  const inizio = doc.y;
+  disegnaMarchio(doc, marchio, MARGINE, inizio, LATO_MARCHIO);
+
+  doc
+    .fillColor(NERO)
+    .font("Helvetica-Bold")
+    .fontSize(15)
+    .text("Flowlance", MARGINE + LATO_MARCHIO + 10, inizio + 7, { lineBreak: false });
+
+  doc.y = inizio + LATO_MARCHIO + 12;
+  doc.x = MARGINE;
+  doc
+    .font("Helvetica")
+    .fontSize(8.5)
+    .fillColor(TENUE)
+    .text(
+      `${FORNITORE.nome}, ${FORNITORE.forma} · P. IVA ${FORNITORE.partitaIva}`,
+      MARGINE,
+      doc.y,
+      { lineGap: 1.5 },
+    )
+    .text(`${FORNITORE.indirizzo} · ${FORNITORE.email}`);
+
+  // Il filetto che separa la carta intestata dal contratto.
+  doc.moveDown(0.9);
+  const filetto = doc.y;
+  doc
+    .save()
+    .moveTo(MARGINE, filetto)
+    .lineTo(doc.page.width - MARGINE, filetto)
+    .lineWidth(0.75)
+    .strokeColor(RIGA)
+    .stroke()
+    .restore();
+  doc.y = filetto + 22;
+  doc.x = MARGINE;
+
+  doc.fillColor(NERO).fontSize(20).font("Helvetica-Bold").text(titolo, MARGINE, doc.y);
   doc
     .moveDown(0.35)
     .fontSize(10)
@@ -232,23 +306,42 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
       continue;
     }
 
-    doc.fontSize(10.5);
+    doc.fontSize(10.5).fillColor(NERO);
     const pezziRiga = inGrassetto(blocco.testo);
-    const rientro = blocco.tipo === "voce" ? 16 : 0;
 
+    /*
+      Il rientro appeso delle voci d'elenco si fa con la **colonna**, non con
+      `indent`.
+
+      `indent` sposta la prima riga di ogni chiamata `text`, e una voce fatta di
+      più pezzi — «**la conservazione…** tramite la funzione…» — sono più
+      chiamate incatenate: il rientro finiva sul pezzo sbagliato e le righe
+      successive tornavano al margine, sotto il pallino invece che sotto il
+      testo. Impostando `doc.x` alla colonna del testo e dando la larghezza
+      ridotta, il ritorno a capo cade dove deve per costruzione.
+
+      Il pallino si disegna prima, alla sua `y`, e la `y` si rimette com'era:
+      scriverlo con `continued` lo legava al primo pezzo, e un pezzo in
+      grassetto si portava dietro anche il pallino.
+    */
+    const colonna = blocco.tipo === "voce" ? MARGINE + 16 : MARGINE;
     if (blocco.tipo === "voce") {
-      doc.font("Helvetica").text("•", { continued: true, indent: 4 });
-      doc.text("  ", { continued: true });
+      const y = doc.y;
+      doc.font("Helvetica").text("•", MARGINE + 4, y, { lineBreak: false, width: 10 });
+      doc.y = y;
     }
+
+    doc.x = colonna;
     pezziRiga.forEach((p, i) => {
       scrivi(p.testo, {
         forte: p.forte,
         continued: i < pezziRiga.length - 1,
-        indent: blocco.tipo === "voce" || i > 0 ? 0 : rientro,
+        ...(i === 0 ? { width: doc.page.width - MARGINE - colonna } : {}),
         align: "left",
         lineGap: 1.5,
       });
     });
+    doc.x = MARGINE;
     doc.moveDown(blocco.tipo === "voce" ? 0.3 : 0.7);
   }
 
@@ -256,10 +349,34 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
     Il piede su ogni pagina: senza, un foglio staccato dal fascicolo non dice
     più di quale versione fa parte — ed è proprio nel fascicolo che questo
     documento va a finire.
+
+    ──────────────────────────────────────────────────────────────────────
+    I margini si azzerano, e non è un vezzo
+    ──────────────────────────────────────────────────────────────────────
+
+    pdfkit, prima di scrivere una riga, controlla se la posizione supera
+    `page.maxY()` — cioè l'altezza meno il margine inferiore — e in quel caso
+    **aggiunge una pagina**. Il piede sta per definizione sotto quel limite,
+    quindi la prima stesura di questo ciclo creava quattro pagine nuove e ci
+    scriveva dentro i quattro piedi, in alto: il PDF usciva di **otto** pagine,
+    quattro col contratto e senza piede, quattro vuote con solo il piede.
+
+    E il controllo che avevo scritto non lo vedeva: cercava le stringhe
+    «pagina N di M» nel testo estratto, le trovava tutte e quattro in fila, e
+    concludeva che c'era un piede per pagina. Guardava la presenza del testo
+    invece della **geometria** — che è il modo esatto in cui questa famiglia di
+    difetti passa. La verifica adesso misura i rettangoli: `termini.test.ts`
+    controlla, per ogni pagina, che il piede stia dentro quella pagina e nella
+    sua fascia bassa.
+
+    Azzerare i margini per il tempo del piede toglie il motivo del salto: non
+    c'è più un limite da superare, e la riga si scrive dove le si dice.
   */
   const pagine = doc.bufferedPageRange();
   for (let i = 0; i < pagine.count; i += 1) {
     doc.switchToPage(pagine.start + i);
+    const margini = doc.page.margins;
+    doc.page.margins = { top: 0, bottom: 0, left: 0, right: 0 };
     doc
       .fontSize(8)
       .fillColor(TENUE)
@@ -267,9 +384,10 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
       .text(
         `Flowlance — ${titolo}, versione ${versione} del ${dataScritta}    ·    pagina ${i + 1} di ${pagine.count}`,
         MARGINE,
-        doc.page.height - MARGINE - 6,
+        doc.page.height - MARGINE + 6,
         { width: doc.page.width - MARGINE * 2, align: "center", lineBreak: false },
       );
+    doc.page.margins = margini;
   }
 
   doc.end();

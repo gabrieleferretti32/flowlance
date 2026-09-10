@@ -9,12 +9,39 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `verifica-derivati.mjs` | Rifà i conti delle formule del prospetto e li confronta con gli importi mostrati accanto |
 | `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
+| `anteprima-pdf.mjs` | Rende ogni pagina di un PDF in PNG, per guardarlo invece di leggerne il testo |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
 | `diagnosi-iva-importata.js` | Elenca le righe la cui aliquota IVA non è quella dichiarata, dopo il difetto dell'import da CSV |
 | `diagnosi-coefficiente.js` | Dice, anno per anno, se il coefficiente in archivio coincide con quello del gruppo ATECO dichiarato |
 | `diagnosi-riporti.js` | Rifà, nel browser dell'utente, i due conteggi che devono coincidere fra registro Fatture e chiusura d'anno |
 | `licenza/` | Generazione delle chiavi di licenza — resta fuori dal repository pubblico, vedi il suo LEGGIMI |
+
+---
+
+## `anteprima-pdf.mjs`
+
+```sh
+npm run build
+npm run anteprima:pdf              # i Termini
+node strumenti/anteprima-pdf.mjs altro.pdf --dove=/tmp/x --scala=2
+```
+
+Il testo estratto da un PDF dice cosa c'è scritto e **non dice dov'è**. Il piede
+dei Termini è finito, per una versione intera, su quattro pagine vuote in fondo
+al documento — e il controllo che cercava le stringhe «pagina N di M» le trovava
+tutte e quattro, in fila, e diceva che andava bene.
+
+Quel difetto adesso non passa: `src/lib/contenuti/termini.test.ts` misura la
+geometria, pagina per pagina, con il lettore in `geometria-pdf.ts`. Questo
+strumento serve all'altra metà del lavoro — **decidere come deve venire**. La
+carta intestata, il filetto sotto i dati della ditta, il peso del marchio
+accanto al titolo, il rientro appeso di un elenco: sono cose che non si
+affermano in un test, si guardano.
+
+Rende ogni pagina con pdf.js dentro Chromium e scrive un PNG per pagina. Nessuna
+dipendenza nativa: la stessa libreria con cui il browser mostra i PDF, fatta
+girare in un browser.
 
 ---
 
