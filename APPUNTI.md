@@ -369,3 +369,57 @@ decidere se è andata così. Con il campo, il numero sarebbe semplicemente giust
 
 L'approssimazione è dichiarata sulla pagina pubblica, in `APPROSSIMAZIONI.md`,
 sezione IVA.
+
+## 11 settembre 2026 · Il bollo da 2 € si mette su un'ipotesi
+
+La diagnosi `strumenti/diagnosi-aliquota-zero.js`, lanciata su un archivio vero:
+**9 fatture su 19 senza IVA**, tutte allo stesso cliente estero, tutte con
+`aliquota 0` scritta sulla riga. Sono corrette — operazioni fuori campo verso una
+società americana — e su quelle il bollo da 2 € ci va davvero. Nessun difetto sui
+numeri.
+
+Ma il giro ha confermato il limite, che è di modello e non di calcolo.
+
+**Una fattura, in archivio, porta un numero per l'aliquota e nient'altro.**
+`Fattura` (`src/lib/fisco/tipi.ts`) ha `aliquotaIva: number | undefined`. Non c'è
+nessun campo che dica **perché** l'IVA è zero. E in `documenti.ts` l'IVA e il
+bollo escono dalla stessa variabile:
+
+```ts
+const aliquotaIvaApplicata = forfettario ? 0 : (fattura.aliquotaIva ?? imp.aliquotaIva);
+const iva   = round2(imponibile * aliquotaIvaApplicata);
+const bollo = aliquotaIvaApplicata === 0 && imponibile > sogliaBollo ? importoBollo : 0;
+```
+
+Quindi «zero» è trattato come una cosa sola, e non lo è. Esente art. 10, non
+imponibile, fuori campo: il bollo ci va, e oggi l'app fa bene. **Inversione
+contabile (reverse charge), no**: l'operazione è imponibile, l'IVA la applica chi
+compra, e il bollo non è dovuto. L'app glielo mette lo stesso, e nessuno se ne
+accorge — sono due euro su un documento che di solito nessuno ricontrolla.
+
+Quanto pesi dipende dal mestiere di chi usa l'app: per un consulente il reverse
+charge è raro, in edilizia, pulizie ed elettronica è la normalità. E Flowlance si
+vende a tutti i freelance, non a una categoria.
+
+**Una precisazione su dove NON è il campo che serve.** I costi hanno un campo
+`natura`, ma è `"fisso" | "variabile"`: è la classificazione gestionale della
+spesa, non la natura fiscale dell'operazione. Non c'è niente da copiare da lì —
+detto perché in chat l'avevo lasciato intendere, ed è il genere di indicazione
+che fa perdere mezz'ora a chi la segue.
+
+**Cosa servirebbe.** Un campo sulla fattura che porti il codice natura della
+fattura elettronica — N1…N7 — e una tabella che dica, per ciascuno, se il bollo è
+dovuto. L'export dei gestionali quel codice ce l'ha, quindi il dato si può
+importare invece di chiederlo. Ma la tabella va stabilita prima di scriverla: il
+principio è che il bollo non è dovuto quando l'operazione è comunque soggetta a
+IVA anche se in fattura non compare — il caso limpido è N6 — mentre per gli altri
+codici la mappa va verificata una per una e non dedotta dal principio.
+
+Non è lavoro da adesso: non scrive numeri sbagliati in archivio e non cambia
+nessun prospetto. Sposta di due euro il totale di una fattura, in un caso che va
+riconosciuto prima.
+
+**Da decidere**: se questa vada anche su `APPROSSIMAZIONI.md`. La sezione IVA ha
+già una voce «Bollo virtuale» che parla d'altro, e questa è esattamente una
+differenza possibile fra il numero dell'app e quello del commercialista — cioè
+quello che quella pagina promette di elencare.
