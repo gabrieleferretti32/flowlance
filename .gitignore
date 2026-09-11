@@ -46,3 +46,8 @@ strumenti/licenza/chiavi/
 
 # Il timbro del sito costruito: descrive out/, che non sta in git.
 .artefatto.json
+
+# Da quale commit è costruito il sito. A differenza del PDF dei Termini — che
+# esce identico a ogni build, e infatti sta in git — questo cambia a ogni build
+# per costruzione: tenerlo qui dentro sarebbe un commit di rumore ogni volta.
+public/versione.json

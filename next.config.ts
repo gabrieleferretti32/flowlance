@@ -5,6 +5,7 @@ import { generaPdfTermini } from "./src/lib/contenuti/pdf-termini";
 import { CHIUSO_AI_MOTORI, PAYMENT_LINK } from "./src/lib/sito/impostazioni";
 import { controlloVendita } from "./src/lib/sito/presidio";
 import { controlloAnteprima } from "./src/lib/sito/presidio-anteprima";
+import { scriviVersione } from "./src/lib/sito/versione";
 
 /**
  * Nessun build di produzione senza una chiave pubblica vera.
@@ -87,5 +88,15 @@ const nextConfig: NextConfig = {
 export default async function configurazione(): Promise<NextConfig> {
   const pdf = await generaPdfTermini();
   console.log(`Termini in PDF: ${pdf.indirizzo} · ${pdf.byte} byte · sha256 ${pdf.impronta.slice(0, 16)}…`);
+  /*
+    E il sito dichiara da quale commit viene.
+
+    Qui, accanto al PDF e per la stessa ragione: questo file lo legge ogni
+    `next build`, quello di Vercel compreso. Un `versione.json` scritto da uno
+    script che si può saltare sarebbe assente proprio nei build che nessuno ha
+    guardato, cioè quelli in cui serve.
+  */
+  const versione = scriviVersione();
+  console.log(`Versione pubblicata: ${versione.commit.slice(0, 12)} · ${versione.costruito}`);
   return nextConfig;
 }

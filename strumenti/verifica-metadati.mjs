@@ -295,6 +295,39 @@ for (const nome of ["favicon.ico", "icon.svg"]) {
 }
 
 // ————————————————————————————————————————————————————————————
+// 4-bis · Da quale commit è costruito questo sito
+// ————————————————————————————————————————————————————————————
+
+/*
+  `versione.json` è il file che risponde a «cosa c'è online adesso». Due cose
+  vanno controllate qui, dove c'è il sito costruito: che sia stato pubblicato, e
+  che porti **solo** lo SHA e la data.
+
+  La seconda non è pignoleria: è un file pubblico su un sito che vende la
+  promessa di non mandare dati da nessuna parte, e il giorno in cui qualcuno ci
+  aggiunge «per comodità» il nome del ramo o l'autore del commit, quel giorno la
+  promessa vale un po' meno e non se ne accorge nessuno.
+*/
+try {
+  const versione = JSON.parse(readFileSync(join(RADICE, "versione.json"), "utf8"));
+  const chiavi = Object.keys(versione).sort();
+  sostiene(
+    chiavi.length === 2 && chiavi[0] === "commit" && chiavi[1] === "costruito",
+    `versione.json porta solo commit e data (${chiavi.join(", ")})`,
+  );
+  sostiene(
+    /^[0-9a-f]{40}$/.test(String(versione.commit)),
+    `versione.json dice da quale commit: ${String(versione.commit).slice(0, 12)}`,
+  );
+  sostiene(
+    !Number.isNaN(Date.parse(String(versione.costruito))),
+    `versione.json dice quando: ${versione.costruito}`,
+  );
+} catch {
+  sostiene(false, "versione.json non è stato pubblicato, o non si legge");
+}
+
+// ————————————————————————————————————————————————————————————
 // 5 · L'immagine di anteprima, quella che si vede solo in una chat
 // ————————————————————————————————————————————————————————————
 

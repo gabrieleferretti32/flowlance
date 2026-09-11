@@ -11,6 +11,7 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
 | `verifica-derivati.mjs` | Rifà i conti delle formule del prospetto e li confronta con gli importi mostrati accanto |
 | `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
+| `verifica-versione.mjs` | Chiede al sito online da quale commit è costruito e lo confronta con il ramo |
 | `verifica-consenso.mjs` | Intercetta la rete: niente misurazione prima di un sì, e mai dentro l'app nemmeno a consenso dato |
 | `anteprima-pdf.mjs` | Rende ogni pagina di un PDF in PNG, per guardarlo invece di leggerne il testo |
 | `immagine-anteprima.mjs` | Disegna l'immagine che i social mostrano al posto del link, leggendo il titolo dalla landing vera |
@@ -112,6 +113,38 @@ affermano in un test, si guardano.
 Rende ogni pagina con pdf.js dentro Chromium e scrive un PNG per pagina. Nessuna
 dipendenza nativa: la stessa libreria con cui il browser mostra i PDF, fatta
 girare in un browser.
+
+---
+
+## `verifica-versione.mjs`
+
+```sh
+npm run verifica:versione
+node strumenti/verifica-versione.mjs --sito=https://… --contro=origin/HEAD
+```
+
+Vercel pubblica, e da fuori non si vede **cosa** ha pubblicato. Si apre il sito,
+si vede una pagina, e si dà per scontato che sia quella del ramo. Quando non lo
+è — un build fallito, una distribuzione ferma a metà — il sintomo è che il sito
+funziona benissimo e racconta qualcosa di vecchio. È il difetto di
+`artefatto.mjs` spostato di un piano: non la copia sbagliata sul proprio disco,
+la copia sbagliata in produzione.
+
+Da oggi il sito lo dichiara: `next.config.ts` scrive `public/versione.json` a
+ogni build, con due campi e non uno di più — lo SHA del commit e la data. È un
+file pubblico su un sito che promette di non mandare dati da nessuna parte, e un
+test in `src/lib/sito/versione.test.ts` tiene le chiavi a due.
+
+Questo strumento lo legge e **fa lui il confronto**. Due SHA di quaranta cifre
+guardati a occhio sono il modo di dirsi «sì, è quello» sul commit sbagliato.
+Esce con 1 quando non coincidono, e dice di quanti commit e in che verso.
+
+Le tre ragioni per cui può non saperlo le distingue, perché sono tre cose
+diverse: un 404 è «la distribuzione è precedente a questa modifica»; un altro
+codice è il sito o qualcosa in mezzo; una richiesta che non parte non dice
+niente su cosa c'è online. La prima stesura le appiattiva in una sola e ha
+attribuito a una distribuzione vecchia un 403 che veniva dal proxy della rete
+da cui la stavo lanciando.
 
 ---
 
