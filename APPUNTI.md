@@ -245,3 +245,33 @@ Non è bloccante: i due pulsanti della testata sono appiccicati in alto e non
 spariscono mai, quindi l'invito resta a portata di pollice in ogni momento. Sta
 qui perché il giorno in cui la pagina di vendita si rimette mano, questo è il
 vincolo da tenere in mano prima di cominciare, non dopo.
+
+## 11 settembre 2026 · L'anteprima non si rifà dentro il build, e perché
+
+L'immagine che compare quando qualcuno incolla flowlance.it in una chat viene
+disegnata da `npm run anteprima:immagine`, che apre la landing costruita in
+Chromium e la fotografa. Non da `next build`, come il PDF dei Termini.
+
+La ragione è il carattere. Flowlance spedisce Inter e Plus Jakarta Sans come
+**woff2 variabili**, e per disegnare il titolo con quel carattere serve
+qualcosa che sappia rasterizzare un woff2 variabile. In questo progetto non
+c'è: `fontkit` — che pdfkit si porta dietro — apre il file e ne legge le
+tabelle, ma `getVariation()` su un WOFF2 si rompe (ricostruisce il font dal
+flusso ancora compresso), e forzando le coordinate a mano si rompe la
+ricostruzione della tabella `glyf` trasformata. Il satori dentro `next/og`
+accetta ttf, otf e woff, e woff2 no. E il build di Vercel non ha un browser.
+
+Le alternative erano: mettere in repo un ttf statico del carattere (una seconda
+copia della tipografia, da tenere allineata alla prima), oppure disegnare il
+titolo con un carattere diverso da quello del sito — cioè un'anteprima che non
+somiglia alla pagina, che è il difetto che si stava evitando.
+
+La garanzia che si voleva resta intera, spostata: il generatore **firma il
+PNG** — dentro il file, in un chunk `iTXt`, la frase disegnata e l'impronta del
+marchio — e `next.config.ts` la rilegge a ogni build, quello di Vercel
+compreso, e si ferma se non coincide più con `APERTURA`. L'immagine non può
+restare indietro in silenzio; può solo fermare un build, dicendo il comando.
+
+Il giorno in cui un woff2 variabile si sa rasterizzare in puro JavaScript —
+o il carattere arriva anche in ttf — il generatore può entrare nel build e il
+presidio diventa inutile. Fino ad allora vale la pena saperlo scritto.

@@ -1,8 +1,10 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { SegnoFlowlance } from "@/components/guscio/marchio";
 import { DatiStrutturati } from "@/components/sito/dati-strutturati";
 import { PREZZO_SCRITTO } from "@/lib/sito/acquisto";
+import { APERTURA } from "@/lib/sito/apertura";
 import { SITO, rottaDemo } from "@/lib/rotte";
 import { metadatiDi } from "@/lib/sito/metadati";
 
@@ -290,8 +292,15 @@ function Apertura() {
           color: COLORI.accento,
         }}
       >
-        Flowlance · per freelance italiani con partita IVA
+        {APERTURA.occhiello}
       </p>
+      {/*
+        Le righe escono da `APERTURA`, e ognuna è un <span> con `data-accento`.
+        L'attributo non serve a questa pagina — il colore glielo dà lo stile in
+        linea, com'era — ma al generatore dell'immagine di anteprima, che apre
+        il sito costruito e legge di qui titolo e tinte. È il modo per non
+        riscrivere la frase, e nemmeno il #4b5bf0, una seconda volta altrove.
+      */}
       <h1
         style={{
           margin: 0,
@@ -302,9 +311,17 @@ function Apertura() {
           maxWidth: "16ch",
         }}
       >
-        Sul conto hai 30.000 €.
-        <br />
-        <span style={{ color: COLORI.accento }}>Tuoi ne sono 17.000.</span>
+        {APERTURA.titolo.map((riga, i) => (
+          <Fragment key={riga.testo}>
+            {i > 0 && <br />}
+            <span
+              data-accento={riga.accento ? "si" : "no"}
+              style={riga.accento ? { color: COLORI.accento } : undefined}
+            >
+              {riga.testo}
+            </span>
+          </Fragment>
+        ))}
       </h1>
       <p
         style={{

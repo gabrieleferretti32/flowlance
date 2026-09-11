@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   IMMAGINE_ANTEPRIMA,
@@ -11,6 +11,7 @@ import {
   rotteIndicizzabili,
 } from "./metadati";
 import { CHIUSO_AI_MOTORI, DOMINIO } from "./impostazioni";
+import { misurePng } from "./png";
 import { BASE_APP, SITO } from "@/lib/rotte";
 
 /**
@@ -225,15 +226,39 @@ describe("l'immagine di anteprima", () => {
    * mancante non lo vedrebbe nessuno da qui: si vede solo incollando un
    * indirizzo in una chat.
    */
-  it("se è dichiarata, il file esiste e ha le misure giuste", () => {
+  it("se è dichiarata, il file esiste e ha nei byte le misure che dichiara", () => {
     if (IMMAGINE_ANTEPRIMA === null) {
       expect(rotteIndicizzabili().length).toBeGreaterThan(0);
       return;
     }
-    expect(existsSync(`public${IMMAGINE_ANTEPRIMA.percorso}`)).toBe(true);
+    const percorso = `public${IMMAGINE_ANTEPRIMA.percorso}`;
+    expect(existsSync(percorso)).toBe(true);
+    /*
+      Le misure si leggono dall'IHDR del file, non dalle due costanti qui
+      accanto.
+
+      La prima stesura di questo test confrontava `larghezza` con 1200 e
+      `altezza` con 630 — cioè confrontava due numeri scritti a mano con due
+      numeri scritti a mano, e sarebbe passata identica davanti a un PNG di
+      600 × 315 o a un quadrato. Diceva «l'immagine è 1200 × 630» e verificava
+      «qualcuno ha scritto 1200 e 630»: è la differenza fra un file e
+      un'intenzione, ed è lo stesso scarto che due volte ha fatto passare un
+      PDF sbagliato.
+    */
+    const misure = misurePng(new Uint8Array(readFileSync(percorso)));
     // 1200 × 630 è la misura che Facebook, LinkedIn e X ritagliano senza
     // tagliare: qualunque altra proporzione viene tagliata da qualcuno.
-    expect(IMMAGINE_ANTEPRIMA.larghezza).toBe(1200);
-    expect(IMMAGINE_ANTEPRIMA.altezza).toBe(630);
+    expect(misure.larghezza).toBe(1200);
+    expect(misure.altezza).toBe(630);
+    expect(IMMAGINE_ANTEPRIMA.larghezza).toBe(misure.larghezza);
+    expect(IMMAGINE_ANTEPRIMA.altezza).toBe(misure.altezza);
   });
+
+  /*
+    Quello che qui non c'è, e sta in `anteprima.test.ts`: se il titolo disegnato
+    è ancora quello della landing, se l'inchiostro è abbastanza alto da
+    leggersi quando l'anteprima diventa una miniatura in una chat, e se il
+    contrasto regge. Sono misure sui pixel, e vogliono un lettore di PNG: qui
+    si resta sulla tabella dei testi.
+  */
 });

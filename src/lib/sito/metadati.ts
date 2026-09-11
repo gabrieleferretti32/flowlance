@@ -27,6 +27,7 @@
 import type { Metadata } from "next";
 import { BASE_APP, SITO } from "@/lib/rotte";
 import { CHIUSO_AI_MOTORI, DOMINIO } from "./impostazioni";
+import { MISURA, PERCORSO_ANTEPRIMA } from "./anteprima";
 
 export type MetadatiPagina = {
   /** Quello che si legge nella scheda del browser e in cima al risultato. */
@@ -116,13 +117,22 @@ export const LIMITI = { titolo: 65, descrizione: 158 } as const;
  * L'immagine di anteprima, quella che compare quando qualcuno incolla un
  * indirizzo in una chat.
  *
- * `null` finché non c'è: un `og:image` che punta a un file mancante fa comparire
+ * `null` quando non c'è: un `og:image` che punta a un file mancante fa comparire
  * un rettangolo rotto al posto dell'anteprima, che è peggio di nessuna
  * anteprima — senza immagine i social mostrano titolo e descrizione, e stanno
- * bene. Un test verifica che quando qui c'è un percorso, il file esista davvero.
+ * bene. Un test verifica che quando qui c'è un percorso, il file esista davvero
+ * e **abbia nei suoi byte** le misure dichiarate qui accanto.
+ *
+ * Percorso e misure non si riscrivono: arrivano da `anteprima.ts`, che è il
+ * file che le dice anche al generatore e al presidio del build. Sarebbero
+ * altrimenti tre posti dove è scritto «1200 × 630», e il giorno in cui uno
+ * cambia gli altri due mentono.
  */
-export const IMMAGINE_ANTEPRIMA: { percorso: string; larghezza: number; altezza: number } | null =
-  null;
+export const IMMAGINE_ANTEPRIMA: { percorso: string; larghezza: number; altezza: number } | null = {
+  percorso: PERCORSO_ANTEPRIMA,
+  larghezza: MISURA.larghezza,
+  altezza: MISURA.altezza,
+};
 
 /** L'indirizzo assoluto di una pagina pubblica: serve al canonical e alla sitemap. */
 export function indirizzoAssoluto(rotta: string): string {

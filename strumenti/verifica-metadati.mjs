@@ -79,6 +79,10 @@ const documenti = [...pagine()].map((percorso) => {
     ogDescrizione: attributo(testa, "property", "og:description"),
     ogUrl: attributo(testa, "property", "og:url"),
     twTitolo: attributo(testa, "name", "twitter:title"),
+    twScheda: attributo(testa, "name", "twitter:card"),
+    ogImmagine: attributo(testa, "property", "og:image"),
+    ogLarghezza: attributo(testa, "property", "og:image:width"),
+    ogAltezza: attributo(testa, "property", "og:image:height"),
     jsonLd: /<script[^>]*application\/ld\+json/i.test(testa),
     lang: primo(html, /<html[^>]*lang=["']([^"']*)["']/i),
   };
@@ -288,6 +292,62 @@ for (const nome of ["favicon.ico", "icon.svg"]) {
     byte = 0;
   }
   sostiene(byte > 0, `${nome} è pubblicato (${byte} byte)`);
+}
+
+// ————————————————————————————————————————————————————————————
+// 5 · L'immagine di anteprima, quella che si vede solo in una chat
+// ————————————————————————————————————————————————————————————
+
+/*
+  Qui non si rimisura il PNG: lo fa `src/lib/sito/anteprima.test.ts`, che ne
+  apre i pixel, misura l'altezza dell'inchiostro del titolo e il contrasto.
+  Quello che manca da lì è il pezzo che riguarda **il sito costruito**: che
+  og:image ci sia su tutte le pagine pubbliche, che dica lo stesso indirizzo, e
+  che a quell'indirizzo il file pubblicato sia byte per byte quello misurato.
+
+  Un og:image che punta a un file che non è stato copiato è un rettangolo rotto
+  al posto dell'anteprima, ed è invisibile da dentro: la pagina si apre bene.
+*/
+const conImmagine = PUBBLICHE.filter((d) => d.ogImmagine);
+if (conImmagine.length === 0) {
+  sostiene(true, "nessuna og:image dichiarata: i social mostreranno titolo e descrizione");
+} else {
+  sostiene(
+    conImmagine.length === PUBBLICHE.length,
+    `og:image su tutte le pagine pubbliche (${conImmagine.length} di ${PUBBLICHE.length})`,
+  );
+  const indirizzi = [...new Set(conImmagine.map((d) => d.ogImmagine))];
+  sostiene(indirizzi.length === 1, `og:image è sempre lo stesso indirizzo: ${indirizzi.join(", ")}`);
+
+  for (const d of conImmagine) {
+    sostiene(
+      d.twScheda === "summary_large_image",
+      `${d.rotta}: twitter:card è ${d.twScheda ?? "assente"}`,
+    );
+  }
+
+  const indirizzo = indirizzi[0];
+  sostiene(/^https:\/\//.test(indirizzo), "og:image è un indirizzo assoluto, come vuole il protocollo");
+
+  const dentro = indirizzo.replace(/^https?:\/\/[^/]+/, "");
+  let pubblicato = null;
+  try {
+    pubblicato = readFileSync(join(RADICE, dentro));
+  } catch {
+    pubblicato = null;
+  }
+  sostiene(pubblicato !== null, `${dentro} è stato pubblicato in out/`);
+  if (pubblicato) {
+    const sorgente = readFileSync(join("public", dentro));
+    sostiene(
+      pubblicato.equals(sorgente),
+      `${dentro} pubblicato è lo stesso file misurato (${pubblicato.length} byte)`,
+    );
+    sostiene(
+      conImmagine.every((d) => d.ogLarghezza === "1200" && d.ogAltezza === "630"),
+      `og:image:width e height dicono ${conImmagine[0].ogLarghezza}×${conImmagine[0].ogAltezza}`,
+    );
+  }
 }
 
 // ————————————————————————————————————————————————————————————

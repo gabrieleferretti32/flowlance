@@ -4,6 +4,7 @@ import { controlloChiavePubblica } from "./src/lib/licenza/presidio";
 import { generaPdfTermini } from "./src/lib/contenuti/pdf-termini";
 import { CHIUSO_AI_MOTORI, PAYMENT_LINK } from "./src/lib/sito/impostazioni";
 import { controlloVendita } from "./src/lib/sito/presidio";
+import { controlloAnteprima } from "./src/lib/sito/presidio-anteprima";
 
 /**
  * Nessun build di produzione senza una chiave pubblica vera.
@@ -34,6 +35,26 @@ if (problema) throw new Error(problema);
 */
 const vendita = controlloVendita(PAYMENT_LINK, CHIUSO_AI_MOTORI, process.env.NODE_ENV);
 if (vendita) throw new Error(vendita);
+
+/**
+ * E nessun build che pubblichi un'anteprima che non è più quella del sito.
+ *
+ * L'immagine la disegna Chromium leggendo la landing costruita — il carattere
+ * di Flowlance è un woff2 variabile, e qui dentro non c'è niente che sappia
+ * rasterizzarlo — quindi non si rifà da sola a ogni build. Il presidio serve
+ * proprio a questo: rilegge la firma che il generatore ha lasciato nel PNG e
+ * la confronta con l'apertura della landing e con il marchio di adesso.
+ *
+ * `RIFACCIO_ANTEPRIMA` sospende il controllo, e lo fa una volta sola: è
+ * `npm run anteprima:immagine` che lo accende per costruire il sito da cui
+ * l'immagine verrà disegnata. Senza quella via d'uscita il giorno in cui il
+ * titolo cambia non si costruirebbe più niente — il build vorrebbe l'immagine
+ * nuova, e l'immagine nuova vorrebbe il build.
+ */
+if (!process.env.RIFACCIO_ANTEPRIMA) {
+  const anteprima = controlloAnteprima();
+  if (anteprima) throw new Error(anteprima);
+}
 
 const nextConfig: NextConfig = {
   /**

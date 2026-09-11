@@ -13,6 +13,7 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
 | `verifica-consenso.mjs` | Intercetta la rete: niente misurazione prima di un sì, e mai dentro l'app nemmeno a consenso dato |
 | `anteprima-pdf.mjs` | Rende ogni pagina di un PDF in PNG, per guardarlo invece di leggerne il testo |
+| `immagine-anteprima.mjs` | Disegna l'immagine che i social mostrano al posto del link, leggendo il titolo dalla landing vera |
 | `misura-responsive.mjs` | Misura ogni schermata alle larghezze vere dei telefoni |
 | `diagnosi-chiave.mjs` | Dice cosa vede l'app quando cerca la chiave pubblica della licenza |
 | `diagnosi-iva-importata.js` | Elenca le righe la cui aliquota IVA non è quella dichiarata, dopo il difetto dell'import da CSV |
@@ -110,6 +111,44 @@ affermano in un test, si guardano.
 Rende ogni pagina con pdf.js dentro Chromium e scrive un PNG per pagina. Nessuna
 dipendenza nativa: la stessa libreria con cui il browser mostra i PDF, fatta
 girare in un browser.
+
+---
+
+## `immagine-anteprima.mjs`
+
+```sh
+npm run build
+npm run anteprima:immagine                 # rifà public/anteprima.png
+node strumenti/immagine-anteprima.mjs --file=/tmp/prova.png
+node strumenti/immagine-anteprima.mjs --niente-scrittura
+```
+
+L'immagine che compare quando qualcuno incolla flowlance.it in una chat. Apre
+**la landing costruita** in Chromium, le legge dal `<h1>` il titolo e le righe
+colorate, dalla riga sopra l'occhiello, da `getComputedStyle` le tinte, e
+disegna la scheda dentro quello stesso documento — quindi con lo stesso
+carattere, già caricato. Il marchio è `src/app/icon.svg` infilato com'è dentro
+un `<img>`: non ridisegnato.
+
+Non gira dentro `npm run build` — il carattere del sito è un woff2 variabile e
+il build di Vercel non ha un browser; la storia completa sta in `APPUNTI.md`,
+11 settembre 2026. Al posto della rigenerazione automatica c'è una **firma**:
+prima di scrivere il PNG ci infila un chunk `iTXt` con la frase disegnata,
+l'occhiello e l'impronta del marchio, e `next.config.ts` la rilegge a ogni
+build e si ferma se non coincide più con `APERTURA`. Cambiare il titolo della
+landing senza rifare l'immagine non è possibile in silenzio: è possibile solo
+fermando un build, che lo dice.
+
+`RIFACCIO_ANTEPRIMA=1` è la via d'uscita da quel cerchio, e la usa lo script
+`anteprima:immagine`: costruisce il sito con il presidio sospeso, perché è da
+quel sito che l'immagine nuova verrà letta.
+
+**Il titolo non viene rimpicciolito.** Va a capo da solo finché sta in tre
+righe; alla quarta lo strumento si ferma e dice quante ne servono. Le misure
+dell'immagine le verifica `src/lib/sito/anteprima.test.ts`, che ne apre i
+pixel: altezza vera dell'inchiostro del titolo — perché un'anteprima 1200 × 630
+con il titolo a 20 px sarebbe grande uguale e illeggibile — contrasto sul
+fondo, e bordi sgombri dove il ritaglio dei social mangia qualche pixel.
 
 ---
 

@@ -19,6 +19,7 @@
     "verifica:derivati": "node strumenti/verifica-derivati.mjs",
     "verifica:allineamento": "node strumenti/verifica-allineamento.mjs",
     "anteprima:pdf": "node strumenti/anteprima-pdf.mjs",
+    "anteprima:immagine": "RIFACCIO_ANTEPRIMA=1 next build && node strumenti/timbra-artefatto.mjs && node strumenti/immagine-anteprima.mjs",
     "verifica:consenso": "node strumenti/verifica-consenso.mjs",
     "verifica:metadati": "node strumenti/verifica-metadati.mjs"
   },
