@@ -1,6 +1,6 @@
 # Cookie Policy
 
-*Ultimo aggiornamento: 9 settembre 2026*
+*Ultimo aggiornamento: 11 settembre 2026*
 
 ## Cosa usiamo
 
@@ -25,6 +25,13 @@ Misura il numero di visitatori, le pagine viste e la provenienza del traffico. D
 **Microsoft Clarity — Microsoft Ireland Operations Ltd.**
 Produce mappe di calore e registrazioni anonime della navigazione sulle pagine del sito, per capire come viene usato. Clarity non è attivo sull'applicazione: non registra in alcun modo l'uso di Flowlance né i dati che vi vengono inseriti. Durata: fino a 12 mesi. Informativa: privacy.microsoft.com
 
+## Cookie e strumenti di profilazione pubblicitaria
+
+Attivati solo previo consenso tramite il banner, e in una categoria separata da quella delle statistiche: chi accetta le statistiche non ha accettato la profilazione.
+
+**Meta Pixel — Meta Platforms Ireland Ltd.**
+Segnala a Meta quando arrivi su queste pagine da un annuncio, quando apri la pagina di acquisto e quando l'acquisto si conclude. Serve a misurare la pubblicità e consente a Meta di mostrarti annunci in base a quello che hai fatto qui. Non trasmette il tuo nome, il tuo indirizzo email né alcun dato che tu abbia inserito: l'evento di acquisto porta un'impronta calcolata a partire dall'identificativo della sessione di pagamento, non l'identificativo stesso. Il pixel non è attivo sull'applicazione. Durata: fino a 90 giorni. Informativa: facebook.com/privacy/policy
+
 ## Come gestire il consenso
 
 Al primo accesso viene mostrato un banner che consente di accettare, rifiutare o selezionare le categorie. La scelta può essere modificata in ogni momento dal link «Preferenze cookie» presente nel piede di ogni pagina.
@@ -33,7 +40,7 @@ Al primo accesso viene mostrato un banner che consente di accettare, rifiutare o
 
 ## Trasferimento extra-UE
 
-Google e Microsoft possono trasferire dati verso gli Stati Uniti sulla base delle Clausole Contrattuali Standard e del Data Privacy Framework.
+Google, Microsoft e Meta possono trasferire dati verso gli Stati Uniti sulla base delle Clausole Contrattuali Standard e del Data Privacy Framework.
 
 ## Titolare
 

@@ -67,6 +67,12 @@ const MISURAZIONE = [
   "analytics.google.com",
   "clarity.ms",
   "doubleclick.net",
+  // Meta: profilazione pubblicitaria. Entra in questo elenco **insieme** al
+  // pixel e non dopo — un dominio che manca qui è un controllo che dice verde
+  // mentre quel dominio viene contattato dentro l'applicazione.
+  "connect.facebook.net",
+  "facebook.com",
+  "facebook.net",
 ];
 
 try {
@@ -219,6 +225,26 @@ let cookieConsenso = null;
     Boolean(clarity) && dopo.some((u) => u.includes(`/tag/${clarity}`)),
     `le richieste portano il codice Clarity configurato (${clarity})`,
   );
+  /*
+    Il pixel di Meta si controlla in due pezzi, perché il suo identificativo non
+    viaggia nell'indirizzo dello script: `fbevents.js` è uguale per tutti, e
+    l'identificativo sta dentro la chiamata `fbq('init', …)`. Quindi si guarda
+    che la richiesta parta **e** che il numero nel documento sia il nostro: uno
+    sbagliato manderebbe le conversioni nell'account di qualcun altro, e da qui
+    si vedrebbe una rete perfettamente normale.
+  */
+  const meta = codici.match(/metaPixel:\s*"([^"]+)"/)?.[1];
+  sostiene(
+    dopo.some((u) => u.includes("connect.facebook.net")),
+    "il pixel di Meta parte solo dopo il sì, come gli altri due",
+  );
+  const idNelDocumento = await page.evaluate(
+    () => document.getElementById("meta-pixel")?.textContent ?? "",
+  );
+  sostiene(
+    Boolean(meta) && idNelDocumento.includes(`fbq('init', '${meta}')`),
+    `il pixel inizializza il codice configurato (${meta})`,
+  );
 
   // Il consenso resta salvato: è quello che si porta dietro chi passa a /app.
   cookieConsenso = await page.evaluate(() => {
@@ -284,6 +310,77 @@ let cookieConsenso = null;
   // E il banner non compare dentro l'app: non c'è niente da chiedere lì.
   const banner = await page.evaluate(() => document.querySelector('[role="dialog"]') !== null);
   sostiene(!banner, "dentro l'app il banner dei cookie non compare");
+  await ctx.close();
+}
+
+// ————————————————————————————————————————————————————————————
+// 4 · Lo stesso, ma per la strada che percorre una persona
+// ————————————————————————————————————————————————————————————
+
+/*
+  Il controllo qui sopra arriva dentro `/app` con `page.goto`, cioè con un
+  documento nuovo: è **il caso che conferma**. Quello che fa una persona è
+  un altro — apre la landing, accetta, e preme «Apri la demo».
+
+  Se quel collegamento fosse una navigazione client-side, il documento
+  resterebbe quello della landing: gli script di misurazione, già caricati,
+  continuerebbero a vivere in una scheda che ora mostra l'applicazione. Oggi non
+  è così — il documento si ricarica — ma «oggi non è così» è un fatto sul build
+  di oggi, non una garanzia, e a deciderlo è il routing di Next e non una nostra
+  scelta scritta da qualche parte.
+
+  Quindi il percorso vero si misura, invece di fidarsi di com'è andata l'ultima
+  volta che qualcuno l'ha guardato.
+*/
+{
+  const { ctx, fuori } = await conRete();
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.evaluate(
+    ([chiave, valore]) => window.localStorage.setItem(chiave, valore),
+    [cookieConsenso.chiave, cookieConsenso.valore],
+  );
+  await page.reload({ waitUntil: "networkidle" });
+  await page.waitForTimeout(2_500);
+
+  /*
+    Prima di misurare la scomparsa, si verifica che la misura veda la cosa
+    quando c'è: sulla landing, con il sì dato, qualcosa deve partire. Se qui
+    fosse zero, lo zero dentro l'app non proverebbe niente — e una prova che
+    non vede la cosa presente è il modo di dichiarare pulito un sito che non lo è.
+  */
+  const sullaLanding = versoMisurazione(fuori).length;
+  sostiene(
+    sullaLanding > 0,
+    `sulla landing, con il sì, partono ${sullaLanding} richieste di misurazione — la misura vede`,
+  );
+
+  fuori.length = 0;
+  const demo = page.getByRole("link", { name: "Apri la demo" }).first();
+  const quanti = await demo.count();
+  if (quanti === 0) {
+    problemi.push("sulla landing non trovo «Apri la demo»: il percorso vero non si può provare");
+  } else {
+    await demo.click();
+    await page.waitForTimeout(4_000);
+    const dentro = page.url().includes("/app");
+    sostiene(dentro, `il collegamento porta dentro l'applicazione (${page.url().replace(BASE, "")})`);
+
+    const spie = versoMisurazione(fuori);
+    sostiene(
+      spie.length === 0,
+      `arrivando dalla landing con un clic, dentro /app non parte niente${spie.length ? `: ${spie.join(", ")}` : ""}`,
+    );
+
+    // E gli script non sono nemmeno rimasti vivi nella scheda.
+    const vivi = await page.evaluate(() =>
+      ["clarity", "gtag", "fbq"].filter((n) => typeof window[n] === "function"),
+    );
+    sostiene(
+      vivi.length === 0,
+      `nella scheda che mostra l'app non è rimasto nessuno script di misurazione${vivi.length ? `: ${vivi.join(", ")}` : ""}`,
+    );
+  }
   await ctx.close();
 }
 

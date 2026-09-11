@@ -11,6 +11,7 @@ import {
   pagamentoConfigurato,
 } from "@/lib/sito/acquisto";
 import { SITO } from "@/lib/rotte";
+import { CONTENUTO, VALORE, tracciaMeta } from "@/lib/sito/pixel";
 
 /**
  * Comprare Flowlance: leggere, dichiarare, pagare. In quest'ordine.
@@ -201,12 +202,31 @@ export function SchermataAcquisto({
 function PagaConStripe({ dichiara }: { dichiara: boolean }) {
   const pronto = pagamentoConfigurato();
 
+  /*
+    Chi è arrivato fin qui sta leggendo la scheda del prodotto: è `ViewContent`.
+    Parte al montaggio e una volta sola. Se il consenso alla profilazione non
+    c'è, `tracciaMeta` non trova il pixel e non succede niente — nessun ramo da
+    scrivere qui, nessuna seconda definizione di quando si può misurare.
+  */
+  React.useEffect(() => {
+    tracciaMeta("ViewContent", { ...CONTENUTO, ...VALORE });
+  }, []);
+
   return (
     <div className="mt-6">
       {pronto ? (
         <a
           href={dichiara ? PAYMENT_LINK : undefined}
           aria-disabled={!dichiara}
+          /*
+            `InitiateCheckout` sul clic che porta davvero a Stripe. Senza la
+            spunta il collegamento non ha indirizzo e non si apre: l'evento non
+            deve partire neanche lì, o conterebbe un tentativo che non è mai
+            diventato un checkout.
+          */
+          onClick={() => {
+            if (dichiara) tracciaMeta("InitiateCheckout", { ...CONTENUTO, ...VALORE });
+          }}
           /*
             Senza la spunta il collegamento non ha un `href`: un `<a>` senza
             indirizzo non è raggiungibile con il tabulatore e non si apre in

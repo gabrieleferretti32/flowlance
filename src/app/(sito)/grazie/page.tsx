@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SITO } from "@/lib/rotte";
 import { metadatiDi } from "@/lib/sito/metadati";
+import { AcquistoContato } from "./acquisto-contato";
 
 export const metadata = metadatiDi(SITO.grazie);
 
@@ -31,6 +32,20 @@ export default function Grazie() {
         all&apos;indirizzo che hai indicato durante l&apos;acquisto, di norma{" "}
         <strong className="font-semibold">entro 24 ore lavorative</strong>.
       </p>
+      {/*
+        La cosa da fare, subito dopo la prima riga.
+
+        Senza, chi ha appena pagato aspetta — e se non ha capito che c'è una
+        risposta da mandare, aspetta per sempre. È l'unica parte del flusso in
+        cui la palla passa a lui, e la pagina che legge con la carta appena
+        addebitata è l'unico posto in cui può scoprirlo.
+      */}
+      <p className="mt-4 rounded-campo border border-accento/30 bg-accento-tenue px-4 py-3 text-corpo leading-relaxed">
+        <strong className="font-semibold">C&apos;è una cosa da fare.</strong> Nella prima email
+        trovi i Termini in PDF e una dichiarazione da rispedire compilata: serve perché il
+        contratto si perfezioni. Appena rispondi — dallo stesso indirizzo con cui hai comprato —
+        ti mando la chiave.
+      </p>
       <p className="mt-4 text-corpo leading-relaxed text-inchiostro-tenue">
         Non è un invio automatico ed è voluto: ogni licenza è firmata a mano con una chiave
         che non sta su nessun server. È lo stesso motivo per cui i tuoi dati fiscali non
@@ -46,6 +61,7 @@ export default function Grazie() {
         </a>{" "}
         e controlla la cartella dello spam.
       </p>
+      <AcquistoContato />
       <p className="mt-10 text-etichetta">
         <Link href={SITO.vendita} className="text-accento underline underline-offset-2">
           Torna alla pagina di Flowlance

@@ -78,4 +78,10 @@ export const MISURAZIONE = {
   ga4: "G-QGDZ2CZBEW",
   /** Microsoft Clarity — Microsoft Ireland Operations Ltd. */
   clarity: "yfg22ehfxn",
+  /*
+    Il pixel di Meta: profilazione pubblicitaria, non misurazione. Sta qui
+    accanto agli altri due perché è una decisione sul sito pubblico, ma vive
+    dietro una categoria di consenso sua — vedi `consenso.ts`.
+  */
+  metaPixel: "1639593991052005",
 } as const;

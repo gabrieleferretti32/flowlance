@@ -34,7 +34,7 @@ import { MISURAZIONE } from "@/lib/sito/impostazioni";
   e al dominio: sono decisioni sul sito pubblico, non dettagli di questo
   componente. Qui si legge quello che c'è scritto là.
 */
-const { ga4: GA4, clarity: CLARITY } = MISURAZIONE;
+const { ga4: GA4, clarity: CLARITY, metaPixel: META } = MISURAZIONE;
 
 export function Statistiche() {
   const [consenso, setConsenso] = React.useState<Consenso>(NIENTE);
@@ -58,6 +58,34 @@ export function Statistiche() {
             `}
           </Script>
         </>
+      )}
+
+      {/*
+        Il pixel di Meta sta qui e non in un componente suo, per la ragione
+        scritta in `pixel.ts`: la garanzia che non entri in `/app` è che questo
+        file è montato dal guscio di `(sito)`. Un componente a parte con dentro
+        un controllo sul percorso sarebbe una seconda definizione di «cosa è
+        marketing», accanto a quella che l'albero delle rotte già dà.
+
+        `PageView` lo manda lo script base al caricamento. Non ce n'è un secondo
+        sui cambi di rotta: da una pagina del sito all'altra il documento si
+        ricarica — misurato, non supposto — quindi lo script riparte da solo.
+      */}
+      {consenso.pubblicita && (
+        <Script id="meta-pixel" strategy="afterInteractive">
+          {`
+            !function(f,b,e,v,n,t,s)
+            {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+            n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+            if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+            n.queue=[];t=b.createElement(e);t.async=!0;
+            t.src=v;s=b.getElementsByTagName(e)[0];
+            s.parentNode.insertBefore(t,s)}(window, document,'script',
+            'https://connect.facebook.net/en_US/fbevents.js');
+            fbq('init', '${META}');
+            fbq('track', 'PageView');
+          `}
+        </Script>
       )}
 
       {consenso.registrazioni && (

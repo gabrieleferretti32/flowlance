@@ -19,7 +19,7 @@
  */
 
 /** Le categorie che si possono accendere. I cookie tecnici non sono qui: non si scelgono. */
-export type Categoria = "statistiche" | "registrazioni";
+export type Categoria = "statistiche" | "registrazioni" | "pubblicita";
 
 export type Consenso = Record<Categoria, boolean>;
 
@@ -39,6 +39,23 @@ export const CATEGORIE: {
     chi: "Google Analytics 4 — Google Ireland Ltd. · fino a 14 mesi",
   },
   {
+    id: "pubblicita",
+    titolo: "Profilazione pubblicitaria",
+    /*
+      Detta per quello che è. «Migliorare gli annunci» sarebbe una perifrasi per
+      la stessa cosa, e questo banner esiste perché la persona sappia a che cosa
+      sta dicendo di sì — non perché la frase suoni meglio.
+
+      Ed è una categoria a sé e non un'aggiunta alle statistiche: un consenso
+      raccolto per contare le visite non copre la profilazione a fini
+      pubblicitari, e riusarlo sarebbe esattamente la cosa che questo banner è
+      stato costruito per non fare.
+    */
+    cosaFa:
+      "Segnala a Meta quando arrivi da un annuncio e quando compri, per misurare la pubblicità e mostrarti annunci in base a quello che hai fatto qui. Non è attivo dentro l'applicazione.",
+    chi: "Meta Pixel — Meta Platforms Ireland Ltd. · fino a 90 giorni",
+  },
+  {
     id: "registrazioni",
     titolo: "Registrazione della navigazione",
     cosaFa:
@@ -47,8 +64,8 @@ export const CATEGORIE: {
   },
 ];
 
-export const NIENTE: Consenso = { statistiche: false, registrazioni: false };
-export const TUTTO: Consenso = { statistiche: true, registrazioni: true };
+export const NIENTE: Consenso = { statistiche: false, registrazioni: false, pubblicita: false };
+export const TUTTO: Consenso = { statistiche: true, registrazioni: true, pubblicita: true };
 
 /** Dove sta scritto, nel browser. */
 export const CHIAVE = "flowlance:consenso-cookie";
@@ -76,7 +93,16 @@ export type Scelta = {
   versione: number;
 };
 
-export const VERSIONE = 1;
+/*
+  Da 1 a 2 l'11 settembre 2026, con l'arrivo della profilazione pubblicitaria.
+
+  Alzare questo numero rifà la domanda a **tutti**, compreso chi aveva già
+  risposto. È un costo — il banner riappare a chi l'aveva già chiuso — ed è il
+  costo giusto: chi ha detto sì alle statistiche non ha detto sì a una cosa che
+  quel giorno non esisteva, e far valere quel sì anche per la pubblicità
+  sarebbe raccogliere un consenso per una finalità e usarlo per un'altra.
+*/
+export const VERSIONE = 2;
 
 /** La risposta salvata è ancora buona, o la domanda va rifatta? */
 export function ancoraValida(scelta: Scelta | null, adesso: Date): boolean {
@@ -117,6 +143,7 @@ export function leggiScelta(): Scelta | null {
       consenso: {
         statistiche: s.consenso.statistiche === true,
         registrazioni: s.consenso.registrazioni === true,
+        pubblicita: s.consenso.pubblicita === true,
       },
     };
   } catch {

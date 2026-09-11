@@ -37,6 +37,35 @@ Il Payment Link **c'è**, dal 10 settembre 2026: sta in `PAYMENT_LINK`, dentro
 pulsante «Paga 118,34 € con Stripe» ha preso il suo posto, con la riga sull'IVA
 attaccata sotto.
 
+
+---
+
+## Il numero di Meta non è il numero di Stripe, e non deve esserlo
+
+Dall'11 settembre 2026 la pagina `/grazie` manda a Meta un evento `Purchase`.
+Stripe rimanda su `/grazie/?sessione={CHECKOUT_SESSION_ID}`, e l'evento parte
+solo con quel parametro, una volta sola per browser, con l'impronta
+dell'identificativo come `eventID` perché Meta scarti i doppioni.
+
+**Quel numero è più basso di quello vero, sempre.** `Purchase` scatta soltanto
+per chi ha accettato la profilazione pubblicitaria — una categoria di consenso a
+sé, dove rifiutare costa quanto accettare — e non scatta per chi usa un blocco
+degli annunci o chiude la scheda prima che `/grazie` carichi. Nell'altro verso
+resta poco: un acquisto rimborsato resta contato, e chi riapre l'indirizzo di
+ritorno da un altro browser.
+
+Quindi: **la verità è Stripe**, e il numero di Meta serve solo alla campagna per
+imparare. Il rapporto fra i due — `Purchase` in Meta diviso gli acquisti in
+Stripe nello stesso periodo — **è il tasso di consenso alla profilazione**, ed è
+l'unica misura che se ne avrà. Guardando i due cruscotti, i due numeri non
+devono coincidere: se coincidessero vorrebbe dire che tutti stanno accettando,
+che non succede.
+
+Una conseguenza pratica: con pochi `Purchase` la campagna fatica a uscire dalla
+fase di apprendimento, e la tentazione diventa ottimizzare su
+`InitiateCheckout`. Quello è un clic su un collegamento, e conta anche chi non
+ha pagato mai.
+
 ---
 
 ## Niente OTP, niente funzione serverless

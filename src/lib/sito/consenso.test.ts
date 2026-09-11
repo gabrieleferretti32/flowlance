@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CATEGORIE,
   MESI_DI_VALIDITA,
   NIENTE,
   TUTTO,
@@ -66,9 +67,48 @@ describe("la domanda non torna prima di sei mesi", () => {
   });
 });
 
-describe("le due categorie sono separate", () => {
-  it("si può dire sì a una e no all'altra", () => {
-    const meta = nuovaScelta({ statistiche: true, registrazioni: false }, ADESSO);
-    expect(consensoEffettivo(meta, ADESSO)).toEqual({ statistiche: true, registrazioni: false });
+describe("le categorie sono separate davvero", () => {
+  it("si può dire sì a una e no alle altre", () => {
+    const scelta = { statistiche: true, registrazioni: false, pubblicita: false };
+    const meta = nuovaScelta(scelta, ADESSO);
+    expect(consensoEffettivo(meta, ADESSO)).toEqual(scelta);
+  });
+
+  /**
+   * La profilazione pubblicitaria è una categoria sua, e questo test è il
+   * posto in cui si nota il giorno in cui qualcuno prova a legarla alle
+   * statistiche «perché tanto le accettano insieme».
+   */
+  it("**chi accetta le statistiche non ha accettato la pubblicità**", () => {
+    const solo = nuovaScelta(
+      { statistiche: true, registrazioni: true, pubblicita: false },
+      ADESSO,
+    );
+    expect(consensoEffettivo(solo, ADESSO).pubblicita).toBe(false);
+  });
+
+  /**
+   * E una risposta data quando la categoria non esisteva non vale per lei.
+   *
+   * È il motivo per cui `VERSIONE` è passata a 2: una scelta salvata alla
+   * versione 1 non è più valida, quindi torna `NIENTE` e il banner ricompare.
+   * Senza questo, chi aveva detto sì alle statistiche a settembre si sarebbe
+   * ritrovato profilato senza che nessuno glielo chiedesse.
+   */
+  it("**una risposta data prima che la categoria esistesse non vale**", () => {
+    const vecchia = { ...nuovaScelta(TUTTO, ADESSO), versione: 1 };
+    expect(ancoraValida(vecchia, ADESSO)).toBe(false);
+    expect(consensoEffettivo(vecchia, ADESSO)).toEqual(NIENTE);
+  });
+
+  it("le categorie dichiarate e le chiavi del consenso sono le stesse", () => {
+    expect(CATEGORIE.map((c) => c.id).sort()).toEqual(Object.keys(TUTTO).sort());
+  });
+
+  it("ogni categoria dice cosa fa e chi la fa, senza perifrasi", () => {
+    for (const c of CATEGORIE) {
+      expect(c.cosaFa.length, c.id).toBeGreaterThan(40);
+      expect(c.chi, c.id).toMatch(/·/);
+    }
   });
 });
