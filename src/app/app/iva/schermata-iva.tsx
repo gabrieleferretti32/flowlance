@@ -29,13 +29,38 @@ import { useCalcoloAnno } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { data as fmtData, euro } from "@/lib/format";
 import type { PeriodoIva } from "@/lib/fisco/iva";
+import { scostamentiIva } from "@/lib/fisco/scostamento-iva";
+import { useDati } from "@/lib/dati/hooks";
+import { ConfrontoF24 } from "./confronto-f24";
 import { ROTTE } from "@/lib/rotte";
 
 export function SchermataIva() {
   const anno = usePreferenze((s) => s.periodo.anno);
   const [oggi] = React.useState(() => new Date().toISOString().slice(0, 10));
   const calcolo = useCalcoloAnno(anno, oggi);
+  const dati = useDati();
   const [vista, setVista] = React.useState<"mensile" | "trimestrale">("trimestrale");
+
+  /*
+    Gli scenari si calcolano qui e non dentro `catenaAnni`: rifanno la
+    liquidazione due volte, e servono a una schermata sola. `creditoIniziale`
+    arriva dalla liquidazione già fatta, così i due conti partono dallo stesso
+    riporto invece di ricostruirlo per conto loro.
+  */
+  const scostamenti = React.useMemo(
+    () =>
+      calcolo
+        ? scostamentiIva({
+            fatture: calcolo.prospetto.fattureCalcolate,
+            costi: calcolo.prospetto.costiCalcolati,
+            note: calcolo.prospetto.noteCalcolate,
+            impostazioni: calcolo.impostazioni,
+            parametri: calcolo.parametri,
+            creditoIniziale: calcolo.iva.creditoIniziale,
+          })
+        : [],
+    [calcolo],
+  );
 
   React.useEffect(() => {
     if (calcolo) setVista(calcolo.impostazioni.periodicitaIva === "mensile" ? "mensile" : "trimestrale");
@@ -245,6 +270,13 @@ export function SchermataIva() {
             />
           </ElencoSchede>
         </Card>
+
+        <ConfrontoF24
+          periodi={imp.periodicitaIva === "mensile" ? iva.mesi : iva.trimestri}
+          scostamenti={scostamenti}
+          versamenti={dati?.versamenti ?? []}
+          anno={anno}
+        />
 
         <Card>
           <CardCorpo className="space-y-2 py-4">

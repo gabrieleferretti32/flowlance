@@ -356,9 +356,16 @@ soli:**
    altrimenti periodo di `dataRicezione`, e mai a cavallo d'anno. Facoltativa:
    chi non la compila resta com'è oggi, che è giusto quasi sempre.
 
-I primi due si fanno senza toccare l'archivio. Il terzo è una migrazione.
+**Deciso l'11 settembre: fatti 1 e 2, rimandato il 3.** I primi due sono in
+`src/lib/fisco/scostamento-iva.ts` e nella sezione «Il tuo F24 dice un altro
+numero?» della schermata IVA, e non toccano l'archivio. Il terzo è una
+migrazione della struttura dei dati e non si fa con il prodotto appena uscito:
+resta qui, scritto per intero, per il giorno in cui si riaprirà.
 
-**Da decidere, e non da me**: questa approssimazione sulla data probabilmente va
-anche in `APPROSSIMAZIONI.md`, cioè sulla pagina pubblica «cosa Flowlance non
-calcola» — è esattamente il genere di cosa per cui quella pagina esiste, e si
-legge prima di comprare invece che a giugno.
+Quello che il terzo aggiungerebbe e che oggi manca: la **certezza**. Senza la
+data di ricezione gli scenari restano ipotesi dichiarate — «se li avesse
+registrati alla ricezione, il periodo direbbe X» — e chi legge deve ancora
+decidere se è andata così. Con il campo, il numero sarebbe semplicemente giusto.
+
+L'approssimazione è dichiarata sulla pagina pubblica, in `APPROSSIMAZIONI.md`,
+sezione IVA.

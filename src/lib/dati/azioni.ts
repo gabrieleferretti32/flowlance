@@ -393,6 +393,20 @@ export async function creaVersamento(versamento: Omit<VersamentoF24, "id">) {
 }
 
 /**
+ * Cambia l'importo di un versamento già registrato.
+ *
+ * Serve al confronto con l'F24 sulla schermata IVA: chi corregge il numero
+ * versato sta correggendo **quel** versamento, non aggiungendone un altro.
+ */
+export async function correggiVersamento(versamento: VersamentoF24, importo: number) {
+  const precedente = { ...versamento };
+  await archivio().versamenti.salva({ ...versamento, importo: round2(importo) });
+  toast.conferma("Versamento aggiornato", async () => {
+    await archivio().versamenti.salva(precedente);
+  });
+}
+
+/**
  * Assegna a un versamento l'anno d'imposta a cui si riferisce.
  *
  * Esiste come azione a sé perché è la riparazione di un dato mancante, non una
