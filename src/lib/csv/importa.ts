@@ -67,6 +67,16 @@ export type Lettura = {
   clientiDaCreare: string[];
   /** Righe che coincidono con qualcosa di già presente. */
   duplicati: { riga: number; descrizione: string; idEsistente: string }[];
+  /**
+   * Righe che dicono quanto è stato incassato ma non quando.
+   *
+   * L'importo da solo l'app non lo sa mettere da nessuna parte: tutto quello
+   * che riguarda la cassa parte dalla data. Invece di scartare la riga — la
+   * fattura è buona, manca un pezzo — si importa senza l'importo e si dice
+   * quante sono, così chi importa può mappare un'altra colonna di data invece
+   * di scoprire fra un mese che quei numeri non ci sono mai entrati.
+   */
+  incassiSenzaData: { riga: number; descrizione: string }[];
 };
 
 /**
@@ -159,6 +169,7 @@ export function interpreta(
     scartate: [],
     clientiDaCreare: [],
     duplicati: [],
+    incassiSenzaData: [],
   };
 
   const perNome = new Map(esistenti.clienti.map((c) => [chiaveNome(c.nome), c]));
@@ -284,6 +295,37 @@ export function interpreta(
         if (piano.suiDuplicati === "salta") return;
       }
 
+      /*
+        Quanto è stato incassato, quando il file lo dice.
+
+        Si scrive **solo** se c'è anche una data: l'app conta la cassa a partire
+        da lì, e un importo senza data sarebbe un numero che nessun conto
+        guarda. Le righe che portano l'uno e non l'altra si contano e si dicono
+        in anteprima, invece di sparire.
+
+        Non si prova a stabilire se quell'importo è «tutto»: vorrebbe dire
+        ricalcolare qui bollo, rivalsa e ritenuta, cioè una seconda copia di
+        `calcolaFattura`. Se coincide con il totale, la quota incassata viene
+        1 e non cambia niente — che è il comportamento giusto senza dover
+        decidere niente.
+      */
+      const saldatoGrezzo = campoDi(riga, m.importoIncassato ?? null);
+      const saldato = saldatoGrezzo === "" ? null : analizzaNumero(saldatoGrezzo);
+      /*
+        In positivo come l'imponibile, e per la stessa ragione: alcuni
+        gestionali esportano i movimenti con il segno, e un «−610» su una riga
+        che è una fattura è una convenzione di segno, non un incasso al
+        contrario. Gli incassi al contrario sono le note di credito, e quelle
+        hanno una riga loro.
+      */
+      const incassatoDavvero = saldato !== null && saldato !== 0 ? round2(Math.abs(saldato)) : null;
+      if (incassatoDavvero !== null && !dataIncasso) {
+        out.incassiSenzaData.push({
+          riga: numeroRiga,
+          descrizione: `${numero} del ${dataGrezza}: ${saldatoGrezzo} incassati, ma senza data`,
+        });
+      }
+
       out.fatture.push({
         riga: numeroRiga,
         nomeCliente: nome,
@@ -297,6 +339,9 @@ export function interpreta(
           imponibile: round2(Math.abs(importo)),
           aliquotaIva: aliquota,
           dataIncasso,
+          ...(incassatoDavvero !== null && dataIncasso
+            ? { importoIncassato: incassatoDavvero }
+            : {}),
         },
       });
       return;

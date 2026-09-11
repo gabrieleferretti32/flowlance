@@ -146,6 +146,38 @@ describe("indovinare le colonne dalle intestazioni", () => {
     expect(m.natura).toBe(2);
   });
 
+  /**
+   * La colonna del saldato.
+   *
+   * Senza mapparla, una fattura pagata a metà entra come «tutta da incassare»:
+   * è il primo inciampo di chiunque importi da un gestionale, e il motivo per
+   * cui questo campo esiste.
+   *
+   * L'insidia sta negli indizi che si somigliano: «saldo» è un indizio della
+   * data di incasso, e «pagato il» pure. Il confronto è a parole intere,
+   * quindi «Saldato» non finisce nella data e «Importo pagato» nemmeno — ma è
+   * il genere di cosa che si rompe al primo indizio aggiunto distrattamente.
+   */
+  it.each([
+    ["Saldato", "Data incasso"],
+    ["Importo pagato", "Pagata il"],
+    ["Incassato", "Data incasso"],
+    ["Importo saldato", "Saldo"],
+  ])("«%s» va all'incassato, e «%s» resta la data", (colonnaImporto, colonnaData) => {
+    const m = mappaturaAutomatica(
+      ["Data", "Numero", "Cliente", "Imponibile", colonnaData, colonnaImporto],
+      "fattura",
+    );
+    expect(m.importoIncassato, `«${colonnaImporto}» non è finita nell'incassato`).toBe(5);
+    expect(m.dataCassa, `«${colonnaData}» non è rimasta la data`).toBe(4);
+  });
+
+  it("l'incassato non esiste sui costi né sulle note: è una colonna della fattura", () => {
+    expect(campiDi("costo").some((c) => c.chiave === "importoIncassato")).toBe(false);
+    expect(campiDi("nota").some((c) => c.chiave === "importoIncassato")).toBe(false);
+    expect(campiDi("fattura").some((c) => c.chiave === "importoIncassato")).toBe(true);
+  });
+
   it("quel che non riconosce resta da associare a mano, non inventato", () => {
     const m = mappaturaAutomatica(["Colonna A", "Colonna B"], "fattura");
     expect(Object.values(m).every((v) => v === null)).toBe(true);
@@ -247,6 +279,57 @@ describe("dalle righe alle fatture", () => {
 // ————————————————————————————————————————————————————————————
 // Le righe che non si leggono
 // ————————————————————————————————————————————————————————————
+
+/**
+ * Quanto è stato incassato, letto dal file.
+ *
+ * Il campo si scrive solo insieme alla data: la cassa dell'app parte da lì, e
+ * un importo senza data sarebbe un numero che nessun conto guarda. Le righe che
+ * portano l'uno e non l'altra si contano, perché un'assenza non si nota.
+ */
+describe("la colonna del saldato", () => {
+  const INTESTAZIONI = ["Data", "Numero", "Cliente", "Imponibile", "Data incasso", "Saldato"];
+  const piano = pianoFatture({ mappatura: mappaturaAutomatica(INTESTAZIONI, "fattura") });
+  const riga = (dataIncasso: string, saldato: string) => [
+    ["01/02/2026", "2026/001", "Alfa Srl", "1.000,00", dataIncasso, saldato],
+  ];
+
+  it("**con la data, l'importo entra**", () => {
+    const l = interpreta(riga("05/03/2026", "610,00"), piano, VUOTO, { id: idFinto });
+    expect(l.fatture[0].fattura.importoIncassato).toBe(610);
+    expect(l.incassiSenzaData).toEqual([]);
+  });
+
+  it("senza la data l'importo resta fuori, e la riga si conta", () => {
+    const l = interpreta(riga("", "610,00"), piano, VUOTO, { id: idFinto });
+    expect(l.fatture).toHaveLength(1);
+    expect(l.fatture[0].fattura.importoIncassato).toBeUndefined();
+    expect(l.incassiSenzaData).toHaveLength(1);
+    expect(l.incassiSenzaData[0].descrizione).toContain("610,00");
+  });
+
+  it("colonna vuota: il campo non c'è, e vuol dire «tutto»", () => {
+    const l = interpreta(riga("05/03/2026", ""), piano, VUOTO, { id: idFinto });
+    expect(l.fatture[0].fattura.importoIncassato).toBeUndefined();
+    expect(l.incassiSenzaData).toEqual([]);
+  });
+
+  it("zero non è un incasso: il campo non si scrive", () => {
+    const l = interpreta(riga("05/03/2026", "0,00"), piano, VUOTO, { id: idFinto });
+    expect(l.fatture[0].fattura.importoIncassato).toBeUndefined();
+  });
+
+  it("senza la colonna mappata, niente cambia rispetto a prima", () => {
+    const l = interpreta(RIGHE_FATTURE, pianoFatture(), VUOTO, { id: idFinto });
+    expect(l.fatture.every((f) => f.fattura.importoIncassato === undefined)).toBe(true);
+    expect(l.incassiSenzaData).toEqual([]);
+  });
+
+  it("un importo negativo entra in positivo, come l'imponibile", () => {
+    const l = interpreta(riga("05/03/2026", "-610,00"), piano, VUOTO, { id: idFinto });
+    expect(l.fatture[0].fattura.importoIncassato).toBe(610);
+  });
+});
 
 describe("una riga illeggibile non ferma le altre", () => {
   it("scarta e continua, dicendo riga e motivo", () => {

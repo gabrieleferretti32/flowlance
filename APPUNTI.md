@@ -446,11 +446,13 @@ Nel caso raccontato: nota del 22/04, fattura 4, importo arrivato **1.500,00 €*
 
 ### Cosa il campo non fa ancora
 
-**L'import da CSV non lo mappa.** I gestionali esportano il saldato — Fatture in
-Cloud ha la colonna — e finché non è mappata una fattura pagata a metà entra come
-«tutta da incassare», che è il caso in cui ci si è imbattuti la prima volta. È la
-prossima cosa da fare su questo campo, ed è piccola: una colonna in più in
-`mappaturaAutomatica` e una riga in `importa.ts`.
+**~~L'import da CSV non lo mappa.~~ Fatto l'11 settembre.** La colonna si chiama
+«Quanto è stato incassato» e riconosce da sola le intestazioni dei gestionali —
+Saldato, Importo pagato, Incassato, Riscosso. L'importo si scrive **solo insieme
+alla data**: la cassa dell'app parte da lì, e un numero senza data non finirebbe
+in nessun conto. Le righe che portano l'uno e non l'altra entrano lo stesso,
+senza l'importo, e l'anteprima le conta e le nomina — perché un'assenza non si
+nota, e se sono tante il difetto è nella colonna della data mappata male.
 
 **La proporzione è esatta solo su un pagamento al netto di una nota.** Un acconto
 qualunque non si divide davvero in parti uguali fra imponibile, IVA e ritenuta:

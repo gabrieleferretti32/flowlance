@@ -143,6 +143,7 @@ function documentiLetti(lettura: Lettura) {
       cliente: f.nomeCliente,
       imponibile: f.fattura.imponibile,
       aliquota: f.fattura.aliquotaIva ?? 0,
+      incassato: f.fattura.importoIncassato,
     })),
     ...lettura.note.map((n) => ({
       tipo: "nota" as const,
@@ -152,6 +153,7 @@ function documentiLetti(lettura: Lettura) {
       cliente: n.nomeCliente,
       imponibile: n.nota.imponibile,
       aliquota: n.nota.aliquotaIva ?? 0,
+      incassato: undefined as number | undefined,
     })),
   ].sort((a, b) => a.riga - b.riga);
 }
@@ -170,6 +172,17 @@ export function Anteprima({
   onDuplicati: (v: SuiDuplicati) => void;
   quante?: number;
 }) {
+  /*
+    Se anche una sola riga porta l'importo incassato, la colonna si mostra su
+    tutte: una colonna che appare e scompare a seconda della riga è peggio di
+    una colonna in più, e il «tutto» delle altre righe è proprio l'informazione
+    che serve leggere.
+  */
+  const mostraIncassato =
+    destinazione !== "costo"
+    && (lettura.fatture.some((f) => f.fattura.importoIncassato !== undefined)
+      || lettura.incassiSenzaData.length > 0);
+  const senzaData = new Set(lettura.incassiSenzaData.map((r) => r.riga));
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
@@ -197,10 +210,50 @@ export function Anteprima({
         {lettura.duplicati.length > 0 && (
           <Chip tono="attenzione">{lettura.duplicati.length} già presenti</Chip>
         )}
+        {lettura.incassiSenzaData.length > 0 && (
+          <Chip tono="attenzione">
+            {lettura.incassiSenzaData.length} con l&apos;incassato ma senza data
+          </Chip>
+        )}
         {lettura.scartate.length > 0 && (
           <Chip tono="negativo">{lettura.scartate.length} righe non leggibili</Chip>
         )}
       </div>
+
+      {/*
+        Non è un errore e non ferma niente: quelle fatture entrano, senza
+        l'importo. Ma se sono tante è la colonna della data a essere mappata
+        male, e questa riga è l'unico momento in cui qualcuno può accorgersene —
+        dopo, quei numeri sono semplicemente assenti, e l'assenza non si nota.
+      */}
+      {lettura.incassiSenzaData.length > 0 && (
+        <Card>
+          <CardIntestazione>
+            <CardTitolo>
+              {lettura.incassiSenzaData.length}{" "}
+              {lettura.incassiSenzaData.length === 1 ? "riga dice" : "righe dicono"} quanto è stato
+              incassato, ma non quando
+            </CardTitolo>
+            <CardSottotitolo>
+              Entrano lo stesso, senza l&apos;importo: la cassa parte dalla data, e senza quella il
+              numero non finirebbe in nessun conto. Se sono tante, è la colonna della data di
+              incasso a essere associata male.
+            </CardSottotitolo>
+          </CardIntestazione>
+          <CardCorpo className="pt-0">
+            <ul className="space-y-1 text-etichetta text-inchiostro-tenue">
+              {lettura.incassiSenzaData.slice(0, 10).map((r) => (
+                <li key={r.riga}>
+                  <span className="cifre">riga {r.riga}</span> · {r.descrizione}
+                </li>
+              ))}
+              {lettura.incassiSenzaData.length > 10 && (
+                <li>e altre {lettura.incassiSenzaData.length - 10}.</li>
+              )}
+            </ul>
+          </CardCorpo>
+        </Card>
+      )}
 
       <Card>
         <CardIntestazione>
@@ -227,6 +280,15 @@ export function Anteprima({
                 )}
                 <th className="py-1.5 pr-3 text-right font-normal">Imponibile</th>
                 <th className="py-1.5 text-right font-normal">IVA</th>
+                {/*
+                  La colonna compare solo se qualcuno l'ha associata. Questa
+                  tabella dice «come vengono lette le prime righe», e una
+                  colonna mappata che non si vede qui è un valore che entra in
+                  archivio senza essere mai passato sotto gli occhi di nessuno.
+                */}
+                {mostraIncassato && (
+                  <th className="py-1.5 pl-3 text-right font-normal">Incassato</th>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -272,6 +334,24 @@ export function Anteprima({
                         <td className="cifre py-1.5 text-right tabular-nums">
                           {percentuale(d.aliquota, 0)}
                         </td>
+                        {mostraIncassato && (
+                          <td className="cifre py-1.5 pl-3 text-right tabular-nums">
+                            {/*
+                              Le righe che portano l'importo ma non la data
+                              devono dirlo **qui**, non solo nella scheda sopra:
+                              scritto «tutto» accanto a una riga che nel file ha
+                              un incasso parziale, il numero sembrerebbe letto e
+                              scartato senza ragione.
+                            */}
+                            {senzaData.has(d.riga) ? (
+                              <span className="text-[#B8791A]">senza data</span>
+                            ) : d.incassato === undefined ? (
+                              <span className="text-inchiostro-tenue">tutto</span>
+                            ) : (
+                              euro(d.incassato)
+                            )}
+                          </td>
+                        )}
                       </tr>
                     ))}
             </tbody>

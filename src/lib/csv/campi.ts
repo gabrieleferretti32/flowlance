@@ -127,6 +127,26 @@ export const CAMPI: Campo[] = [
     destinazioni: ["costo"],
   },
   {
+    chiave: "importoIncassato",
+    etichetta: "Quanto è stato incassato",
+    obbligatorio: false,
+    predefinito: "vuota: la fattura risulta incassata per intero",
+    /*
+      La colonna del saldato, che i gestionali esportano quasi sempre. Senza
+      mapparla una fattura pagata a metà entra come «tutta da incassare», ed è
+      il primo inciampo di chiunque importi da un gestionale.
+
+      Gli indizi sono a parole intere, quindi non rubano la colonna della data:
+      «saldo» — che è un indizio di `dataCassa` — non sta dentro «saldato», e
+      «pagato il» non sta dentro «importo pagato».
+    */
+    indizi: [
+      "saldato", "importo saldato", "pagato", "importo pagato", "incassato",
+      "importo incassato", "riscosso", "importo riscosso", "totale pagato",
+    ],
+    destinazioni: ["fattura"],
+  },
+  {
     chiave: "categoria",
     etichetta: "Categoria",
     obbligatorio: false,
