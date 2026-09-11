@@ -194,6 +194,26 @@ l'app non chiede quale.
 versamento trimestrale del bollo compare nello scadenzario senza importo quando
 riguarda un trimestre di un anno che l'archivio non copre.
 
+**Il bollo si applica su un'ipotesi, quando l'IVA è zero.** Una fattura, in
+archivio, porta un numero per l'aliquota e nient'altro: non c'è nessun campo che
+dica **perché** l'IVA non c'è. Flowlance mette la marca da 2 € su ogni fattura
+senza IVA sopra i 77,47 €, qualunque sia la ragione dello zero.
+
+Quasi sempre è giusto: su un'operazione esente, non imponibile o fuori campo il
+bollo è dovuto, e il conto torna. Non è dovuto sulle operazioni in **inversione
+contabile** — il reverse charge — perché lì l'imposta c'è, la applica chi compra,
+e la marca non ci va. Flowlance gliela mette lo stesso.
+
+Sono due euro per documento, e vanno riconosciuti a mano guardando l'elenco delle
+fatture senza IVA. Quanto pesi dipende dal mestiere: per un consulente il reverse
+charge è raro, per chi lavora in edilizia, pulizie o commercio di elettronica è la
+normalità.
+
+Per chiuderla servirebbe che la fattura portasse il codice natura della fattura
+elettronica — N1…N7 — e una tabella che dica, per ciascuno, se il bollo è dovuto.
+Il codice c'è già nell'export dei gestionali: è il modello di Flowlance che oggi
+non ha dove metterlo.
+
 ## Versamenti
 
 **Non si sa se un F24 è un acconto o un saldo.** Il versamento porta l'anno

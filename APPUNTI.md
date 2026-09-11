@@ -423,3 +423,43 @@ riconosciuto prima.
 già una voce «Bollo virtuale» che parla d'altro, e questa è esattamente una
 differenza possibile fra il numero dell'app e quello del commercialista — cioè
 quello che quella pagina promette di elencare.
+
+## 11 settembre 2026 · L'importo incassato, e cosa resta da fare dopo
+
+Il campo `importoIncassato` sulla fattura esiste da oggi: **quanto è arrivato in
+banca**, IVA compresa e al netto della ritenuta, cioè la cifra dell'estratto
+conto. Assente vuol dire «tutto», quindi nessun archivio scritto prima cambia un
+numero. Il motore ne ricava la quota incassata in proporzione.
+
+### Da fare sull'archivio di chi ha usato il rimedio provvisorio
+
+L'11 settembre, prima che il campo esistesse, il modo di far tornare i conti su
+una fattura pagata al netto era segnare la nota come **rimborsata** — un campo
+usato per qualcosa che non era un rimborso. Dove è stato fatto va disfatto,
+altrimenti lo storno scende due volte:
+
+1. sulla nota, togliere la data di rimborso (il pulsante con la freccia
+   all'indietro sulla riga);
+2. sulla fattura, scrivere in «Quanto ti è arrivato» la cifra vera del bonifico.
+
+Nel caso raccontato: nota del 22/04, fattura 4, importo arrivato **1.500,00 €**.
+
+### Cosa il campo non fa ancora
+
+**L'import da CSV non lo mappa.** I gestionali esportano il saldato — Fatture in
+Cloud ha la colonna — e finché non è mappata una fattura pagata a metà entra come
+«tutta da incassare», che è il caso in cui ci si è imbattuti la prima volta. È la
+prossima cosa da fare su questo campo, ed è piccola: una colonna in più in
+`mappaturaAutomatica` e una riga in `importa.ts`.
+
+**La proporzione è esatta solo su un pagamento al netto di una nota.** Un acconto
+qualunque non si divide davvero in parti uguali fra imponibile, IVA e ritenuta:
+la legge guarda il documento, non il bonifico. Finché gli acconti parziali non
+entrano in un archivio vero resta così; il giorno in cui succede va dichiarato in
+`APPROSSIMAZIONI.md`, e la riga è già scritta qui.
+
+**`giorniRitardo` su una fattura incassata in parte guarda la data dell'incasso**,
+non il residuo che manca. Una fattura pagata a metà tre mesi fa non risulta in
+ritardo per la metà che manca. Non scrive numeri sbagliati da nessuna parte — il
+residuo è contato giusto in «Da incassare» — ma l'indicatore dei giorni dice meno
+di quello che potrebbe.

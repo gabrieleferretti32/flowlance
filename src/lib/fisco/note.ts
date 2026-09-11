@@ -199,7 +199,7 @@ export type StornoCassa = {
  */
 export function storniDiCassa(
   note: readonly NotaCredito[],
-  fatture: readonly Pick<Fattura, "id" | "dataIncasso">[],
+  fatture: readonly Pick<Fattura, "id" | "dataIncasso" | "importoIncassato">[],
 ): StornoCassa[] {
   const perId = new Map(fatture.map((f) => [f.id, f]));
   const movimenti: StornoCassa[] = [];
@@ -242,6 +242,14 @@ export function storniDiCassa(
     for (const r of n.riconciliazioni ?? []) {
       const f = perId.get(r.fatturaId);
       if (!f?.dataIncasso) continue;
+      /*
+        Se la fattura dice **quanto** è arrivato, non c'è niente da compensare:
+        quel numero è già il netto che il cliente ha pagato, e togliergli anche
+        lo storno lo toglierebbe due volte. Questo ramo esiste solo per le
+        fatture che non lo dicono — quelle scritte prima che il campo esistesse,
+        dove «incassata» vuol dire «tutta» e la compensazione va dedotta.
+      */
+      if (f.importoIncassato !== undefined) continue;
       // Le date ISO si confrontano come stringhe: stesso formato, stesso ordine.
       if (f.dataIncasso < n.dataDocumento) continue;
       const importo = prendi(Math.abs(r.imponibile));
@@ -281,6 +289,7 @@ export type GenereAvviso =
   | "residuo"
   | "fatturaSparita"
   | "incassoPrimaDellaNota"
+  | "rimborsoDovuto"
   | "stornoEccessivo";
 
 export type AvvisoNota = {
@@ -309,7 +318,10 @@ export const AVVISI_DETTI_ALTROVE: readonly GenereAvviso[] = ["residuo"];
  */
 export function controlliNote(
   note: readonly NotaCredito[],
-  fatture: readonly Pick<Fattura, "id" | "imponibile" | "dataIncasso">[],
+  fatture: readonly (Pick<Fattura, "id" | "imponibile" | "dataIncasso" | "importoIncassato"> & {
+    /** Da `calcolaFattura`: quanto è arrivato oltre il dovuto dopo le note. */
+    rimborsoDovuto?: number;
+  })[],
 ): AvvisoNota[] {
   const avvisi: AvvisoNota[] = [];
   const perId = new Map(fatture.map((f) => [f.id, f]));
@@ -360,15 +372,47 @@ export function controlliNote(
         movimento di denaro dentro un registro fiscale.
       */
       const f = perId.get(r.fatturaId);
-      if (!n.dataRimborso && f?.dataIncasso && f.dataIncasso < n.dataDocumento) {
+      if (!f?.dataIncasso || n.dataRimborso) continue;
+
+      if (f.importoIncassato === undefined) {
+        /*
+          La fattura non dice quanto è arrivato, quindi «incassata» vuol dire
+          «tutta» e l'app non può distinguere due storie: il cliente ha pagato
+          tutto e aspetta un rimborso, oppure ha pagato corto e la nota è venuta
+          dopo a chiudere. Dalle date si può solo sospettare. Quindi si chiede
+          il fatto — quanto è arrivato — invece del rimedio.
+        */
+        if (f.dataIncasso < n.dataDocumento) {
+          avvisi.push({
+            notaId: n.id,
+            numero: n.numero,
+            genere: "incassoPrimaDellaNota",
+            gravita: "avviso",
+            messaggio:
+              `La fattura era già stata incassata il ${data(f.dataIncasso)}, prima di questa nota: `
+              + "scrivi sulla fattura quanto ti è arrivato davvero, così i ricavi per cassa "
+              + "smettono di contare anche lo storno.",
+          });
+        }
+        continue;
+      }
+
+      /*
+        Qui invece l'importo c'è, e il rimborso non si indovina: si calcola.
+        Il numero arriva da `calcolaFattura`, dove si sa che quello che è
+        arrivato e quello che era dovuto stanno sulla stessa base — IVA
+        compresa, ritenuta già tolta.
+      */
+      const eccedenza = round2(f.rimborsoDovuto ?? 0);
+      if (eccedenza > 0.005) {
         avvisi.push({
           notaId: n.id,
           numero: n.numero,
-          genere: "incassoPrimaDellaNota",
+          genere: "rimborsoDovuto",
           gravita: "avviso",
           messaggio:
-            `La fattura era già stata incassata il ${data(f.dataIncasso)}, prima di questa nota: `
-            + "se il rimborso è partito segna la data, altrimenti i ricavi per cassa restano al lordo dello storno.",
+            `Hai incassato ${euro(f.importoIncassato)}, più del dovuto dopo questa nota: `
+            + `devi un rimborso di ${euro(eccedenza)}. Quando parte, segna la data qui accanto.`,
         });
       }
     }

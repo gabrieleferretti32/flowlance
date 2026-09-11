@@ -117,10 +117,10 @@ export function andamentoMensile(
 /** Quanto vale ancora una fattura aperta: il netto dopo le note, non il lordo. */
 function nettoAperta(f: FatturaCalcolata, perFattura: Map<string, StornoSuFattura>): number {
   const stornato = perFattura.get(f.id)?.stornato ?? 0;
-  if (stornato === 0) return f.nettoIncasso;
+  if (stornato === 0) return f.daIncassare;
   // In proporzione sull'imponibile, così ritenuta e IVA scendono con lui invece
   // di restare intere su una fattura che il cliente pagherà a metà.
-  return round2(f.nettoIncasso * rapporto(nonNegativo(round2(f.imponibile - stornato)), f.imponibile));
+  return round2(f.daIncassare * rapporto(nonNegativo(round2(f.imponibile - stornato)), f.imponibile));
 }
 
 /** Il portafoglio clienti, dal più grande al più piccolo. */
@@ -181,7 +181,9 @@ export function portafoglioClienti(
     const incassate = fatture.filter(
       (f) => f.clienteId === cliente.id && f.dataIncasso && annoDi(f.dataIncasso) === anno,
     );
-    const aperte = fatture.filter((f) => f.clienteId === cliente.id && !f.dataIncasso);
+    // «Aperte» sono quelle che hanno ancora qualcosa da incassare, non quelle
+    // senza data: una fattura pagata a metà è aperta per la metà che manca.
+    const aperte = fatture.filter((f) => f.clienteId === cliente.id && f.daIncassare > 0);
     const giorni = incassate
       .map((f) => f.giorniIncasso)
       .filter((g): g is number => g !== null);
@@ -192,7 +194,7 @@ export function portafoglioClienti(
       colore: coloreDi(cliente.nome),
       emesso,
       incassato: nonNegativo(
-        round2(somma(...incassate.map((f) => f.nettoIncasso)) - stornoCassaDi(cliente.id)),
+        round2(somma(...incassate.map((f) => f.incassato)) - stornoCassaDi(cliente.id)),
       ),
       daIncassare: somma(...aperte.map((f) => nettoAperta(f, perFattura))),
       scaduto: somma(
@@ -215,16 +217,16 @@ export function portafoglioClienti(
  * lunghe è il segnale che una fattura non rientrerà da sola.
  */
 export function scadutoPerFascia(fatture: FatturaCalcolata[]): FasceScaduto {
-  const aperte = fatture.filter((f) => !f.dataIncasso);
+  const aperte = fatture.filter((f) => f.daIncassare > 0);
   const inFascia = (da: number, a: number) =>
     somma(
-      ...aperte.filter((f) => f.giorniRitardo >= da && f.giorniRitardo <= a).map((f) => f.nettoIncasso),
+      ...aperte.filter((f) => f.giorniRitardo >= da && f.giorniRitardo <= a).map((f) => f.daIncassare),
     );
-  const neiTermini = somma(...aperte.filter((f) => f.giorniRitardo === 0).map((f) => f.nettoIncasso));
+  const neiTermini = somma(...aperte.filter((f) => f.giorniRitardo === 0).map((f) => f.daIncassare));
   const entro30 = inFascia(1, 30);
   const entro60 = inFascia(31, 60);
   const entro90 = inFascia(61, 90);
-  const oltre90 = somma(...aperte.filter((f) => f.giorniRitardo > 90).map((f) => f.nettoIncasso));
+  const oltre90 = somma(...aperte.filter((f) => f.giorniRitardo > 90).map((f) => f.daIncassare));
   return {
     neiTermini,
     entro30,

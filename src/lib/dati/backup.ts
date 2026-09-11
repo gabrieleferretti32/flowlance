@@ -196,6 +196,15 @@ const convalidaFattura: Convalida<Dati["fatture"][number]> = (riga, i, errori) =
       ? { aliquotaIva: fraZeroEUno(riga.aliquotaIva, 0) }
       : {}),
     dataIncasso: dataOpzionale(riga.dataIncasso),
+    /*
+      Il parser costruisce la fattura campo per campo, quindi un campo non
+      nominato qui **sparisce** nel giro esporta-e-reimporta. Senza questa riga
+      l'importo incassato si sarebbe perso a ogni backup, e il difetto si
+      sarebbe visto solo in chi ritrova l'archivio su un altro computer.
+    */
+    ...(typeof riga.importoIncassato === "number" && Number.isFinite(riga.importoIncassato)
+      ? { importoIncassato: Math.max(0, riga.importoIncassato) }
+      : {}),
   };
 };
 

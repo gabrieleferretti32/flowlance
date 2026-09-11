@@ -13,6 +13,7 @@ import {
   stornoPerFattura,
 } from "./note";
 import { ripartisci } from "./competenza";
+import { calcolaFattura } from "./documenti";
 import { impostazioniForfettario, impostazioniOrdinario, OGGI_FIXTURE } from "./fixture";
 import { PARAMETRI_2026 } from "./parametri/2026";
 import type { Fattura, NotaCredito } from "./tipi";
@@ -48,6 +49,11 @@ function fattura(p: Partial<Fattura> = {}): Fattura {
 }
 
 const ORDINARIO = impostazioniOrdinario();
+
+/** Una fattura con i suoi derivati, come la costruisce il motore. */
+function calcolata(p: Partial<Fattura> = {}, stornato = 0) {
+  return calcolaFattura(fattura(p), ORDINARIO, OGGI_FIXTURE, stornato);
+}
 
 // ————————————————————————————————————————————————————————————
 // La nota come documento
@@ -259,6 +265,16 @@ describe("ogni avviso che il motore produce arriva a schermo", () => {
         ),
     ],
     [
+      "rimborsoDovuto",
+      () =>
+        controlliNote(
+          [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+          // 1.000 di imponibile, storno 500: dopo la nota il cliente doveva
+          // 610 lordi, e ne ha pagati 1.220. Il rimborso è 610, e si calcola.
+          [calcolata({ dataIncasso: "2026-02-20", importoIncassato: 1_220 }, 500)],
+        ),
+    ],
+    [
       "stornoEccessivo",
       () =>
         controlliNote(
@@ -278,6 +294,7 @@ describe("ogni avviso che il motore produce arriva a schermo", () => {
       "fatturaSparita",
       "incassoPrimaDellaNota",
       "residuo",
+      "rimborsoDovuto",
       "stornoEccessivo",
     ];
     expect(provati).toEqual(tutti);
@@ -517,5 +534,153 @@ describe("nella liquidazione IVA lo storno è una voce a sé", () => {
     expect(senza.totaleDebito).toBe(220);
     expect(con.totaleDebito).toBe(110);
     expect(con.stornoNote.totale).toBe(110);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Con l'importo incassato scritto sulla fattura
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Il campo chiude la domanda invece di sceglierne una risposta.
+ *
+ * Prima l'app doveva indovinare, dalle date, se una fattura incassata prima
+ * della nota fosse stata pagata per intero — e quindi ci fosse un rimborso in
+ * arrivo — oppure pagata corta, con la nota venuta dopo a chiudere. Indovinava
+ * «per intero», e sbagliava nel verso che gonfia reddito e contributi.
+ */
+describe("quando la fattura dice quanto è arrivato", () => {
+  /*
+    Le fatture passano da `calcolaFattura`, come nell'app: il rimborso dovuto è
+    un derivato, e provarlo su un oggetto costruito a mano vorrebbe dire provare
+    un'altra cosa. È il difetto che ha fatto passare la prima stesura — il
+    rimborso si ricavava da imponibile e aliquota, su una base che con una
+    ritenuta attiva non è quella del bonifico, e lo scenario del test non aveva
+    ritenute.
+  */
+  const conImporto = (importoIncassato: number, stornato = 0) =>
+    calcolata({ dataIncasso: "2026-02-20", importoIncassato }, stornato);
+
+  it("**pagata corta e nota dopo: non si deduce niente, il numero c'è già**", () => {
+    // 1.000 + 22 % = 1.220; il cliente ne ha pagati 610, cioè il netto dopo lo
+    // storno da 500. Nessuna compensazione da dedurre: è già scritto.
+    const m = storniDiCassa(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [conImporto(610)],
+    );
+    expect(m).toEqual([]);
+  });
+
+  it("senza importo il ramo di ieri resta, per gli archivi di prima", () => {
+    const m = storniDiCassa(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [fattura({ dataIncasso: "2026-03-25" })],
+    );
+    expect(m).toHaveLength(1);
+    expect(m[0]).toMatchObject({ via: "compensazione", importo: 500 });
+  });
+
+  it("l'avviso che indovinava dalle date tace, perché non c'è più da indovinare", () => {
+    const a = controlliNote(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [conImporto(610, 500)],
+    );
+    expect(a.map((x) => x.genere)).not.toContain("incassoPrimaDellaNota");
+  });
+
+  it("**il rimborso dovuto si calcola, con il suo importo**", () => {
+    const a = controlliNote(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [conImporto(1_220, 500)],
+    );
+    const r = a.find((x) => x.genere === "rimborsoDovuto");
+    expect(r?.messaggio).toContain(euro(610));
+  });
+
+  /**
+   * Con la ritenuta attiva, che è il caso in cui la prima stesura sbagliava.
+   *
+   * Quello che arriva in banca è il totale **meno la ritenuta**: 1.220 − 200 =
+   * 1.020. Il rimborso si misura su quella base, non su imponibile più IVA —
+   * altrimenti il confronto è fra due numeri che parlano di cose diverse, e non
+   * scatta mai. Nessun test con una ritenuta attiva lo copriva, e il difetto è
+   * uscito solo aprendo la schermata su un archivio che le ha.
+   */
+  it("**con la ritenuta il rimborso si misura su quello che arriva in banca**", () => {
+    const conRitenuta = { ...ORDINARIO, ritenutaAttiva: true, aliquotaRitenuta: 0.2 };
+    const f = calcolaFattura(
+      fattura({ dataIncasso: "2026-02-20", importoIncassato: 1_020 }),
+      conRitenuta,
+      OGGI_FIXTURE,
+      500,
+    );
+    // 1.020 di netto incasso, dovuto dopo lo storno 510: il rimborso è 510.
+    expect(f.nettoIncasso).toBe(1_020);
+    expect(f.rimborsoDovuto).toBe(510);
+    const a = controlliNote([nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })], [f]);
+    expect(a.find((x) => x.genere === "rimborsoDovuto")?.messaggio).toContain(euro(510));
+  });
+
+  it("pagata esatta dopo la nota: nessun rimborso da segnalare", () => {
+    const a = controlliNote(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [conImporto(610, 500)],
+    );
+    expect(a.map((x) => x.genere)).not.toContain("rimborsoDovuto");
+  });
+
+  it("pagata meno del dovuto: è un residuo, non un rimborso e non un errore", () => {
+    const a = controlliNote(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [conImporto(400, 500)],
+    );
+    expect(a.map((x) => x.genere)).toEqual([]);
+  });
+});
+
+describe("nel prospetto, un incasso parziale entra per quello che è", () => {
+  const conProspetto = (f: Fattura, note: NotaCredito[] = []) =>
+    calcolaProspetto({
+      impostazioni: ORDINARIO,
+      parametri: PARAMETRI_2026,
+      fatture: [f],
+      costi: [],
+      note,
+      oggi: OGGI_FIXTURE,
+    });
+
+  it("senza importo la fattura vale tutta, come prima del campo", () => {
+    const p = conProspetto(fattura({ dataIncasso: "2026-02-20" }));
+    expect(p.compensiIncassati).toBe(1_000);
+    expect(p.soglia.inSospeso).toBe(0);
+  });
+
+  /**
+   * Il caso raccontato: fattura da 1.000 + IVA, nota da 500 di aprile, e il
+   * cliente che a febbraio aveva già pagato il netto — 610 lordi. Prima
+   * l'incassato diceva 1.000 su 500 emessi.
+   */
+  it("**pagata al netto di una nota: incassato ed emesso tornano a coincidere**", () => {
+    const p = conProspetto(fattura({ dataIncasso: "2026-02-20", importoIncassato: 610 }), [
+      nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] }),
+    ]);
+    expect(p.compensiIncassati).toBe(500);
+    expect(p.fatturatoEmesso).toBe(500);
+    expect(p.ricaviRilevanti).toBeLessThanOrEqual(p.fatturatoEmesso);
+  });
+
+  it("un acconto: entra la quota incassata, e il resto resta da incassare", () => {
+    // 305 su 1.220 è un quarto della fattura.
+    const p = conProspetto(fattura({ dataIncasso: "2026-02-20", importoIncassato: 305 }));
+    expect(p.compensiIncassati).toBe(250);
+    expect(p.soglia.inSospeso).toBe(750);
+    expect(p.ivaIncassata).toBe(55);
+  });
+
+  it("l'IVA della liquidazione non si muove: segue il documento, non la cassa", () => {
+    const intera = conProspetto(fattura({ dataIncasso: "2026-02-20" }));
+    const parziale = conProspetto(fattura({ dataIncasso: "2026-02-20", importoIncassato: 305 }));
+    expect(parziale.note.ivaStornata).toBe(intera.note.ivaStornata);
+    expect(parziale.fatturatoEmesso).toBe(intera.fatturatoEmesso);
   });
 });

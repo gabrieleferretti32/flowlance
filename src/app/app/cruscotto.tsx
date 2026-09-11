@@ -124,9 +124,11 @@ export function Cruscotto() {
   }
 
   const { prospetto: p, iva } = calcolo;
+  // Quanto resta da incassare, non quanto vale la fattura: una scaduta pagata
+  // a metà pesa per la metà che manca.
   const scaduto = p.fattureCalcolate
     .filter((f) => f.stato === "scaduto")
-    .reduce((a, f) => a + f.nettoIncasso, 0);
+    .reduce((a, f) => a + f.daIncassare, 0);
   const costiAnno = p.costiPagatiTotale;
   const margine = p.ricaviRilevanti - p.costiNettiACarico;
   // La quota di limite forfettario, che finora stava solo nel prospetto: chi

@@ -200,12 +200,12 @@ export function SchermataFatture() {
         </Chip>
         {daIncassare.length > 0 && (
           <Chip tono="attenzione" className="cifre">
-            {euro(daIncassare.reduce((a, f) => a + f.nettoIncasso, 0))} da incassare
+            {euro(daIncassare.reduce((a, f) => a + f.daIncassare, 0))} da incassare
           </Chip>
         )}
         {scadute.length > 0 && (
           <Chip tono="negativo" className="cifre">
-            {euro(scadute.reduce((a, f) => a + f.nettoIncasso, 0))} scaduti
+            {euro(scadute.reduce((a, f) => a + f.daIncassare, 0))} scaduti
           </Chip>
         )}
       </div>
@@ -427,6 +427,7 @@ export function SchermataFatture() {
                           className="whitespace-nowrap"
                           onSalva={(v) => aggiorna(f, { dataIncasso: v ? String(v) : null })}
                         />
+                        <Arrivato f={f} onSalva={(v) => aggiorna(f, { importoIncassato: v })} />
                       </TabellaCella>
                       <TabellaCella className="whitespace-nowrap">
                         <StatoFattura f={f} />
@@ -552,8 +553,72 @@ export function SchermataFatture() {
 
 function StatoFattura({ f }: { f: FatturaCalcolata }) {
   if (f.stato === "incassato") return <Stato tono="positivo">Incassata</Stato>;
+  if (f.stato === "parziale") return <Stato tono="attenzione">Incassata in parte</Stato>;
   if (f.stato === "scaduto") return <Stato tono="negativo">Scaduta</Stato>;
   return <Stato tono="attenzione">Da incassare</Stato>;
+}
+
+/**
+ * Quanto è arrivato in banca, sotto la data dell'incasso.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché l'etichetta dice «ti è arrivato» e non «importo incassato»
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Sta a due colonne da «Imponibile», e l'istinto davanti a una casella accanto
+ * a un imponibile è di scriverci un imponibile. Qui invece va la cifra
+ * dell'estratto conto: IVA compresa, ritenuta già trattenuta. L'etichetta lo
+ * deve dire da sola, perché nessuno legge una nota di aiuto prima di digitare
+ * un numero in una tabella.
+ *
+ * Compare solo su una fattura che ha una data di incasso: chiedere quanto è
+ * arrivato di una fattura mai pagata sarebbe una casella che non vuol dire
+ * niente. E quando è vuota significa «tutto», che è la risposta giusta nella
+ * maggioranza dei casi e non chiede di essere scritta.
+ */
+function Arrivato({
+  f,
+  onSalva,
+}: {
+  f: FatturaCalcolata;
+  onSalva: (valore: number | undefined) => void;
+}) {
+  if (!f.dataIncasso) return null;
+  return (
+    <div className="mt-0.5">
+      <span className="block px-2 text-micro text-inchiostro-tenue">
+        Quanto ti è arrivato (IVA compresa)
+      </span>
+      <CellaModificabile
+        tipo="valuta"
+        etichetta={`Quanto ti è arrivato della fattura ${f.numero}, IVA compresa`}
+        valore={f.importoIncassato ?? null}
+        vuoto={`tutto · ${euro(f.nettoIncasso)}`}
+        suggerimento={
+          f.ritenuta > 0
+            ? "La cifra dell'estratto conto: IVA compresa e al netto della ritenuta."
+            : "La cifra dell'estratto conto, IVA compresa."
+        }
+        onSalva={(v) => onSalva(v === null || v === "" ? undefined : Number(v))}
+      />
+      {f.stato === "parziale" && (
+        <span className="block px-2 text-micro text-[#B8791A]">
+          restano {euro(f.daIncassare)}
+        </span>
+      )}
+      {/*
+        Errore, non rifiuto: la riga resta com'è stata scritta e si può
+        correggere. Una tabella che respinge un numero fa perdere quello che
+        c'era attorno, e chi lo stava scrivendo sa meglio dell'app cosa è
+        successo davvero.
+      */}
+      {f.incassoEccessivo && (
+        <span className="block px-2 text-micro text-negativo">
+          è più del totale della fattura ({euro(f.nettoIncasso)})
+        </span>
+      )}
+    </div>
+  );
 }
 
 function Avatar({ nome }: { nome: string }) {

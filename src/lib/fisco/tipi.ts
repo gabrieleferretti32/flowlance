@@ -425,6 +425,22 @@ export type Fattura = {
   /** Aliquota IVA della singola operazione: 0 in forfettario, o esente/fuori campo. */
   aliquotaIva?: number;
   dataIncasso?: string | null;
+  /**
+   * Quanto è arrivato in banca: **IVA compresa e al netto della ritenuta**,
+   * cioè la stessa base di `nettoIncasso`. È la cifra che si legge sull'estratto
+   * conto senza fare nessun conto, ed è il motivo per cui non è l'imponibile.
+   *
+   * **Assente vuol dire «è arrivato tutto».** È la semantica che l'app ha
+   * sempre avuto — `dataIncasso` valorizzata significava l'incasso intero — e
+   * tenerla vuol dire che nessun archivio scritto prima di questo campo cambia
+   * un numero il giorno in cui il campo è comparso.
+   *
+   * Da qui il motore ricava la quota incassata **in proporzione**: su un
+   * pagamento al netto di una nota di credito la proporzione è esatta, su un
+   * acconto qualsiasi è un'approssimazione — dichiarata in APPROSSIMAZIONI.md
+   * il giorno in cui il primo acconto parziale entra in un archivio vero.
+   */
+  importoIncassato?: number;
 };
 
 /**
@@ -516,8 +532,28 @@ export type FatturaCalcolata = Fattura & {
   nettoIncasso: number;
   /** Imponibile + rivalsa: la quota che concorre a formare il reddito. */
   ricavoRilevante: number;
+  /** Quanto è arrivato davvero, sulla base di `nettoIncasso`. Zero se non incassata. */
+  incassato: number;
+  /**
+   * La frazione della fattura che è entrata: 1 quando è arrivato tutto, 0 quando
+   * non è arrivato niente. Sopra 1 solo quando qualcuno ha digitato più del
+   * totale — e allora `incassoEccessivo` lo dice.
+   */
+  quotaIncassata: number;
+  /** `ricavoRilevante` per la quota incassata: la parte che forma reddito per cassa. */
+  ricavoIncassato: number;
+  /** Quanto resta da incassare: il dovuto dopo le note, meno quello che è arrivato. */
+  daIncassare: number;
+  /** È arrivato più del totale della fattura: una cifra digitata male. */
+  incassoEccessivo: boolean;
+  /**
+   * È arrivato più del dovuto dopo le note: il rimborso che devi, con il suo
+   * importo. Zero quando l'importo incassato non è dichiarato, perché lì non si
+   * sa e non si indovina.
+   */
+  rimborsoDovuto: number;
   scadenza: string;
-  stato: "incassato" | "daIncassare" | "scaduto";
+  stato: "incassato" | "parziale" | "daIncassare" | "scaduto";
   giorniIncasso: number | null;
   giorniRitardo: number;
 };

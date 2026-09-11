@@ -565,8 +565,21 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   // Ogni documento con le regole del suo anno: le impostazioni dell'anno in
   // esame valgono per il prospetto, non per una fattura di tre anni fa.
   const impostazioniDi = risolutoreImpostazioni(imp, ingresso.impostazioniPerAnno);
+  /*
+    Gli storni si calcolano prima delle fatture perché ogni fattura deve sapere
+    quanto le è stato tolto: da lì esce «quanto il cliente deve ancora», che
+    senza le note sarebbe il totale pieno anche su una fattura già chiusa da una
+    nota. `stornoPerFattura` guarda solo id e imponibile, quindi può girare sui
+    documenti grezzi.
+  */
+  const storniPerFattura = stornoPerFattura(ingresso.note ?? [], ingresso.fatture);
   const fattureCalcolate = ingresso.fatture.map((f) =>
-    calcolaFattura(f, impostazioniDi(annoDi(f.dataEmissione)), oggi),
+    calcolaFattura(
+      f,
+      impostazioniDi(annoDi(f.dataEmissione)),
+      oggi,
+      storniPerFattura.get(f.id)?.stornato ?? 0,
+    ),
   );
   const costiCalcolati = ingresso.costi.map((c) =>
     calcolaCosto(c, impostazioniDi(annoDi(c.dataDocumento))),
@@ -621,12 +634,25 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     ...rn.perCompetenza.map((n) => nonNegativo(round2(n.imponibile - (cassaPerNota.get(n.id) ?? 0)))),
   );
 
+  /*
+    Per cassa entra quello che è entrato davvero, non l'intera fattura.
+
+    `quotaIncassata` vale 1 su ogni fattura che non dichiara un importo — cioè
+    su tutte quelle scritte prima che il campo esistesse — quindi qui non cambia
+    niente per gli archivi di prima. Dove l'importo c'è, la stessa quota divide
+    imponibile, rivalsa e IVA: è un bonifico solo, e si scompone in proporzione.
+  */
   const compensiIncassati = round2(
-    somma(...incassateNellAnno.map((f) => f.imponibile)) - stornoIncassato,
+    somma(...incassateNellAnno.map((f) => round2(f.imponibile * f.quotaIncassata)))
+      - stornoIncassato,
   );
-  const rivalsaIncassata = somma(...incassateNellAnno.map((f) => f.rivalsa));
+  const rivalsaIncassata = somma(
+    ...incassateNellAnno.map((f) => round2(f.rivalsa * f.quotaIncassata)),
+  );
   const ricaviRilevanti = somma(compensiIncassati, rivalsaIncassata);
-  const ivaIncassata = round2(somma(...incassateNellAnno.map((f) => f.iva)) - ivaStornata);
+  const ivaIncassata = round2(
+    somma(...incassateNellAnno.map((f) => round2(f.iva * f.quotaIncassata))) - ivaStornata,
+  );
   const incassatoLordo = somma(ricaviRilevanti, ivaIncassata);
 
   const costiPagatiTotale = somma(...pagatiNellAnno.map((c) => c.totale));
@@ -644,11 +670,21 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     il cliente pagherà 1.500. Prima il riquadro del cruscotto ne prometteva
     2.500, e quella promessa entrava anche nella proiezione della soglia.
   */
-  const storniPerFattura = stornoPerFattura(ingresso.note ?? [], fattureCalcolate);
-  const inSospeso = somma(
-    ...rf.sospesi.map((f) =>
-      nonNegativo(round2(f.ricavoRilevante - (storniPerFattura.get(f.id)?.stornato ?? 0))),
-    ),
+  /*
+    Il sospeso sono due cose, non una: le fatture mai incassate, e **la parte
+    che manca** di quelle incassate a metà. Prima le seconde sparivano dal
+    conto: bastava una data di incasso e la fattura valeva zero di atteso,
+    qualunque cifra fosse arrivata.
+  */
+  const restaDi = (f: FatturaCalcolata) =>
+    nonNegativo(round2(f.ricavoRilevante - (storniPerFattura.get(f.id)?.stornato ?? 0)));
+  const inSospeso = round2(
+    somma(...rf.sospesi.map(restaDi))
+      + somma(
+          ...emesseNellAnno
+            .filter((f) => f.stato === "parziale")
+            .map((f) => nonNegativo(round2(restaDi(f) - round2(f.ricavoRilevante * f.quotaIncassata)))),
+        ),
   );
 
   // La soglia si misura sui compensi percepiti, non sull'emesso: l'emesso resta
@@ -759,20 +795,27 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     const gia = stornoSuFatturaNellAnno.get(s.fatturaId) ?? 0;
     stornoSuFatturaNellAnno.set(s.fatturaId, round2(gia + s.importo));
   }
+  /*
+    La ritenuta la trattiene chi paga, quindi segue il pagamento: su un incasso
+    parziale è trattenuta in proporzione, come tutto il resto del bonifico.
+  */
   const conRitenuta = incassateNellAnno.filter((f) => f.ritenuta > 0);
+  const imponibileIncassatoDi = (f: FatturaCalcolata) => round2(f.imponibile * f.quotaIncassata);
   const baseRitenute = somma(
-    ...conRitenuta.map((f) => nonNegativo(f.imponibile - (stornoSuFatturaNellAnno.get(f.id) ?? 0))),
+    ...conRitenuta.map((f) =>
+      nonNegativo(imponibileIncassatoDi(f) - (stornoSuFatturaNellAnno.get(f.id) ?? 0)),
+    ),
   );
   const ritenuteSubite = somma(
     ...conRitenuta.map((f) => {
-      const netto = nonNegativo(f.imponibile - (stornoSuFatturaNellAnno.get(f.id) ?? 0));
+      const netto = nonNegativo(imponibileIncassatoDi(f) - (stornoSuFatturaNellAnno.get(f.id) ?? 0));
       // In proporzione, non ricalcolando l'aliquota: la regola della ritenuta
       // sta in `documenti.ts` e deve restare in un posto solo.
       return round2(f.ritenuta * rapporto(netto, f.imponibile));
     }),
   );
   const stornoDedottoDalleRitenute = round2(
-    somma(...conRitenuta.map((f) => f.imponibile)) - baseRitenute,
+    somma(...conRitenuta.map(imponibileIncassatoDi)) - baseRitenute,
   );
   const imposteNetteASaldo = round2(nonNegativo(totaleImposte - ritenuteSubite));
   const creditoImposta = round2(nonNegativo(ritenuteSubite - totaleImposte));

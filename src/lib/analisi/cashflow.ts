@@ -90,8 +90,10 @@ export function calcolaCashflow(ing: IngressoCashflow): Cashflow {
   let accantonato = accantonatoIniziale;
 
   for (let m = 1; m <= 12; m++) {
+    // Quello che è entrato in banca, non il totale della fattura: su un incasso
+    // parziale sono due numeri diversi, e questo è un conto di cassa.
     const incassiClienti = somma(
-      ...nelMese(ing.fatture, (f) => f.dataIncasso, m).map((f) => f.nettoIncasso),
+      ...nelMese(ing.fatture, (f) => f.dataIncasso, m).map((f) => f.incassato),
     );
     const movimento = ing.movimentiAttivita.find((x) => x.anno === anno && x.mese === m);
     const altreEntrate = movimento?.altreEntrate ?? 0;

@@ -41,7 +41,8 @@ export function SchermataPatrimonio() {
     return calcolaPatrimonio({
       liquiditaAttivita: cashflow.saldoFinale,
       liquiditaPersonale: Math.round(personale * 100) / 100,
-      creditiClienti: p.fattureCalcolate.filter((f) => !f.dataIncasso).reduce((a, f) => a + f.nettoIncasso, 0),
+      // Anche le fatture incassate in parte sono un credito, per quello che manca.
+      creditiClienti: p.fattureCalcolate.reduce((a, f) => a + f.daIncassare, 0),
       creditoIva: calcolo.iva.creditoFinale,
       tasseAccantonate: cashflow.accantonatoTotale,
       debitiFornitori: p.costiCalcolati.filter((c) => !c.dataPagamento).reduce((a, c) => a + c.totale, 0),

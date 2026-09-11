@@ -55,7 +55,7 @@ export function generaAvvisi(ing: IngressoAvvisi): Avviso[] {
   // — Credito commerciale ————————————————————————————
   const scadute = fatture.filter((f) => f.stato === "scaduto");
   if (scadute.length > 0) {
-    const totale = scadute.reduce((a, f) => a + f.nettoIncasso, 0);
+    const totale = scadute.reduce((a, f) => a + f.daIncassare, 0);
     const piuVecchia = scadute.reduce((a, f) => (f.giorniRitardo > a.giorniRitardo ? f : a));
     avvisi.push({
       id: "scadute",

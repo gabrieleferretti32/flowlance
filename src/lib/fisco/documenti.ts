@@ -49,6 +49,16 @@ export function calcolaFattura(
   fattura: Fattura,
   imp: Impostazioni,
   oggiIso: string,
+  /**
+   * Quanto le note di credito tolgono all'imponibile di questa fattura.
+   *
+   * Serve a una cosa sola ma importante: sapere **quanto il cliente deve
+   * ancora**. Senza, una fattura da 4.870 stornata per 340 e pagata per il suo
+   * netto risultava «incassata in parte, restano 346,80» — un residuo che non
+   * esiste, perché quei 340 non li deve più nessuno. Zero è il valore giusto
+   * per chi chiama senza sapere delle note: è il caso «nessuno storno».
+   */
+  stornato = 0,
 ): FatturaCalcolata {
   const forfettario = imp.regime === "forfettario";
   const aliquotaIvaApplicata = forfettario ? 0 : (fattura.aliquotaIva ?? imp.aliquotaIva);
@@ -83,6 +93,57 @@ export function calcolaFattura(
   const scadenza = aggiungiGiorni(fattura.dataEmissione, imp.terminiPagamento);
   const incassata = Boolean(fattura.dataIncasso);
 
+  /*
+    Quanto è entrato davvero, e in che proporzione.
+
+    `importoIncassato` assente vuol dire «tutto»: è la semantica che l'app ha
+    sempre avuto, e tenerla fa sì che nessun archivio scritto prima di questo
+    campo cambi un numero. Quando c'è, è la cifra letta sull'estratto conto —
+    IVA compresa, ritenuta già trattenuta — e la quota che ne esce divide allo
+    stesso modo imponibile, IVA e ritenuta.
+
+    Su un pagamento al netto di una nota di credito la proporzione è esatta. Su
+    un acconto qualunque è un'approssimazione, ed è il prezzo di non chiedere a
+    chi usa l'app di scomporre un bonifico a mano.
+  */
+  const incassato = incassata ? round2(fattura.importoIncassato ?? nettoIncasso) : 0;
+  const quotaIncassata = nettoIncasso > 0 ? incassato / nettoIncasso : incassata ? 1 : 0;
+  /*
+    Quanto resta da incassare si misura sul **dovuto**, non sul totale: le note
+    di credito abbassano quello che il cliente deve, nella stessa proporzione in
+    cui abbassano l'imponibile.
+  */
+  const quotaDovuta =
+    fattura.imponibile > 0
+      ? Math.max(0, fattura.imponibile - stornato) / fattura.imponibile
+      : 1;
+  const nettoDovuto = round2(nettoIncasso * quotaDovuta);
+  const daIncassare = round2(Math.max(0, nettoDovuto - incassato));
+  /*
+    L'eccesso invece si misura sul totale della fattura, note escluse: incassare
+    più del dovuto-dopo-le-note è il caso legittimo del rimborso da fare, e lo
+    dice l'avviso sulla nota. Incassare più della fattura intera è una cifra
+    digitata male. Mezzo centesimo di tolleranza: un arrotondamento non è un
+    errore di battitura.
+  */
+  const incassoEccessivo = incassato > round2(nettoIncasso) + 0.005;
+  const parziale = incassata && daIncassare > 0;
+  /*
+    Il rovescio del residuo: è arrivato **più** del dovuto dopo le note, quindi
+    c'è un rimborso da fare, e l'importo è questo. Si calcola qui e non dove si
+    mostra perché qui si sa che `importoIncassato` e `nettoIncasso` stanno sulla
+    stessa base — IVA compresa, ritenuta già tolta. La prima stesura lo
+    ricavava dentro `controlliNote` da imponibile e aliquota, cioè su una base
+    che con una ritenuta attiva è più alta di 974 €: non scattava mai, e i test
+    non se ne accorgevano perché il loro scenario non aveva ritenute.
+
+    Zero quando l'importo non è dichiarato: lì «incassata» vuol dire «tutta», e
+    dedurne un rimborso sarebbe di nuovo indovinare — è la domanda che il campo
+    esiste per chiudere, non per riaprire dall'altra parte.
+  */
+  const rimborsoDovuto =
+    fattura.importoIncassato === undefined ? 0 : round2(Math.max(0, incassato - nettoDovuto));
+
   const giorniRitardo = incassata
     ? Math.max(0, giorniTra(scadenza, fattura.dataIncasso as string))
     : Math.max(0, giorniTra(scadenza, oggiIso));
@@ -99,8 +160,20 @@ export function calcolaFattura(
     totale,
     nettoIncasso,
     ricavoRilevante: round2(fattura.imponibile + rivalsa),
+    incassato,
+    quotaIncassata,
+    ricavoIncassato: round2((fattura.imponibile + rivalsa) * quotaIncassata),
+    daIncassare,
+    incassoEccessivo,
+    rimborsoDovuto,
     scadenza,
-    stato: incassata ? "incassato" : giorniRitardo > 0 ? "scaduto" : "daIncassare",
+    stato: parziale
+      ? "parziale"
+      : incassata
+        ? "incassato"
+        : giorniRitardo > 0
+          ? "scaduto"
+          : "daIncassare",
     giorniIncasso: incassata
       ? giorniTra(fattura.dataEmissione, fattura.dataIncasso as string)
       : null,
@@ -155,6 +228,9 @@ export function fatturaGrezza(f: Fattura | FatturaCalcolata): Fattura {
     imponibile: f.imponibile,
     ...(f.aliquotaIva === undefined ? {} : { aliquotaIva: f.aliquotaIva }),
     dataIncasso: f.dataIncasso ?? null,
+    // Assente resta assente: `undefined` qui significa «è arrivato tutto», e
+    // scriverci un numero d'ufficio cambierebbe il senso di ogni riga vecchia.
+    ...(f.importoIncassato === undefined ? {} : { importoIncassato: f.importoIncassato }),
   };
 }
 
