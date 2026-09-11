@@ -1,6 +1,6 @@
 # Cosa Flowlance non calcola
 
-*Ultimo aggiornamento: 9 settembre 2026*
+*Ultimo aggiornamento: 11 settembre 2026*
 
 Quello che Flowlance **non** calcola, o calcola in modo semplificato. È l'elenco
 da leggere prima di vendere il prodotto: ogni voce è una differenza possibile
@@ -155,6 +155,36 @@ casse.
 reverse charge, niente operazioni intracomunitarie o con l'estero, niente
 ventilazione, niente regimi speciali. La detraibilità è per documento, una
 percentuale scelta dall'utente.
+
+**L'IVA sugli acquisti è collocata per data del documento, non di ricezione.**
+Il diritto alla detrazione nasce quando l'imposta diventa esigibile **e** la
+fattura è in tuo possesso: a contare è la data in cui è arrivata. In archivio
+quella data non c'è — un costo ha la data del documento e quella del pagamento,
+e basta — quindi Flowlance mette ogni acquisto nel periodo della sua data di
+documento.
+
+Quasi sempre il risultato coincide con quello del commercialista: l'art. 1 del
+DPR 100/1998 lascia detrarre nel periodo dell'operazione le fatture ricevute e
+registrate entro il 15 del mese successivo, e una fattura elettronica arriva
+dallo SdI in pochi giorni. I casi in cui non coincide sono due, e sono precisi.
+
+**Uno.** La fattura ricevuta dopo il 15 del mese successivo al periodo. È
+detraibile nel periodo in cui è arrivata; Flowlance la tiene in quello della sua
+data. Il credito risulta un periodo in anticipo, e per quel periodo l'app dice di
+versare **meno** di quanto l'F24 chiederà.
+
+**Due.** La fattura datata a dicembre e ricevuta a gennaio. La finestra fino al
+15 non vale per le operazioni dell'anno precedente: in dicembre quella fattura
+non è detraibile in nessun caso, e va nella dichiarazione dell'anno dopo.
+Flowlance la mette in dicembre. L'IVA dell'ultimo periodo dell'anno risulta più
+bassa del vero, e quella del primo periodo dell'anno nuovo più alta — perché quel
+credito lì non ci arriva mai.
+
+Lo scarto non resta implicito: la schermata IVA elenca, periodo per periodo, gli
+acquisti datati negli ultimi giorni e dice **quanto direbbe il periodo** se
+fossero stati registrati alla ricezione. È un'indicazione e non una correzione:
+senza la data di ricezione in archivio non c'è niente da correggere, solo
+un'ipotesi da mettere in mano a chi sa com'è andata.
 
 **Acconto IVA di dicembre.** La scadenza c'è, l'importo no: il calcolo dipende
 dal metodo scelto — storico, previsionale o delle operazioni effettuate — e
