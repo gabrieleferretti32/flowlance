@@ -23,3 +23,11 @@ di backup accettati in lettura. Cambiarli perderebbe dati.
 - **Formattazione**: ogni cifra o data passa dai formatter di `src/lib/format.ts`,
   mai `toLocaleString` diretto (il raggruppamento cambia fra Node e browser e
   fa fallire l'idratazione).
+- **Sostituzioni di testo**: verificare che il testo da sostituire ci sia
+  **prima** di sostituirlo, e fermarsi se non c'è. `str.replace`, `sed` e simili
+  quando non trovano niente restituiscono la stringa identica e non lo dicono:
+  non è un errore che si ignora, è un successo che si riceve. Il file riscritto
+  uguale si scopre più tardi, guardando lo schermo, e intanto si è già andati
+  avanti a costruirci sopra. È la stessa famiglia di difetti che questo
+  repository insegue nel prodotto — una misura che conferma invece di una che
+  rompe — applicata al modo di modificarlo.
