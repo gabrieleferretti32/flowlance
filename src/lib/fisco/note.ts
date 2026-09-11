@@ -263,12 +263,43 @@ export function storniDiCassa(
 // Controlli
 // ————————————————————————————————————————————————————————————
 
+/**
+ * Di che avviso si tratta.
+ *
+ * Esiste perché chi lo mostra possa decidere **per genere** e non leggendo il
+ * testo del messaggio. La schermata delle note filtrava così:
+ *
+ *     problemi.filter((m) => m.includes("non esiste più") || m.includes("superano"))
+ *
+ * cioè mostrava due frasi note e buttava via tutto il resto. Quando è nato
+ * l'avviso sulla fattura incassata prima della nota, il motore lo calcolava e la
+ * schermata lo scartava in silenzio — nessun errore, nessuna riga vuota, solo
+ * un avviso che non esisteva per chi guardava. È la solita famiglia: un valore
+ * calcolato e uno mostrato che non si parlano.
+ */
+export type GenereAvviso =
+  | "residuo"
+  | "fatturaSparita"
+  | "incassoPrimaDellaNota"
+  | "stornoEccessivo";
+
 export type AvvisoNota = {
   notaId: string;
   numero: string;
+  genere: GenereAvviso;
   gravita: "avviso" | "errore";
   messaggio: string;
 };
+
+/**
+ * I generi che una schermata può nascondere perché li dice già in altra forma.
+ *
+ * Uno solo: il residuo, che sulla riga della nota è già una targhetta con
+ * l'importo. Tutto il resto si mostra. La lista sta qui e non dentro il
+ * componente perché è una decisione sul significato degli avvisi, e perché un
+ * test possa verificare che gli altri generi arrivano davvero a schermo.
+ */
+export const AVVISI_DETTI_ALTROVE: readonly GenereAvviso[] = ["residuo"];
 
 /**
  * Cosa non torna nelle note.
@@ -292,6 +323,7 @@ export function controlliNote(
       avvisi.push({
         notaId: n.id,
         numero: n.numero,
+        genere: "residuo",
         gravita: "avviso",
         messaggio:
           c.riconciliato === 0
@@ -305,6 +337,7 @@ export function controlliNote(
         avvisi.push({
           notaId: n.id,
           numero: n.numero,
+          genere: "fatturaSparita",
           gravita: "errore",
           messaggio: "È agganciata a una fattura che non esiste più.",
         });
@@ -331,6 +364,7 @@ export function controlliNote(
         avvisi.push({
           notaId: n.id,
           numero: n.numero,
+          genere: "incassoPrimaDellaNota",
           gravita: "avviso",
           messaggio:
             `La fattura era già stata incassata il ${data(f.dataIncasso)}, prima di questa nota: `
@@ -349,6 +383,7 @@ export function controlliNote(
         avvisi.push({
           notaId: nota.notaId,
           numero: nota.numero,
+          genere: "stornoEccessivo",
           gravita: "errore",
           messaggio: `Le note agganciate superano l'imponibile della fattura: ${euro(voce.stornato)} su ${euro(originale.imponibile)}.`,
         });

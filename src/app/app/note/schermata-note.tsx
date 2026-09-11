@@ -30,7 +30,7 @@ import {
   segnaRimborsata,
 } from "@/lib/dati/azioni";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
-import { controlliNote, notaGrezza } from "@/lib/fisco/note";
+import { AVVISI_DETTI_ALTROVE, controlliNote, notaGrezza, type AvvisoNota } from "@/lib/fisco/note";
 import { dentroPeriodo, etichettaPeriodo } from "@/lib/periodo";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { useRichiesta } from "@/lib/stato/comandi";
@@ -245,7 +245,7 @@ export function SchermataNote() {
                           <Riferimenti
                             nota={n}
                             fatture={fatture}
-                            problemi={problemi.map((a) => a.messaggio)}
+                            problemi={problemi}
                             onRiconcilia={() => setDaRiconciliare(notaGrezza(n))}
                           />
                         </TabellaCella>
@@ -382,7 +382,7 @@ function Riferimenti({
 }: {
   nota: { id: string; residuo: number; riconciliazioni?: { fatturaId: string; imponibile: number }[] };
   fatture: { id: string; numero: string; imponibile: number; clienteId: string }[];
-  problemi: string[];
+  problemi: AvvisoNota[];
   onRiconcilia: () => void;
 }) {
   const agganci = nota.riconciliazioni ?? [];
@@ -410,11 +410,25 @@ function Riferimenti({
       <Button scrive variante="quieto" taglia="sm" className="-ml-2 h-7" onClick={onRiconcilia}>
         {agganci.length > 0 ? "Modifica gli agganci" : "Riconcilia"}
       </Button>
+      {/*
+        Si mostra **tutto** quello che il motore segnala, tranne i generi che la
+        riga dice già in altra forma — oggi il solo residuo, che sta nella
+        targhetta qui sopra con il suo importo.
+
+        Prima la scelta si faceva cercando due frasi dentro il testo del
+        messaggio: `m.includes("non esiste più") || m.includes("superano")`. Ha
+        funzionato finché gli avvisi erano due, e il giorno in cui ne è nato un
+        terzo il motore lo calcolava e questa riga lo scartava senza dire niente
+        — un avviso che non esisteva per chi guardava la schermata.
+      */}
       {problemi
-        .filter((m) => m.includes("non esiste più") || m.includes("superano"))
-        .map((m) => (
-          <span key={m} className="block text-micro text-negativo">
-            {m}
+        .filter((a) => !AVVISI_DETTI_ALTROVE.includes(a.genere))
+        .map((a) => (
+          <span
+            key={a.genere + a.messaggio}
+            className={`block text-micro ${a.gravita === "errore" ? "text-negativo" : "text-[#B8791A]"}`}
+          >
+            {a.messaggio}
           </span>
         ))}
     </div>

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { calcolaIva } from "./iva";
 import { calcolaProspetto } from "./motore";
 import {
+  AVVISI_DETTI_ALTROVE,
+  type AvvisoNota,
+  type GenereAvviso,
   calcolaNota,
   controlliNote,
   dateNota,
@@ -217,6 +220,87 @@ describe("una nota non riconciliata resta valida e viene segnalata", () => {
     const n = nota({ imponibile: 1_500, riconciliazioni: [{ fatturaId: "f1", imponibile: 1_500 }] });
     const a = controlliNote([n], [fattura()]);
     expect(a.some((x) => x.gravita === "errore" && x.messaggio.includes("superano"))).toBe(true);
+  });
+});
+
+/**
+ * Ogni avviso arriva davvero a schermo.
+ *
+ * Il difetto che questo blocco chiude non era nel motore: `controlliNote`
+ * calcolava l'avviso giusto, e la schermata delle note lo scartava con un
+ * filtro che cercava due frasi dentro il testo del messaggio. Il risultato per
+ * chi usava l'app era che l'avviso **non esisteva** — nessun errore, nessuna
+ * riga vuota, niente da notare.
+ *
+ * Adesso il filtro è per genere, e la lista dei generi nascosti sta accanto al
+ * tipo. Qui si verifica che tutti gli altri passino: il giorno in cui nasce un
+ * quinto avviso, o questo test lo copre o qualcuno ha deciso di nasconderlo di
+ * proposito, che è una decisione e non una dimenticanza.
+ */
+describe("ogni avviso che il motore produce arriva a schermo", () => {
+  const mostrato = (a: AvvisoNota) => !AVVISI_DETTI_ALTROVE.includes(a.genere);
+
+  const casi: [GenereAvviso, () => AvvisoNota[]][] = [
+    ["residuo", () => controlliNote([nota({ riconciliazioni: [] })], [fattura()])],
+    [
+      "fatturaSparita",
+      () =>
+        controlliNote(
+          [nota({ riconciliazioni: [{ fatturaId: "sparita", imponibile: 500 }] })],
+          [fattura()],
+        ),
+    ],
+    [
+      "incassoPrimaDellaNota",
+      () =>
+        controlliNote(
+          [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+          [fattura({ dataIncasso: "2026-02-20" })],
+        ),
+    ],
+    [
+      "stornoEccessivo",
+      () =>
+        controlliNote(
+          [nota({ imponibile: 5_000, riconciliazioni: [{ fatturaId: "f1", imponibile: 5_000 }] })],
+          [fattura({ dataIncasso: "2026-03-25" })],
+        ),
+    ],
+  ];
+
+  it.each(casi)("«%s» si può produrre", (genere, produci) => {
+    expect(produci().map((a) => a.genere)).toContain(genere);
+  });
+
+  it("e tutti i generi esistenti sono coperti da questo elenco", () => {
+    const provati = casi.map(([g]) => g).sort();
+    const tutti: GenereAvviso[] = [
+      "fatturaSparita",
+      "incassoPrimaDellaNota",
+      "residuo",
+      "stornoEccessivo",
+    ];
+    expect(provati).toEqual(tutti);
+  });
+
+  /**
+   * Quello che il difetto ha colpito: l'avviso che chiede la data del rimborso
+   * quando la fattura era già incassata. È l'unico modo che l'app ha di dire
+   * che i ricavi per cassa di quell'anno sono al lordo di uno storno — e per
+   * settimane è stato calcolato e buttato via.
+   */
+  it("**quello sulla fattura incassata prima della nota non è fra i nascosti**", () => {
+    const avvisi = controlliNote(
+      [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      [fattura({ dataIncasso: "2026-02-20" })],
+    );
+    expect(avvisi.filter(mostrato).map((a) => a.genere)).toEqual(["incassoPrimaDellaNota"]);
+  });
+
+  it("il residuo resta nascosto: la riga lo dice già con la sua targhetta", () => {
+    const avvisi = controlliNote([nota({ riconciliazioni: [] })], [fattura()]);
+    expect(avvisi.map((a) => a.genere)).toEqual(["residuo"]);
+    expect(avvisi.filter(mostrato)).toEqual([]);
   });
 });
 
