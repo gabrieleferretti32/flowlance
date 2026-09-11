@@ -10,7 +10,7 @@
  * comunque, perché il documento esiste e il fisco lo conta. Chi non aggancia
  * niente resta con i conti giusti e un avviso.
  */
-import { euro } from "@/lib/format";
+import { data, euro } from "@/lib/format";
 import { round2 } from "./aritmetica";
 import { annoDi } from "./documenti";
 import type { DateDocumento } from "./competenza";
@@ -139,6 +139,127 @@ export function stornoPerFattura(
 }
 
 // ————————————————————————————————————————————————————————————
+// Quando uno storno tocca la cassa
+// ————————————————————————————————————————————————————————————
+
+export type StornoCassa = {
+  notaId: string;
+  /** La fattura da cui lo storno è stato tolto, se si sa quale. */
+  fatturaId: string | null;
+  importo: number;
+  /** Il giorno in cui il denaro si è mosso — o non è arrivato. */
+  data: string;
+  via: "rimborso" | "compensazione";
+};
+
+/**
+ * Gli storni che hanno toccato la cassa, uno per movimento.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Il difetto che questa funzione chiude
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Fino a ieri lo storno scendeva dai ricavi per cassa **solo** se la nota
+ * portava una data di rimborso. È giusto quando i soldi tornano indietro
+ * davvero, ed è il caso raro. Quello normale è l'altro: la nota si emette
+ * prima che il cliente paghi, e il cliente **paga il netto**. Nessun rimborso,
+ * nessuna data, e quindi — per l'app — nessuno storno di cassa. Intanto la
+ * fattura risulta incassata per intero, perché è quello che c'è scritto sopra.
+ *
+ * Il risultato si vedeva sul cruscotto come «Incassato 31.166,53 €, 104 % · su
+ * 29.896,04 € emessi»: l'emesso al netto della nota, l'incassato no, e la
+ * differenza esattamente lo storno. Ma il numero sbagliato non era quello del
+ * riquadro: `ricaviRilevanti` regge il reddito, i contributi, le imposte e
+ * l'accantonamento. Uno storno che non scende gonfia tutta la colonna.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * La regola, in una frase
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Uno storno tocca la cassa **una volta sola**, e quando il denaro si muove:
+ *
+ * — se la nota ha una data di rimborso, a quella data: i soldi sono tornati;
+ * — altrimenti, se è agganciata a una fattura incassata **dopo** che la nota
+ *   esisteva, alla data di quell'incasso: il cliente ha pagato il netto, e la
+ *   differenza non è mai entrata;
+ * — altrimenti niente. Fattura non ancora incassata: si vedrà quando sarà
+ *   pagata. Fattura incassata **prima** della nota: il cliente aveva già pagato
+ *   tutto, quindi c'è un rimborso che deve ancora partire, e finché non parte
+ *   la cassa è quella che è. Storno non agganciato a nessuna fattura: non si sa
+ *   da quale incasso togliere, e sceglierne uno a caso sposterebbe i conti di
+ *   un altro committente.
+ *
+ * Il confronto fra le due date è ciò che distingue i due casi, e non è un
+ * dettaglio: senza, lo stesso aggancio direbbe «pagato netto» anche quando il
+ * bonifico era arrivato intero il mese prima.
+ *
+ * La somma degli importi restituiti per una nota non supera mai il suo
+ * imponibile, anche quando le riconciliazioni ne coprono di più — un caso che
+ * `controlliNote` segnala e che qui non deve poter gonfiare uno sconto.
+ */
+export function storniDiCassa(
+  note: readonly NotaCredito[],
+  fatture: readonly Pick<Fattura, "id" | "dataIncasso">[],
+): StornoCassa[] {
+  const perId = new Map(fatture.map((f) => [f.id, f]));
+  const movimenti: StornoCassa[] = [];
+
+  for (const n of note) {
+    let restante = round2(Math.abs(n.imponibile));
+    const prendi = (chiesto: number): number => {
+      const importo = round2(Math.min(restante, chiesto));
+      restante = round2(restante - importo);
+      return importo;
+    };
+
+    if (n.dataRimborso) {
+      // Rimborsata: scende tutta, alla data del rimborso. Gli agganci servono
+      // ancora, ma solo a dire da quale fattura togliere — la base delle
+      // ritenute ne ha bisogno.
+      for (const r of n.riconciliazioni ?? []) {
+        const importo = prendi(Math.abs(r.imponibile));
+        if (importo <= 0) break;
+        movimenti.push({
+          notaId: n.id,
+          fatturaId: r.fatturaId,
+          importo,
+          data: n.dataRimborso,
+          via: "rimborso",
+        });
+      }
+      if (restante > 0) {
+        movimenti.push({
+          notaId: n.id,
+          fatturaId: null,
+          importo: restante,
+          data: n.dataRimborso,
+          via: "rimborso",
+        });
+      }
+      continue;
+    }
+
+    for (const r of n.riconciliazioni ?? []) {
+      const f = perId.get(r.fatturaId);
+      if (!f?.dataIncasso) continue;
+      // Le date ISO si confrontano come stringhe: stesso formato, stesso ordine.
+      if (f.dataIncasso < n.dataDocumento) continue;
+      const importo = prendi(Math.abs(r.imponibile));
+      if (importo <= 0) break;
+      movimenti.push({
+        notaId: n.id,
+        fatturaId: f.id,
+        importo,
+        data: f.dataIncasso,
+        via: "compensazione",
+      });
+    }
+  }
+
+  return movimenti;
+}
+
+// ————————————————————————————————————————————————————————————
 // Controlli
 // ————————————————————————————————————————————————————————————
 
@@ -157,7 +278,7 @@ export type AvvisoNota = {
  */
 export function controlliNote(
   note: readonly NotaCredito[],
-  fatture: readonly Pick<Fattura, "id" | "imponibile">[],
+  fatture: readonly Pick<Fattura, "id" | "imponibile" | "dataIncasso">[],
 ): AvvisoNota[] {
   const avvisi: AvvisoNota[] = [];
   const perId = new Map(fatture.map((f) => [f.id, f]));
@@ -186,6 +307,34 @@ export function controlliNote(
           numero: n.numero,
           gravita: "errore",
           messaggio: "È agganciata a una fattura che non esiste più.",
+        });
+        continue;
+      }
+
+      /*
+        Il caso che l'app non sa raccontare, e che va detto invece di essere
+        deciso al posto di chi legge.
+
+        La fattura era già stata **incassata per intero** quando la nota è
+        nata. O il denaro è tornato indietro — e allora la nota vuole la sua
+        data di rimborso — oppure quell'incasso, in archivio, è al lordo di uno
+        storno che il cliente non ha mai pagato. Nel secondo caso i ricavi per
+        cassa dell'anno sono più alti del vero, e dietro ci sono reddito,
+        contributi, imposte e accantonamento.
+
+        Non si indovina: `storniDiCassa` lascia la cassa dov'è e questo avviso
+        chiede la data. Dedurre un rimborso mai registrato sarebbe inventare un
+        movimento di denaro dentro un registro fiscale.
+      */
+      const f = perId.get(r.fatturaId);
+      if (!n.dataRimborso && f?.dataIncasso && f.dataIncasso < n.dataDocumento) {
+        avvisi.push({
+          notaId: n.id,
+          numero: n.numero,
+          gravita: "avviso",
+          messaggio:
+            `La fattura era già stata incassata il ${data(f.dataIncasso)}, prima di questa nota: `
+            + "se il rimborso è partito segna la data, altrimenti i ricavi per cassa restano al lordo dello storno.",
         });
       }
     }

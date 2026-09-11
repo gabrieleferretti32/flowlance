@@ -275,3 +275,90 @@ restare indietro in silenzio; può solo fermare un build, dicendo il comando.
 Il giorno in cui un woff2 variabile si sa rasterizzare in puro JavaScript —
 o il carattere arriva anche in ttf — il generatore può entrare nel build e il
 presidio diventa inutile. Fino ad allora vale la pena saperlo scritto.
+
+## 11 settembre 2026 · Le ritenute d'acconto sui costi: cosa comporta aggiungerle
+
+Chi paga un professionista con ritenuta è **sostituto d'imposta**: trattiene il
+20 %, paga il fornitore al netto, e versa la ritenuta allo Stato con il codice
+tributo 1040, entro il 16 del mese successivo al **pagamento**. Oggi Flowlance
+non la vede: né nel costo, né nel cashflow, né nello scadenzario. Sono soldi che
+escono e che l'app non conosce.
+
+L'export di Fatture in Cloud porta già la colonna «Rit. acconto» sui costi,
+quindi il dato c'è. Quello che manca è tutto il resto.
+
+**Il costo diventa due movimenti di cassa, non uno.** È il punto che cambia più
+cose. Oggi `calcolaCosto` produce un `totale` che è l'uscita; con la ritenuta le
+uscite sono due, a due date diverse e verso due destinatari: il netto al
+fornitore alla data di pagamento, la ritenuta all'erario il 16 del mese dopo.
+Tutto ciò che legge «quanto è uscito» — cashflow, cumulato del cruscotto, netto
+disponibile — va rivisto, perché oggi somma un numero che non corrisponde a
+nessun bonifico.
+
+**La ritenuta non è un costo.** L'imponibile resta deducibile per intero: la
+ritenuta è denaro del fornitore che passa dalle tue mani. Se qualcuno registra
+anche l'F24 come costo, quel denaro viene dedotto due volte. Serve che il
+versamento 1040 sia un `VersamentoF24` con un tipo suo, e che il prospetto lo
+tenga fuori dal reddito dicendo che lo sta tenendo fuori.
+
+**Lo scadenzario guadagna una scadenza al mese**, con l'importo che dipende dai
+costi **pagati** in quel mese — principio di cassa: l'obbligo nasce al
+pagamento, non alla data della fattura. Una ritenuta su una fattura ricevuta a
+gennaio e pagata a marzo si versa il 16 aprile.
+
+**E dietro c'è un obbligo che l'app finirebbe per implicare senza dirlo**: chi
+opera ritenute deve rilasciare la Certificazione Unica al percipiente entro il
+16 marzo e presentarla. Mettere il numero senza nominare l'adempimento è mezzo
+lavoro, e la metà che manca è quella sanzionata.
+
+Il campo sul modello è piccolo — `ritenuta` su `Costo`, più la mappatura della
+colonna nell'import. Quello che non è piccolo è la catena a valle.
+
+## 11 settembre 2026 · Perché il numero dell'IVA non coincide con l'F24
+
+Un'ora persa a capire perché Flowlance diceva 454,87 e l'F24 821,19. Non era un
+errore dell'app: il commercialista non aveva ancora scaricato una nota di
+credito, e datava alcune fatture d'acquisto per **ricezione** invece che per
+documento. Nessun cliente farà quel lavoro: vedrà due numeri diversi e concluderà
+che l'app sbaglia.
+
+**L'ipotesi sulla data è verificata, ed è peggio di come era posta.** Non è che
+l'app usa la data sbagliata fra due che ha: in archivio la data di ricezione
+**non esiste**. `Costo` (`src/lib/fisco/tipi.ts`) ha `dataDocumento` e
+`dataPagamento`, e basta. `calcolaIva` mette l'IVA detraibile nel mese di
+`dataDocumento`, punto. Quindi una fattura del 28 settembre ricevuta il 3 ottobre
+sta nel terzo trimestre per Flowlance e nel quarto per chi l'ha registrata.
+
+Va detto che la regola di legge dà ragione all'app **quasi sempre**: l'art. 1 del
+DPR 100/1998 lascia detrarre nel periodo dell'operazione le fatture ricevute e
+registrate entro il 15 del mese successivo. Il caso in cui l'app sbaglia è
+preciso: la fattura che arriva dopo quel termine, e quella di dicembre ricevuta a
+gennaio — che non può stare in dicembre in nessun caso, e oggi ci sta.
+
+**Cosa serve perché la schermata IVA lo dica, in tre pezzi che valgono anche da
+soli:**
+
+1. **Dire perché può non coincidere, con i numeri di chi legge e senza campi
+   nuovi.** Oggi si può già calcolare: «3 fatture d'acquisto datate negli ultimi
+   giorni del trimestre, 1.240 € di IVA. Se il tuo commercialista le ha
+   registrate nel periodo successivo, il suo F24 è più alto di 1.240 €.» Una
+   frase con dentro l'importo esatto dello scarto possibile spegne il sospetto
+   che l'app sbagli, e costa zero al modello.
+
+2. **Il confronto con l'F24, senza rifare i conti a mano.** Un campo dove si
+   scrive quanto si è versato davvero, e la schermata scompone la differenza per
+   causa candidata: acquisti al confine del periodo, note di credito emesse e non
+   ancora scaricate, documenti che l'archivio non ha. Non «hai una differenza di
+   366,32»: **quali righe** possono spiegarla, in ordine di importo.
+
+3. **La data di ricezione come campo, quando si decide di aggiungerla.** Con la
+   regola vera: periodo di `dataDocumento` se ricevuta entro il 15 del mese dopo,
+   altrimenti periodo di `dataRicezione`, e mai a cavallo d'anno. Facoltativa:
+   chi non la compila resta com'è oggi, che è giusto quasi sempre.
+
+I primi due si fanno senza toccare l'archivio. Il terzo è una migrazione.
+
+**Da decidere, e non da me**: questa approssimazione sulla data probabilmente va
+anche in `APPROSSIMAZIONI.md`, cioè sulla pagina pubblica «cosa Flowlance non
+calcola» — è esattamente il genere di cosa per cui quella pagina esiste, e si
+legge prima di comprare invece che a giugno.

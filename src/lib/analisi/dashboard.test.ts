@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { calcolaProspetto } from "@/lib/fisco/motore";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
 import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
+import { impostazioniOrdinario } from "@/lib/fisco/fixture";
+import { round2 } from "@/lib/fisco/aritmetica";
+import type { Cliente } from "@/lib/dati/tipi";
 import { datiDemo, ANNO_DEMO } from "@/lib/dati/demo";
 import type { Adempimento } from "@/lib/fisco/scadenze";
 import type { Fattura, NotaCredito } from "@/lib/fisco/tipi";
@@ -362,5 +365,75 @@ describe("prossimo versamento", () => {
     expect(v.dovute.every((s) => s.categoria !== "dichiarazione")).toBe(true);
     for (const s of v.scavalcati) expect(s.importo).toBeNull();
     for (const s of v.scavalcati) expect(s.data < v.dovute[0].data).toBe(true);
+  });
+});
+
+/**
+ * Il grafico e i riquadri sopra devono dire la stessa cosa.
+ *
+ * È la ragione per cui `andamentoMensile` e il motore chiamano la stessa
+ * `storniDiCassa`: quando la regola viveva in due posti, il riquadro
+ * «Incassato» e la colonna del mese raccontavano due storie sotto la stessa
+ * parola, e nessuna delle due diceva all'altra che stava sbagliando.
+ */
+describe("uno storno compensato scende anche dal grafico e dai clienti", () => {
+  const IMP = impostazioniOrdinario();
+  const fatture: Fattura[] = [
+    {
+      id: "f1",
+      dataEmissione: "2026-02-01",
+      numero: "2026/001",
+      clienteId: "alfa",
+      descrizione: "Retainer",
+      tipoRicavo: "ricorrente",
+      imponibile: 1_000,
+      aliquotaIva: 0.22,
+      dataIncasso: "2026-03-25",
+    },
+  ];
+  const note: NotaCredito[] = [
+    {
+      id: "n1",
+      dataDocumento: "2026-03-10",
+      numero: "NC/1",
+      clienteId: "alfa",
+      descrizione: "Storno",
+      imponibile: 400,
+      aliquotaIva: 0.22,
+      dataRimborso: null,
+      riconciliazioni: [{ fatturaId: "f1", imponibile: 400 }],
+    },
+  ];
+  const p = calcolaProspetto({
+    impostazioni: IMP,
+    parametri: PARAMETRI_2026,
+    fatture,
+    costi: [],
+    note,
+    oggi: "2026-09-01",
+  });
+
+  it("marzo mostra l'incassato netto, non quello di fattura", () => {
+    const marzo = andamentoMensile(p.fattureCalcolate, p.costiCalcolati, 2026, p.noteCalcolate)[2];
+    expect(marzo.incassato).toBe(600);
+  });
+
+  it("il mese somma quello che somma il riquadro sopra", () => {
+    const mesi = andamentoMensile(p.fattureCalcolate, p.costiCalcolati, 2026, p.noteCalcolate);
+    const incassatoAnno = mesi.reduce((a, m) => a + m.incassato, 0);
+    expect(round2(incassatoAnno)).toBe(p.ricaviRilevanti);
+  });
+
+  it("il cliente non resta il primo del portafoglio con i soldi che ha stornato", () => {
+    const [alfa] = portafoglioClienti(
+      p.fattureCalcolate,
+      [{ id: "alfa", nome: "Alfa", canaleAcquisizione: "", note: "" }] satisfies Cliente[],
+      2026,
+      () => "#000",
+      p.noteCalcolate,
+    );
+    expect(alfa.emesso).toBe(600);
+    // Questa colonna è lorda di IVA, come lo era prima: 600 + 22 %.
+    expect(alfa.incassato).toBe(732);
   });
 });

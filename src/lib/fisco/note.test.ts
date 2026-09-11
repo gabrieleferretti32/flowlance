@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { calcolaIva } from "./iva";
 import { calcolaProspetto } from "./motore";
-import { calcolaNota, controlliNote, dateNota, notaGrezza, stornoPerFattura } from "./note";
+import {
+  calcolaNota,
+  controlliNote,
+  dateNota,
+  notaGrezza,
+  storniDiCassa,
+  stornoPerFattura,
+} from "./note";
 import { ripartisci } from "./competenza";
 import { impostazioniForfettario, impostazioniOrdinario, OGGI_FIXTURE } from "./fixture";
 import { PARAMETRI_2026 } from "./parametri/2026";
@@ -166,9 +173,36 @@ describe("una nota non riconciliata resta valida e viene segnalata", () => {
     expect(controlliNote([n], [fattura()])[0].messaggio).toContain(euro(200));
   });
 
-  it("agganciata del tutto non produce avvisi", () => {
+  it("agganciata del tutto e pagata al netto non produce avvisi", () => {
     const n = nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] });
-    expect(controlliNote([n], [fattura()])).toEqual([]);
+    expect(controlliNote([n], [fattura({ dataIncasso: "2026-03-25" })])).toEqual([]);
+  });
+
+  /**
+   * La fattura era già incassata per intero quando la nota è nata: o il denaro
+   * è tornato, e allora serve la data, oppure quell'incasso in archivio è al
+   * lordo di uno storno che il cliente non ha mai pagato — e sotto ci sono
+   * reddito, contributi e imposte. L'app non lo indovina: lo chiede.
+   */
+  it("**incassata prima della nota e senza rimborso: lo dice invece di indovinare**", () => {
+    const n = nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] });
+    const a = controlliNote([n], [fattura({ dataIncasso: "2026-02-20" })]);
+    expect(a).toHaveLength(1);
+    expect(a[0].gravita).toBe("avviso");
+    expect(a[0].messaggio).toContain("20/02/2026");
+  });
+
+  it("con la data di rimborso l'avviso sparisce", () => {
+    const n = nota({
+      riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }],
+      dataRimborso: "2026-04-05",
+    });
+    expect(controlliNote([n], [fattura({ dataIncasso: "2026-02-20" })])).toEqual([]);
+  });
+
+  it("se la fattura non è ancora incassata non c'è niente da chiedere", () => {
+    const n = nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] });
+    expect(controlliNote([n], [fattura({ dataIncasso: null })])).toEqual([]);
   });
 
   it("un aggancio a una fattura sparita è un errore, non fa sparire la nota", () => {
@@ -183,6 +217,89 @@ describe("una nota non riconciliata resta valida e viene segnalata", () => {
     const n = nota({ imponibile: 1_500, riconciliazioni: [{ fatturaId: "f1", imponibile: 1_500 }] });
     const a = controlliNote([n], [fattura()]);
     expect(a.some((x) => x.gravita === "errore" && x.messaggio.includes("superano"))).toBe(true);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Quando lo storno tocca la cassa
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Il caso che mancava, e che è il caso normale.
+ *
+ * La nota si emette **prima** che il cliente paghi, il cliente paga il netto, e
+ * nessun denaro torna indietro: nessun rimborso, nessuna data di rimborso. Fino
+ * a ieri per l'app quello storno non era mai sceso dalla cassa, mentre la
+ * fattura risultava incassata per intero — e il cruscotto diceva un incassato
+ * più alto dell'emesso, della differenza esatta dello storno.
+ */
+describe("uno storno scende dalla cassa quando il denaro si muove", () => {
+  // La fattura è incassata **dopo** la nota: il cliente ha pagato il netto.
+  const pagataDopo = fattura({ dataIncasso: "2026-03-25" });
+  const agganciata = (p: Partial<NotaCredito> = {}) =>
+    nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }], ...p });
+
+  it("**pagata al netto: lo storno scende il giorno dell'incasso**", () => {
+    const m = storniDiCassa([agganciata()], [pagataDopo]);
+    expect(m).toEqual([
+      { notaId: "n1", fatturaId: "f1", importo: 500, data: "2026-03-25", via: "compensazione" },
+    ]);
+  });
+
+  it("rimborsata: scende alla data del rimborso, e non due volte", () => {
+    const m = storniDiCassa([agganciata({ dataRimborso: "2026-04-05" })], [pagataDopo]);
+    expect(m).toHaveLength(1);
+    expect(m[0]).toMatchObject({ importo: 500, data: "2026-04-05", via: "rimborso" });
+  });
+
+  /**
+   * La fattura era già stata pagata **per intero** quando la nota è nata:
+   * quello che deve succedere è un rimborso, e finché non parte la cassa è
+   * quella che è. Senza il confronto fra le due date questo caso direbbe
+   * «pagato netto» su un bonifico arrivato intero il mese prima.
+   */
+  it("pagata prima della nota: non scende niente, il rimborso deve ancora partire", () => {
+    expect(storniDiCassa([agganciata()], [fattura({ dataIncasso: "2026-02-20" })])).toEqual([]);
+  });
+
+  it("fattura non ancora incassata: si vedrà quando sarà pagata", () => {
+    expect(storniDiCassa([agganciata()], [fattura({ dataIncasso: null })])).toEqual([]);
+  });
+
+  it("non agganciata a niente: non si sa da quale incasso togliere", () => {
+    expect(storniDiCassa([nota()], [pagataDopo])).toEqual([]);
+  });
+
+  it("un aggancio a una fattura sparita non muove niente", () => {
+    expect(storniDiCassa([agganciata()], [])).toEqual([]);
+  });
+
+  it("**non scende mai più dell'imponibile della nota**, anche se gli agganci dicono di più", () => {
+    const gonfia = nota({
+      imponibile: 500,
+      riconciliazioni: [
+        { fatturaId: "f1", imponibile: 400 },
+        { fatturaId: "f2", imponibile: 400 },
+      ],
+    });
+    const due = [pagataDopo, fattura({ id: "f2", dataIncasso: "2026-03-26" })];
+    const m = storniDiCassa([gonfia], due);
+    expect(m.reduce((a, s) => a + s.importo, 0)).toBe(500);
+  });
+
+  it("una nota su due fatture scende a due date diverse", () => {
+    const spalmata = nota({
+      imponibile: 800,
+      riconciliazioni: [
+        { fatturaId: "f1", imponibile: 300 },
+        { fatturaId: "f2", imponibile: 500 },
+      ],
+    });
+    const due = [pagataDopo, fattura({ id: "f2", dataIncasso: "2026-05-02" })];
+    expect(storniDiCassa([spalmata], due).map((s) => [s.data, s.importo])).toEqual([
+      ["2026-03-25", 300],
+      ["2026-05-02", 500],
+    ]);
   });
 });
 
@@ -223,6 +340,31 @@ describe("nel motore: due date, due effetti", () => {
     expect(p.note.stornoDaRimborsare).toBe(500);
     expect(p.fatturatoEmesso).toBe(500); // ma il documento è emesso
     expect(p.note.ivaStornata).toBe(110);
+  });
+
+  /**
+   * Il difetto visto con dati veri, in forma di prospetto.
+   *
+   * Fattura da 1.000 emessa a febbraio, nota da 500 a marzo, fattura pagata
+   * al netto a fine marzo. Prima: incassato 1.000 su 500 emessi — il 200 %,
+   * dello stesso importo della nota. E su quei 1.000 finti si calcolavano
+   * reddito, contributi, imposte e accantonamento.
+   */
+  it("**pagata al netto: l'incassato scende come l'emesso, non resta sopra**", () => {
+    const p = calcolaProspetto({
+      impostazioni: ORDINARIO,
+      parametri: PARAMETRI_2026,
+      fatture: [fattura({ dataIncasso: "2026-03-25" })],
+      costi: [],
+      note: [nota({ riconciliazioni: [{ fatturaId: "f1", imponibile: 500 }] })],
+      oggi: OGGI_FIXTURE,
+    });
+    expect(p.compensiIncassati).toBe(500);
+    expect(p.note.stornoIncassato).toBe(500);
+    // Lo storno è sceso una volta sola: non resta anche fra quelli in attesa.
+    expect(p.note.stornoDaRimborsare).toBe(0);
+    expect(p.fatturatoEmesso).toBe(500);
+    expect(p.ricaviRilevanti).toBeLessThanOrEqual(p.fatturatoEmesso);
   });
 
   it("rimborsata l'anno dopo: l'IVA cala quest'anno, i ricavi l'anno prossimo", () => {

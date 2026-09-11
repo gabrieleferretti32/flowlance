@@ -2,10 +2,10 @@
  * Gli aggregati che il cruscotto legge. Funzioni pure sui documenti già
  * calcolati: nessun accesso all'archivio, nessuna data implicita.
  */
-import { rapporto, round2, somma } from "@/lib/fisco/aritmetica";
+import { nonNegativo, rapporto, round2, somma } from "@/lib/fisco/aritmetica";
 import { annoDi, meseDi } from "@/lib/fisco/documenti";
 import type { CostoCalcolato, FatturaCalcolata } from "@/lib/fisco/tipi";
-import type { NotaCalcolata } from "@/lib/fisco/note";
+import { type NotaCalcolata, type StornoSuFattura, storniDiCassa, stornoPerFattura } from "@/lib/fisco/note";
 import type { Cliente } from "@/lib/dati/tipi";
 import type { Adempimento } from "@/lib/fisco/scadenze";
 
@@ -55,6 +55,7 @@ export function andamentoMensile(
   note: NotaCalcolata[] = [],
 ): MeseAndamento[] {
   const righe: MeseAndamento[] = [];
+  const storniCassa = storniDiCassa(note, fatture);
   let cumulato = 0;
   for (let m = 1; m <= 12; m++) {
     // `ricavoRilevante` da tutt'e due le parti — imponibile più rivalsa — e non
@@ -81,15 +82,17 @@ export function andamentoMensile(
         .filter((n) => annoDi(n.dataDocumento) === anno && meseDi(n.dataDocumento) === m)
         .map((n) => n.imponibile),
     );
+    /*
+      Lo storno di cassa non è «la nota rimborsata questo mese»: è il movimento
+      in cui il denaro si è mosso, che quasi sempre è un incasso al netto e non
+      un rimborso. La regola sta in `storniDiCassa`, la stessa che usa il
+      motore: se qui ne vivesse una seconda, il grafico e il riquadro sopra
+      tornerebbero a dire due numeri diversi sotto la stessa parola.
+    */
     const stornoRimborsato = somma(
-      ...note
-        .filter(
-          (n) =>
-            n.dataRimborso &&
-            annoDi(n.dataRimborso) === anno &&
-            meseDi(n.dataRimborso) === m,
-        )
-        .map((n) => n.imponibile),
+      ...storniCassa
+        .filter((s) => annoDi(s.data) === anno && meseDi(s.data) === m)
+        .map((s) => s.importo),
     );
     const costiMese = somma(
       ...costi
@@ -111,19 +114,70 @@ export function andamentoMensile(
   return righe;
 }
 
+/** Quanto vale ancora una fattura aperta: il netto dopo le note, non il lordo. */
+function nettoAperta(f: FatturaCalcolata, perFattura: Map<string, StornoSuFattura>): number {
+  const stornato = perFattura.get(f.id)?.stornato ?? 0;
+  if (stornato === 0) return f.nettoIncasso;
+  // In proporzione sull'imponibile, così ritenuta e IVA scendono con lui invece
+  // di restare intere su una fattura che il cliente pagherà a metà.
+  return round2(f.nettoIncasso * rapporto(nonNegativo(round2(f.imponibile - stornato)), f.imponibile));
+}
+
 /** Il portafoglio clienti, dal più grande al più piccolo. */
+/**
+ * @param note le note di credito: senza, ogni colonna di questa tabella è al
+ * lordo degli storni, e un cliente che ha stornato metà dell'anno compare come
+ * il primo del portafoglio. Il parametro ha un valore predefinito perché il
+ * caso «nessuna nota» è la maggioranza degli archivi, non perché sia facoltativo.
+ */
 export function portafoglioClienti(
   fatture: FatturaCalcolata[],
   clienti: Cliente[],
   anno: number,
   coloreDi: (nome: string) => string,
+  note: NotaCalcolata[] = [],
 ): RigaCliente[] {
   const emesseNellAnno = fatture.filter((f) => annoDi(f.dataEmissione) === anno);
-  const totale = somma(...emesseNellAnno.map((f) => f.imponibile));
+  /*
+    Gli storni, dai due lati e con le stesse regole del motore: quello emesso
+    segue la data del documento, quello di cassa il movimento vero. E il netto
+    per fattura serve alle aperte, che valgono quanto il cliente pagherà.
+  */
+  const storniCassa = storniDiCassa(note, fatture);
+  const perFattura = stornoPerFattura(note, fatture);
+  const stornoEmessoDi = (clienteId: string) =>
+    somma(
+      ...note
+        .filter((n) => n.clienteId === clienteId && annoDi(n.dataDocumento) === anno)
+        .map((n) => n.imponibile),
+    );
+  /*
+    `incassato` in questa tabella è il netto incasso — imponibile più IVA meno
+    ritenuta — mentre `emesso` è l'imponibile. Sono due basi diverse, ed è così
+    da prima di questa modifica: qui non si cambia, ma lo storno va tolto
+    **sulla stessa base della colonna da cui si toglie**, altrimenti si mette a
+    confronto un lordo con un netto e il risultato non è nessuno dei due.
+  */
+  const notePerId = new Map(note.map((n) => [n.id, n]));
+  const stornoCassaDi = (clienteId: string) =>
+    somma(
+      ...storniCassa
+        .filter((s) => annoDi(s.data) === anno && notePerId.get(s.notaId)?.clienteId === clienteId)
+        .map((s) => {
+          const n = notePerId.get(s.notaId);
+          return n ? round2(s.importo * rapporto(n.totale, n.imponibile)) : s.importo;
+        }),
+    );
+  const totale = round2(
+    somma(...emesseNellAnno.map((f) => f.imponibile))
+      - somma(...clienti.map((c) => stornoEmessoDi(c.id))),
+  );
 
   const righe = clienti.map((cliente): RigaCliente => {
     const sue = emesseNellAnno.filter((f) => f.clienteId === cliente.id);
-    const emesso = somma(...sue.map((f) => f.imponibile));
+    const emesso = nonNegativo(
+      round2(somma(...sue.map((f) => f.imponibile)) - stornoEmessoDi(cliente.id)),
+    );
     const incassate = fatture.filter(
       (f) => f.clienteId === cliente.id && f.dataIncasso && annoDi(f.dataIncasso) === anno,
     );
@@ -137,9 +191,13 @@ export function portafoglioClienti(
       nome: cliente.nome,
       colore: coloreDi(cliente.nome),
       emesso,
-      incassato: somma(...incassate.map((f) => f.nettoIncasso)),
-      daIncassare: somma(...aperte.map((f) => f.nettoIncasso)),
-      scaduto: somma(...aperte.filter((f) => f.giorniRitardo > 0).map((f) => f.nettoIncasso)),
+      incassato: nonNegativo(
+        round2(somma(...incassate.map((f) => f.nettoIncasso)) - stornoCassaDi(cliente.id)),
+      ),
+      daIncassare: somma(...aperte.map((f) => nettoAperta(f, perFattura))),
+      scaduto: somma(
+        ...aperte.filter((f) => f.giorniRitardo > 0).map((f) => nettoAperta(f, perFattura)),
+      ),
       numeroFatture: sue.length,
       ticketMedio: sue.length > 0 ? round2(emesso / sue.length) : 0,
       giorniMediIncasso:

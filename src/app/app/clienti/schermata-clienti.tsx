@@ -49,7 +49,13 @@ export function SchermataClienti() {
     if (!dati || !calcolo) return null;
     const fatture = calcolo.prospetto.fattureCalcolate;
     return {
-      portafoglio: portafoglioClienti(fatture, dati.clienti, anno, coloreDaNome),
+      portafoglio: portafoglioClienti(
+        fatture,
+        dati.clienti,
+        anno,
+        coloreDaNome,
+        calcolo.prospetto.noteCalcolate,
+      ),
       fasce: scadutoPerFascia(fatture),
       giorniMedi: giorniMediIncasso(fatture),
     };

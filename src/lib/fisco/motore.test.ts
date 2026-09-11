@@ -179,6 +179,51 @@ describe("fixture obbligatorio · ordinario", () => {
     expect(f.bollo).toBe(0);
     expect(f.totale).toBe(3660);
   });
+
+  /**
+   * Il totale «2.502,00 €» su una fattura da 2.500, in ordinario.
+   *
+   * Non sono due difetti — l'IVA che sparisce e i due euro che compaiono — ma
+   * uno: `aliquotaIvaApplicata` vale zero, e da quella **stessa** variabile
+   * escono tutt'e due. Il calcolo fa quello che gli si chiede; quello che va
+   * guardato è perché gli si stia chiedendo zero, e la risposta sta nella
+   * fattura, non qui.
+   *
+   * Il test pianta il meccanismo per iscritto: la prossima volta che quel
+   * numero compare, non c'è un'ora da perdere a capire da dove viene.
+   * `strumenti/diagnosi-aliquota-zero.js` dice quali fatture stanno in questo
+   * ramo in un archivio vero.
+   */
+  it("**un'aliquota a zero fa sparire l'IVA e comparire il bollo, in un colpo solo**", () => {
+    const conAliquota = (aliquotaIva: number | undefined) =>
+      calcolaFattura(
+        {
+          id: "f",
+          numero: "1",
+          dataEmissione: "2026-01-10",
+          dataIncasso: null,
+          clienteId: "c",
+          descrizione: "",
+          tipoRicavo: "progetto",
+          imponibile: 2_500,
+          ...(aliquotaIva === undefined ? {} : { aliquotaIva }),
+        },
+        impostazioniOrdinario(),
+        OGGI_FIXTURE,
+      );
+
+    const zero = conAliquota(0);
+    expect(zero.iva).toBe(0);
+    expect(zero.bollo).toBe(2);
+    expect(zero.totale).toBe(2_502);
+
+    // Senza aliquota propria la fattura eredita quella dell'anno, e torna 3.050.
+    const ereditata = conAliquota(undefined);
+    expect(ereditata.aliquotaIvaApplicata).toBe(0.22);
+    expect(ereditata.iva).toBe(550);
+    expect(ereditata.bollo).toBe(0);
+    expect(ereditata.totale).toBe(3_050);
+  });
 });
 
 describe("detrazione dell'art. 13 dentro la catena", () => {

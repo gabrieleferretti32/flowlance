@@ -19,7 +19,7 @@ import { impostaProgressiva } from "./scaglioni";
 import { aliquota, interoIt } from "../format";
 import { annoDi, calcolaCosto, calcolaFattura } from "./documenti";
 import { dateCosto, dateFattura, ripartisci } from "./competenza";
-import { calcolaNota, dateNota, type NotaCalcolata } from "./note";
+import { calcolaNota, dateNota, stornoPerFattura, storniDiCassa, type NotaCalcolata } from "./note";
 import type {
   NotaCredito,
   Costo,
@@ -591,11 +591,34 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   // Gli storni entrano nei ricavi con il segno meno, alla data in cui il denaro
   // è tornato indietro. Una nota emessa e non ancora rimborsata non riduce
   // ancora niente di cassa, come una fattura emessa e non incassata.
-  const stornoIncassato = somma(...rn.perCassa.map((n) => n.imponibile));
+  /*
+    Gli storni di cassa non si contano più «le note rimborsate quest'anno».
+
+    Il rimborso è il caso raro. Quello normale è che la nota si emetta prima
+    che il cliente paghi e il cliente paghi il netto: nessun denaro torna
+    indietro, quindi nessuna data di rimborso, e lo storno non scendeva da
+    nessuna parte mentre la fattura risultava incassata per intero. La regola
+    che distingue i due casi sta in `storniDiCassa`, in note.ts, ed è una sola
+    per tutti quelli che la usano: qui, le ritenute più sotto, il grafico dei
+    dodici mesi e il portafoglio clienti.
+  */
+  const storniCassa = storniDiCassa(ingresso.note ?? [], ingresso.fatture);
+  const storniCassaNellAnno = storniCassa.filter((s) => annoDi(s.data) === anno);
+  const stornoIncassato = somma(...storniCassaNellAnno.map((s) => s.importo));
   const stornoEmesso = somma(...rn.perCompetenza.map((n) => n.imponibile));
   const ivaStornata = somma(...rn.perCompetenza.map((n) => n.iva));
+  /*
+    Quanto delle note emesse quest'anno non è ancora sceso in cassa, alla fine
+    dell'anno: né rimborsato, né compensato da un incasso al netto. È il pezzo
+    che busserà più avanti.
+  */
+  const cassaPerNota = new Map<string, number>();
+  for (const s of storniCassa) {
+    if (annoDi(s.data) > anno) continue;
+    cassaPerNota.set(s.notaId, round2((cassaPerNota.get(s.notaId) ?? 0) + s.importo));
+  }
   const stornoDaRimborsare = somma(
-    ...[...rn.sospesi, ...rn.versoAnniSuccessivi].map((n) => n.imponibile),
+    ...rn.perCompetenza.map((n) => nonNegativo(round2(n.imponibile - (cassaPerNota.get(n.id) ?? 0)))),
   );
 
   const compensiIncassati = round2(
@@ -615,7 +638,18 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   const fatturatoEmesso = round2(
     somma(...emesseNellAnno.map((f) => f.ricavoRilevante)) - stornoEmesso,
   );
-  const inSospeso = somma(...rf.sospesi.map((f) => f.ricavoRilevante));
+  /*
+    Il «da incassare» è al netto delle note agganciate a quelle fatture: una
+    fattura da 2.500 già stornata per 1.000 non vale 2.500 di incasso atteso, e
+    il cliente pagherà 1.500. Prima il riquadro del cruscotto ne prometteva
+    2.500, e quella promessa entrava anche nella proiezione della soglia.
+  */
+  const storniPerFattura = stornoPerFattura(ingresso.note ?? [], fattureCalcolate);
+  const inSospeso = somma(
+    ...rf.sospesi.map((f) =>
+      nonNegativo(round2(f.ricavoRilevante - (storniPerFattura.get(f.id)?.stornato ?? 0))),
+    ),
+  );
 
   // La soglia si misura sui compensi percepiti, non sull'emesso: l'emesso resta
   // a fianco come indicatore anticipato di dove chiuderai l'anno.
@@ -720,11 +754,10 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     sposterebbe la ritenuta di qualcun altro. Il prospetto lo dice.
   */
   const stornoSuFatturaNellAnno = new Map<string, number>();
-  for (const n of rn.perCassa) {
-    for (const r of n.riconciliazioni ?? []) {
-      const gia = stornoSuFatturaNellAnno.get(r.fatturaId) ?? 0;
-      stornoSuFatturaNellAnno.set(r.fatturaId, round2(gia + Math.abs(r.imponibile)));
-    }
+  for (const s of storniCassaNellAnno) {
+    if (s.fatturaId === null) continue;
+    const gia = stornoSuFatturaNellAnno.get(s.fatturaId) ?? 0;
+    stornoSuFatturaNellAnno.set(s.fatturaId, round2(gia + s.importo));
   }
   const conRitenuta = incassateNellAnno.filter((f) => f.ritenuta > 0);
   const baseRitenute = somma(
