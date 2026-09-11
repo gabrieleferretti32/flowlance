@@ -53,7 +53,7 @@ export const CATEGORIE: {
     */
     cosaFa:
       "Segnala a Meta quando arrivi da un annuncio e quando compri, per misurare la pubblicità e mostrarti annunci in base a quello che hai fatto qui. Non è attivo dentro l'applicazione.",
-    chi: "Meta Pixel — Meta Platforms Ireland Ltd. · fino a 90 giorni",
+    chi: "Meta Pixel — Meta Platforms Ireland Ltd. · fino a 3 mesi, rinnovabili a ogni visita",
   },
   {
     id: "registrazioni",

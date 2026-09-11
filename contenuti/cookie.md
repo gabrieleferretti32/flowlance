@@ -30,7 +30,7 @@ Produce mappe di calore e registrazioni anonime della navigazione sulle pagine d
 Attivati solo previo consenso tramite il banner, e in una categoria separata da quella delle statistiche: chi accetta le statistiche non ha accettato la profilazione.
 
 **Meta Pixel — Meta Platforms Ireland Ltd.**
-Segnala a Meta quando arrivi su queste pagine da un annuncio, quando apri la pagina di acquisto e quando l'acquisto si conclude. Serve a misurare la pubblicità e consente a Meta di mostrarti annunci in base a quello che hai fatto qui. Non trasmette il tuo nome, il tuo indirizzo email né alcun dato che tu abbia inserito: l'evento di acquisto porta un'impronta calcolata a partire dall'identificativo della sessione di pagamento, non l'identificativo stesso. Il pixel non è attivo sull'applicazione. Durata: fino a 90 giorni. Informativa: facebook.com/privacy/policy
+Segnala a Meta quando arrivi su queste pagine da un annuncio, quando apri la pagina di acquisto e quando l'acquisto si conclude. Serve a misurare la pubblicità e consente a Meta di mostrarti annunci in base a quello che hai fatto qui. Non trasmette il tuo nome, il tuo indirizzo email né alcun dato che tu abbia inserito: l'evento di acquisto porta un'impronta calcolata a partire dall'identificativo della sessione di pagamento, non l'identificativo stesso. Il pixel non è attivo sull'applicazione. Durata: 3 mesi — e il conto può ripartire a ogni nuova visita, quindi non è un limite assoluto: per chi torna sul sito la profilazione resta attiva finché continua a tornare. Informativa: facebook.com/privacy/policy
 
 ## Come gestire il consenso
 
