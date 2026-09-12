@@ -5,11 +5,15 @@ import { PreferenzeCookie } from "./preferenze-cookie";
 /**
  * Il piede, su **ogni** pagina: sito e applicazione.
  *
- * I cinque collegamenti sono cinque per una ragione ciascuno. Privacy, Termini
+ * I sei collegamenti sono sei per una ragione ciascuno. Privacy, Termini
  * e Cookie perché si vende; «Preferenze cookie» perché un consenso che non si
- * può revocare non è un consenso; e «Cosa Flowlance non calcola» perché è la
+ * può revocare non è un consenso; «Cosa Flowlance non calcola» perché è la
  * cosa che distingue questo prodotto da chi promette il conto esatto — non è
- * un allegato tecnico da nascondere, è l'argomento.
+ * un allegato tecnico da nascondere, è l'argomento; e il simulatore perché è
+ * l'unica pagina che si può provare senza comprare, e dalla pagina di vendita
+ * non ci si arriva di proposito: un invito a giocare col simulatore in mezzo
+ * a una pagina che vende porta via chi stava per comprare. Nel piede sta a
+ * disposizione di chi lo cerca, senza mettersi in mezzo.
  *
  * Sta in un componente solo e non in due: dentro l'app e fuori le voci sono le
  * stesse, e due elenchi si sarebbero disallineati al primo documento nuovo.
@@ -34,6 +38,7 @@ export function Piede() {
               <PreferenzeCookie />
             </li>
             <VocePiede href={SITO.approssimazioni}>Cosa Flowlance non calcola</VocePiede>
+            <VocePiede href={SITO.simulatore}>Simulatore</VocePiede>
           </ul>
         </nav>
         <p className="text-micro leading-relaxed text-inchiostro-tenue">

@@ -548,9 +548,17 @@ const demo = await righeDelProspetto();
     `ogni «Apri la demo» va a /app/?demo=vetrina${demoFuori.length ? `: ${demoFuori.map((c) => c.href).join(", ")}` : ""}`,
   );
 
-  // Il piede condiviso, con le sue cinque voci, anche qui.
+  /*
+    Il piede condiviso, con le sue voci, anche qui.
+
+    Erano cinque fino all'11 settembre 2026, sono sei da quando c'è il
+    simulatore. Il numero si aggiorna quando cambia davvero: allargare la
+    condizione a «almeno cinque» per non doverla più toccare avrebbe spento il
+    controllo — è proprio la voce che sparisce senza che nessuno se ne accorga
+    quella che questo conteggio esiste per prendere.
+  */
   const vociPiede = collegamenti.filter((c) =>
-    /^(Privacy|Termini|Cookie|Cosa Flowlance non calcola)$/.test(c.testo),
+    /^(Privacy|Termini|Cookie|Cosa Flowlance non calcola|Simulatore)$/.test(c.testo),
   );
   const preferenze = await p.evaluate(() =>
     [...document.querySelectorAll("button")].some((b) =>
@@ -558,8 +566,8 @@ const demo = await righeDelProspetto();
     ),
   );
   sostiene(
-    vociPiede.length === 4 && preferenze,
-    `il piede porta le cinque voci (${vociPiede.map((v) => v.testo).join(", ")}${preferenze ? ", Preferenze cookie" : ""})`,
+    vociPiede.length === 5 && preferenze,
+    `il piede porta le sei voci (${vociPiede.map((v) => v.testo).join(", ")}${preferenze ? ", Preferenze cookie" : ""})`,
   );
 
   /*

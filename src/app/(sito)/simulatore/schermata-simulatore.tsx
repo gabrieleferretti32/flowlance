@@ -37,7 +37,7 @@ export function SchermataSimulatore() {
   const par = parametriDi(ANNO);
 
   const esito = React.useMemo(() => simula(ing), [ing]);
-  const { prospetto, impostazioni, confronto, scadenze } = esito;
+  const { prospetto, impostazioni, confronto, scadenze, iva } = esito;
 
   /*
     L'evento parte una volta sola, non a ogni battuta sulla tastiera: chi
@@ -192,6 +192,34 @@ export function SchermataSimulatore() {
         <p className="mt-3 text-etichetta text-inchiostro-tenue">
           Ti restano {euro(prospetto.nettoDisponibile)} all&apos;anno, al netto dei costi che hai
           dichiarato.
+        </p>
+        {/*
+          L'IVA, detta anche quando non c'è.
+
+          Nel forfettario è zero, e uno zero taciuto è la risposta peggiore
+          delle due: chi arriva qui dalla ricerca «quanto pago di tasse» quasi
+          sempre ha in testa anche l'IVA, e non trovarla nominata da nessuna
+          parte lascia il dubbio che il conto la stia dimenticando. Dirlo
+          costa una riga e toglie la domanda.
+
+          È anche la riga che rende vera la descrizione con cui questa pagina
+          si presenta nei risultati di ricerca, che nomina l'IVA fra le cose
+          che escono: una pagina che promette tre voci e ne mostra due è la
+          stessa famiglia di difetti di un numero sotto l'etichetta sbagliata.
+        */}
+        <p className="mt-1 text-etichetta text-inchiostro-tenue">
+          {iva.applicabile ? (
+            <>
+              Più {euro(iva.totaleDaVersare)} di IVA da versare nell&apos;anno. Non è un tuo costo
+              — l&apos;hai incassata dai clienti — ma esce dal tuo conto, e ai fini
+              dell&apos;accantonamento è denaro che non è mai stato tuo.
+            </>
+          ) : (
+            <>
+              Nel forfettario non addebiti l&apos;IVA: non la incassi e non la versi. Sulle fatture
+              va la marca da bollo da 2 € sopra i 77,47 €.
+            </>
+          )}
         </p>
 
         {oltreIlLimite && impostazioni.regime === "forfettario" && (

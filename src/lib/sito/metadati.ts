@@ -73,10 +73,24 @@ export const METADATI: Record<string, MetadatiPagina> = {
       chi cerca si nomina da solo. «Partita IVA» dice la stessa cosa in
       burocratese e la porta comunque la riga sotto.
     */
-    titolo: "Simulatore tasse freelance — forfettario o ordinario · Flowlance",
+    /*
+      L'unico titolo del sito **senza** «· Flowlance» in coda, e non per
+      distrazione: chi cerca «quanto si paga di tasse partita IVA» non sta
+      cercando un marchio, e undici caratteri spesi sul nome sono undici
+      caratteri tolti alla domanda — dentro un taglio che arriva a sessanta.
+      Il nome lo trova nella pagina, dopo il clic.
+    */
+    titolo: "Quanto pagherai di tasse con la partita IVA — simulatore",
+    /*
+      La coda tagliata, non l'apertura: per intero la descrizione finiva con
+      «, quando esce e quanto mettere da parte ogni mese» e arrivava a 179
+      caratteri, ventiquattro oltre il taglio. Tenere l'accantonamento mensile
+      avrebbe voluto dire entrare nell'apertura, che è la parte che dice per
+      chi è la pagina.
+    */
     descrizione:
-      "Scrivi quanto pensi di fatturare: quanto lascerai al fisco da freelance con partita IVA, "
-      + "quanto mettere da parte ogni mese e quando esce. Senza email.",
+      "Per freelance e partite IVA: fatturato previsto, gruppo ATECO e gestione previdenziale. "
+      + "Quanto esce fra imposte, contributi e IVA, e quando esce.",
     indicizzabile: true,
   },
   [SITO.acquisto]: {

@@ -486,7 +486,8 @@ gestione (`gestione-separata`, `artigiani` anche per i commercianti, `cassa`).
 Tenuto da `simulatore.test.ts`, che su tutta la griglia pretende che ogni riga
 mostrata esista **e** dica da dove viene.
 
-**Il simulatore non è raggiungibile da nessun link del sito.** È in sitemap ed è
-indicizzabile, quindi dai motori ci si arriva, ma dalla landing no: il piede ha
-cinque voci e una tagliola che conta cinque, e la landing è lavoro di design già
-approvato che non si tocca di propria iniziativa. Va deciso dove metterlo.
+**Il simulatore sta nel piede, non nella landing.** ~~Va deciso dove metterlo.~~
+Deciso il 12 settembre 2026: sesta voce del piede, e la tagliola di
+`verifica-derivati` è passata da cinque a sei. Sulla pagina di vendita non c'è
+di proposito — un invito a giocare col simulatore in mezzo a una pagina che
+vende porta via chi stava per comprare.
