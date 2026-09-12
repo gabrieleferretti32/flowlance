@@ -82,15 +82,21 @@ export const METADATI: Record<string, MetadatiPagina> = {
     */
     titolo: "Quanto pagherai di tasse con la partita IVA — simulatore",
     /*
-      La coda tagliata, non l'apertura: per intero la descrizione finiva con
-      «, quando esce e quanto mettere da parte ogni mese» e arrivava a 179
-      caratteri, ventiquattro oltre il taglio. Tenere l'accantonamento mensile
-      avrebbe voluto dire entrare nell'apertura, che è la parte che dice per
-      chi è la pagina.
+      Quello che è caduto, e perché.
+
+      La prima stesura teneva l'elenco dei tre campi — fatturato, gruppo ATECO,
+      gestione — e lasciava fuori l'accantonamento mensile. Era il taglio
+      sbagliato: il gruppo ATECO è un dettaglio del **come**, mentre «quanto
+      mettere da parte ogni mese» è il numero che il simulatore produce, ed è
+      il motivo per cui uno clicca. Una descrizione che elenca i campi da
+      riempire promette un modulo; questa promette una risposta.
+
+      Anche così sforava, di cinque caratteri, e allora è caduto «quando
+      esce»: la data si scopre entrando, il numero no.
     */
     descrizione:
-      "Per freelance e partite IVA: fatturato previsto, gruppo ATECO e gestione previdenziale. "
-      + "Quanto esce fra imposte, contributi e IVA, e quando esce.",
+      "Per freelance e partite IVA: scrivi quanto pensi di fatturare e vedi quanto esce fra "
+      + "imposte, contributi e IVA, e quanto mettere da parte ogni mese.",
     indicizzabile: true,
   },
   [SITO.acquisto]: {
