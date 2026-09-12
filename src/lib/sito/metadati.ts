@@ -67,6 +67,18 @@ export const METADATI: Record<string, MetadatiPagina> = {
       + "Forfettario e ordinario. I dati restano nel tuo browser.",
     indicizzabile: true,
   },
+  [SITO.simulatore]: {
+    /*
+      «freelance» nel titolo e nella descrizione, perché è la parola con cui
+      chi cerca si nomina da solo. «Partita IVA» dice la stessa cosa in
+      burocratese e la porta comunque la riga sotto.
+    */
+    titolo: "Simulatore tasse freelance — forfettario o ordinario · Flowlance",
+    descrizione:
+      "Scrivi quanto pensi di fatturare: quanto lascerai al fisco da freelance con partita IVA, "
+      + "quanto mettere da parte ogni mese e quando esce. Senza email.",
+    indicizzabile: true,
+  },
   [SITO.acquisto]: {
     titolo: "Acquista Flowlance — 97 € + IVA all'anno",
     descrizione:

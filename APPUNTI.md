@@ -465,3 +465,28 @@ non il residuo che manca. Una fattura pagata a metà tre mesi fa non risulta in
 ritardo per la metà che manca. Non scrive numeri sbagliati da nessuna parte — il
 residuo è contato giusto in «Da incassare» — ma l'indicatore dei giorni dice meno
 di quello che potrebbe.
+
+---
+
+**`percentualeDeducibilita` su `Costo` è una frazione, non una percentuale.** Vale
+`1` per «tutto deducibile», non `100`. Il nome dice il contrario, e scrivendoci
+`100` — che è quello che il nome suggerisce — il motore deduce cento volte i
+costi e restituisce un prospetto impeccabile e falso. È successo costruendo
+l'adattatore del simulatore, e l'ha trovato la griglia, non lo schermo: a schermo
+si vedeva una cifra perfettamente formattata. Stesso discorso per
+`percentualeDetraibilitaIva`. Rinominarli `quota…` sarebbe una migrazione di
+archivio, quindi non si fa adesso; intanto è scritto qui.
+
+**Le righe di totale di `prospettoDettagliato` non portano `formula`.**
+`totale-imposte` e `totale-contributi` esistono in ogni combinazione e sono mute,
+ed è corretto — un totale non ha una formula, ha degli addendi. Chi cerca «da
+dove viene il numero» deve chiedere la riga che spiega, che però **cambia nome**
+con il regime (`sostitutiva` o `irpef-lorda` + le due addizionali) e con la
+gestione (`gestione-separata`, `artigiani` anche per i commercianti, `cassa`).
+Tenuto da `simulatore.test.ts`, che su tutta la griglia pretende che ogni riga
+mostrata esista **e** dica da dove viene.
+
+**Il simulatore non è raggiungibile da nessun link del sito.** È in sitemap ed è
+indicizzabile, quindi dai motori ci si arriva, ma dalla landing no: il piede ha
+cinque voci e una tagliola che conta cinque, e la landing è lavoro di design già
+approvato che non si tocca di propria iniziativa. Va deciso dove metterlo.

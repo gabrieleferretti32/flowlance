@@ -79,6 +79,15 @@ export const SITO = {
   cookie: "/cookie",
   approssimazioni: "/cosa-non-calcola",
   /**
+   * Il simulatore pubblico: il prodotto che si prova senza comprarlo.
+   *
+   * Sta fra le pagine del sito e non sotto `/app` di proposito. Sotto `/app`
+   * sarebbe dentro l'applicazione — dove non entra nessuna misurazione, e dove
+   * non arriva nessun motore di ricerca — e questa è invece la pagina che deve
+   * farsi trovare da chi cerca «quanto pago di tasse in forfettario».
+   */
+  simulatore: "/simulatore",
+  /**
    * La pagina ponte prima del pagamento.
    *
    * Il pulsante d'acquisto porta qui e non su Stripe: il punto 1 dei Termini

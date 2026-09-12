@@ -22,6 +22,7 @@
     "anteprima:immagine": "RIFACCIO_ANTEPRIMA=1 next build && node strumenti/timbra-artefatto.mjs && node strumenti/immagine-anteprima.mjs",
     "verifica:consenso": "node strumenti/verifica-consenso.mjs",
     "verifica:durata-cookie": "node strumenti/verifica-durata-cookie.mjs",
+    "verifica:import-simulatore": "node strumenti/verifica-import-simulatore.mjs",
     "verifica:metadati": "node strumenti/verifica-metadati.mjs",
     "verifica:versione": "node strumenti/verifica-versione.mjs"
   },
