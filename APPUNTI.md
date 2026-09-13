@@ -506,3 +506,38 @@ container dice `chromium-1234`, installata c'è la 1194), quindi ogni candidato
 va verificato su disco; e la CLI da consigliare è `npx playwright-core install`,
 non `npx playwright install`, perché il secondo tira giù un pacchetto a parte
 con la sua versione.
+
+---
+
+## L'import e i duplicati: cosa riconosce, e cosa no
+
+Misurato il 13 settembre 2026 guidando l'app vera in un browser, con archivio
+vuoto, import reali e conteggio delle righe nei registri dopo ogni scrittura —
+non leggendo il codice. Due limiti veri, lasciati com'erano di proposito.
+
+**Sulle fatture e sulle note il confronto è numero + data, e il numero è
+testo.** Contro una fattura in archivio con numero `1` e data `2026-03-10`:
+`1` coincide, ` 1 ` coincide (gli spazi si tolgono), ma `01`, `2026/1` e `FT-1`
+**no**. Cliente, importo e descrizione non entrano nel confronto: cambiarli non
+impedisce il riconoscimento. Conseguenza pratica: se le voci inserite a mano
+hanno una numerazione scritta diversamente da come la esporta il gestionale,
+non coincide niente e si duplica tutto — con l'anteprima che dice «0 già
+presenti», il che è vero rispetto a quello che guarda. Da qui l'avviso sullo
+zero sospetto in `passi-import.tsx`, che è la mitigazione a costo zero; il
+confronto in sé resta com'è.
+
+**Sui costi il confronto è fornitore + data + importo, e non c'è un numero di
+documento che li distingua.** Il fornitore è normalizzato (`ARUBA  spa`
+coincide con `Aruba SpA`); descrizione e aliquota IVA sono ignorate. Due spese
+vere dello stesso fornitore, stesso giorno, stesso importo — due taxi, due
+pedaggi, due caffè — l'app le considera la stessa riga, e con «Salta» una si
+perde in silenzio. Per distinguerle servirebbe un campo che oggi il modello del
+costo non ha; aggiungerlo è una migrazione di archivio.
+
+**Il numero sul pulsante e la politica predefinita non hanno una tagliola
+automatica.** Sono stati verificati a mano con Playwright il 13 settembre —
+stesso file due volte dà «Sono già tutte in archivio» e l'archivio non cresce;
+su un file misto di 5 con 3 già dentro il pulsante dice «Importa 2 righe
+nuove», «Importa 2 righe nuove e sostituiscine 3», «Importa 5 righe, di cui 3
+doppie» secondo la politica. Nessuno di questi controlli gira da solo: è il
+posto in cui una regressione passerebbe inosservata.

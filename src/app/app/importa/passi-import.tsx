@@ -158,18 +158,97 @@ function documentiLetti(lettura: Lettura) {
   ].sort((a, b) => a.riga - b.riga);
 }
 
+/**
+ * Quando **nessuna** riga coincide, e invece dovrebbe.
+ *
+ * Un «0 già presenti» si legge come una buona notizia, ed è il caso in cui non
+ * lo è: se il file porta cinquantatré righe e in archivio ce ne sono quaranta
+ * dello stesso registro, zero coincidenze non vuol dire che sono tutte nuove.
+ * Vuol dire, molto più spesso, che il confronto non ha trovato niente perché
+ * le stesse cose sono scritte in modo diverso — il numero di fattura come
+ * «2026/1» invece di «1», il fornitore come «Aruba Italia» invece di «Aruba
+ * SpA» — e che si sta per duplicare tutto.
+ *
+ * È un sospetto, non un errore: il primo import di settembre in un archivio
+ * che contiene agosto dà legittimamente zero. Perciò non blocca niente e non
+ * cambia nessuna scelta: dice la cosa che il numero da solo non dice.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Le due soglie
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Sotto le cinque righe da una parte o dall'altra, uno zero non è
+ * un'informazione: chi importa tre righe in un archivio che ne ha due le sta
+ * guardando tutte. L'avviso serve dove il controllo a occhio non si fa, ed è
+ * lì che deve comparire — non su ogni import, o diventa il testo che si salta.
+ */
+const RIGHE_PERCHE_SIA_SOSPETTO = 5;
+
+function ZeroSospetto({
+  lettura,
+  destinazione,
+  giaInArchivio,
+}: {
+  lettura: Lettura;
+  destinazione: Destinazione;
+  giaInArchivio: number;
+}) {
+  const nelFile =
+    lettura.fatture.length + lettura.note.length + lettura.costi.length;
+  if (
+    lettura.duplicati.length > 0
+    || nelFile < RIGHE_PERCHE_SIA_SOSPETTO
+    || giaInArchivio < RIGHE_PERCHE_SIA_SOSPETTO
+  ) {
+    return null;
+  }
+
+  /*
+    Il motivo cambia con il registro perché cambia il confronto: sulle fatture
+    e sulle note conta il numero del documento con la sua data, sui costi il
+    fornitore con data e importo. Dire «controlla la numerazione» a chi importa
+    dei costi sarebbe un consiglio preciso e sbagliato.
+  */
+  const perche =
+    destinazione === "costo"
+      ? "se il nome del fornitore o l'importo sono scritti in modo diverso da come li hai inseriti a mano"
+      : "se la numerazione è scritta in modo diverso — «2026/1» invece di «1», o con lo zero davanti";
+
+  return (
+    <Card className="border border-attenzione/25 bg-attenzione-tenue/40">
+      <CardCorpo>
+        <p className="flex items-start gap-2 text-corpo">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0 text-attenzione" aria-hidden />
+          <span>
+            <span className="font-medium">
+              Nessuna delle {nelFile} righe coincide con le {giaInArchivio} già in archivio.
+            </span>{" "}
+            <span className="text-inchiostro-tenue">
+              Può essere giusto, se sono tutte nuove. Ma {perche}, il confronto non le riconosce e
+              stai per duplicare tutto.
+            </span>
+          </span>
+        </p>
+      </CardCorpo>
+    </Card>
+  );
+}
+
 /** Passo 3: le prime righe già interpretate, con importi e date formattati. */
 export function Anteprima({
   lettura,
   destinazione,
   suiDuplicati,
   onDuplicati,
+  giaInArchivio,
   quante = 8,
 }: {
   lettura: Lettura;
   destinazione: Destinazione;
   suiDuplicati: SuiDuplicati;
   onDuplicati: (v: SuiDuplicati) => void;
+  /** Quante righe ci sono già, nel registro di destinazione. */
+  giaInArchivio: number;
   quante?: number;
 }) {
   /*
@@ -392,6 +471,12 @@ export function Anteprima({
           </CardCorpo>
         </Card>
       )}
+
+      <ZeroSospetto
+        lettura={lettura}
+        destinazione={destinazione}
+        giaInArchivio={giaInArchivio}
+      />
 
       {lettura.scartate.length > 0 && <Scartate scartate={lettura.scartate} />}
     </div>

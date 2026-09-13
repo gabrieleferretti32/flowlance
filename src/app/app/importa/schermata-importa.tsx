@@ -58,7 +58,20 @@ export function SchermataImporta() {
   const [destinazione, setDestinazione] = React.useState<Destinazione>("fattura");
   const [mappatura, setMappatura] = React.useState<Mappatura>({});
   const [personali, setPersonali] = React.useState<Set<string>>(new Set());
-  const [suiDuplicati, setSuiDuplicati] = React.useState<SuiDuplicati>("importa");
+  /*
+    Il predefinito è **saltare**, e non è una preferenza estetica.
+
+    I due errori non costano uguale. Un import che duplica in silenzio lascia
+    numeri sbagliati che nessuno vede: il totale dei costi sale, l'imposta
+    scende, e l'unico modo di accorgersene è sommare a mano un registro che si
+    è appena importato proprio per non sommarlo a mano. Un import che salta
+    una riga lascia invece un buco, e un buco si nota — la fattura che manca la
+    si cerca.
+
+    Fra un numero sbagliato invisibile e una riga mancante visibile, questo
+    prodotto sceglie la seconda ogni volta.
+  */
+  const [suiDuplicati, setSuiDuplicati] = React.useState<SuiDuplicati>("salta");
   const [fisse, setFisse] = React.useState(false);
   const [esito, setEsito] = React.useState<Importazione | null>(null);
   const [annullabile, setAnnullabile] = React.useState<Importazione | null>(null);
@@ -132,11 +145,41 @@ export function SchermataImporta() {
   const obbligatoriMancanti =
     mappatura.data === null || mappatura.imponibile === null || mappatura.controparte === null;
 
+  /** Quante righe l'import scrive davvero, con la politica scelta. */
   const daImportare =
     (lettura?.fatture.length ?? 0) +
     (lettura?.note.length ?? 0) +
     (lettura?.costi.length ?? 0) +
     (lettura?.personali.length ?? 0);
+
+  const doppie = lettura?.duplicati.length ?? 0;
+
+  /*
+    Quante righe **si aggiungono**, che è la domanda di chi sta per premere.
+
+    «Importa 53 righe» era vero e inutile: contava le righe scritte, non quelle
+    nuove, e su un file dove quaranta erano già dentro rispondeva a una domanda
+    che nessuno si stava facendo. Con «Sostituisci» le quaranta non si
+    aggiungono — prendono il posto di quelle che c'erano — quindi le nuove sono
+    tredici; con «Importa comunque» si aggiungono tutte e cinquantatré, ma
+    quaranta come copie, e il pulsante lo dice invece di lasciarlo scoprire
+    dopo.
+  */
+  const nuove = suiDuplicati === "sostituisci" ? daImportare - doppie : daImportare;
+
+  function etichettaImporta(): string {
+    if (inCorso) return "Importo…";
+    if (doppie === 0) return `Importa ${daImportare} righe`;
+    if (suiDuplicati === "sostituisci") {
+      return `Importa ${nuove} righe nuove e sostituiscine ${doppie}`;
+    }
+    if (suiDuplicati === "importa") {
+      return `Importa ${daImportare} righe, di cui ${doppie} doppie`;
+    }
+    return daImportare === 0
+      ? "Sono già tutte in archivio"
+      : `Importa ${nuove} righe nuove`;
+  }
 
   async function importa() {
     if (!lettura || !dati) return;
@@ -336,6 +379,13 @@ export function SchermataImporta() {
                     destinazione={destinazione}
                     suiDuplicati={suiDuplicati}
                     onDuplicati={setSuiDuplicati}
+                    giaInArchivio={
+                      destinazione === "costo"
+                        ? (dati?.costi.length ?? 0)
+                        : destinazione === "nota"
+                          ? (dati?.note.length ?? 0)
+                          : (dati?.fatture.length ?? 0)
+                    }
                   />
                 </>
               )
@@ -348,7 +398,7 @@ export function SchermataImporta() {
                 disabled={obbligatoriMancanti || daImportare === 0 || inCorso}
               >
                 <Check className="size-4" aria-hidden />
-                {inCorso ? "Importo…" : `Importa ${daImportare} righe`}
+                {etichettaImporta()}
               </Button>
               <Button variante="quieto" onClick={() => { setPasso("file"); setTabella(null); }}>
                 Scegli un altro file
