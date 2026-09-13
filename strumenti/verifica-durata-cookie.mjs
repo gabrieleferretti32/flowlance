@@ -27,6 +27,12 @@
  * Policy. Due cose che devono restare d'accordo, e un posto solo in cui
  * l'accordo si rompe rumorosamente.
  *
+ * **Misurato il 13 settembre 2026**, su macOS: `_fbp` compare dopo il consenso
+ * e scade fra 90 giorni, e alla seconda visita la scadenza si sposta in
+ * avanti. La policy diceva «può ripartire» per prudenza, quando la risposta
+ * non si sapeva; da quel giorno dice «ripartono», perché è quello che succede.
+ * Il numero che prima si copiava adesso ha una provenienza.
+ *
  * ─────────────────────────────────────────────────────────────────────────
  * La domanda che il numero secco nasconde
  * ─────────────────────────────────────────────────────────────────────────
@@ -36,6 +42,16 @@
  * finisce mai — e allora il numero, pur essendo esatto, dice una cosa falsa.
  * Perciò qui si visita **due volte** e si guarda se la scadenza si è spostata
  * in avanti. È l'unica differenza che conta per chi legge la policy.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Quanto vale il verde di questo controllo
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Misura **un browser**: quello che Playwright avvia, cioè Chromium. Un
+ * Safari con l'ITP acceso accorcia da sé i cookie scritti da JavaScript, e
+ * quel taglio qui non si vede. Il verde dice «la durata che il pixel imposta è
+ * quella dichiarata», non «ogni visitatore tiene quel cookie per tre mesi» —
+ * ed è la cosa giusta da dichiarare, perché è l'unica che dipende da noi.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Prima di misurare, si misura la misura
