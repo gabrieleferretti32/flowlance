@@ -59,7 +59,7 @@ import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, statSync, wr
 import { generateKeyPairSync, sign } from "node:crypto";
 import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { avviaChromium } from "./chromium.mjs";
 import { esigiArtefattoFresco } from "./artefatto.mjs";
 
 // Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
@@ -74,7 +74,6 @@ const COSTRUITO = resolve("out");
 const DOVE = resolve(opzione("dove", "public/schermate"));
 const LARGHEZZA = Number(opzione("larghezza", "1440"));
 const ALTEZZA = Number(opzione("altezza", "900"));
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium");
 
 /** L'ultimo giorno che la vetrina racconta. Sta in `src/lib/dati/vetrina.ts`. */
 const GIORNO = "2026-09-05T10:30:00";
@@ -204,7 +203,7 @@ const server = createServer((req, res) => {
 await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
 const BASE = `http://127.0.0.1:${server.address().port}`;
 
-const browser = await chromium.launch(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" });
+const browser = await avviaChromium();
 const ctx = await browser.newContext({
   viewport: { width: LARGHEZZA, height: ALTEZZA },
   deviceScaleFactor: 2,

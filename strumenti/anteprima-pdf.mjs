@@ -22,7 +22,7 @@
 import { createServer } from "node:http";
 import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, extname, join, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { avviaChromium } from "./chromium.mjs";
 import { esigiArtefattoFresco } from "./artefatto.mjs";
 
 // Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
@@ -38,7 +38,6 @@ const FILE = resolve(
 );
 const DOVE = resolve(opzione("dove", "/tmp/anteprima-pdf"));
 const SCALA = Number(opzione("scala", "1.6"));
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium");
 
 try {
   statSync(FILE);
@@ -81,7 +80,7 @@ const server = createServer((req, res) => {
 await new Promise((ok) => server.listen(0, "127.0.0.1", ok));
 const BASE = `http://127.0.0.1:${server.address().port}`;
 
-const browser = await chromium.launch(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" });
+const browser = await avviaChromium();
 const page = await browser.newPage({ viewport: { width: 1200, height: 1600 } });
 await page.goto(BASE + "/", { waitUntil: "load" });
 

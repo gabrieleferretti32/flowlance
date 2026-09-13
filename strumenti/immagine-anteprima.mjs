@@ -58,7 +58,7 @@ import { createServer } from "node:http";
 import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
 import { createHash } from "node:crypto";
-import { chromium } from "playwright-core";
+import { avviaChromium } from "./chromium.mjs";
 import { esigiArtefattoFresco } from "./artefatto.mjs";
 
 // Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
@@ -71,7 +71,6 @@ const opzione = (nome, predefinito = "") => {
 const bandiera = (nome) => process.argv.slice(2).includes(`--${nome}`);
 
 const RADICE = resolve("out");
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium");
 const SOLO_MISURA = bandiera("niente-scrittura");
 const DOVE = opzione("file", "");
 
@@ -137,7 +136,7 @@ const marchioSvg = readFileSync(SORGENTE_MARCHIO, "utf8");
 const improntaMarchio = createHash("sha256").update(readFileSync(SORGENTE_MARCHIO)).digest("hex").slice(0, 12);
 const marchioUri = `data:image/svg+xml;base64,${Buffer.from(marchioSvg, "utf8").toString("base64")}`;
 
-const browser = await chromium.launch(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" });
+const browser = await avviaChromium();
 const page = await browser.newPage({
   viewport: { width: MISURA.larghezza, height: MISURA.altezza },
   deviceScaleFactor: 1,

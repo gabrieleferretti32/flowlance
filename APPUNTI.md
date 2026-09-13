@@ -491,3 +491,18 @@ Deciso il 12 settembre 2026: sesta voce del piede, e la tagliola di
 `verifica-derivati` è passata da cinque a sei. Sulla pagina di vendita non c'è
 di proposito — un invito a giocare col simulatore in mezzo a una pagina che
 vende porta via chi stava per comprare.
+
+---
+
+**Il percorso di Chromium era scritto dentro nove strumenti.**
+`/opt/pw-browsers/chromium` è il percorso del container degli agenti, e su un
+Mac non esiste: `npm run build` costruiva tutto e poi moriva sull'ultimo passo,
+e nessuno strumento che apre un browser si poteva lanciare da lì. È il difetto
+che non si vede da dove è stato scritto — nel container funzionava sempre.
+Adesso lo risolve `strumenti/chromium.mjs`, che legge l'ambiente. Vale la pena
+ricordare due cose che si sono scoperte lì: `chromium.executablePath()` di
+playwright-core restituisce un percorso **calcolato**, non trovato (nel
+container dice `chromium-1234`, installata c'è la 1194), quindi ogni candidato
+va verificato su disco; e la CLI da consigliare è `npx playwright-core install`,
+non `npx playwright install`, perché il secondo tira giù un pacchetto a parte
+con la sua versione.

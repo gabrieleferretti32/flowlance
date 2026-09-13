@@ -43,19 +43,13 @@
 import { createServer } from "node:http";
 import { readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { avviaChromium } from "./chromium.mjs";
 import { esigiArtefattoFresco } from "./artefatto.mjs";
 
 // Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
 esigiArtefattoFresco();
 
-const opzione = (nome, predefinito = "") => {
-  const trovata = process.argv.slice(2).find((a) => a.startsWith(`--${nome}=`));
-  return trovata ? trovata.slice(nome.length + 3) : predefinito;
-};
-
 const RADICE = resolve("out");
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium");
 const GIORNO = "2026-09-05T10:30:00";
 const LARGHEZZE = [1440, 1024];
 const PAGINE = [
@@ -99,7 +93,7 @@ const BASE = `http://127.0.0.1:${server.address().port}`;
 const problemi = [];
 const fatti = [];
 
-const browser = await chromium.launch(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" });
+const browser = await avviaChromium();
 
 /**
  * Le tabelle di una pagina, misurate come le vede chi guarda.

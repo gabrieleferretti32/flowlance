@@ -34,6 +34,7 @@
  * profilo se lo ricorda — e rilancia.
  */
 import { chromium } from "playwright-core";
+import { esigiChromium } from "./chromium.mjs";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -68,9 +69,8 @@ const TOCCO_MINIMO = 32;
   norma è Chrome, che su un Mac da sviluppo c'è sempre; `--chromium=` serve
   quando il binario sta altrove — su un runner, per esempio.
 */
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "");
 const ctx = await chromium.launchPersistentContext(PROFILO, {
-  ...(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" }),
+  executablePath: esigiChromium(),
   viewport: { width: LARGHEZZE[0], height: 844 },
   deviceScaleFactor: 2,
   isMobile: true,

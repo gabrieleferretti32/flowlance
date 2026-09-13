@@ -41,19 +41,13 @@ import { createServer } from "node:http";
 import { createHash } from "node:crypto";
 import { readFileSync, statSync } from "node:fs";
 import { extname, join, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { avviaChromium } from "./chromium.mjs";
 import { esigiArtefattoFresco } from "./artefatto.mjs";
 
 // Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
 esigiArtefattoFresco();
 
-const opzione = (nome, predefinito = "") => {
-  const trovata = process.argv.slice(2).find((a) => a.startsWith(`--${nome}=`));
-  return trovata ? trovata.slice(nome.length + 3) : predefinito;
-};
-
 const RADICE = resolve("out");
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium");
 /** Lo stesso giorno delle schermate di vendita: la vetrina finisce lì. */
 const GIORNO = "2026-09-05T10:30:00";
 
@@ -119,7 +113,7 @@ const sostiene = (ok, frase) => (ok ? fatti.push(frase) : problemi.push(frase));
 // Il browser
 // ————————————————————————————————————————————————————————————
 
-const browser = await chromium.launch(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" });
+const browser = await avviaChromium();
 let page;
 
 /**

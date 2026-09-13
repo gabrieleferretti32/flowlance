@@ -31,7 +31,7 @@
 import { createServer } from "node:http";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { extname, join, relative, resolve } from "node:path";
-import { chromium } from "playwright-core";
+import { avviaChromium } from "./chromium.mjs";
 import { esigiArtefattoFresco } from "./artefatto.mjs";
 
 // Prima di ogni altra cosa: out/ è il sito del sorgente di adesso?
@@ -43,7 +43,6 @@ const opzione = (nome, predefinito = "") => {
 };
 
 const RADICE = resolve(opzione("cartella", "out"));
-const BINARIO = opzione("chromium", process.env.PLAYWRIGHT_CHROMIUM ?? "/opt/pw-browsers/chromium");
 
 try {
   statSync(RADICE);
@@ -135,7 +134,7 @@ const BASE = `http://127.0.0.1:${server.address().port}`;
 // ————————————————————————————————————————————————————————————
 
 const pagine = html(RADICE).map(indirizzoDi).sort();
-const browser = await chromium.launch(BINARIO ? { executablePath: BINARIO } : { channel: "chrome" });
+const browser = await avviaChromium();
 const contesto = await browser.newContext();
 const pagina = await contesto.newPage();
 
