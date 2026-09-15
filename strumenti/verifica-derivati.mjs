@@ -639,7 +639,25 @@ const demo = await righeDelProspetto();
     return (testo.match(/\d{1,3}(?:\.\d{3})*(?:,\d{2})?\s*\u20ac/g) ?? []).map((v) => v.trim());
   };
 
-  const tutte = [...(await scritture("/")), ...(await scritture("/acquista/"))];
+  /*
+    Anche /termini/, e per una ragione precisa.
+
+    Il testo del contratto cita il prezzo — «97 €» e «118,34 €» — e finché
+    stava aperto dentro /acquista/ questo controllo lo leggeva di lì. Da quando
+    i tredici articoli stanno in un <details> chiuso, `innerText` non li
+    restituisce più: il controllo continuava a passare **guardando due
+    occorrenze in meno**, senza dirlo. La pagina /termini/ porta lo stesso
+    testo, tutto aperto, e restituisce la copertura esatta di prima.
+
+    È il difetto che questo progetto insegue, applicato a un controllo: non
+    avrebbe dato falsi allarmi, avrebbe smesso in silenzio di guardare una
+    parte.
+  */
+  const tutte = [
+    ...(await scritture("/")),
+    ...(await scritture("/acquista/")),
+    ...(await scritture("/termini/")),
+  ];
   const valore = (v) =>
     Number(v.replace(/[\u20ac\s\u00a0]/g, "").replace(/\./g, "").replace(",", "."));
 
@@ -740,6 +758,50 @@ const demo = await righeDelProspetto();
       );
     }
   }
+  /*
+    E sulla pagina d'acquisto: dove cade il pulsante che fa pagare.
+
+    È la misura che ha motivato di rifare quella pagina. I tredici articoli del
+    contratto stavano fra il prezzo e il pulsante, e su un telefono voleva dire
+    che chi arrivava da un annuncio doveva attraversare tutto il testo legale
+    prima di trovare un modo per comprare. Nessun controllo lo vedeva: la
+    pagina era corretta, completa e ordinata — solo lunga nel punto sbagliato.
+
+    Il limite è una schermata e mezza. Non zero: la casella della dichiarazione
+    sta sopra il pulsante e non si toglie, ed è giusto che si legga. Ma oltre
+    una mezza schermata di scorrimento il pulsante è una cosa che si cerca, e
+    chi arriva da un annuncio non cerca.
+  */
+  await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(1_500);
+
+  const acquisto = await p.evaluate(() => {
+    const paga = [...document.querySelectorAll("a")].find((a) =>
+      /^Paga /.test((a.textContent ?? "").trim()),
+    );
+    const casella = document.querySelector('input[type="checkbox"]');
+    const r = (el) => (el ? Math.round(el.getBoundingClientRect().bottom) : null);
+    return { paga: r(paga), casella: r(casella), piega: window.innerHeight };
+  });
+
+  if (acquisto.paga === null) {
+    /*
+      Senza Payment Link il pulsante non c'è e al suo posto c'è l'avviso: non è
+      un fallimento, ma non va nemmeno taciuto — un controllo che non trova il
+      suo bersaglio e non dice niente è un controllo spento.
+    */
+    sostiene(
+      acquisto.casella !== null,
+      "390×844 · /acquista/: nessun pulsante di pagamento (Payment Link al segnaposto), ma la casella c'è",
+    );
+  } else {
+    const LIMITE = Math.round(acquisto.piega * 1.5);
+    sostiene(
+      acquisto.paga <= LIMITE,
+      `390×844 · «Paga» finisce a ${acquisto.paga}, entro una schermata e mezza (${LIMITE})`,
+    );
+  }
+
   await ctx.close();
 }
 

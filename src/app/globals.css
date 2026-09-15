@@ -345,6 +345,41 @@
   }
 
   /*
+    Ogni <details> si stampa aperto.
+
+    Sulla pagina d'acquisto i tredici articoli del contratto stanno in un
+    blocco richiudibile, chiuso di default: è quello che li toglie di mezzo a
+    chi vuole comprare. Ma un contratto stampato con dentro un pezzo chiuso non
+    è il contratto — è un documento che sembra completo e non lo è, che è la
+    forma peggiore in cui può uscire. Sulla carta il richiudibile non serve a
+    niente e non deve esistere, quindi il contenuto si mostra e la freccetta
+    del riassunto sparisce.
+
+    Perché `display` non basta: un <details> chiuso non nasconde i figli con
+    `display: none`, li nasconde con `content-visibility` sul contenuto. La
+    prima stesura di questa regola sovrascriveva `display` e non cambiava
+    niente — misurata in stampa, la prosa risultava ancora invisibile. Serve
+    `::details-content`, che è il pezzo che il browser nasconde davvero.
+  */
+  details::details-content {
+    content-visibility: visible !important;
+    block-size: auto !important;
+  }
+
+  details > *:not(summary) {
+    display: revert !important;
+  }
+
+  summary {
+    list-style: none;
+  }
+
+  summary::-webkit-details-marker,
+  summary::marker {
+    content: "";
+  }
+
+  /*
     Che cosa non si spezza mai: i due riquadri d'apertura, la fascia di sintesi,
     ogni riga della catena di calcolo con la sua formula, la nota finale.
 
