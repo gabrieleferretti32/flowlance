@@ -865,6 +865,101 @@ const demo = await righeDelProspetto();
 }
 
 // ————————————————————————————————————————————————————————————
+// 8 · Il simulatore: le cifre di chi lo usa non finiscono nelle registrazioni
+// ————————————————————————————————————————————————————————————
+
+{
+  /*
+    Clarity registra la navigazione, e sul simulatore la navigazione contiene
+    il fatturato di una persona. Non è un dato che serve a capire se la pagina
+    funziona: per quello bastano i clic, lo scorrimento, i campi che si aprono.
+    Serve il contrario — che quelle cifre non entrino nella registrazione.
+
+    `data-clarity-mask="True"` è l'attributo con cui Clarity salta il
+    contenuto di un elemento. Qui si verifica **la regola**, non i sette punti
+    in cui è scritta oggi: ogni elemento che mostra una cifra dentro `<main>`
+    deve stare in un sottoalbero mascherato. Chi domani aggiunge una riga al
+    prospetto fuori dai contenitori giusti la vede fallire, che è l'unico modo
+    perché una regola sopravviva a chi non l'ha scritta.
+
+    L'unica eccezione è il testo di un `<option>`: «più lo 0,48 %» sta scritto
+    uguale nella tendina di chiunque e non dice niente di chi legge. Mascherare
+    anche le tendine renderebbe illeggibile la parte della pagina che serve
+    capire — quale mestiere e quale gestione sceglie la gente — che è
+    esattamente quello che Clarity è lì per dire.
+
+    E si verifica anche il verso opposto: che `<main>` **non** sia mascherato.
+    Un `data-clarity-mask` messo in cima alla pagina passerebbe ogni controllo
+    su «le cifre sono coperte» e spegnerebbe lo strumento del tutto.
+  */
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 1200 }, locale: "it-IT" });
+  const p = await ctx.newPage();
+  await p.goto(`${BASE}/simulatore/`, { waitUntil: "networkidle" });
+  await p.waitForTimeout(1_200);
+  // Anche quello che sta dietro «affina il calcolo», che di default è chiuso.
+  const affina = p.locator("details summary").first();
+  if (await affina.count()) {
+    await affina.click();
+    await p.waitForTimeout(500);
+  }
+
+  const esito = await p.evaluate(() => {
+    const CIFRA = /\d[\d.,]*\s*(?:\u20ac|%)/;
+    const main = document.querySelector("main");
+    if (!main) return null;
+    const mascherato = (el) => el.closest('[data-clarity-mask="True"]') !== null;
+    /*
+      Solo le foglie: se si contassero anche i contenitori, ogni antenato di
+      una cifra risulterebbe «un elemento con una cifra» e il conto direbbe
+      dieci volte la stessa cosa.
+    */
+    const conCifre = [...main.querySelectorAll("*")].filter(
+      (el) =>
+        CIFRA.test(el.textContent ?? "")
+        && ![...el.children].some((c) => CIFRA.test(c.textContent ?? "")),
+    );
+    const risultato = main.querySelector("section[aria-labelledby='risultato']");
+    return {
+      mainMascherato: mascherato(main),
+      risultatoMascherato: risultato?.getAttribute("data-clarity-mask") ?? null,
+      dentro: conCifre.filter(mascherato).length,
+      fuori: conCifre
+        .filter((el) => !mascherato(el) && el.tagName !== "OPTION")
+        .map((el) => `<${el.tagName.toLowerCase()}> ${(el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60)}`),
+      campiScoperti: [...main.querySelectorAll("input")]
+        .filter((i) => i.type === "number" && i.value !== "" && !mascherato(i))
+        .map((i) => i.name || i.getAttribute("aria-label") || "campo numerico"),
+    };
+  });
+
+  if (esito === null) {
+    problemi.push("/simulatore/: non c'è nessun <main>, la misura non prova niente");
+  } else {
+    sostiene(
+      esito.risultatoMascherato === "True",
+      `/simulatore/: il contenitore dei risultati porta data-clarity-mask="${esito.risultatoMascherato}"`,
+    );
+    sostiene(
+      esito.dentro > 0,
+      `/simulatore/: ${esito.dentro} elementi con cifre stanno dentro la maschera — la misura vede`,
+    );
+    sostiene(
+      esito.fuori.length === 0,
+      `/simulatore/: nessuna cifra fuori dalla maschera${esito.fuori.length ? `: ${esito.fuori.join(" · ")}` : ""}`,
+    );
+    sostiene(
+      esito.campiScoperti.length === 0,
+      `/simulatore/: nessun campo numerico compilato resta scoperto${esito.campiScoperti.length ? `: ${esito.campiScoperti.join(", ")}` : ""}`,
+    );
+    sostiene(
+      !esito.mainMascherato,
+      "/simulatore/: il resto della pagina resta leggibile — la maschera non è sulla pagina intera",
+    );
+  }
+  await ctx.close();
+}
+
+// ————————————————————————————————————————————————————————————
 
 await browser.close();
 server.close();

@@ -32,6 +32,17 @@ const REGIME_DETTO: Record<Regime, string> = {
   ordinario: "Ordinario (semplificato)",
 };
 
+/**
+ * L'attributo con cui Clarity non registra il contenuto di un elemento.
+ *
+ * Il valore è «True» con la maiuscola, come lo vuole Clarity: scritto
+ * `"true"` l'attributo c'è, sembra giusto guardandolo, e non maschera
+ * niente. È il motivo per cui sta qui e non ripetuto sei volte nel JSX —
+ * e per cui `verifica-derivati` lo confronta per intero invece di
+ * controllare che l'attributo esista.
+ */
+const NASCOSTO_A_CLARITY = { "data-clarity-mask": "True" } as const;
+
 export function SchermataSimulatore() {
   const [ing, setIng] = React.useState<IngressoSimulatore>(INGRESSO_INIZIALE);
   const par = parametriDi(ANNO);
@@ -100,6 +111,7 @@ export function SchermataSimulatore() {
             <span className="text-etichetta font-medium">Quanto pensi di fatturare in un anno</span>
             <span className="mt-1 flex items-center gap-2 rounded-campo border border-bordo px-3 py-2">
               <input
+                {...NASCOSTO_A_CLARITY}
                 type="number"
                 inputMode="numeric"
                 min={0}
@@ -140,7 +152,10 @@ export function SchermataSimulatore() {
               rifiuta, perché è così che un'aliquota agevolata è rimasta accesa
               per anni.
             */}
-            <span className="mt-1 block text-etichetta leading-relaxed text-inchiostro-tenue">
+            <span
+              {...NASCOSTO_A_CLARITY}
+              className="mt-1 block text-etichetta leading-relaxed text-inchiostro-tenue"
+            >
               {coefficiente.motivo}
             </span>
           </label>
@@ -164,6 +179,7 @@ export function SchermataSimulatore() {
 
       {/* ——— Il risultato, nella forma onesta ——— */}
       <section
+        {...NASCOSTO_A_CLARITY}
         aria-labelledby="risultato"
         className="mt-10 rounded-campo border border-accento/30 bg-accento-tenue px-5 py-6"
       >
@@ -232,7 +248,7 @@ export function SchermataSimulatore() {
       </section>
 
       {/* ——— Da dove vengono i numeri ——— */}
-      <section aria-labelledby="righe" className="mt-10">
+      <section {...NASCOSTO_A_CLARITY} aria-labelledby="righe" className="mt-10">
         <h2 id="righe" className="font-display text-titolo font-semibold tracking-tight">
           Da dove viene
         </h2>
@@ -290,6 +306,7 @@ export function SchermataSimulatore() {
             <span className="text-etichetta font-medium">Costi documentati in un anno</span>
             <span className="mt-1 flex items-center gap-2 rounded-campo border border-bordo px-3 py-2">
               <input
+                {...NASCOSTO_A_CLARITY}
                 type="number"
                 inputMode="numeric"
                 min={0}
@@ -340,7 +357,7 @@ export function SchermataSimulatore() {
 
         {/* Le date, che stanno qui e non in cima. */}
         <h3 className="mt-8 text-etichetta font-semibold">Quando esce dal conto</h3>
-        <ul className="mt-2 space-y-1">
+        <ul {...NASCOSTO_A_CLARITY} className="mt-2 space-y-1">
           {scadenze
             .filter((s) => s.importo !== null && s.importo > 0)
             .map((s) => (
@@ -359,7 +376,7 @@ export function SchermataSimulatore() {
       </details>
 
       {/* ——— Il confronto fra i regimi, dopo ——— */}
-      <section aria-labelledby="confronto" className="mt-12">
+      <section {...NASCOSTO_A_CLARITY} aria-labelledby="confronto" className="mt-12">
         <h2 id="confronto" className="font-display text-titolo font-semibold tracking-tight">
           Forfettario o ordinario
         </h2>
