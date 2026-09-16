@@ -541,3 +541,28 @@ su un file misto di 5 con 3 già dentro il pulsante dice «Importa 2 righe
 nuove», «Importa 2 righe nuove e sostituiscine 3», «Importa 5 righe, di cui 3
 doppie» secondo la politica. Nessuno di questi controlli gira da solo: è il
 posto in cui una regressione passerebbe inosservata.
+
+---
+
+**Un `<Script id="x">` occupa `window.x`.** Ogni elemento con un `id` diventa
+una proprietà omonima di `window`, e questo ha rotto Clarity per settimane
+senza che si vedesse: con `id="clarity"` era il nodo `<script>` a stare in
+`window.clarity`, lo snippet ufficiale apre con «se non c'è già, crea la coda»,
+trovava lì un oggetto verissimo, e la coda non veniva creata mai. Il tag
+scendeva lo stesso e Clarity registrava, quindi tutto sembrava a posto — ma
+qualunque chiamata accodata prima dell'arrivo del tag finiva su un nodo del DOM
+e spariva senza un errore. Misurato il 16 settembre 2026: `typeof
+window.clarity` rispondeva `"object"`. Ora l'id è `tag-clarity`, e
+`verifica:consenso` pretende che quel nome sia una funzione.
+
+Gli altri due tag non sono toccati — GA4 usa `gtag` e `dataLayer`, il pixel usa
+`fbq`, e `meta-pixel` non è nemmeno un identificatore valido — ma la regola
+vale per tutti: **l'id di uno `<Script>` non deve mai essere il nome della
+variabile globale che quello script crea.**
+
+**Nella Cookie Policy Clarity sta sotto «Cookie e strumenti di statistica»,
+mentre nel banner sta sotto «Registrazione della navigazione».** I nomi dei
+cookie — `_clck`, `_clsk` — non sono scritti da nessuna parte: il documento
+elenca finalità, fornitore e durata. Le due cose non si contraddicono (uno dice
+a che cosa serve, l'altro che cosa accendi), ma chi cerca la categoria in cui
+sono dichiarati quei due cookie non la trova. Da decidere se nominarli.

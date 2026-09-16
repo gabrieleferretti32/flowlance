@@ -378,6 +378,140 @@ let cookieConsenso = null;
   await ctx.close();
 }
 
+// ————————————————————————————————————————————————————————————
+// 5 · I cookie di Clarity: compaiono col sì, e spariscono con la revoca
+// ————————————————————————————————————————————————————————————
+
+/*
+  Le sezioni di sopra guardano **le richieste**, e le interrompono: bastano a
+  dire chi viene contattato e quando. Non bastano a dire cosa resta nel
+  browser, che è la domanda del Garante e quella del pannello dei cookie.
+
+  `_clck` e `_clsk` non li scrive lo snippet: li scrive il tag scaricato da
+  clarity.ms. Quindi questa sezione — sola fra tutte — deve lasciar uscire le
+  richieste verso Microsoft davvero. Se la rete non ci arriva non si finge:
+  si dice che non si è potuto misurare, e perché.
+
+  La revoca è il caso che conta. Dire «denied» a Clarity gli dice di smettere,
+  non di cancellare quello che ha già scritto: una casella spenta con il cookie
+  ancora acceso è una revoca che sembra fatta e non lo è.
+*/
+{
+  const ctx = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    locale: "it-IT",
+  });
+  const page = await ctx.newPage();
+
+  const cookieClarity = async () =>
+    (await ctx.cookies()).filter((c) => ["_clck", "_clsk"].includes(c.name)).map((c) => c.name).sort();
+
+  /*
+    Prima di tutto: la misura vede un cookie quando c'è? Ne pianta uno finto
+    con il nome giusto e lo rilegge. Senza questo, «non li ho trovati» potrebbe
+    voler dire soltanto che non li so leggere — ed è la frase che questa
+    sezione esiste per non dire a vanvera.
+  */
+  await ctx.addCookies([{ name: "_clck", value: "prova", domain: "127.0.0.1", path: "/" }]);
+  const vedeQuandoCe = (await cookieClarity()).includes("_clck");
+  await ctx.clearCookies();
+  sostiene(vedeQuandoCe, "la misura legge un cookie _clck piantato apposta");
+
+  if (!vedeQuandoCe) {
+    problemi.push("senza saper leggere i cookie, il resto di questa sezione non prova niente");
+  } else {
+    const fallite = [];
+    page.on("requestfailed", (r) => {
+      if (r.url().includes("clarity.ms")) fallite.push(r.failure()?.errorText ?? "?");
+    });
+
+    await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+    await page.waitForTimeout(1_000);
+
+    // Solo «Registrazione della navigazione», dal pannello vero.
+    await page.getByRole("button", { name: /Scegli una categoria/i }).click();
+    await page.waitForTimeout(400);
+    const interruttori = page.locator('[role="dialog"] [role="switch"], [role="dialog"] input[type="checkbox"]');
+    const quanti = await interruttori.count();
+    if (quanti < 3) {
+      problemi.push(`nel pannello ci sono ${quanti} interruttori invece di tre: non so quale sia la registrazione`);
+    } else {
+      await interruttori.nth(2).click();
+      await page.locator('[role="dialog"] button').filter({ hasText: /Salva le scelte/i }).first().click();
+      await page.waitForTimeout(6_000);
+
+      /*
+        Prima dei cookie, una cosa che si può misurare senza rete: che
+        `window.clarity` sia **una funzione** e che il consenso sia finito
+        nella sua coda.
+
+        Non è pedanteria sul tipo. Ogni elemento con un `id` diventa una
+        proprietà omonima di `window`, e finché lo `<Script>` si chiamava
+        `id="clarity"` era l'elemento a occupare quel nome: lo snippet
+        ufficiale apre con «se non c'è già, crea la coda», trovava lì un
+        oggetto verissimo e la coda non la creava mai. Il tag scendeva lo
+        stesso, quindi tutto sembrava funzionare — ma il consenso mandato
+        prima del suo arrivo finiva su un nodo del DOM e spariva senza un
+        errore. Misurato, non dedotto: `typeof window.clarity` rispondeva
+        «object».
+      */
+      const coda = await page.evaluate(() => ({
+        tipo: typeof window.clarity,
+        consensi: (window.clarity?.q ?? [])
+          .filter((a) => a[0] === "consentv2")
+          .map((a) => a[1]),
+      }));
+      sostiene(
+        coda.tipo === "function",
+        `window.clarity è una funzione e non un nodo del DOM (${coda.tipo})`,
+      );
+      const ultimo = coda.consensi[coda.consensi.length - 1];
+      sostiene(
+        ultimo?.analytics_Storage === "granted" && ultimo?.ad_Storage === "denied",
+        `col sì alla registrazione il consenso in coda è ${JSON.stringify(ultimo ?? null)}`,
+      );
+
+      const dopoIlSi = await cookieClarity();
+
+      if (dopoIlSi.length === 0) {
+        const perche = fallite.length
+          ? `le richieste verso clarity.ms non sono arrivate a destinazione (${[...new Set(fallite)].join(", ")})`
+          : "il tag non ha chiesto niente a clarity.ms";
+        console.log(
+          `\n  ┌─ Non ho potuto misurare i cookie di Clarity\n`
+            + `  │  Dopo il sì alla registrazione della navigazione non è comparso né\n`
+            + `  │  _clck né _clsk, perché ${perche}.\n`
+            + `  │\n`
+            + `  │  **Questo non dice che il consenso sia rotto.** Le sezioni di sopra\n`
+            + `  │  hanno già verificato che senza un sì non parte niente e che da /app\n`
+            + `  │  non parte niente comunque. Dice che da questa rete non si raggiunge\n`
+            + `  │  Microsoft, quindi la comparsa e la sparizione dei cookie restano da\n`
+            + `  │  misurare altrove. Rilancialo da una rete che arrivi a clarity.ms.\n`
+            + `  └─`,
+        );
+      } else {
+        sostiene(
+          dopoIlSi.join(",") === "_clck,_clsk",
+          `accettando la sola registrazione compaiono ${dopoIlSi.join(" e ")}`,
+        );
+
+        // E adesso la revoca, dal piede, come la fa una persona.
+        await page.getByRole("button", { name: /Preferenze cookie/i }).click();
+        await page.waitForTimeout(600);
+        await page.locator('[role="dialog"] button').filter({ hasText: /^Rifiuta tutto$/ }).first().click();
+        await page.waitForTimeout(2_500);
+
+        const dopoLaRevoca = await cookieClarity();
+        sostiene(
+          dopoLaRevoca.length === 0,
+          `revocando, i cookie di Clarity spariscono${dopoLaRevoca.length ? `: restano ${dopoLaRevoca.join(", ")}` : ""}`,
+        );
+      }
+    }
+  }
+  await ctx.close();
+}
+
 await browser.close();
 server.close();
 

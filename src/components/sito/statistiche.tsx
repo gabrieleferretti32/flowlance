@@ -38,7 +38,7 @@ const { ga4: GA4, clarity: CLARITY, metaPixel: META } = MISURAZIONE;
 
 declare global {
   interface Window {
-    clarity?: (...argomenti: unknown[]) => void;
+    clarity?: ((...argomenti: unknown[]) => void) & { q?: unknown[][] };
   }
 }
 
@@ -62,26 +62,43 @@ declare global {
  * categoria sbagliata.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * Perché `analytics_Storage` guarda **le statistiche** e non le registrazioni
+ * Perché `analytics_Storage` segue **le registrazioni**
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Sembra un errore e non lo è. Le due categorie di questo banner sono separate
- * davvero: si può accettare la registrazione della navigazione e rifiutare le
- * statistiche. In quel caso Clarity è caricato — la persona l'ha accettato —
- * ma `analytics_Storage` resta «denied», e Clarity lo rispetta. Legare il
- * segnale alla categoria che lo carica avrebbe fatto dire «granted» sempre,
- * che è lo stesso che non mandarlo.
+ * È la categoria che carica Clarity, quindi è la categoria con cui questa
+ * persona ha autorizzato i suoi cookie — `_clck` e `_clsk`. Legare il
+ * segnale a una casella diversa da quella che autorizza il tag vorrebbe dire
+ * mandare «denied» a uno strumento che la persona ha acceso, e da fine ottobre
+ * 2025, nel SEE, nel Regno Unito e in Svizzera, un Clarity senza «granted»
+ * non va in consenso pieno: va in modalità senza consenso — niente cookie, e
+ * ogni pagina vista contata come un visitatore nuovo. Il segnale non è una
+ * formalità: è quello che fa funzionare la misura che la persona ha accettato.
+ *
+ * Una nota sulla Cookie Policy, perché la regola l'ha decisa lei. `_clck` e
+ * `_clsk` non vi sono nominati — il documento elenca finalità, fornitore e
+ * durata, non i nomi dei cookie — e Clarity vi sta sotto «Cookie e strumenti
+ * di statistica», che è il titolo della sezione, mentre nel banner sta sotto
+ * «Registrazione della navigazione». Le due cose non si contraddicono, perché
+ * il documento descrive **a che cosa serve** e il banner **che cosa accendi**.
+ * Ma la catena del consenso è una sola, ed è quella del banner: senza quella
+ * casella il tag non entra nella pagina.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * Perché un effetto e non una riga dentro lo snippet
+ * Perché un effetto, e perché **fuori** dal ramo che carica il tag
  * ─────────────────────────────────────────────────────────────────────────
  *
- * Uno `<Script>` con dentro il valore gira **una volta sola**, al montaggio.
- * Chi riapre le preferenze dal piede e spegne le statistiche tenendo le
- * registrazioni lascerebbe Clarity con il consenso di prima, per sempre, e
- * nessuno lo vedrebbe. L'effetto invece riparte a ogni cambio.
+ * Uno `<Script>` con dentro il valore gira una volta sola, al montaggio: chi
+ * cambia idea dal piede resterebbe con il consenso di prima, per sempre, e
+ * nessuno lo vedrebbe. L'effetto riparte a ogni cambio.
+ *
+ * E sta fuori dal ramo perché **la revoca è il caso che conta**. Spenta la
+ * casella, il tag esce dall'albero — ma `window.clarity` è ancora nella
+ * pagina di chi non ha ricaricato, e i cookie sono ancora nel browser. Dentro
+ * il ramo, questo componente sarebbe sparito insieme al tag, e la revoca non
+ * sarebbe arrivata a nessuno: la persona avrebbe visto la casella spegnersi e
+ * Clarity avrebbe continuato con il consenso di prima fino al ricarico.
  */
-function ConsensoClarity({ statistiche }: { statistiche: boolean }) {
+function ConsensoClarity({ registrazioni }: { registrazioni: boolean }) {
   React.useEffect(() => {
     /*
       `window.clarity` esiste già dopo lo snippet — è la funzione che
@@ -89,14 +106,65 @@ function ConsensoClarity({ statistiche }: { statistiche: boolean }) {
       non è ancora sceso dalla rete. Se non c'è, non si fa niente e non si
       lancia niente: un segnale di consenso non deve poter rompere la pagina.
     */
-    if (typeof window.clarity !== "function") return;
-    window.clarity("consentv2", {
-      ad_Storage: "denied",
-      analytics_Storage: statistiche ? "granted" : "denied",
-    });
-  }, [statistiche]);
+    /*
+      Con il sì, la coda si crea qui se non c'è ancora.
+
+      È la stessa riga dello snippet ufficiale, per la stessa ragione: fra
+      l'effetto di React e l'esecuzione dello `<Script>` non c'è un ordine
+      garantito, e un consenso mandato un attimo troppo presto sarebbe un
+      consenso perso — in silenzio, perché chiamare una funzione che non c'è
+      qui non succede. Quando il tag vero scende, svuota la coda e lo trova.
+    */
+    if (registrazioni && typeof window.clarity !== "function") {
+      const coda = (...argomenti: unknown[]) => {
+        coda.q = coda.q ?? [];
+        coda.q.push(argomenti);
+      };
+      coda.q = [] as unknown[][];
+      window.clarity = coda;
+    }
+    if (typeof window.clarity === "function") {
+      window.clarity("consentv2", {
+        ad_Storage: "denied",
+        analytics_Storage: registrazioni ? "granted" : "denied",
+      });
+    }
+    /*
+      E i cookie vanno via davvero.
+
+      Dire «denied» a Clarity gli dice di smettere; non gli dice di cancellare
+      quello che ha già scritto. Una revoca che lascia `_clck` nel browser è
+      una casella spenta con il cookie ancora acceso: dal banner sembra fatta,
+      e dal pannello dei cookie del browser no. Qui si tolgono, e non si
+      aspetta che lo faccia qualcun altro.
+    */
+    if (!registrazioni) dimenticaClarity();
+  }, [registrazioni]);
 
   return null;
+}
+
+/** I cookie che il tag di Clarity lascia nel browser. */
+export const COOKIE_CLARITY = ["_clck", "_clsk"] as const;
+
+/**
+ * Cancella i cookie di Clarity, su tutte le forme di dominio che può aver usato.
+ *
+ * Tre tentativi e non uno: un cookie si cancella solo indicando lo **stesso**
+ * dominio e percorso con cui è stato scritto, e da fuori non si sa quale dei
+ * tre sia — quello nudo, quello con il punto davanti, o nessuno dei due.
+ * Sbagliarne uno lascia il cookie dov'è, in silenzio, e la revoca sembra
+ * riuscita.
+ */
+function dimenticaClarity(): void {
+  if (typeof document === "undefined") return;
+  const host = window.location.hostname;
+  const domini = ["", `; domain=${host}`, `; domain=.${host}`];
+  for (const nome of COOKIE_CLARITY) {
+    for (const d of domini) {
+      document.cookie = `${nome}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/${d}`;
+    }
+  }
 }
 
 export function Statistiche() {
@@ -153,7 +221,23 @@ export function Statistiche() {
 
       {consenso.registrazioni && (
         <>
-          <Script id="clarity" strategy="afterInteractive">
+          {/*
+            L'id **non** è «clarity», e non è un dettaglio.
+
+            Ogni elemento con un `id` diventa una proprietà omonima di
+            `window`: con `id="clarity"` il tag `<script>` stesso occupava
+            `window.clarity`. Lo snippet ufficiale apre con
+            `c[a]=c[a]||function(){…}` — «se non c'è già, crea la coda» — e
+            trovava lì l'elemento, che è verissimo, quindi **la coda non
+            veniva mai creata**. Misurato: `typeof window.clarity` rispondeva
+            «object».
+
+            Il tag scendeva lo stesso e Clarity funzionava, perché una volta
+            scaricato si riprende il nome. Ma tutto quello che si accodava
+            prima — il consenso, per esempio — finiva su un elemento del DOM
+            invece che in una coda, e spariva senza un errore.
+          */}
+          <Script id="tag-clarity" strategy="afterInteractive">
             {`
               (function(c,l,a,r,i,t,y){
                 c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
@@ -162,9 +246,17 @@ export function Statistiche() {
               })(window, document, "clarity", "script", "${CLARITY}");
             `}
           </Script>
-          <ConsensoClarity statistiche={consenso.statistiche} />
         </>
       )}
+
+      {/*
+        Fuori dal ramo, di proposito: alla revoca il tag non c'è più
+        nell'albero, ma `window.clarity` è ancora nella pagina di chi non ha
+        ricaricato — ed è l'unico momento in cui gli si può dire di smettere.
+        Dentro il ramo, questo componente sparirebbe insieme al tag e la revoca
+        non arriverebbe a nessuno.
+      */}
+      <ConsensoClarity registrazioni={consenso.registrazioni} />
     </>
   );
 }
