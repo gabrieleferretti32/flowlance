@@ -36,6 +36,69 @@ import { MISURAZIONE } from "@/lib/sito/impostazioni";
 */
 const { ga4: GA4, clarity: CLARITY, metaPixel: META } = MISURAZIONE;
 
+declare global {
+  interface Window {
+    clarity?: (...argomenti: unknown[]) => void;
+  }
+}
+
+/**
+ * Dice a Clarity che cosa ha acconsentito questa persona.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Non è un doppione del fatto che lo script non parta
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il presidio vero resta quello di sopra: senza un sì il tag non entra
+ * nell'albero e non c'è niente da caricare. Ma da quando Clarity è caricato,
+ * senza un segnale esplicito si comporta come se avesse **tutto** il consenso
+ * — pubblicità compresa. Qui gli si dice quali sono le due caselle, e l'unica
+ * che gli si concede è la misurazione.
+ *
+ * `ad_Storage` è «denied» e basta: non c'è nessun ramo che possa accenderla,
+ * perché non esiste un consenso su questo sito che voglia dire «usa Clarity
+ * per la pubblicità». Scriverlo come costante e non come variabile è la
+ * differenza fra una promessa e un valore che un giorno qualcuno collega alla
+ * categoria sbagliata.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché `analytics_Storage` guarda **le statistiche** e non le registrazioni
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Sembra un errore e non lo è. Le due categorie di questo banner sono separate
+ * davvero: si può accettare la registrazione della navigazione e rifiutare le
+ * statistiche. In quel caso Clarity è caricato — la persona l'ha accettato —
+ * ma `analytics_Storage` resta «denied», e Clarity lo rispetta. Legare il
+ * segnale alla categoria che lo carica avrebbe fatto dire «granted» sempre,
+ * che è lo stesso che non mandarlo.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché un effetto e non una riga dentro lo snippet
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Uno `<Script>` con dentro il valore gira **una volta sola**, al montaggio.
+ * Chi riapre le preferenze dal piede e spegne le statistiche tenendo le
+ * registrazioni lascerebbe Clarity con il consenso di prima, per sempre, e
+ * nessuno lo vedrebbe. L'effetto invece riparte a ogni cambio.
+ */
+function ConsensoClarity({ statistiche }: { statistiche: boolean }) {
+  React.useEffect(() => {
+    /*
+      `window.clarity` esiste già dopo lo snippet — è la funzione che
+      accumula in coda — quindi la chiamata non si perde nemmeno se il tag
+      non è ancora sceso dalla rete. Se non c'è, non si fa niente e non si
+      lancia niente: un segnale di consenso non deve poter rompere la pagina.
+    */
+    if (typeof window.clarity !== "function") return;
+    window.clarity("consentv2", {
+      ad_Storage: "denied",
+      analytics_Storage: statistiche ? "granted" : "denied",
+    });
+  }, [statistiche]);
+
+  return null;
+}
+
 export function Statistiche() {
   const [consenso, setConsenso] = React.useState<Consenso>(NIENTE);
 
@@ -89,15 +152,18 @@ export function Statistiche() {
       )}
 
       {consenso.registrazioni && (
-        <Script id="clarity" strategy="afterInteractive">
-          {`
-            (function(c,l,a,r,i,t,y){
-              c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-              t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-              y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-            })(window, document, "clarity", "script", "${CLARITY}");
-          `}
-        </Script>
+        <>
+          <Script id="clarity" strategy="afterInteractive">
+            {`
+              (function(c,l,a,r,i,t,y){
+                c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
+                t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
+                y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
+              })(window, document, "clarity", "script", "${CLARITY}");
+            `}
+          </Script>
+          <ConsensoClarity statistiche={consenso.statistiche} />
+        </>
       )}
     </>
   );
