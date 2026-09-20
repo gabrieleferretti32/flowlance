@@ -148,11 +148,6 @@ export function tabellaLimite(ing: IngressoLimite): RigaLimite[] {
     const stimate: VoceStimata[] = [];
 
     const reale = (cat: Set<string>) => totale(dentro, cat);
-    const stima = (cat: Set<string>, voce: VoceStimata) => {
-      const p = previsto(ing.budget, cat, mese, mesi);
-      if (p.stimato) stimate.push(voce);
-      return p.valore;
-    };
 
     /*
       Le entrate del mese in corso sono **il maggiore** fra quello che è già
