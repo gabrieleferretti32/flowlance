@@ -11,11 +11,12 @@
  * passa — mentre il denominatore è fermo a «un anno intero». Vanno d'accordo in
  * un istante solo: il 1° gennaio, con nulla ancora versato.
  *
- * Sui numeri del dataset di vetrina, al 20 settembre: restano 3.035,93 € da
- * accantonare e quattro mesi per farlo, e l'app diceva 252,99 € al mese —
- * ventiquattro volte dodici invece che per quattro. E il consiglio *si era
- * dimezzato* da gennaio, perché i soldi erano usciti: la quota scendeva proprio
- * mentre il bisogno per mese rimasto saliva.
+ * Sui numeri del dataset di vetrina, al 20 settembre: restano 1.015,85 € da
+ * accantonare e tre mesi per farlo — il secondo acconto scade il 30 novembre —
+ * e l'app diceva 84,65 € al mese, cioè un dodicesimo di un residuo che ha tre
+ * mesi di vita. La cifra vera è 338,62 €: quattro volte tanto. E il consiglio
+ * *si era abbassato* da gennaio, perché i soldi erano usciti: la quota scendeva
+ * proprio mentre il bisogno per mese rimasto saliva.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Come funziona adesso: un fondo che guarda le scadenze
@@ -41,8 +42,8 @@
  * L'IVA **deve** esserci: per chi è in ordinario l'IVA incassata non è sua, e
  * il limite di spesa del modulo parte dalle entrate in banca, che la
  * comprendono. Una quota che la escludesse lascerebbe spendere l'IVA dei
- * clienti — ed è la cifra più grossa delle due, sul dataset di vetrina 9.682 €
- * contro 15.167 € di carico fiscale intero.
+ * clienti — ed è la più grossa delle due, sul dataset di vetrina 8.476,48 € di
+ * IVA da versare nell'anno contro 8.454,38 € di imposte e contributi.
  *
  * Ma le due metà **non si mescolano nel numeratore**. `fabbisognoDaAccantonare`
  * nasce da `totaleDovuto = imposte + contributi` e dai versamenti non-IVA:
@@ -57,10 +58,11 @@
  * archivio con fatture che portano la loro aliquota produce importi lo stesso.
  */
 import { round2, nonNegativo } from "./aritmetica";
+import { euro } from "@/lib/format";
 import { scadenzeAnno, type Adempimento } from "./scadenze";
 import type { LiquidazioneIva } from "./iva";
 import type { Prospetto } from "./motore";
-import type { Impostazioni, ParametriAnno } from "./tipi";
+import type { Impostazioni, ParametriAnno, VersamentoF24 } from "./tipi";
 
 /** Le categorie di scadenza che l'accantonamento finanzia. */
 const FINANZIATE: Adempimento["categoria"][] = ["imposte", "contributi"];
@@ -135,24 +137,46 @@ export type IngressoQuota = {
    * calendario mezzo vuoto sarebbe più bassa del vero, in silenzio.
    */
   precedente: Prospetto | null;
+  /**
+   * I versamenti in archivio. Servono **all'IVA**: la liquidazione calcola i
+   * periodi e non sa niente di quello che è uscito, quindi senza questi un
+   * trimestre scaduto e non versato sparirebbe dalla quota, e un trimestre
+   * versato in anticipo verrebbe chiesto due volte. Per le imposte non
+   * servono — `fabbisognoDaAccantonare` è già al netto dei versamenti.
+   */
+  versamenti: VersamentoF24[];
   oggi: string;
 };
 
+/** Il giorno in cui si salda l'anno: 30 giugno di quello dopo. */
+export function giornoDelSaldo(anno: number): string {
+  return `${anno + 1}-06-30`;
+}
+
 /**
- * L'IVA: ogni scadenza futura divisa per i mesi che la separano da oggi.
+ * L'IVA: ogni scadenza divisa per i mesi che la separano da oggi, al netto
+ * di quello che risulta già versato.
  *
  * Metodo C come per le imposte, ma **senza distribuire un residuo**, e la
  * differenza ha una ragione. Il residuo delle imposte esiste — è
  * `fabbisognoDaAccantonare`, già al netto di quello che hai versato — mentre
  * per l'IVA un residuo non c'è: `calcolaIva` liquida i periodi e non sa
- * niente dei versamenti. L'importo di una scadenza IVA **è** quello che si
- * deve a quella data, quindi si prende com'è.
+ * niente dei versamenti. Il netto se lo fa questa funzione, qui, leggendo i
+ * versamenti di tipo «iva» dall'archivio.
  *
- * La conseguenza va detta, ed è in APPROSSIMAZIONI.md: un trimestre già
- * scaduto e non versato qui non si vede. Le scadenze passate si saltano, e
- * nessuno può dire se sono state pagate.
+ * Una sola regola, per le scadenze passate come per quelle future: i
+ * versamenti coprono le scadenze in ordine di data, e quello che resta
+ * scoperto è quello che va ancora messo da parte. Cambia solo dove lo si
+ * mette — su questo mese se la scadenza è passata, spalmato sui mesi che
+ * mancano se deve ancora arrivare.
  */
-function quotaIva(scadenze: Adempimento[], liquidazione: LiquidazioneIva, oggi: string): ParteQuota {
+function quotaIva(
+  scadenze: Adempimento[],
+  liquidazione: LiquidazioneIva,
+  versamenti: VersamentoF24[],
+  anno: number,
+  oggi: string,
+): ParteQuota {
   /*
     In forfettario non c'è componente IVA, e lo si dice qui invece di sperare
     che i dati escano a zero.
@@ -169,23 +193,62 @@ function quotaIva(scadenze: Adempimento[], liquidazione: LiquidazioneIva, oggi: 
   */
   if (!liquidazione.applicabile) return VUOTA;
 
+  const dovute = scadenze
+    .filter((s) => s.categoria === "iva" && s.importo !== null && s.importo > 0)
+    .sort((a, b) => a.data.localeCompare(b.data));
+
+  /*
+    Quanto è già uscito per l'IVA di quest'anno.
+
+    I versamenti di tipo «iva» ci sono in archivio — è `giaVersato` del motore
+    che li esclude, perché il suo perimetro è imposte e contributi. Qui servono,
+    e vanno usati: senza, un trimestre scaduto e non versato sparirebbe dalla
+    quota, e la persona non saprebbe di doverlo mettere da parte.
+
+    L'anno di competenza si legge come lo legge il motore: `annoImposta` se c'è,
+    altrimenti l'anno della data. È la stessa riga di `giaVersato`, e deve
+    restarlo — due regole diverse per attribuire lo stesso versamento sono due
+    numeri che prima o poi smettono di essere d'accordo.
+  */
+  let versato = round2(
+    versamenti
+      .filter((v) => v.tipo === "iva" && (v.annoImposta ?? Number(v.data.slice(0, 4))) === anno)
+      .reduce((tot, v) => tot + v.importo, 0),
+  );
+
   const voci: VoceQuota[] = [];
-  for (const s of scadenze) {
-    if (s.categoria !== "iva" || s.importo === null || s.importo <= 0) continue;
+  for (const s of dovute) {
+    const importo = s.importo as number;
     const mesiMancanti = mesiFinoA(s.data, oggi);
-    if (mesiMancanti === 0) continue;
+
+    /*
+      I versamenti coprono le scadenze in ordine di data. Vale anche per una
+      scadenza futura: chi ha versato in anticipo non deve accantonare due
+      volte, e lasciare l'avanzo inutilizzato sarebbe un soldo che esiste in
+      archivio e sparisce dal consiglio.
+    */
+    const coperto = Math.min(versato, importo);
+    versato = round2(versato - coperto);
+    const scoperto = round2(importo - coperto);
+    if (scoperto === 0) continue;
+
+    /*
+      Quello che resta scoperto su una scadenza passata è un arretrato, e porta
+      **la sua data**, non quella di oggi: «entro il 20/09» su una scadenza del
+      16 maggio non è un'informazione, è un errore di etichetta. E va su questo
+      mese per intero — zero mesi mancanti non è un denominatore.
+    */
     voci.push({
       componente: "iva",
       id: s.id,
       titolo: s.titolo,
       data: s.data,
-      quota: round2(s.importo),
+      quota: scoperto,
       mesiMancanti,
-      alMese: round2(s.importo / mesiMancanti),
-      scaduta: false,
+      alMese: mesiMancanti === 0 ? scoperto : round2(scoperto / mesiMancanti),
+      scaduta: mesiMancanti === 0,
     });
   }
-  voci.sort((a, b) => a.data.localeCompare(b.data));
   return {
     alMese: round2(voci.reduce((tot, v) => tot + v.alMese, 0)),
     daAccantonare: round2(voci.reduce((tot, v) => tot + v.quota, 0)),
@@ -204,10 +267,18 @@ export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
     ing.iva,
     ing.precedente,
   );
-  const iva = quotaIva(tutte, ing.iva, ing.oggi);
+  const iva = quotaIva(tutte, ing.iva, ing.versamenti, ing.impostazioni.anno, ing.oggi);
   const finanziate = tutte.filter(
     (s) => FINANZIATE.includes(s.categoria) && s.importo !== null && s.importo > 0,
   );
+
+  const arretratiIva = iva.voci.filter((v) => v.scaduta);
+  if (arretratiIva.length > 0) {
+    const totale = round2(arretratiIva.reduce((tot, v) => tot + v.quota, 0));
+    avvisi.push(
+      `${euro(totale)} di IVA risultano non versati su scadenze già passate: vanno messi da parte adesso.`,
+    );
+  }
 
   const chiudi = (imposte: ParteQuota, metodo: MetodoQuota): QuotaAccantonamento => ({
     alMese: round2(imposte.alMese + iva.alMese),
@@ -272,24 +343,43 @@ export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
 
   if (residuo > 0) {
     /*
-      Nessuna divisione per zero, e nessun arrotondamento di comodo: se i mesi
-      mancanti sono zero l'importo intero è di questo mese. Succede quando il
-      residuo supera tutte le scadenze future — cioè quando qualcosa è già
-      scaduto e non è stato versato.
+      Quello che avanza dopo le scadenze di quest'anno è **il saldo dell'anno**,
+      e si versa il 30 giugno di quello dopo.
+
+      La prima stesura lo chiamava «scadenza già passata» e lo datava a oggi,
+      con l'avviso arancione. Era sbagliato due volte. Primo, non è un
+      arretrato: nel dataset dimostrativo quei 2.878,78 € sono esattamente
+      7.680,08 di residuo meno 4.801,30 del secondo acconto — cioè quello che
+      resterà da saldare a giugno, un debito che non è ancora scaduto e che
+      nessuno ha mancato di pagare. Secondo, la data era quella di oggi: «entro
+      il 20/09 — scadenza già passata» mette insieme un giorno che non è una
+      scadenza e un giudizio che non è vero.
+
+      Il calendario di `scadenzeAnno` si ferma al 31 dicembre, e questa è la
+      riga che gli manca: dieci mesi di tempo, non zero.
     */
+    const dataSaldo = giornoDelSaldo(ing.impostazioni.anno);
+    const mesiMancanti = mesiFinoA(dataSaldo, ing.oggi);
     voci.push({
       componente: "imposte",
-      id: "in-ritardo",
-      titolo: "Da versare, scadenza già passata",
-      data: ing.oggi,
+      id: "saldo-anno",
+      titolo: `Saldo ${ing.impostazioni.anno}, da versare a giugno`,
+      data: dataSaldo,
       quota: residuo,
-      mesiMancanti: 0,
-      alMese: residuo,
-      scaduta: true,
+      mesiMancanti,
+      /*
+        Se anche il 30 giugno fosse passato — si guarda un anno chiuso da un
+        pezzo — allora sì che è un arretrato, e vale la regola di sempre:
+        l'intero importo su questo mese, nessuna divisione per zero.
+      */
+      alMese: mesiMancanti === 0 ? residuo : round2(residuo / mesiMancanti),
+      scaduta: mesiMancanti === 0,
     });
-    avvisi.push(
-      `${residuo.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} € superano quello che resta da versare entro le prossime scadenze: è denaro che doveva già essere uscito, e va messo da parte adesso.`,
-    );
+    if (mesiMancanti === 0) {
+      avvisi.push(
+        `Il saldo ${ing.impostazioni.anno} andava versato entro il 30 giugno ${ing.impostazioni.anno + 1}: va messo da parte adesso.`,
+      );
+    }
   }
 
   return chiudi(

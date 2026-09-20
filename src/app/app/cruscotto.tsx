@@ -81,6 +81,7 @@ export function Cruscotto() {
         impostazioni,
         parametri: parametriDi(anno),
         iva,
+        versamenti: dati.versamenti,
         precedente: precedente?.prospetto ?? null,
         oggi,
       }),
