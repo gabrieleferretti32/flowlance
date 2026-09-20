@@ -352,6 +352,13 @@ export function Cruscotto() {
                 {p.caricoTotale > p.fabbisognoDaAccantonare && (
                   <p>su {euro(p.caricoTotale)} di carico, il resto è già versato</p>
                 )}
+                {/*
+                  Il rimando all'altra card. Oggi il legame fra «questo mese» e
+                  «la percentuale che hai impostato» si doveva dedurre: costa
+                  una riga dirlo, e senza quella riga due numeri diversi sulla
+                  stessa pagina si leggono come una contraddizione.
+                */}
+                <p>Questo è il mese. La taratura annuale è più sotto.</p>
               </div>
             }
           />
@@ -426,9 +433,27 @@ export function Cruscotto() {
               ) : undefined
             }
           />
+        </section>
+
+        {/*
+          La taratura della percentuale, **fuori** dalla fila di sopra.
+
+          Le due card rispondevano a due domande diverse con due denominatori
+          diversi, una accanto all'altra e con lo stesso nome in testa:
+          «Copertura dell'accantonamento» accanto a «metti da parte X» si legge
+          come due misure della stessa cosa, e quando dicono numeri diversi —
+          121 % di copertura mentre la quota chiede mille euro — chi legge
+          conclude che una delle due sbaglia.
+
+          Non sbagliano: una guarda **l'anno intero** per dire se la
+          percentuale impostata è tarata bene, l'altra guarda **questo mese**
+          per dire quanto togliere dal conto. Qui la prima prende il suo nome,
+          esce dalla fila e dice a voce quale delle due domande risolve.
+        */}
+        <section aria-label="La percentuale di accantonamento che hai impostato">
           <Kpi
             taglia="kpiSm"
-            etichetta="Copertura dell'accantonamento"
+            etichetta="La percentuale che hai impostato"
             valore={copertura === null ? "—" : coperturaScritta(copertura)}
             nota={
               copertura === null
@@ -436,18 +461,24 @@ export function Cruscotto() {
                 : `il ${percentuale(p.percentualeImpostata, 0)} dei ricavi fa ${euro(p.accantonamentoAnnuo)} sui ${euro(p.fabbisognoAnnuo)} che l'anno costa`
             }
             sotto={
-              p.scostamentoAccantonamento < 0 ? (
-                p.accantonamentoSufficiente ? (
-                  <p className="text-inchiostro-tenue">
-                    mancano {euro(-p.scostamentoAccantonamento)}: dentro la tolleranza, va bene così
-                  </p>
-                ) : (
-                  <p className="text-[#B8791A]">
-                    mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
-                    {aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100)}
-                  </p>
-                )
-              ) : undefined
+              <div className="space-y-1">
+                {p.scostamentoAccantonamento < 0 &&
+                  (p.accantonamentoSufficiente ? (
+                    <p className="text-inchiostro-tenue">
+                      mancano {euro(-p.scostamentoAccantonamento)}: dentro la tolleranza, va bene
+                      così
+                    </p>
+                  ) : (
+                    <p className="text-[#B8791A]">
+                      mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
+                      {aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100)}
+                    </p>
+                  ))}
+                <p className="text-inchiostro-tenue">
+                  È tarata sull&apos;anno intero. Quanto mettere via adesso lo dice «Questo mese
+                  metti da parte», qui sopra.
+                </p>
+              </div>
             }
           />
         </section>
