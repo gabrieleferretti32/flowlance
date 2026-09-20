@@ -15,18 +15,31 @@ import type {
   IstantaneaArchivio,
   NotaCredito,
 } from "./tipi";
+import type {
+  BenePf,
+  BudgetPf,
+  CategoriaPf,
+  ContoPersonale,
+  ImportPf,
+  MovimentoPf,
+  RegolaPf,
+} from "@/lib/finanze/tipi";
 
 /**
  * La versione dello schema, che è due cose in una: la versione del database e
  * quella del formato di backup.
  *
- * 7 per due ragioni insieme. I dati sono cambiati — le impostazioni portano
- * regione, comune e la marcatura dei parametri ereditati — e un backup scritto
- * oggi non è leggibile per intero da una versione precedente, che li
- * scarterebbe in silenzio: meglio che si rifiuti dicendo di aggiornare. E c'è
- * una tabella nuova, `istantanee`, che nel backup non entra ma nel database sì.
+ * 8 con l'arrivo delle finanze personali: sette tabelle nuove, che nel backup
+ * entrano. Un backup scritto oggi porta chiavi che una versione precedente non
+ * conosce, e va rifiutato dicendo di aggiornare invece di essere letto a metà.
+ *
+ * Nel verso opposto no: un backup **vecchio** non porta quelle chiavi, e deve
+ * entrare senza un errore — chi ha esportato a settembre non ha fatto niente di
+ * sbagliato. Lo tiene `convalidaElenco`, che su una chiave assente restituisce
+ * un elenco vuoto, e un test in `backup.test.ts` che importa un file senza il
+ * modulo.
  */
-export const VERSIONE_SCHEMA = 7;
+export const VERSIONE_SCHEMA = 8;
 
 /**
  * Lo schema IndexedDB.
@@ -51,6 +64,15 @@ export class DatabaseFinanze extends Dexie {
   percorsi!: EntityTable<StatoPercorso, "id">;
   importazioni!: EntityTable<Importazione, "id">;
   istantanee!: EntityTable<IstantaneaArchivio, "id">;
+
+  // ——— Finanze personali ———
+  pfConti!: EntityTable<ContoPersonale, "id">;
+  pfMovimenti!: EntityTable<MovimentoPf, "id">;
+  pfCategorie!: EntityTable<CategoriaPf, "id">;
+  pfBudget!: EntityTable<BudgetPf, "categoriaId">;
+  pfBeni!: EntityTable<BenePf, "id">;
+  pfRegole!: EntityTable<RegolaPf, "id">;
+  pfImport!: EntityTable<ImportPf, "id">;
 
   // Il nome del database resta quello originale anche dopo il rename del
   // progetto in Flowlance: in IndexedDB il nome È la chiave dell'archivio,
@@ -103,6 +125,25 @@ export class DatabaseFinanze extends Dexie {
     // cioè «niente da ripristinare», che è lo stato di sempre.
     this.version(7).stores({
       istantanee: "id, creataIl",
+    });
+    /*
+      Versione 8: le finanze personali. Sette tabelle nuove e nessuna
+      migrazione — chi apre l'app dopo l'aggiornamento le trova vuote, che è
+      esattamente lo stato «non ho ancora configurato il modulo».
+
+      Gli indici sono quelli che le schermate interrogheranno davvero: la data
+      e il conto sui movimenti (il registro si filtra per mese e per conto),
+      l'import per poterlo annullare in blocco, la coppia categoria-anno sul
+      budget, che è la sua chiave naturale.
+    */
+    this.version(8).stores({
+      pfConti: "id, nome",
+      pfMovimenti: "id, data, contoId, categoriaId, importId",
+      pfCategorie: "id, tipo",
+      pfBudget: "[categoriaId+anno], anno",
+      pfBeni: "id, classe",
+      pfRegole: "id",
+      pfImport: "id, data",
     });
   }
 }

@@ -63,6 +63,23 @@ export class MemoriaAdapter implements StorageAdapter {
   readonly importazioni = new DepositoMemoria<Importazione, string>((v) => v.id);
   readonly istantanee = new DepositoMemoria<IstantaneaArchivio, string>((v) => v.id);
 
+  // ——— Finanze personali ———
+  readonly pfConti = new DepositoMemoria<Dati["pfConti"][number], string>((v) => v.id);
+  readonly pfMovimenti = new DepositoMemoria<Dati["pfMovimenti"][number], string>((v) => v.id);
+  readonly pfCategorie = new DepositoMemoria<Dati["pfCategorie"][number], string>((v) => v.id);
+  /*
+    Il budget non ha un id: la sua chiave è la coppia categoria-anno, come
+    nello schema Dexie. Un id in più sarebbe una seconda identità per la stessa
+    riga, e due righe della stessa categoria nello stesso anno non vogliono
+    dire niente.
+  */
+  readonly pfBudget = new DepositoMemoria<Dati["pfBudget"][number], string>(
+    (v) => `${v.categoriaId}|${v.anno}`,
+  );
+  readonly pfBeni = new DepositoMemoria<Dati["pfBeni"][number], string>((v) => v.id);
+  readonly pfRegole = new DepositoMemoria<Dati["pfRegole"][number], string>((v) => v.id);
+  readonly pfImport = new DepositoMemoria<Dati["pfImport"][number], string>((v) => v.id);
+
   private deposito(collezione: NomeCollezione) {
     return this[collezione] as DepositoMemoria<unknown, string | number>;
   }

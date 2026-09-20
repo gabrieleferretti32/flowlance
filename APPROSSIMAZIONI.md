@@ -638,3 +638,25 @@ Due cose che stanno in `parametri/<anno>.ts` ma **non sono valori di legge**, e
 non vanno cercate in una norma: `rateRateizzazione` (sei rate è la proposta
 dell'app, il contribuente sceglie entro il termine massimo) e `sogliaAvviso`
 (l'85 % del limite forfettario oltre il quale scatta l'avviso preventivo).
+
+---
+
+## Finanze personali
+
+Il modulo non calcola imposte: dice quanto resta **dopo** che il motore fiscale
+ha detto quanto accantonare. Le semplificazioni qui sotto riguardano il resto
+del conto, e sono tutte nel modo in cui si stima un mese che non è ancora
+successo.
+
+| Semplificazione | Coperta da un test? |
+| --- | --- |
+| **L'accantonamento fiscale è lo stesso ogni mese**: `accantonamentoMensile` è il fabbisogno annuo diviso dodici, e il modulo lo usa tale e quale in tutti e dodici i mesi. Le scadenze vere non sono mensili — a giugno e novembre escono gli acconti — quindi il mese di giugno è sottostimato e i mesi vuoti sovrastimati. Sull'anno torna | sì, `limite.test.ts`: il modulo usa la cifra che riceve e non la ricalcola |
+| **Il riporto si accumula**: il riporto di marzo è quel che resta a febbraio, che contiene già il riporto di gennaio. Un avanzo di tre mesi si somma tutto, e uno sforamento si trascina fino a fine anno | sì, `limite.test.ts` |
+| **La media che sostituisce il budget mancante ignora la stagionalità**: chi fattura a gennaio e a luglio si vede attribuire la stessa entrata anche a dicembre. La cella si marca come stima, ma la stima resta piatta | sì, `limite.test.ts`: la media esce dai soli mesi con movimenti, e `stimate` la dichiara |
+| **Il mese in corso prende il maggiore fra incassato e previsto**: il giorno 3 vale il previsto, il giorno 28 vale l'incassato se è più alto. Il limite quindi si muove durante il mese, e può scendere se il previsto era ottimista | sì, `limite.test.ts` |
+| **L'abbinamento dei giroconti guarda solo importo, conti e tre giorni**: due spostamenti di pari importo fra gli stessi due conti nella stessa settimana possono accoppiarsi incrociati. Il saldo totale resta giusto — è la stessa cifra fra gli stessi conti — ma la data del singolo movimento no | sì, `giroconti.test.ts`: coppia sola, ordine deterministico, e il caso dei tre movimenti uguali |
+| **Il saldo di un conto è affidabile solo dopo la data di riferimento**: prima di quella data la serie storica non dice niente, e infatti non disegna nulla. Non è un errore di calcolo, è il limite del dato | sì, `saldo.test.ts` |
+
+**Quello che il modulo non fa, e non è un'approssimazione:** non dà consigli.
+Dice «puoi spendere X» perché è una sottrazione, e non dice «dovresti
+investire» perché non lo sa e non è autorizzato a dirlo.

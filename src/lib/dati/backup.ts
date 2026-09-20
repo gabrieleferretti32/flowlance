@@ -633,6 +633,163 @@ function costruisciConvalidaImpostazioni(
  * Legge un file di backup. Non lancia mai: restituisce gli errori da mostrare
  * all'utente, perché un import fallito non deve somigliare a un crash.
  */
+// ————————————————————————————————————————————————————————————
+// Finanze personali
+// ————————————————————————————————————————————————————————————
+
+/*
+  Le sette convalide del modulo. Stesso principio delle altre: una riga che non
+  si può interpretare viene scartata con un errore che la nomina, non
+  silenziosamente corretta. E un **importo negativo è un errore**, non un
+  numero da raddrizzare: nel modello il segno lo dà il tipo, e un backup che
+  porta −200 in un campo importo è un file scritto da qualcos'altro — leggerlo
+  come 200 vorrebbe dire indovinare che cosa intendeva.
+*/
+
+const importoPositivo = (
+  riga: Record<string, unknown>,
+  collezione: NomeCollezione,
+  i: number,
+  errori: string[],
+): number | null => {
+  const v = numero(riga.importo ?? riga.valore, Number.NaN);
+  if (!Number.isFinite(v)) {
+    errori.push(`${collezione}, riga ${i + 1}: importo mancante o non numerico.`);
+    return null;
+  }
+  if (v < 0) {
+    errori.push(
+      `${collezione}, riga ${i + 1}: importo negativo (${v}). Gli importi sono sempre positivi: il segno lo dà il tipo.`,
+    );
+    return null;
+  }
+  return v;
+};
+
+const unoDi = <T extends string>(v: unknown, ammessi: readonly T[], predefinito: T): T =>
+  ammessi.includes(v as T) ? (v as T) : predefinito;
+
+const convalidaConto: Convalida<Dati["pfConti"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfConti", i, errori);
+  if (!id) return null;
+  const dataRiferimento = dataOpzionale(riga.dataRiferimento);
+  if (!dataRiferimento) {
+    errori.push(
+      `pfConti, riga ${i + 1}: manca la data del saldo di riferimento. Senza quella il saldo non si può ancorare, e ogni import lo cambierebbe.`,
+    );
+    return null;
+  }
+  return {
+    id,
+    nome: testo(riga.nome),
+    tipo: unoDi(riga.tipo, ["corrente", "deposito", "carta", "contanti", "wallet"] as const, "corrente"),
+    ...(typeof riga.colore === "string" ? { colore: riga.colore } : {}),
+    saldoRiferimento: numero(riga.saldoRiferimento, 0),
+    dataRiferimento,
+    professionale: booleano(riga.professionale),
+  };
+};
+
+const convalidaMovimentoPf: Convalida<Dati["pfMovimenti"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfMovimenti", i, errori);
+  if (!id) return null;
+  const data = dataOpzionale(riga.data);
+  if (!data) {
+    errori.push(`pfMovimenti, riga ${i + 1}: data mancante o non in formato aaaa-mm-gg.`);
+    return null;
+  }
+  const importo = importoPositivo(riga, "pfMovimenti", i, errori);
+  if (importo === null) return null;
+  return {
+    id,
+    data,
+    tipo: unoDi(riga.tipo, ["entrata", "spesa", "risparmio", "rata", "giroconto"] as const, "spesa"),
+    categoriaId: testo(riga.categoriaId),
+    contoId: testo(riga.contoId),
+    ...(typeof riga.contoDestinazioneId === "string"
+      ? { contoDestinazioneId: riga.contoDestinazioneId }
+      : {}),
+    importo,
+    descrizione: testo(riga.descrizione),
+    ...(typeof riga.importId === "string" ? { importId: riga.importId } : {}),
+    ...(typeof riga.hashDuplicato === "string" ? { hashDuplicato: riga.hashDuplicato } : {}),
+  };
+};
+
+const convalidaCategoriaPf: Convalida<Dati["pfCategorie"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfCategorie", i, errori);
+  if (!id) return null;
+  return {
+    id,
+    tipo: unoDi(riga.tipo, ["entrata", "spesa", "risparmio", "rata"] as const, "spesa"),
+    nome: testo(riga.nome),
+    fissa: booleano(riga.fissa),
+    ...(typeof riga.icona === "string" ? { icona: riga.icona } : {}),
+  };
+};
+
+const convalidaBudget: Convalida<Dati["pfBudget"][number]> = (riga, i, errori) => {
+  const categoriaId = testo(riga.categoriaId);
+  if (!categoriaId) {
+    errori.push(`pfBudget, riga ${i + 1}: manca la categoria.`);
+    return null;
+  }
+  const anno = numero(riga.anno, Number.NaN);
+  if (!Number.isFinite(anno)) {
+    errori.push(`pfBudget, riga ${i + 1}: anno mancante o non numerico.`);
+    return null;
+  }
+  /*
+    Dodici caselle, sempre. Un elenco più corto lascerebbe `undefined` nei mesi
+    mancanti, e `undefined` dentro una somma produce NaN: un budget che si
+    propaga a tutta la tabella del limite come «non un numero».
+  */
+  const grezzi = Array.isArray(riga.importi) ? riga.importi : [];
+  const importi = Array.from({ length: 12 }, (_, m) => numero(grezzi[m], 0));
+  return { categoriaId, anno, importi };
+};
+
+const convalidaBene: Convalida<Dati["pfBeni"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfBeni", i, errori);
+  if (!id) return null;
+  const valore = importoPositivo(riga, "pfBeni", i, errori);
+  if (valore === null) return null;
+  return {
+    id,
+    classe: unoDi(
+      riga.classe,
+      ["investimenti", "beni", "crediti", "pensione", "altro", "debiti"] as const,
+      "altro",
+    ),
+    nome: testo(riga.nome),
+    valore,
+    aggiornatoIl: dataOpzionale(riga.aggiornatoIl) ?? "",
+  };
+};
+
+const convalidaRegola: Convalida<Dati["pfRegole"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfRegole", i, errori);
+  if (!id) return null;
+  return {
+    id,
+    testoDaCercare: testo(riga.testoDaCercare),
+    categoriaId: testo(riga.categoriaId),
+    tipo: unoDi(riga.tipo, ["entrata", "spesa", "risparmio", "rata", "giroconto"] as const, "spesa"),
+  };
+};
+
+const convalidaImportPf: Convalida<Dati["pfImport"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfImport", i, errori);
+  if (!id) return null;
+  return {
+    id,
+    data: dataOpzionale(riga.data) ?? "",
+    file: testo(riga.file),
+    contoId: testo(riga.contoId),
+    numeroMovimenti: numero(riga.numeroMovimenti, 0),
+  };
+};
+
 export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
   let radice: unknown;
   try {
@@ -700,6 +857,20 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
   dati.spunte = convalidaElenco(contenuto.spunte, "spunte", convalidaSpunta, errori);
   dati.chiusure = convalidaElenco(contenuto.chiusure, "chiusure", convalidaChiusura, errori);
   dati.percorsi = convalidaElenco(contenuto.percorsi, "percorsi", convalidaPercorso, errori);
+
+  /*
+    Le finanze personali. Un backup esportato prima che il modulo esistesse non
+    porta queste chiavi, e `convalidaElenco` su `undefined` restituisce un
+    elenco vuoto: entra senza un errore, con il modulo vuoto — che è
+    esattamente la verità di quell'archivio. Lo tiene un test.
+  */
+  dati.pfConti = convalidaElenco(contenuto.pfConti, "pfConti", convalidaConto, errori);
+  dati.pfMovimenti = convalidaElenco(contenuto.pfMovimenti, "pfMovimenti", convalidaMovimentoPf, errori);
+  dati.pfCategorie = convalidaElenco(contenuto.pfCategorie, "pfCategorie", convalidaCategoriaPf, errori);
+  dati.pfBudget = convalidaElenco(contenuto.pfBudget, "pfBudget", convalidaBudget, errori);
+  dati.pfBeni = convalidaElenco(contenuto.pfBeni, "pfBeni", convalidaBene, errori);
+  dati.pfRegole = convalidaElenco(contenuto.pfRegole, "pfRegole", convalidaRegola, errori);
+  dati.pfImport = convalidaElenco(contenuto.pfImport, "pfImport", convalidaImportPf, errori);
 
   // Qui gli errori sono di riga: il file è un backup vero, con dentro dei
   // guasti localizzati. Si dice, perché si può rimediare.

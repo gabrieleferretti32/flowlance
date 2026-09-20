@@ -5,6 +5,15 @@
 import type { ChiusuraAnno } from "@/lib/fisco/chiusura";
 import type { StatoPercorso } from "@/lib/onboarding/percorso";
 import type { Costo, Fattura, Impostazioni, NotaCredito, VersamentoF24 } from "@/lib/fisco/tipi";
+import type {
+  BenePf,
+  BudgetPf,
+  CategoriaPf,
+  ContoPersonale,
+  ImportPf,
+  MovimentoPf,
+  RegolaPf,
+} from "@/lib/finanze/tipi";
 
 export type Cliente = {
   id: string;
@@ -148,6 +157,22 @@ export const COLLEZIONI = [
   "spunte",
   "chiusure",
   "percorsi",
+  /*
+    Le finanze personali. Il prefisso separa due famiglie di dati che non
+    vanno mai sommate: un movimento del conto corrente non è una fattura, e
+    la prima conseguenza di mescolarle sarebbe contare due volte lo stesso
+    incasso — una come documento riscosso, una come entrata in banca.
+
+    Il nome della collezione è anche la chiave nel file di backup: da qui in
+    poi cambiarlo è una migrazione, non una rinomina.
+  */
+  "pfConti",
+  "pfMovimenti",
+  "pfCategorie",
+  "pfBudget",
+  "pfBeni",
+  "pfRegole",
+  "pfImport",
 ] as const;
 
 export type NomeCollezione = (typeof COLLEZIONI)[number];
@@ -171,6 +196,15 @@ export type Dati = {
    * distingue un valore scelto da un valore mai toccato, e l'app lo dichiara.
    */
   percorsi: StatoPercorso[];
+
+  // ——— Finanze personali ———
+  pfConti: ContoPersonale[];
+  pfMovimenti: MovimentoPf[];
+  pfCategorie: CategoriaPf[];
+  pfBudget: BudgetPf[];
+  pfBeni: BenePf[];
+  pfRegole: RegolaPf[];
+  pfImport: ImportPf[];
 };
 
 export function datiVuoti(): Dati {
@@ -187,6 +221,13 @@ export function datiVuoti(): Dati {
     spunte: [],
     chiusure: [],
     percorsi: [],
+    pfConti: [],
+    pfMovimenti: [],
+    pfCategorie: [],
+    pfBudget: [],
+    pfBeni: [],
+    pfRegole: [],
+    pfImport: [],
   };
 }
 

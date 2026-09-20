@@ -935,6 +935,18 @@ export function datiVetrina(): Dati {
         aggiornatoIl: `${ANNO_VETRINA}-01-15T08:20:00.000Z`,
       },
     ],
+    /*
+      Le finanze personali: vuote. Elena Marani avrà i suoi conti e i suoi
+      movimenti alla fase 6, insieme alle schermate che li mostrano: prima
+      sarebbero numeri che nessuno può guardare.
+    */
+    pfConti: [],
+    pfMovimenti: [],
+    pfCategorie: [],
+    pfBudget: [],
+    pfBeni: [],
+    pfRegole: [],
+    pfImport: [],
   };
 }
 

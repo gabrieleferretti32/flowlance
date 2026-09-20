@@ -19,7 +19,7 @@ import { aliquoteIrpefNonDichiarate, campiDaDichiarare } from "@/lib/fisco/param
 import { esportazioneProspettoConsentita } from "@/lib/fisco/chiusura";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { ANNO_VETRINA, datiVetrina, ULTIMO_GIORNO_VETRINA } from "./vetrina";
-import { COLLEZIONI } from "./tipi";
+import { COLLEZIONI, type NomeCollezione } from "./tipi";
 import { CANALI_ACQUISIZIONE, CATEGORIE_COSTO } from "./categorie";
 import { avvisoBackup, promemoriaDopoExport, contaDocumenti } from "./promemoria-backup";
 import { contestoSuggerito } from "@/lib/onboarding/percorso";
@@ -311,8 +311,41 @@ describe("vetrina · niente parametri predefiniti, niente export bloccato", () =
 });
 
 describe("vetrina · le sezioni hanno tutte qualcosa dentro", () => {
-  it("nessuna collezione è vuota", () => {
-    for (const c of COLLEZIONI) expect(d[c].length, `collezione vuota: ${c}`).toBeGreaterThan(0);
+  /**
+   * Le collezioni che la vetrina non riempie **ancora**, nominate una per una.
+   *
+   * Il modo comodo di far passare questo test sarebbe stato allentarlo — «le
+   * collezioni piene sono almeno dodici» — e sarebbe stato il modo di non
+   * accorgersi mai più di una collezione dimenticata. Qui l'elenco è esplicito:
+   * quando la fase 6 darà a Elena i suoi conti e i suoi movimenti, queste righe
+   * si tolgono una per una, e finché ci sono si vede che cosa manca.
+   */
+  const ANCORA_VUOTE: NomeCollezione[] = [
+    "pfConti",
+    "pfMovimenti",
+    "pfCategorie",
+    "pfBudget",
+    "pfBeni",
+    "pfRegole",
+    "pfImport",
+  ];
+
+  it("nessuna collezione è vuota, tolte quelle dichiarate", () => {
+    for (const c of COLLEZIONI) {
+      if (ANCORA_VUOTE.includes(c)) continue;
+      expect(d[c].length, `collezione vuota: ${c}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("e le dichiarate sono vuote davvero: se una si riempie, va tolta da qui", () => {
+    /*
+      Il verso opposto. Senza questo, l'elenco diventerebbe un posto dove le
+      collezioni entrano e non escono più: la vetrina si riempirebbe alla fase
+      6 e il controllo continuerebbe a saltarle per sempre.
+    */
+    for (const c of ANCORA_VUOTE) {
+      expect(d[c].length, `${c} adesso ha dei dati: toglila da ANCORA_VUOTE`).toBe(0);
+    }
   });
 
   it("l'IVA ha debito e detraibile su tre trimestri", () => {

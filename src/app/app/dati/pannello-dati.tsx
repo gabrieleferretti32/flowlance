@@ -56,6 +56,13 @@ const ETICHETTE: Record<NomeCollezione, string> = {
   spunte: "Adempimenti spuntati",
   chiusure: "Chiusure d'anno",
   percorsi: "Percorsi di configurazione",
+  pfConti: "Conti personali",
+  pfMovimenti: "Movimenti personali (banca)",
+  pfCategorie: "Categorie di spesa",
+  pfBudget: "Budget per categoria",
+  pfBeni: "Beni e debiti",
+  pfRegole: "Regole di categoria",
+  pfImport: "Import dei movimenti",
 };
 
 export function PannelloDati() {

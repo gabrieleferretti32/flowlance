@@ -535,6 +535,17 @@ export function datiDemo(): Dati {
     // Il dataset dimostrativo non finge di aver risposto alle domande: il
     // percorso resta da fare, ed è giusto che si veda.
     percorsi: [],
+    /*
+      Le finanze personali: vuote. Il modulo non ha ancora schermate, e un dataset
+      dimostrativo che porta dati di un modulo invisibile non dimostra niente.
+    */
+    pfConti: [],
+    pfMovimenti: [],
+    pfCategorie: [],
+    pfBudget: [],
+    pfBeni: [],
+    pfRegole: [],
+    pfImport: [],
   };
 }
 
