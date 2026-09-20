@@ -23,6 +23,7 @@ import { generaAvvisi, type Avviso } from "@/lib/analisi/avvisi";
 import { PromemoriaBackup } from "@/components/dati/promemoria-backup";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { quotaAccantonamento } from "@/lib/fisco/accantonamento";
+import { round2 } from "@/lib/fisco/aritmetica";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { periodoIvaCorrente } from "@/lib/fisco/iva";
@@ -168,6 +169,31 @@ export function Cruscotto() {
   const { dovute, scavalcati } = versamento;
   const prossima = dovute[0] ?? null;
   const importoProssima = versamento.importo;
+  /*
+    Le tre cose che la card della quota mostra senza farsi aprire.
+
+    Stanno qui e non dentro il JSX perché sono tre letture della stessa
+    struttura, e in mezzo alla marcatura si leggerebbero come tre calcoli
+    diversi. `round2` e non una somma qualunque: è la stessa aritmetica del
+    foglio che produce le quote.
+  */
+  const ripartizione = (
+    [
+      ["IVA", analisi.quota.iva],
+      ["Imposte e contributi", analisi.quota.imposte],
+    ] as const
+  ).filter(([, parte]) => parte.voci.length > 0);
+  /* La prima scadenza che deve ancora arrivare: quelle passate non sono «la
+     prossima», sono un arretrato, e hanno la loro riga. */
+  const prossimaQuota =
+    [...analisi.quota.imposte.voci, ...analisi.quota.iva.voci]
+      .filter((v) => !v.scaduta)
+      .sort((a, b) => a.data.localeCompare(b.data))[0] ?? null;
+  const scadutiInQuota = round2(
+    [...analisi.quota.imposte.voci, ...analisi.quota.iva.voci]
+      .filter((v) => v.scaduta)
+      .reduce((tot, v) => tot + v.quota, 0),
+  );
   // Quanto del fabbisogno copre la percentuale impostata. `null` quando non
   // c'è niente da coprire: una percentuale su zero non vuol dire niente.
   // Anno contro anno: la percentuale impostata lavora su tutti i ricavi e ha
@@ -293,73 +319,109 @@ export function Cruscotto() {
             La cifra non è più un dodicesimo: è quello che resta da accantonare
             distribuito sulle scadenze che mancano, ciascuna divisa per i mesi
             che la separano da oggi. Quindi cresce avvicinandosi a una
-            scadenza, ed è il motivo per cui il dettaglio sta sotto: un numero
-            che si muove senza dire perché si legge come un errore.
+            scadenza, ed è il motivo per cui il dettaglio si può aprire: un
+            numero che si muove senza dire perché si legge come un errore.
+
+            Sopra c'era tutto aperto: nove righe in un riquadro grande come
+            quelli accanto, che ne hanno tre. Un prospetto, non
+            un'informazione. Adesso restano in vista le tre cose che si
+            guardano ogni volta — quanto, di cosa è fatto, quando scade la
+            prima — più la riga breve degli arretrati, che non si nasconde
+            perché è l'unica che chiede di fare qualcosa. Il resto sta dietro
+            un clic.
           */}
           <Kpi
             taglia="kpiSm"
             etichetta="Questo mese metti da parte"
             valore={euro(analisi.quota.alMese)}
+            /*
+              La ripartizione su una riga sola.
+
+              Sono due denari diversi: uno è l'imposta sul reddito, l'altro è
+              l'IVA che hai incassato dai clienti e che non è mai stata tua.
+              Chi legge «metti da parte 1.026 €» senza vedere che settecento
+              sono IVA non capisce perché la cifra è così alta — e chi passa al
+              forfettario non capisce perché è crollata. La metà che non c'è
+              non compare: in forfettario resta una voce sola, non uno zero da
+              interpretare.
+            */
             nota={
               analisi.quota.metodo === "ripiego"
                 ? "quello che resta, diviso i mesi che mancano a fine anno"
-                : "per arrivare con i soldi pronti a ogni scadenza"
+                : ripartizione.length > 0
+                  ? ripartizione.map(([nome, parte]) => `${nome} ${euro(parte.alMese)}`).join(" · ")
+                  : "per arrivare con i soldi pronti a ogni scadenza"
             }
             sotto={
-              <div className="space-y-2 text-inchiostro-tenue">
+              <div className="space-y-1.5 text-inchiostro-tenue">
+                {/* La prossima scadenza vera, con l'anno: la quarta rata INPS
+                    cade a febbraio, e «il 16/02» senza anno è un'altra data. */}
+                {prossimaQuota && <p>la prossima il {fmtData(prossimaQuota.data)}</p>}
                 {/*
-                  Le due metà separate, e non una somma sola.
+                  Gli arretrati restano sempre in vista, e in una riga sola.
 
-                  Sono due denari diversi: uno è l'imposta sul reddito, l'altro
-                  è l'IVA che hai incassato dai clienti e che non è mai stata
-                  tua. Chi legge «metti da parte 1.026 €» senza vedere che
-                  settecento sono IVA non capisce perché la cifra è così alta —
-                  e chi passa al forfettario non capisce perché è crollata.
+                  È l'unica riga della card che chiede di fare qualcosa invece
+                  di informare, quindi non va dietro un clic. Il dettaglio —
+                  quali scadenze, di quanto — sta nell'espansione con tutto il
+                  resto.
                 */}
-                {(
-                  [
-                    ["Imposte e contributi", analisi.quota.imposte],
-                    ["IVA", analisi.quota.iva],
-                  ] as const
-                )
-                  .filter(([, parte]) => parte.voci.length > 0)
-                  .map(([nome, parte]) => (
-                    <div key={nome}>
-                      <p className="font-medium text-inchiostro">
-                        {nome}: {euro(parte.alMese)}
-                      </p>
-                      {parte.voci.map((v) => (
-                        <p key={v.id}>
-                          {euro(v.quota)} entro il {fmtData(v.data)} —{" "}
-                          {v.mesiMancanti === 0
-                            ? "scadenza già passata"
-                            : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
+                {scadutiInQuota > 0 && (
+                  <p className="font-medium text-attenzione">
+                    {euro(scadutiInQuota)} già scaduti
+                  </p>
+                )}
+                {(analisi.quota.imposte.voci.length > 0 || analisi.quota.iva.voci.length > 0) && (
+                  <details className="group">
+                    <summary className="cursor-pointer list-none text-inchiostro-tenue [&::-webkit-details-marker]:hidden">
+                      {/* L'ultima parola e la freccia restano insieme: a due
+                          colonne su telefono la freccia finiva da sola su una riga. */}
+                      scadenza per{" "}
+                      <span className="whitespace-nowrap">
+                        scadenza
+                        <span className="text-accento group-open:hidden"> ▸</span>
+                        <span className="hidden text-accento group-open:inline"> ▾</span>
+                      </span>
+                    </summary>
+                    <div className="mt-1.5 space-y-2 border-l border-bordo pl-3">
+                      {ripartizione.map(([nome, parte]) => (
+                        <div key={nome}>
+                          <p className="font-medium text-inchiostro">
+                            {nome}: {euro(parte.alMese)}
+                          </p>
+                          {parte.voci.map((v) => (
+                            <p key={v.id}>
+                              {euro(v.quota)} entro il {fmtData(v.data)} —{" "}
+                              {v.mesiMancanti === 0
+                                ? "scadenza già passata"
+                                : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
+                            </p>
+                          ))}
+                        </div>
+                      ))}
+                      {analisi.quota.avvisi.map((a) => (
+                        <p key={a} className="text-attenzione">
+                          {a}
                         </p>
                       ))}
+                      {/*
+                        «Versato», non «coperto». Il motore sa che cosa è
+                        **uscito** — i versamenti F24 e le ritenute subite — e
+                        non sa niente di quello che una persona ha messo da
+                        parte. «Coperto» faceva credere che il resto fosse già
+                        al sicuro da qualche parte: è soltanto già pagato.
+                      */}
+                      {p.caricoTotale > p.fabbisognoDaAccantonare && (
+                        <p>su {euro(p.caricoTotale)} di carico, il resto è già versato</p>
+                      )}
+                      {/*
+                        Il rimando all'altra card. Sta qui dentro e non in
+                        vista perché il legame lo dichiara anche l'altra card,
+                        dalla sua parte: là la riga è sempre visibile.
+                      */}
+                      <p>Questo è il mese. La taratura annuale è più sotto.</p>
                     </div>
-                  ))}
-                {analisi.quota.avvisi.map((a) => (
-                  <p key={a} className="text-attenzione">
-                    {a}
-                  </p>
-                ))}
-                {/*
-                  «Versato», non «coperto». Il motore sa che cosa è **uscito** —
-                  i versamenti F24 e le ritenute subite — e non sa niente di
-                  quello che una persona ha messo da parte. «Coperto» faceva
-                  credere che il resto fosse già al sicuro da qualche parte: è
-                  soltanto già pagato.
-                */}
-                {p.caricoTotale > p.fabbisognoDaAccantonare && (
-                  <p>su {euro(p.caricoTotale)} di carico, il resto è già versato</p>
+                  </details>
                 )}
-                {/*
-                  Il rimando all'altra card. Oggi il legame fra «questo mese» e
-                  «la percentuale che hai impostato» si doveva dedurre: costa
-                  una riga dirlo, e senza quella riga due numeri diversi sulla
-                  stessa pagina si leggono come una contraddizione.
-                */}
-                <p>Questo è il mese. La taratura annuale è più sotto.</p>
               </div>
             }
           />
