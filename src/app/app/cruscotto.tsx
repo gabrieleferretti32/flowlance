@@ -22,6 +22,7 @@ import {
 import { generaAvvisi, type Avviso } from "@/lib/analisi/avvisi";
 import { PromemoriaBackup } from "@/components/dati/promemoria-backup";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
+import { quotaAccantonamento } from "@/lib/fisco/accantonamento";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { periodoIvaCorrente } from "@/lib/fisco/iva";
@@ -70,6 +71,19 @@ export function Cruscotto() {
       precedente?.prospetto ?? null,
     );
     return {
+      /*
+        La quota del mese. Riceve il prospetto dell'anno prima — quello che il
+        cruscotto ha già per le scadenze — perché senza gli acconti escono
+        senza importo e la quota uscirebbe più bassa del vero, in silenzio.
+      */
+      quota: quotaAccantonamento({
+        prospetto,
+        impostazioni,
+        parametri: parametriDi(anno),
+        iva,
+        precedente: precedente?.prospetto ?? null,
+        oggi,
+      }),
       mesi: andamentoMensile(
         prospetto.fattureCalcolate,
         prospetto.costiCalcolati,
@@ -272,20 +286,43 @@ export function Cruscotto() {
           aria-label="Quanto mettere da parte, e quando esce"
           className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4"
         >
+{/*
+            «Questo mese», non «al mese».
+
+            La cifra non è più un dodicesimo: è quello che resta da accantonare
+            distribuito sulle scadenze che mancano, ciascuna divisa per i mesi
+            che la separano da oggi. Quindi cresce avvicinandosi a una
+            scadenza, ed è il motivo per cui il dettaglio sta sotto: un numero
+            che si muove senza dire perché si legge come un errore.
+          */}
           <Kpi
             taglia="kpiSm"
-            etichetta="Quota mensile del fabbisogno"
-            valore={euro(p.accantonamentoMensile)}
-            nota="quello che resta da versare, diviso dodici"
+            etichetta="Questo mese metti da parte"
+            valore={euro(analisi.quota.alMese)}
+            nota={
+              analisi.quota.metodo === "ripiego"
+                ? "quello che resta, diviso i mesi che mancano a fine anno"
+                : "per arrivare con i soldi pronti a ogni scadenza"
+            }
             sotto={
-              // Il carico dell'anno è un altro numero, più alto: se una parte è
-              // già stata versata o trattenuta, va detto qui, dove si guarda
-              // quanto mettere da parte.
-              p.caricoTotale > p.fabbisognoDaAccantonare ? (
-                <p className="text-inchiostro-tenue">
-                  su {euro(p.caricoTotale)} di carico, il resto è già coperto
-                </p>
-              ) : undefined
+              <div className="space-y-1 text-inchiostro-tenue">
+                {analisi.quota.voci.map((v) => (
+                  <p key={v.id}>
+                    {euro(v.quota)} entro il {fmtData(v.data)} —{" "}
+                    {v.mesiMancanti === 0
+                      ? "scadenza già passata"
+                      : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
+                  </p>
+                ))}
+                {analisi.quota.avvisi.map((a) => (
+                  <p key={a} className="text-attenzione">
+                    {a}
+                  </p>
+                ))}
+                {p.caricoTotale > p.fabbisognoDaAccantonare && (
+                  <p>su {euro(p.caricoTotale)} di carico, il resto è già coperto</p>
+                )}
+              </div>
             }
           />
           {periodoIva && (
