@@ -662,6 +662,31 @@ successo.
 Dice «puoi spendere X» perché è una sottrazione, e non dice «dovresti
 investire» perché non lo sa e non è autorizzato a dirlo.
 
+### Quello che manca ancora, e quando
+
+**Il tetto dato dal conto deve togliere anche l'accantonato non versato.**
+Segnalato il 20 settembre 2026, da fare alla **fase 4**, quando la schermata
+«Quanto posso spendere» arriva davvero.
+
+Il controllo sul conto, come sta nel brief, confronta «resta da spendere» con
+il saldo totale meno il cuscinetto e meno fisse, risparmi e rate ancora da
+pagare nel mese. Manca un pezzo, ed è il più grosso: **i soldi già accantonati
+per il fisco e non ancora versati sono ancora sul conto.** A settembre, con tre
+trimestri di IVA messi da parte e il prossimo F24 a novembre, quel denaro si
+vede nel saldo e non è disponibile.
+
+Senza quella sottrazione il tetto dice una cifra più alta del vero proprio nei
+mesi in cui il fondo è più pieno — cioè quelli in cui una persona è più
+tentata di fidarsi del saldo. È lo stesso difetto del doppio conteggio delle
+tasse, girato al contrario: là contavamo due volte un'uscita, qui contiamo una
+volta di troppo una disponibilità.
+
+Il numero da togliere è «quanto ho accantonato finora meno quanto ho già
+versato». Il motore fiscale conosce il secondo termine (`giaVersato`) ma **non
+il primo**: non sa quanto una persona abbia messo da parte davvero. Lo saprà il
+modulo, quando i movimenti diranno quanto è finito nelle categorie di risparmio
+del fisco o su un conto dedicato. È una dipendenza fra le due metà, e va
+disegnata alla fase 4 invece di essere scoperta lì.
 ---
 
 ## La quota di accantonamento del mese
