@@ -4,6 +4,7 @@ import { calcolaProspetto, type Prospetto } from "./motore";
 import { calcolaIva } from "./iva";
 import { scadenzeAnno } from "./scadenze";
 import { parametriDi } from "./parametri";
+import { round2 } from "./aritmetica";
 import { mesiFinoA, mesiRimastiNellAnno, quotaAccantonamento } from "./accantonamento";
 
 const d = datiVetrina();
@@ -77,7 +78,7 @@ describe("**gli acconti devono avere un importo**", () => {
     const q = quota("2026-09-20", false);
     expect(q.metodo).toBe("ripiego");
     expect(q.avvisi.join(" ")).toMatch(/anno scorso/);
-    expect(q.alMese).toBe(Math.round((q.daAccantonare / 4) * 100) / 100);
+    expect(q.imposte.alMese).toBe(Math.round((q.imposte.daAccantonare / 4) * 100) / 100);
   });
 });
 
@@ -86,15 +87,15 @@ describe("**la quota di settembre, sui numeri veri della vetrina**", () => {
 
   it("distribuisce il residuo sulle scadenze future, non la somma delle scadenze", () => {
     expect(q.metodo).toBe("scadenze");
-    expect(q.daAccantonare).toBe(3_035.93);
+    expect(q.imposte.daAccantonare).toBe(3_035.93);
     // Il 30 giugno è passato: non entra. Resta il secondo acconto del 30 novembre.
-    expect(q.voci.map((v) => v.data)).toEqual(["2026-11-30"]);
-    expect(q.voci[0].quota).toBe(3_035.93);
-    expect(q.voci[0].mesiMancanti).toBe(3);
+    expect(q.imposte.voci.map((v) => v.data)).toEqual(["2026-11-30"]);
+    expect(q.imposte.voci[0].quota).toBe(3_035.93);
+    expect(q.imposte.voci[0].mesiMancanti).toBe(3);
   });
 
   it("e fa 1.011,98 € al mese, non 252,99 €", () => {
-    expect(q.alMese).toBe(1_011.98);
+    expect(q.imposte.alMese).toBe(1_011.98);
     expect(prospettoDi(2026, "2026-09-20").accantonamentoMensile).toBe(252.99);
   });
 
@@ -105,22 +106,22 @@ describe("**la quota di settembre, sui numeri veri della vetrina**", () => {
 
 describe("la quota si muove con il calendario, invece di scendere quando paghi", () => {
   it("più ci si avvicina alla scadenza, più sale", () => {
-    const mesi = ["2026-09-20", "2026-10-20", "2026-11-20"].map((o) => quota(o).alMese);
+    const mesi = ["2026-09-20", "2026-10-20", "2026-11-20"].map((o) => quota(o).imposte.alMese);
     expect(mesi[0]).toBeLessThan(mesi[1]);
     expect(mesi[1]).toBeLessThan(mesi[2]);
   });
 
   it("l'ultimo mese utile chiede tutto quello che manca", () => {
     const q = quota("2026-11-20");
-    expect(q.voci[0].mesiMancanti).toBe(1);
-    expect(q.alMese).toBe(q.daAccantonare);
+    expect(q.imposte.voci[0].mesiMancanti).toBe(1);
+    expect(q.imposte.alMese).toBe(q.imposte.daAccantonare);
   });
 });
 
 describe("**quando è già scaduto: niente divisione per zero**", () => {
   it("dopo l'ultima scadenza dell'anno tutto il residuo è di questo mese, con l'avviso", () => {
     const q = quota("2026-12-10");
-    const inRitardo = q.voci.find((v) => v.scaduta);
+    const inRitardo = q.imposte.voci.find((v) => v.scaduta);
     expect(inRitardo).toBeDefined();
     expect(inRitardo?.mesiMancanti).toBe(0);
     expect(inRitardo?.alMese).toBe(inRitardo?.quota);
@@ -130,7 +131,14 @@ describe("**quando è già scaduto: niente divisione per zero**", () => {
 });
 
 describe("i casi che non devono rompere niente", () => {
-  it("con niente da accantonare la quota è zero e non ci sono voci", () => {
+  /*
+    La versione precedente di questo test pretendeva che la quota intera fosse
+    zero. Era vero quando le componenti erano una sola: adesso non lo è più, ed
+    è giusto che non lo sia. Chi non deve più niente di imposte può dovere
+    ancora l'IVA del trimestre — sono due denari diversi, e il secondo non
+    smette di esistere perché il primo è finito.
+  */
+  it("senza fabbisogno di imposte resta comunque l'IVA", () => {
     const p = prospettoDi(2026, "2026-09-20");
     const q = quotaAccantonamento({
       prospetto: { ...p, fabbisognoDaAccantonare: 0 },
@@ -138,15 +146,110 @@ describe("i casi che non devono rompere niente", () => {
       iva: calcolaIva(p.fattureCalcolate, p.costiCalcolati, impDi(2026), parametriDi(2026)),
       precedente: prospettoDi(2025, "2026-09-20"), oggi: "2026-09-20",
     });
-    expect(q.alMese).toBe(0);
-    expect(q.voci).toEqual([]);
+    expect(q.imposte.alMese).toBe(0);
+    expect(q.imposte.voci).toEqual([]);
+    expect(q.alMese).toBe(q.iva.alMese);
   });
 
   it("la somma delle voci è la quota, e le quote sommano il residuo", () => {
     const q = quota("2026-09-20");
-    const somma = q.voci.reduce((t, v) => t + v.alMese, 0);
+    const tutte = [...q.imposte.voci, ...q.iva.voci];
+    const somma = tutte.reduce((t, v) => t + v.alMese, 0);
     expect(Math.abs(somma - q.alMese)).toBeLessThan(0.02);
-    const distribuito = q.voci.reduce((t, v) => t + v.quota, 0);
-    expect(Math.abs(distribuito - q.daAccantonare)).toBeLessThan(0.02);
+    const distribuito = q.imposte.voci.reduce((t, v) => t + v.quota, 0);
+    expect(Math.abs(distribuito - q.imposte.daAccantonare)).toBeLessThan(0.02);
+  });
+});
+
+/**
+ * L'IVA è la seconda componente, e in forfettario sparisce da sé.
+ *
+ * Per chi è in ordinario l'IVA incassata non è sua, e il limite di spesa del
+ * modulo parte dalle entrate in banca — che la comprendono. Una quota che la
+ * escludesse lascerebbe spendere l'IVA dei clienti: sul dataset di vetrina
+ * sono più del carico fiscale intero.
+ */
+describe("**la componente IVA**", () => {
+  const ordinario = quota("2026-09-20");
+
+  it("c'è, e sta su scadenze di sola IVA", () => {
+    expect(ordinario.iva.voci.length).toBeGreaterThan(0);
+    for (const v of ordinario.iva.voci) expect(v.componente).toBe("iva");
+  });
+
+  it("le imposte restano su scadenze di sole imposte e contributi", () => {
+    for (const v of ordinario.imposte.voci) expect(v.componente).toBe("imposte");
+  });
+
+  it("**il totale è esattamente la somma delle due**", () => {
+    expect(ordinario.alMese).toBe(
+      Math.round((ordinario.imposte.alMese + ordinario.iva.alMese) * 100) / 100,
+    );
+  });
+
+  it("ogni scadenza IVA futura è il suo importo diviso i mesi che mancano", () => {
+    for (const v of ordinario.iva.voci) {
+      expect(v.mesiMancanti).toBeGreaterThan(0);
+      expect(v.alMese).toBe(Math.round((v.quota / v.mesiMancanti) * 100) / 100);
+    }
+  });
+
+  it("le scadenze IVA già passate non ci sono", () => {
+    for (const v of ordinario.iva.voci) expect(v.data >= "2026-09-20").toBe(true);
+  });
+});
+
+describe("**stesso mese, ordinario contro forfettario**", () => {
+  const oggi = "2026-09-20";
+  const ordinario = quota(oggi);
+
+  /*
+    Lo stesso archivio, lo stesso mese, cambiata una cosa sola: il regime.
+    Non un dataset diverso — sarebbero due situazioni diverse, e il confronto
+    non direbbe niente sul regime.
+  */
+  const forfettario = (() => {
+    const imp = { ...impDi(2026), regime: "forfettario" as const };
+    const p = calcolaProspetto({
+      impostazioni: imp, parametri: parametriDi(2026), fatture: d.fatture, costi: d.costi,
+      note: d.note, versamenti: d.versamenti,
+      impostazioniPerAnno: d.impostazioni.map((i) => (i.anno === 2026 ? imp : i)),
+      oggi,
+    });
+    return quotaAccantonamento({
+      prospetto: p,
+      impostazioni: imp,
+      parametri: parametriDi(2026),
+      iva: calcolaIva(p.fattureCalcolate, p.costiCalcolati, imp, parametriDi(2026)),
+      precedente: prospettoDi(2025, oggi),
+      oggi,
+    });
+  })();
+
+  it("in forfettario la componente IVA è zero", () => {
+    expect(forfettario.iva.alMese).toBe(0);
+    expect(forfettario.iva.voci).toEqual([]);
+    expect(forfettario.iva.daAccantonare).toBe(0);
+  });
+
+  it("**e la quota totale è la sola parte di imposte**", () => {
+    expect(forfettario.alMese).toBe(forfettario.imposte.alMese);
+  });
+
+  it("**in ordinario la quota è più alta di esattamente la parte IVA**", () => {
+    /*
+      Il confronto che conta: la differenza fra i due totali non è un numero
+      qualunque, è la componente IVA. Se un giorno l'IVA finisse anche dentro
+      il residuo delle imposte, questa uguaglianza si romperebbe — ed è
+      esattamente il doppio conteggio da evitare.
+    */
+    const soloIva = round2(ordinario.alMese - ordinario.imposte.alMese);
+    expect(soloIva).toBe(ordinario.iva.alMese);
+    expect(ordinario.iva.alMese).toBeGreaterThan(0);
+  });
+
+  it("la parte di imposte esiste in tutti e due i regimi", () => {
+    expect(ordinario.imposte.alMese).toBeGreaterThan(0);
+    expect(forfettario.imposte.alMese).toBeGreaterThan(0);
   });
 });

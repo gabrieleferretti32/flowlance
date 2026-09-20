@@ -305,22 +305,52 @@ export function Cruscotto() {
                 : "per arrivare con i soldi pronti a ogni scadenza"
             }
             sotto={
-              <div className="space-y-1 text-inchiostro-tenue">
-                {analisi.quota.voci.map((v) => (
-                  <p key={v.id}>
-                    {euro(v.quota)} entro il {fmtData(v.data)} —{" "}
-                    {v.mesiMancanti === 0
-                      ? "scadenza già passata"
-                      : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
-                  </p>
-                ))}
+              <div className="space-y-2 text-inchiostro-tenue">
+                {/*
+                  Le due metà separate, e non una somma sola.
+
+                  Sono due denari diversi: uno è l'imposta sul reddito, l'altro
+                  è l'IVA che hai incassato dai clienti e che non è mai stata
+                  tua. Chi legge «metti da parte 1.026 €» senza vedere che
+                  settecento sono IVA non capisce perché la cifra è così alta —
+                  e chi passa al forfettario non capisce perché è crollata.
+                */}
+                {(
+                  [
+                    ["Imposte e contributi", analisi.quota.imposte],
+                    ["IVA", analisi.quota.iva],
+                  ] as const
+                )
+                  .filter(([, parte]) => parte.voci.length > 0)
+                  .map(([nome, parte]) => (
+                    <div key={nome}>
+                      <p className="font-medium text-inchiostro">
+                        {nome}: {euro(parte.alMese)}
+                      </p>
+                      {parte.voci.map((v) => (
+                        <p key={v.id}>
+                          {euro(v.quota)} entro il {fmtData(v.data)} —{" "}
+                          {v.mesiMancanti === 0
+                            ? "scadenza già passata"
+                            : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
+                        </p>
+                      ))}
+                    </div>
+                  ))}
                 {analisi.quota.avvisi.map((a) => (
                   <p key={a} className="text-attenzione">
                     {a}
                   </p>
                 ))}
+                {/*
+                  «Versato», non «coperto». Il motore sa che cosa è **uscito** —
+                  i versamenti F24 e le ritenute subite — e non sa niente di
+                  quello che una persona ha messo da parte. «Coperto» faceva
+                  credere che il resto fosse già al sicuro da qualche parte: è
+                  soltanto già pagato.
+                */}
                 {p.caricoTotale > p.fabbisognoDaAccantonare && (
-                  <p>su {euro(p.caricoTotale)} di carico, il resto è già coperto</p>
+                  <p>su {euro(p.caricoTotale)} di carico, il resto è già versato</p>
                 )}
               </div>
             }
