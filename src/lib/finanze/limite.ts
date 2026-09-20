@@ -160,30 +160,50 @@ export function tabellaLimite(ing: IngressoLimite): RigaLimite[] {
       direbbe che non si può spendere niente; prendere solo il previsto il
       giorno 28, con una fattura incassata in più, direbbe meno del vero.
     */
-    let entrate: number;
-    if (mese < ing.meseCorrente) {
-      entrate = reale(entrateCat);
-    } else if (mese === ing.meseCorrente) {
-      const p = previsto(ing.budget, entrateCat, mese, mesi);
-      const r = reale(entrateCat);
-      entrate = Math.max(r, p.valore);
-      if (entrate === p.valore && p.stimato && p.valore > r) stimate.push("entrate");
-    } else {
-      entrate = stima(entrateCat, "entrate");
-    }
+    /*
+      La stessa regola per tutte e quattro le voci — entrate, fisse, risparmi,
+      rate — e non solo per le entrate.
 
-    const passato = mese < ing.meseCorrente;
-    const fisse = passato && conMovimenti ? reale(fisseCat) : stima(fisseCat, "fisse");
-    const risparmi = passato && conMovimenti ? reale(risparmiCat) : stima(risparmiCat, "risparmi");
-    const rate = passato && conMovimenti ? reale(rateCat) : stima(rateCat, "rate");
+      Passato con movimenti: quello che è successo. Mese in corso: **il
+      maggiore** fra il reale e il previsto. Futuro, o passato mai importato:
+      il previsto.
+
+      Il maggiore anche sulle uscite, ed è la parte che la prima stesura
+      sbagliava. Se l'affitto di questo mese è già uscito e costa 950 mentre a
+      budget ne stavano 900, contare 900 vuol dire dire a qualcuno che ha
+      cinquanta euro che non ha. Il verso prudente su una spesa è quello alto,
+      come sulle entrate è quello basso.
+    */
+    const passatoConDati = mese < ing.meseCorrente && conMovimenti;
+    const scegli = (cat: Set<string>, voce: VoceStimata) => {
+      const r = reale(cat);
+      if (passatoConDati) return r;
+      const p = previsto(ing.budget, cat, mese, mesi);
+      if (mese === ing.meseCorrente) {
+        if (p.valore > r && p.stimato) stimate.push(voce);
+        return Math.max(r, p.valore);
+      }
+      if (p.stimato) stimate.push(voce);
+      return p.valore;
+    };
+
+    const entrate = scegli(entrateCat, "entrate");
+    const fisse = scegli(fisseCat, "fisse");
+    const risparmi = scegli(risparmiCat, "risparmi");
+    const rate = scegli(rateCat, "rate");
 
     /*
-      Il riporto arriva solo da un mese che ha movimenti. Un mese passato e
-      vuoto non è un mese in cui non è successo niente: è un mese che non è
-      stato importato, e trattarlo come un avanzo pieno regalerebbe al mese
-      dopo un limite che non esiste.
+      Il riporto arriva solo da un mese **passato e importato**, e arriva al
+      massimo fino al mese in corso.
+
+      Due condizioni, due ragioni diverse. Un mese passato e vuoto non è un
+      mese in cui non è successo niente: è un mese non importato, e trattarlo
+      come un avanzo pieno regalerebbe al mese dopo un limite che non esiste.
+      E il mese in corso non ha ancora un avanzo — mancano venti giorni di
+      spese — quindi non lo passa a ottobre: sarebbe un avanzo contato prima di
+      esistere, e la tabella dell'anno se lo porterebbe fino a dicembre.
     */
-    const riporto = ing.riportoAttivo ? riportoDalPrecedente : 0;
+    const riporto = ing.riportoAttivo && mese <= ing.meseCorrente ? riportoDalPrecedente : 0;
 
     const limite = round2(
       entrate - ing.accantonamentoMensile - fisse - risparmi - rate + riporto,
@@ -205,7 +225,7 @@ export function tabellaLimite(ing: IngressoLimite): RigaLimite[] {
       conMovimenti,
       stimate,
     });
-    riportoDalPrecedente = conMovimenti ? resta : 0;
+    riportoDalPrecedente = passatoConDati ? resta : 0;
   }
   return righe;
 }

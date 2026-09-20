@@ -190,3 +190,74 @@ describe("quanto resta al giorno", () => {
     expect(quantoResta(riga, "2026-09-30").giorniRimasti).toBe(1);
   });
 });
+
+/**
+ * I due casi che il confronto con il prototipo ha scoperto.
+ *
+ * La prima stesura di `limite.ts` era stata scritta dalla descrizione del
+ * brief, senza il prototipo — che è arrivato dopo. Passava tutti i test che
+ * aveva, e sbagliava due cose: applicava «il maggiore fra reale e previsto»
+ * alle sole entrate, e lasciava che l'avanzo del mese in corso si riversasse
+ * sui mesi successivi. Nessuno dei test di sopra le vedeva, il che è il motivo
+ * per cui questi stanno qui.
+ */
+describe("**le due cose che i test di prima non vedevano**", () => {
+  it("nel mese in corso anche le uscite prendono il maggiore fra reale e previsto", () => {
+    /*
+      L'affitto di questo mese è già uscito e costa 950, a budget ne stavano
+      900. Contare 900 direbbe a una persona che ha cinquanta euro che non ha.
+    */
+    const righe = tabellaLimite(base({
+      meseCorrente: 1,
+      budget: [
+        { categoriaId: "stipendio", anno: 2026, importi: Array(12).fill(3_000) },
+        { categoriaId: "affitto", anno: 2026, importi: Array(12).fill(900) },
+      ],
+      movimenti: [mov({ id: "a", data: "2026-01-05", importo: 950, categoriaId: "affitto" })],
+    }));
+    expect(righe[0].fisse).toBe(950);
+    expect(righe[0].limite).toBe(3_000 - 950);
+  });
+
+  it("e il previsto vince quando la spesa fissa non è ancora uscita", () => {
+    const righe = tabellaLimite(base({
+      meseCorrente: 1,
+      budget: [{ categoriaId: "affitto", anno: 2026, importi: Array(12).fill(900) }],
+      movimenti: [mov({ id: "e", data: "2026-01-02", importo: 10, categoriaId: "stipendio", tipo: "entrata" })],
+    }));
+    expect(righe[0].fisse).toBe(900);
+  });
+
+  it("**l'avanzo del mese in corso non si riversa sul mese dopo**", () => {
+    /*
+      A metà settembre «resta 800» non è un avanzo: mancano quindici giorni di
+      spese. Passarlo a ottobre sarebbe contare prima che esista, e la tabella
+      se lo porterebbe fino a dicembre.
+    */
+    const righe = tabellaLimite(base({
+      meseCorrente: 9,
+      riportoAttivo: true,
+      movimenti: [
+        mov({ id: "e", data: "2026-09-01", importo: 2_000, categoriaId: "stipendio", tipo: "entrata" }),
+      ],
+    }));
+    expect(righe[8].resta).toBeGreaterThan(0);
+    expect(righe[9].riporto).toBe(0);
+    expect(righe[11].riporto).toBe(0);
+  });
+
+  it("mentre quello di un mese passato e importato sì, fino al mese in corso", () => {
+    const righe = tabellaLimite(base({
+      meseCorrente: 3,
+      riportoAttivo: true,
+      movimenti: [
+        mov({ id: "e1", data: "2026-01-10", importo: 2_000, categoriaId: "stipendio", tipo: "entrata" }),
+        mov({ id: "s1", data: "2026-01-12", importo: 500, categoriaId: "spesa" }),
+        mov({ id: "e2", data: "2026-02-10", importo: 2_000, categoriaId: "stipendio", tipo: "entrata" }),
+      ],
+    }));
+    expect(righe[0].conMovimenti).toBe(true);
+    expect(righe[1].riporto).toBe(righe[0].resta);
+    expect(righe[2].riporto).toBe(righe[1].resta);
+  });
+});
