@@ -129,8 +129,22 @@ function previsto(
  * È una scelta, ed è in APPROSSIMAZIONI.md.
  */
 export function tabellaLimite(ing: IngressoLimite): RigaLimite[] {
+  /*
+    Le categorie pagate dall'accantonamento non entrano in **nessun** gruppo.
+
+    Non sono spese fisse, non sono variabili, non sono rate: sono la
+    destinazione di soldi già messi da parte. Il limite le toglie tutte e
+    quattro le volte, e non solo da fisse e variabili, perché lo stesso F24
+    catalogato come «rata» produrrebbe lo stesso doppio conteggio da un'altra
+    porta — e nessuno andrebbe a cercarlo lì.
+  */
+  const coperte = new Set(
+    ing.categorie.filter((c) => c.pagataDallAccantonamento).map((c) => c.id),
+  );
   const idDi = (filtro: (c: CategoriaPf) => boolean) =>
-    new Set(ing.categorie.filter(filtro).map((c) => c.id));
+    new Set(
+      ing.categorie.filter((c) => !coperte.has(c.id)).filter(filtro).map((c) => c.id),
+    );
 
   const entrateCat = idDi((c) => c.tipo === "entrata");
   const fisseCat = idDi((c) => c.tipo === "spesa" && c.fissa);

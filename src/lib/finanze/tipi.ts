@@ -95,6 +95,24 @@ export type CategoriaPf = {
    * a chi ne ha già 900 impegnati il giorno 5.
    */
   fissa: boolean;
+  /**
+   * Questa spesa è già coperta dall'accantonamento fiscale.
+   *
+   * F24, INPS, acconti, saldo: soldi che escono davvero dal conto, ma che
+   * erano già stati messi da parte — sono la **destinazione** di quei
+   * risparmi, non una spesa nuova. Contarli nel limite li conterebbe due
+   * volte: una quando si accantona ogni mese, una quando si pagano.
+   *
+   * Senza questo flag il limite di giugno e novembre — i mesi degli acconti —
+   * crollava proprio nei mesi in cui il denaro c'era già, e la persona si
+   * vedeva dire che non poteva spendere niente mentre pagava con soldi
+   * accantonati apposta.
+   *
+   * Il saldo del conto, invece, scende: quei soldi escono per davvero. È la
+   * differenza fra «quanto ho» e «quanto di quello che ho è mio», ed è tutto
+   * il mestiere di questo modulo.
+   */
+  pagataDallAccantonamento: boolean;
   icona?: string;
 };
 

@@ -2,12 +2,21 @@ import { describe, expect, it } from "vitest";
 import { quantoResta, tabellaLimite, type IngressoLimite } from "./limite";
 import type { CategoriaPf, MovimentoPf } from "./tipi";
 
+const cat = (p: Partial<CategoriaPf> & { id: string; tipo: CategoriaPf["tipo"] }): CategoriaPf => ({
+  nome: p.id, fissa: false, pagataDallAccantonamento: false, ...p,
+});
+
 const CATEGORIE: CategoriaPf[] = [
-  { id: "stipendio", tipo: "entrata", nome: "Fatture incassate", fissa: false },
-  { id: "affitto", tipo: "spesa", nome: "Affitto", fissa: true },
-  { id: "spesa", tipo: "spesa", nome: "Spesa alimentare", fissa: false },
-  { id: "pac", tipo: "risparmio", nome: "PAC", fissa: false },
-  { id: "auto", tipo: "rata", nome: "Rata auto", fissa: false },
+  cat({ id: "stipendio", tipo: "entrata", nome: "Fatture incassate" }),
+  cat({ id: "affitto", tipo: "spesa", nome: "Affitto", fissa: true }),
+  cat({ id: "spesa", tipo: "spesa", nome: "Spesa alimentare" }),
+  cat({ id: "pac", tipo: "risparmio", nome: "PAC" }),
+  cat({ id: "auto", tipo: "rata", nome: "Rata auto" }),
+  /*
+    Le tasse: una spesa fissa a tutti gli effetti — esce dal conto a scadenza
+    fissa — ma già coperta dall'accantonamento, quindi fuori dal limite.
+  */
+  cat({ id: "f24", tipo: "spesa", nome: "F24", fissa: true, pagataDallAccantonamento: true }),
 ];
 
 const mov = (
@@ -259,5 +268,100 @@ describe("**le due cose che i test di prima non vedevano**", () => {
     expect(righe[0].conMovimenti).toBe(true);
     expect(righe[1].riporto).toBe(righe[0].resta);
     expect(righe[2].riporto).toBe(righe[1].resta);
+  });
+});
+
+/**
+ * Le tasse non si contano due volte.
+ *
+ * L'accantonamento mensile mette da parte ogni mese la quota del fisco. Quando
+ * a giugno esce l'F24, quei soldi **erano già stati tolti**: sono la
+ * destinazione del risparmio, non una spesa nuova. Contarli anche come spesa
+ * farebbe crollare il limite proprio nei due mesi — giugno e novembre — in cui
+ * il denaro c'era già, e direbbe a una persona che non può spendere niente
+ * mentre sta pagando con soldi accantonati apposta.
+ *
+ * Il saldo del conto invece scende davvero, e deve scendere: `saldo.ts` non
+ * sa niente di questo flag. È la differenza fra «quanto ho» e «quanto di
+ * quello che ho è mio».
+ */
+describe("**l'F24 di giugno non abbassa il limite**", () => {
+  const entrateOgniMese = Array.from({ length: 12 }, (_, m) =>
+    mov({
+      id: `e${m}`, data: `2026-${String(m + 1).padStart(2, "0")}-10`,
+      importo: 4_000, categoriaId: "stipendio", tipo: "entrata",
+    }),
+  );
+  const f24Giugno = mov({
+    id: "f24", data: "2026-06-30", importo: 3_500, categoriaId: "f24",
+  });
+
+  it("giugno ha lo stesso limite degli altri mesi", () => {
+    const righe = tabellaLimite(base({
+      movimenti: [...entrateOgniMese, f24Giugno],
+      accantonamentoMensile: 1_200,
+      meseCorrente: 12,
+    }));
+    const giugno = righe[5];
+    const maggio = righe[4];
+    expect(giugno.fisse).toBe(0);
+    expect(giugno.limite).toBe(maggio.limite);
+    expect(giugno.limite).toBe(4_000 - 1_200);
+  });
+
+  it("e non entra nemmeno fra le variabili: «speso» resta a zero", () => {
+    const righe = tabellaLimite(base({
+      movimenti: [...entrateOgniMese, f24Giugno],
+      accantonamentoMensile: 1_200,
+      meseCorrente: 12,
+    }));
+    expect(righe[5].speso).toBe(0);
+    expect(righe[5].resta).toBe(righe[5].limite);
+  });
+
+  it("**la misura vede la differenza**: senza il flag il limite crollerebbe", () => {
+    /*
+      Il verso opposto, perché «giugno è uguale a maggio» sarebbe vero anche se
+      il movimento non fosse stato letto affatto. Qui la stessa identica riga,
+      con la categoria non più coperta, deve far scendere il limite di 3.500.
+    */
+    const senzaFlag = CATEGORIE.map((c) =>
+      c.id === "f24" ? { ...c, pagataDallAccantonamento: false } : c,
+    );
+    const righe = tabellaLimite(base({
+      categorie: senzaFlag,
+      movimenti: [...entrateOgniMese, f24Giugno],
+      accantonamentoMensile: 1_200,
+      meseCorrente: 12,
+    }));
+    expect(righe[5].fisse).toBe(3_500);
+    expect(righe[5].limite).toBe(4_000 - 1_200 - 3_500);
+  });
+
+  it("lo stesso F24 catalogato come «rata» resta fuori lo stesso", () => {
+    /*
+      Chi importa da banca può ritrovarsi l'F24 in una categoria di tipo
+      diverso. Il flag lo toglie da tutti e quattro i gruppi, non dai soli
+      due nominati nella correzione: lo stesso doppio conteggio da un'altra
+      porta nessuno andrebbe a cercarlo.
+    */
+    const comeRata = CATEGORIE.map((c) => (c.id === "f24" ? { ...c, tipo: "rata" as const } : c));
+    const righe = tabellaLimite(base({
+      categorie: comeRata,
+      movimenti: [...entrateOgniMese, f24Giugno],
+      accantonamentoMensile: 1_200,
+      meseCorrente: 12,
+    }));
+    expect(righe[5].rate).toBe(0);
+    expect(righe[5].limite).toBe(4_000 - 1_200);
+  });
+
+  it("ma i soldi escono dal conto davvero", async () => {
+    const { saldoConto } = await import("./saldo");
+    const conto = {
+      id: "a", nome: "Conto", tipo: "corrente" as const,
+      saldoRiferimento: 10_000, dataRiferimento: "2026-06-01", professionale: true,
+    };
+    expect(saldoConto(conto, [{ ...f24Giugno, contoId: "a" }])).toBe(6_500);
   });
 });

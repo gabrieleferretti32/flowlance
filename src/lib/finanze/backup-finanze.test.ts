@@ -21,7 +21,10 @@ const conFinanze = (): Dati => ({
     id: "m1", data: "2026-09-21", tipo: "spesa", categoriaId: "spesa",
     contoId: "c1", importo: 42.9, descrizione: "Esselunga",
   }],
-  pfCategorie: [{ id: "spesa", tipo: "spesa", nome: "Spesa alimentare", fissa: false }],
+  pfCategorie: [{
+    id: "spesa", tipo: "spesa", nome: "Spesa alimentare",
+    fissa: false, pagataDallAccantonamento: false,
+  }],
   pfBudget: [{ categoriaId: "spesa", anno: 2026, importi: Array(12).fill(400) }],
   pfBeni: [{ id: "b1", classe: "investimenti", nome: "ETF", valore: 12_000, aggiornatoIl: "2026-09-01" }],
   pfRegole: [{ id: "r1", testoDaCercare: "esselunga", categoriaId: "spesa", tipo: "spesa" }],

@@ -724,6 +724,13 @@ const convalidaCategoriaPf: Convalida<Dati["pfCategorie"][number]> = (riga, i, e
     tipo: unoDi(riga.tipo, ["entrata", "spesa", "risparmio", "rata"] as const, "spesa"),
     nome: testo(riga.nome),
     fissa: booleano(riga.fissa),
+    /*
+      Assente vuol dire «no», ed è la lettura prudente: un backup scritto
+      prima che il flag esistesse non può dire che una categoria è coperta
+      dall'accantonamento, e darlo per acceso toglierebbe dal limite delle
+      spese che nessuno ha mai dichiarato coperte.
+    */
+    pagataDallAccantonamento: booleano(riga.pagataDallAccantonamento),
     ...(typeof riga.icona === "string" ? { icona: riga.icona } : {}),
   };
 };
