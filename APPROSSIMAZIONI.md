@@ -661,3 +661,18 @@ successo.
 **Quello che il modulo non fa, e non è un'approssimazione:** non dà consigli.
 Dice «puoi spendere X» perché è una sottrazione, e non dice «dovresti
 investire» perché non lo sa e non è autorizzato a dirlo.
+
+---
+
+## La quota di accantonamento del mese
+
+Dal 20 settembre 2026 `quotaAccantonamento` sostituisce il dodicesimo fisso:
+quello che resta da accantonare si distribuisce sulle scadenze future, e
+ciascuna quota si divide per i mesi che mancano a quella scadenza. Tre cose
+che quel calcolo non sa, e vanno dette.
+
+| Semplificazione | Coperta da un test? |
+| --- | --- |
+| **Per i mesi futuri non conosce le imposte sulle entrate non ancora incassate.** La quota nasce da `fabbisognoDaAccantonare`, che guarda quello che è già successo: le fatture che incasserai a novembre non hanno ancora prodotto il loro carico, quindi non sono in quel residuo. Il limite di spesa dei mesi futuri è perciò **ottimista** — dice che resta più di quanto resterà. Si corregge da sé man mano che si incassa, ma un mese guardato in anticipo promette più del vero | no, ed è una scelta: correggerlo vorrebbe dire stimare il carico su ricavi previsti, cioè ricalcolare le imposte dentro il modulo |
+| **L'IVA è una seconda componente, e usa un metodo diverso.** Le imposte distribuiscono un **residuo** — `fabbisognoDaAccantonare`, già al netto dei versamenti — mentre l'IVA prende ogni scadenza e le sottrae quello che risulta versato, perché `calcolaIva` liquida i periodi e non sa niente di quello che è uscito. Il netto se lo fa `quotaIva`, leggendo i versamenti di tipo «iva» dall'archivio: un trimestre scaduto e non versato compare con la sua data, uno versato in anticipo non si chiede due volte. Resta una zona d'ombra, la stessa del motore: un versamento registrato **prima che esistesse il campo `annoImposta`** vale per l'anno della sua data, quindi un quarto trimestre dell'anno prima pagato a febbraio abbassa la quota di quest'anno | sì, `accantonamento.test.ts`: componenti separate, totale uguale alla somma, IVA zero in forfettario, il trimestre scoperto con la sua data, e il versamento in anticipo che copre il debito più vecchio per primo. L'attribuzione dei versamenti senza `annoImposta` **no**, ed è questa riga |
+| **Senza i numeri dell'anno prima si ripiega sul residuo diviso i mesi che restano.** Gli acconti li calcola `scadenzeAnno` sui dati dell'anno precedente: al primo anno d'uso non ci sono, le due scadenze più grosse escono senza importo e il calendario non basta. Il ripiego è meno preciso — non sa *quando* scade — ma è sempre meglio del dodicesimo, e la card lo dichiara | sì, `accantonamento.test.ts`: il test fallisce se gli acconti escono senza importo, e un altro verifica che il ripiego scatti e si dica |

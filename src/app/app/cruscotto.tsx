@@ -22,6 +22,7 @@ import {
 import { generaAvvisi, type Avviso } from "@/lib/analisi/avvisi";
 import { PromemoriaBackup } from "@/components/dati/promemoria-backup";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
+import { quotaAccantonamento } from "@/lib/fisco/accantonamento";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { periodoIvaCorrente } from "@/lib/fisco/iva";
@@ -70,6 +71,20 @@ export function Cruscotto() {
       precedente?.prospetto ?? null,
     );
     return {
+      /*
+        La quota del mese. Riceve il prospetto dell'anno prima — quello che il
+        cruscotto ha già per le scadenze — perché senza gli acconti escono
+        senza importo e la quota uscirebbe più bassa del vero, in silenzio.
+      */
+      quota: quotaAccantonamento({
+        prospetto,
+        impostazioni,
+        parametri: parametriDi(anno),
+        iva,
+        versamenti: dati.versamenti,
+        precedente: precedente?.prospetto ?? null,
+        oggi,
+      }),
       mesi: andamentoMensile(
         prospetto.fattureCalcolate,
         prospetto.costiCalcolati,
@@ -272,20 +287,80 @@ export function Cruscotto() {
           aria-label="Quanto mettere da parte, e quando esce"
           className="grid grid-cols-2 gap-4 sm:grid-cols-2 xl:grid-cols-4"
         >
+{/*
+            «Questo mese», non «al mese».
+
+            La cifra non è più un dodicesimo: è quello che resta da accantonare
+            distribuito sulle scadenze che mancano, ciascuna divisa per i mesi
+            che la separano da oggi. Quindi cresce avvicinandosi a una
+            scadenza, ed è il motivo per cui il dettaglio sta sotto: un numero
+            che si muove senza dire perché si legge come un errore.
+          */}
           <Kpi
             taglia="kpiSm"
-            etichetta="Quota mensile del fabbisogno"
-            valore={euro(p.accantonamentoMensile)}
-            nota="quello che resta da versare, diviso dodici"
+            etichetta="Questo mese metti da parte"
+            valore={euro(analisi.quota.alMese)}
+            nota={
+              analisi.quota.metodo === "ripiego"
+                ? "quello che resta, diviso i mesi che mancano a fine anno"
+                : "per arrivare con i soldi pronti a ogni scadenza"
+            }
             sotto={
-              // Il carico dell'anno è un altro numero, più alto: se una parte è
-              // già stata versata o trattenuta, va detto qui, dove si guarda
-              // quanto mettere da parte.
-              p.caricoTotale > p.fabbisognoDaAccantonare ? (
-                <p className="text-inchiostro-tenue">
-                  su {euro(p.caricoTotale)} di carico, il resto è già coperto
-                </p>
-              ) : undefined
+              <div className="space-y-2 text-inchiostro-tenue">
+                {/*
+                  Le due metà separate, e non una somma sola.
+
+                  Sono due denari diversi: uno è l'imposta sul reddito, l'altro
+                  è l'IVA che hai incassato dai clienti e che non è mai stata
+                  tua. Chi legge «metti da parte 1.026 €» senza vedere che
+                  settecento sono IVA non capisce perché la cifra è così alta —
+                  e chi passa al forfettario non capisce perché è crollata.
+                */}
+                {(
+                  [
+                    ["Imposte e contributi", analisi.quota.imposte],
+                    ["IVA", analisi.quota.iva],
+                  ] as const
+                )
+                  .filter(([, parte]) => parte.voci.length > 0)
+                  .map(([nome, parte]) => (
+                    <div key={nome}>
+                      <p className="font-medium text-inchiostro">
+                        {nome}: {euro(parte.alMese)}
+                      </p>
+                      {parte.voci.map((v) => (
+                        <p key={v.id}>
+                          {euro(v.quota)} entro il {fmtData(v.data)} —{" "}
+                          {v.mesiMancanti === 0
+                            ? "scadenza già passata"
+                            : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                {analisi.quota.avvisi.map((a) => (
+                  <p key={a} className="text-attenzione">
+                    {a}
+                  </p>
+                ))}
+                {/*
+                  «Versato», non «coperto». Il motore sa che cosa è **uscito** —
+                  i versamenti F24 e le ritenute subite — e non sa niente di
+                  quello che una persona ha messo da parte. «Coperto» faceva
+                  credere che il resto fosse già al sicuro da qualche parte: è
+                  soltanto già pagato.
+                */}
+                {p.caricoTotale > p.fabbisognoDaAccantonare && (
+                  <p>su {euro(p.caricoTotale)} di carico, il resto è già versato</p>
+                )}
+                {/*
+                  Il rimando all'altra card. Oggi il legame fra «questo mese» e
+                  «la percentuale che hai impostato» si doveva dedurre: costa
+                  una riga dirlo, e senza quella riga due numeri diversi sulla
+                  stessa pagina si leggono come una contraddizione.
+                */}
+                <p>Questo è il mese. La taratura annuale è più sotto.</p>
+              </div>
             }
           />
           {periodoIva && (
@@ -359,9 +434,27 @@ export function Cruscotto() {
               ) : undefined
             }
           />
+        </section>
+
+        {/*
+          La taratura della percentuale, **fuori** dalla fila di sopra.
+
+          Le due card rispondevano a due domande diverse con due denominatori
+          diversi, una accanto all'altra e con lo stesso nome in testa:
+          «Copertura dell'accantonamento» accanto a «metti da parte X» si legge
+          come due misure della stessa cosa, e quando dicono numeri diversi —
+          121 % di copertura mentre la quota chiede mille euro — chi legge
+          conclude che una delle due sbaglia.
+
+          Non sbagliano: una guarda **l'anno intero** per dire se la
+          percentuale impostata è tarata bene, l'altra guarda **questo mese**
+          per dire quanto togliere dal conto. Qui la prima prende il suo nome,
+          esce dalla fila e dice a voce quale delle due domande risolve.
+        */}
+        <section aria-label="La percentuale di accantonamento che hai impostato">
           <Kpi
             taglia="kpiSm"
-            etichetta="Copertura dell'accantonamento"
+            etichetta="La percentuale che hai impostato"
             valore={copertura === null ? "—" : coperturaScritta(copertura)}
             nota={
               copertura === null
@@ -369,18 +462,24 @@ export function Cruscotto() {
                 : `il ${percentuale(p.percentualeImpostata, 0)} dei ricavi fa ${euro(p.accantonamentoAnnuo)} sui ${euro(p.fabbisognoAnnuo)} che l'anno costa`
             }
             sotto={
-              p.scostamentoAccantonamento < 0 ? (
-                p.accantonamentoSufficiente ? (
-                  <p className="text-inchiostro-tenue">
-                    mancano {euro(-p.scostamentoAccantonamento)}: dentro la tolleranza, va bene così
-                  </p>
-                ) : (
-                  <p className="text-[#B8791A]">
-                    mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
-                    {aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100)}
-                  </p>
-                )
-              ) : undefined
+              <div className="space-y-1">
+                {p.scostamentoAccantonamento < 0 &&
+                  (p.accantonamentoSufficiente ? (
+                    <p className="text-inchiostro-tenue">
+                      mancano {euro(-p.scostamentoAccantonamento)}: dentro la tolleranza, va bene
+                      così
+                    </p>
+                  ) : (
+                    <p className="text-[#B8791A]">
+                      mancano {euro(-p.scostamentoAccantonamento)}: porta la percentuale almeno al{" "}
+                      {aliquota(Math.ceil(p.percentualeTeoricaAccantonamento * 100) / 100)}
+                    </p>
+                  ))}
+                <p className="text-inchiostro-tenue">
+                  È tarata sull&apos;anno intero. Quanto mettere via adesso lo dice «Questo mese
+                  metti da parte», qui sopra.
+                </p>
+              </div>
             }
           />
         </section>
