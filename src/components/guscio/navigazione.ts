@@ -1,4 +1,5 @@
 import {
+  ArrowLeftRight,
   BarChart3,
   CalendarClock,
   Coins,
@@ -46,6 +47,7 @@ const ICONE: Record<string, LucideIcon> = {
   [ROTTE.patrimonio]: PiggyBank,
   [ROTTE.pianificazione]: Target,
   [ROTTE.finanzeConti]: Wallet,
+  [ROTTE.finanzeMovimenti]: ArrowLeftRight,
   [ROTTE.avvio]: Compass,
   [ROTTE.parametri]: Settings,
   [ROTTE.dati]: Database,

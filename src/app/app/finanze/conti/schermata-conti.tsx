@@ -88,8 +88,20 @@ export function SchermataConti() {
     );
   }
 
-  const conMovimenti = (c: ContoPersonale) =>
-    dati.pfMovimenti.filter((m) => m.contoId === c.id || m.contoDestinazioneId === c.id).length;
+  const suoi = (c: ContoPersonale) =>
+    dati.pfMovimenti.filter((m) => m.contoId === c.id || m.contoDestinazioneId === c.id);
+  /*
+    Quanti movimenti **muovono davvero questo saldo**: quelli datati dopo
+    l'ancora e non oltre oggi, cioè gli stessi che `saldoConto` somma.
+
+    La prima stesura contava tutti i movimenti del conto, e diceva «4 movimenti
+    dopo» accanto a un saldo che non si era mosso di un centesimo — perché
+    quei quattro erano datati prima dell'ancora, e l'ancora è la riga che dice
+    «questo importo li contiene già». Una spiegazione che contraddice il numero
+    che dovrebbe spiegare è peggio di nessuna spiegazione.
+  */
+  const contatiNelSaldo = (c: ContoPersonale) =>
+    suoi(c).filter((m) => m.data > c.dataRiferimento && m.data <= oggi).length;
 
   return (
     <Guscio
@@ -163,8 +175,9 @@ export function SchermataConti() {
           <CardCorpo className="pb-3">
             <CardTitolo>Conti</CardTitolo>
             <CardSottotitolo>
-              Scrivi il saldo di oggi. I rendiconti dei mesi passati non lo cambiano, i movimenti
-              registrati dopo sì.
+              Scrivi il saldo di oggi: quello che hai scritto contiene già tutto quello che è
+              successo fino a quel giorno. I movimenti <strong>datati dopo</strong> lo muovono, i
+              rendiconti dei mesi passati no.
             </CardSottotitolo>
           </CardCorpo>
 
@@ -173,7 +186,8 @@ export function SchermataConti() {
           ) : (
             <ul className="divide-y divide-bordo/70 border-y border-bordo">
               {dati.pfConti.map((c) => {
-                const movimenti = conMovimenti(c);
+                const movimenti = contatiNelSaldo(c);
+                const tutti = suoi(c).length;
                 return (
                   <li
                     key={c.id}
@@ -228,7 +242,7 @@ export function SchermataConti() {
                         <span className="px-2 text-micro text-inchiostro-tenue">
                           scritto il {fmtData(c.dataRiferimento)}
                           {movimenti > 0 &&
-                            ` · ${movimenti === 1 ? "un movimento" : `${movimenti} movimenti`} dopo`}
+                            ` · ${movimenti === 1 ? "un movimento" : `${movimenti} movimenti`} da allora`}
                         </span>
                       </span>
                       <Button
@@ -237,9 +251,9 @@ export function SchermataConti() {
                         taglia="icona"
                         aria-label={`Elimina ${c.nome}`}
                         title={
-                          movimenti === 0
+                          tutti === 0
                             ? `Elimina ${c.nome}`
-                            : `Elimina ${c.nome} e i suoi ${movimenti} movimenti`
+                            : `Elimina ${c.nome} e i suoi ${tutti} movimenti`
                         }
                         onClick={() => void eliminaConto(c, dati.pfMovimenti)}
                         className="hover:bg-negativo-tenue hover:text-negativo"

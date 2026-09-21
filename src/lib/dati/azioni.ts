@@ -39,6 +39,7 @@ import { promemoriaDopoExport } from "./promemoria-backup";
 import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
 import type { BenePf, ContoPersonale, MovimentoPf } from "@/lib/finanze/tipi";
+import { CATEGORIE_INIZIALI } from "@/lib/finanze/categorie";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { datasetDi, DATASET_PREDEFINITO, type IdDataset } from "./dataset";
@@ -868,5 +869,45 @@ export async function eliminaBene(bene: BenePf) {
   await archivio().pfBeni.elimina(bene.id);
   toast.conferma("Voce eliminata", async () => {
     await archivio().pfBeni.salva(bene);
+  });
+}
+
+/**
+ * Le categorie di partenza, scritte in archivio la prima volta che servono.
+ *
+ * Un registro senza categorie non si compila: ogni movimento ne vuole una. Il
+ * modulo ne propone diciannove — `CATEGORIE_INIZIALI` — e questa è l'azione
+ * che le mette in archivio. Non si semina da sola all'avvio: scrivere in un
+ * archivio che nessuno ha chiesto di riempire è il modo di trovarsi dentro
+ * roba che non si è messa.
+ */
+export async function seminaCategorie(): Promise<void> {
+  const esistenti = await archivio().pfCategorie.tutti();
+  if (esistenti.length > 0) return;
+  await archivio().pfCategorie.salvaMolti([...CATEGORIE_INIZIALI]);
+  toast.conferma("Categorie di partenza aggiunte", async () => {
+    await archivio().pfCategorie.eliminaMolti(CATEGORIE_INIZIALI.map((c) => c.id));
+  });
+}
+
+export async function creaMovimentoPf(movimento: Omit<MovimentoPf, "id">): Promise<MovimentoPf> {
+  const nuovo: MovimentoPf = { ...movimento, id: nuovoId() };
+  await archivio().pfMovimenti.salva(nuovo);
+  toast.conferma("Movimento registrato", async () => {
+    await archivio().pfMovimenti.elimina(nuovo.id);
+  });
+  return nuovo;
+}
+
+export async function salvaMovimentoPf(movimento: MovimentoPf, messaggio = "Movimento aggiornato") {
+  await conAnnullamento(archivio().pfMovimenti, movimento.id, messaggio, async () => {
+    await archivio().pfMovimenti.salva(movimento);
+  });
+}
+
+export async function eliminaMovimentoPf(movimento: MovimentoPf) {
+  await archivio().pfMovimenti.elimina(movimento.id);
+  toast.conferma("Movimento eliminato", async () => {
+    await archivio().pfMovimenti.salva(movimento);
   });
 }
