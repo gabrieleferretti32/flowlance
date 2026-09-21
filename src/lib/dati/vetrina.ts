@@ -42,6 +42,7 @@
  * contro quello che il motore calcola davvero.
  */
 import type { ChiusuraAnno } from "@/lib/fisco/chiusura";
+import type { BenePf } from "@/lib/finanze/tipi";
 import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
 import { PARAMETRI_2025 } from "@/lib/fisco/parametri/2025";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
@@ -598,12 +599,27 @@ function movimentiAttivita(anno: number, mesi: number, rimborsi: Record<number, 
   }));
 }
 
+/*
+  Il bilancio dell'attività: **solo voci dell'attività**.
+
+  Il piano di accumulo e il fondo pensione stavano qui, e sono di Elena, non
+  dello studio: adesso stanno in `PF_BENI`. Il dataset finisce negli screenshot
+  di vendita, quindi insegna la divisione anche a chi guarda e basta.
+
+  Il conto deposito resta qui: è liquidità di riserva dell'attività, e spostarlo
+  vorrebbe dire decidere al posto di chi lo legge. Quando arriveranno i conti
+  personali sarà il momento di chiedersi se è suo o dello studio.
+*/
 const PATRIMONIO: VocePatrimonio[] = [
-  { id: "vet-pat-01", tipo: "attivo", categoria: "Investimenti finanziari", descrizione: "Piano di accumulo su indice globale", valore: 21_450 },
-  { id: "vet-pat-02", tipo: "attivo", categoria: "Fondo pensione", descrizione: "Fondo pensione aperto, versamento annuale", valore: 12_870 },
   { id: "vet-pat-03", tipo: "attivo", categoria: "Liquidità di riserva", descrizione: "Conto deposito vincolato a 12 mesi", valore: 9_000 },
   { id: "vet-pat-04", tipo: "attivo", categoria: "Beni strumentali", descrizione: "Portatile, monitor e arredo dello studio", valore: 3_240 },
   { id: "vet-pat-05", tipo: "passivo", categoria: "Finanziamenti", descrizione: "Prestito per attrezzature, debito residuo", valore: 4_180 },
+];
+
+/** Il patrimonio personale di Elena: gli stessi due importi, dall'altra parte. */
+const PF_BENI: BenePf[] = [
+  { id: "vet-pf-bene-01", classe: "investimenti", nome: "Piano di accumulo su indice globale", valore: 21_450, aggiornatoIl: iso(9, 1) },
+  { id: "vet-pf-bene-02", classe: "pensione", nome: "Fondo pensione aperto, versamento annuale", valore: 12_870, aggiornatoIl: iso(9, 1) },
 ];
 
 // ————————————————————————————————————————————————————————————
@@ -936,15 +952,16 @@ export function datiVetrina(): Dati {
       },
     ],
     /*
-      Le finanze personali: vuote. Elena Marani avrà i suoi conti e i suoi
-      movimenti alla fase 6, insieme alle schermate che li mostrano: prima
-      sarebbero numeri che nessuno può guardare.
+      Le finanze personali: per ora i soli beni personali, quelli che prima
+      stavano nel bilancio dell'attività. Conti e movimenti arrivano insieme
+      alle schermate che li mostrano: prima sarebbero numeri che nessuno può
+      guardare.
     */
     pfConti: [],
     pfMovimenti: [],
     pfCategorie: [],
     pfBudget: [],
-    pfBeni: [],
+    pfBeni: PF_BENI,
     pfRegole: [],
     pfImport: [],
   };

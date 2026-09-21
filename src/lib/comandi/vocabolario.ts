@@ -56,7 +56,7 @@ export const DESTINAZIONI: Destinazione[] = [
   { href: ROTTE.scadenzario, etichetta: "Scadenzario", gruppo: "Fisco", tasto: "s", sinonimi: ["scadenze", "adempimenti", "f24"], pronta: true },
   { href: ROTTE.chiusura, etichetta: "Chiusura d'anno", gruppo: "Fisco", tasto: "a", sinonimi: ["passaggio d'anno", "riporti"], pronta: true },
   { href: ROTTE.cashflow, etichetta: "Cashflow", gruppo: "Finanza", tasto: "w", sinonimi: ["flusso di cassa", "liquidita"], pronta: true },
-  { href: ROTTE.patrimonio, etichetta: "Patrimonio", gruppo: "Finanza", tasto: "p", sinonimi: ["attivi", "passivi", "netto"], pronta: true },
+  { href: ROTTE.patrimonio, etichetta: "Bilancio dell'attività", gruppo: "Finanza", tasto: "p", sinonimi: ["patrimonio", "attivi", "passivi", "netto", "bilancio"], pronta: true },
   { href: ROTTE.pianificazione, etichetta: "Pianificazione", gruppo: "Finanza", tasto: "n", sinonimi: ["obiettivi", "scenari"], pronta: true },
   { href: ROTTE.finanzeConti, etichetta: "Conti e patrimonio", gruppo: "Finanze personali", tasto: "t", sinonimi: ["conti", "banca", "saldo", "patrimonio netto", "beni", "debiti", "mutuo"], pronta: true },
   { href: ROTTE.avvio, etichetta: "Configurazione", gruppo: "Impostazioni", sinonimi: ["onboarding", "percorso", "regime"], pronta: true },

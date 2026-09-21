@@ -195,7 +195,14 @@ describe("stato patrimoniale", () => {
   });
 
   it("somma le voci derivate e quelle scritte a mano", () => {
-    expect(patrimonio.totaleAttivo).toBeCloseTo(12_000 + 1_800 + 6_100 + 8_400 + 4_600 + 2_100, 2);
+    /*
+      Le voci libere sono due, non quattro: il piano di accumulo e il fondo
+      pensione sono usciti da qui il 21 settembre 2026, quando il bilancio
+      dell'attività e il patrimonio personale si sono divisi. Stanno in
+      `pfBeni`, e questo bilancio non li comprende più — è la divisione, non
+      una perdita.
+    */
+    expect(patrimonio.totaleAttivo).toBeCloseTo(12_000 + 1_800 + 6_100 + 2_100, 2);
     expect(patrimonio.totalePassivo).toBeCloseTo(414.8 + 3_044.32 + 3_200, 2);
   });
 
@@ -208,7 +215,7 @@ describe("stato patrimoniale", () => {
 
   it("distingue le voci derivate da quelle libere", () => {
     expect(patrimonio.attivo.find((v) => v.id === "crediti")?.derivata).toBe(true);
-    expect(patrimonio.attivo.find((v) => v.id === "pat-01")?.derivata).toBe(false);
+    expect(patrimonio.attivo.find((v) => v.id === "pat-03")?.derivata).toBe(false);
   });
 
   it("misura l'indice di liquidità immediata", () => {

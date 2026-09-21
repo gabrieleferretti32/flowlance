@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
 import { Kpi } from "@/components/ui/kpi";
 import { CellaModificabile } from "@/components/tabella/cella-modificabile";
 import { Guscio } from "@/components/guscio/guscio";
+import { ROTTE } from "@/lib/rotte";
 import { calcolaPatrimonio, type VoceCalcolata } from "@/lib/analisi/pianificazione";
 import {
   creaVocePatrimonio,
@@ -54,7 +56,7 @@ export function SchermataPatrimonio() {
 
   if (!dati || !calcolo || !patrimonio) {
     return (
-      <Guscio titolo="Patrimonio">
+      <Guscio titolo="Bilancio dell'attività">
         <Card>
           <CaricamentoTabella righe={6} />
         </Card>
@@ -64,8 +66,8 @@ export function SchermataPatrimonio() {
 
   return (
     <Guscio
-      titolo="Patrimonio"
-      descrizione={`Al 31 dicembre ${anno} · quello che possiedi meno quello che devi, al netto di ciò che è già impegnato`}
+      titolo="Bilancio dell'attività"
+      descrizione={`Al 31 dicembre ${anno} · quello che l'attività possiede meno quello che deve, al netto di ciò che è già impegnato`}
     >
       <div className="mx-auto max-w-4xl space-y-4">
         <section aria-label="Sintesi" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -73,10 +75,10 @@ export function SchermataPatrimonio() {
           <Kpi etichetta="Totale passivo" valore={euro(patrimonio.totalePassivo)} taglia="kpiSm" />
           <Kpi
             sfondo="scuro"
-            etichetta="Patrimonio netto"
+            etichetta="Netto dell'attività"
             valore={euro(patrimonio.patrimonioNetto)}
             taglia="kpiSm"
-            nota="quello che resterebbe tuo se chiudessi oggi"
+            nota="quello che resterebbe chiudendo l'attività oggi"
           />
           <Kpi
             etichetta="Tasse accantonate"
@@ -105,12 +107,36 @@ export function SchermataPatrimonio() {
           />
         </div>
 
+        {/*
+          Il raccordo fra le due schermate, e il motivo per cui esistono
+          tutte e due.
+
+          Questo è il bilancio dell'**attività**: nasce dai documenti fiscali —
+          fatture, costi, versamenti — e finisce dove finisce la partita IVA.
+          Casa, mutuo e risparmi personali sono un'altra cosa e hanno un'altra
+          schermata. Senza questa riga le due cifre si leggono come due
+          risposte alla stessa domanda, e una delle due sembra sbagliata.
+
+          L'invito a spostare le voci personali è un invito e basta: quali
+          siano lo sa solo chi le ha scritte, e migrarle indovinando sarebbe
+          il tipo di aiuto che questo progetto non dà.
+        */}
+        <p className="text-micro text-inchiostro-tenue">
+          Questo bilancio riguarda l&apos;attività: non comprende casa, mutuo, investimenti e
+          risparmi personali. Quelli stanno in{" "}
+          <Link href={ROTTE.finanzeConti} className="underline underline-offset-2">
+            Conti e patrimonio
+          </Link>
+          . Se fra le voci qui sopra ne hai di personali, spostale di là: le due schermate leggono
+          archivi diversi, e nessuno le sposta al posto tuo.
+        </p>
+
         <Card>
           <CardCorpo>
             <CardTitolo>Indicatori</CardTitolo>
             <dl className="mt-4 grid gap-4 sm:grid-cols-3">
               <Indicatore
-                etichetta="Patrimonio netto liquido"
+                etichetta="Netto liquido"
                 valore={euro(patrimonio.patrimonioNettoLiquido)}
                 nota="Solo cassa e crediti, senza beni durevoli."
               />
@@ -246,7 +272,11 @@ function ColonnaPatrimonio({
               id={`voce-${tipo}`}
               value={descrizione}
               onChange={(e) => setDescrizione(e.target.value)}
-              placeholder={tipo === "attivo" ? "Investimenti, immobili…" : "Mutuo, finanziamenti…"}
+              placeholder={
+                tipo === "attivo"
+                  ? "Attrezzatura, veicolo aziendale…"
+                  : "Leasing, finanziamento macchinari…"
+              }
             />
           </Campo>
           <Campo etichetta="Valore" htmlFor={`valore-${tipo}`} className="w-32">

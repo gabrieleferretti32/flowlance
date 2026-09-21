@@ -438,7 +438,7 @@ export async function salvaVocePatrimonio(voce: VocePatrimonio) {
 export async function creaVocePatrimonio(voce: Omit<VocePatrimonio, "id">) {
   const nuova: VocePatrimonio = { ...voce, id: nuovoId() };
   await archivio().patrimonio.salva(nuova);
-  toast.conferma("Voce aggiunta al patrimonio", async () => {
+  toast.conferma("Voce aggiunta al bilancio", async () => {
     await archivio().patrimonio.elimina(nuova.id);
   });
 }

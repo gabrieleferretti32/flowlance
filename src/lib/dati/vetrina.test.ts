@@ -325,7 +325,6 @@ describe("vetrina · le sezioni hanno tutte qualcosa dentro", () => {
     "pfMovimenti",
     "pfCategorie",
     "pfBudget",
-    "pfBeni",
     "pfRegole",
     "pfImport",
   ];

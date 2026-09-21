@@ -26,6 +26,7 @@
  * schermata è il posto dove la si dichiara a chi la usa.
  */
 import * as React from "react";
+import Link from "next/link";
 import { Plus, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/card";
@@ -43,6 +44,7 @@ import {
 import { Vuoto } from "@/components/ui/vuoto";
 import { CellaModificabile } from "@/components/tabella/cella-modificabile";
 import { Guscio } from "@/components/guscio/guscio";
+import { ROTTE } from "@/lib/rotte";
 import { useDati } from "@/lib/dati/hooks";
 import {
   creaBene,
@@ -333,6 +335,21 @@ export function SchermataConti() {
             <ModuloBene oggi={oggi} />
           </CardCorpo>
         </Card>
+
+        {/*
+          Il raccordo, dall'altra parte. Questa schermata è la persona: i
+          crediti verso i clienti, l'IVA da versare e le imposte maturate sono
+          dell'attività e stanno nel suo bilancio. Le due cifre grandi non
+          rispondono alla stessa domanda, e dirlo costa una riga.
+        */}
+        <p className="text-micro text-inchiostro-tenue">
+          Questo è il patrimonio personale: non comprende crediti verso clienti, IVA da versare e
+          imposte maturate. Quelli stanno nel{" "}
+          <Link href={ROTTE.patrimonio} className="underline underline-offset-2">
+            Bilancio dell&apos;attività
+          </Link>
+          .
+        </p>
       </div>
     </Guscio>
   );

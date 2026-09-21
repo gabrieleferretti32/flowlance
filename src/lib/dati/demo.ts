@@ -17,6 +17,7 @@
  */
 import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
+import type { BenePf } from "@/lib/finanze/tipi";
 import type {
   Cliente,
   Costo,
@@ -462,11 +463,23 @@ const MOVIMENTI_PERSONALI_ANNO_PRIMA: MovimentoPersonale[] = Array.from({ length
   risparmio: 80,
 }));
 
+/*
+  Il bilancio dell'attività: **solo voci dell'attività**.
+
+  Il piano di accumulo e il fondo pensione stavano qui, e sono roba della
+  persona: adesso stanno in `PF_BENI`, di là. Il dataset insegna la divisione
+  che l'app chiede, perché un esempio che mescola i due patrimoni è il modo più
+  rapido di insegnare a mescolarli.
+*/
 const PATRIMONIO: VocePatrimonio[] = [
-  { id: "pat-01", tipo: "attivo", categoria: "Investimenti finanziari", descrizione: "Piano di accumulo ETF", valore: 8400 },
-  { id: "pat-02", tipo: "attivo", categoria: "Fondo pensione", descrizione: "Fondo pensione aperto", valore: 4600 },
   { id: "pat-03", tipo: "attivo", categoria: "Beni strumentali", descrizione: "Portatile e attrezzatura ufficio", valore: 2100 },
   { id: "pat-04", tipo: "passivo", categoria: "Finanziamenti", descrizione: "Prestito attrezzature, debito residuo", valore: 3200 },
+];
+
+/** Il patrimonio personale: gli stessi due importi, dall'altra parte. */
+const PF_BENI: BenePf[] = [
+  { id: "pf-bene-01", classe: "investimenti", nome: "Piano di accumulo ETF", valore: 8400, aggiornatoIl: iso(9, 1) },
+  { id: "pf-bene-02", classe: "pensione", nome: "Fondo pensione aperto", valore: 4600, aggiornatoIl: iso(9, 1) },
 ];
 
 /** L'intero dataset dimostrativo, pronto da scrivere nell'archivio. */
@@ -536,14 +549,16 @@ export function datiDemo(): Dati {
     // percorso resta da fare, ed è giusto che si veda.
     percorsi: [],
     /*
-      Le finanze personali: vuote. Il modulo non ha ancora schermate, e un dataset
-      dimostrativo che porta dati di un modulo invisibile non dimostra niente.
+      Le finanze personali: per ora i soli beni personali, quelli che prima
+      stavano nel bilancio dell'attività. Conti e movimenti arrivano con le
+      schermate che li mostrano — un dataset che porta dati invisibili non
+      dimostra niente.
     */
     pfConti: [],
     pfMovimenti: [],
     pfCategorie: [],
     pfBudget: [],
-    pfBeni: [],
+    pfBeni: PF_BENI,
     pfRegole: [],
     pfImport: [],
   };
