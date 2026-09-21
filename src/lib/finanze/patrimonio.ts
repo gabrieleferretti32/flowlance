@@ -63,7 +63,27 @@ export type Patrimonio = {
   netto: number;
   /** Solo il dovuto, positivo: comodo per dirlo a parte. */
   debiti: number;
+  /**
+   * C'è un mutuo fra i debiti e nessun bene fisico: **manca la casa**.
+   *
+   * È lo sbilancio più facile da produrre, perché il debito lo ricordi — te lo
+   * ricorda la rata — e il bene no: nessuno riceve un estratto conto
+   * dell'immobile. Il risultato è un patrimonio netto più basso del vero di
+   * tutto il valore della casa, cioè quasi sempre della voce più grande.
+   */
+  mancaImmobile: boolean;
 };
+
+/**
+ * Un debito si riconosce mutuo dal nome, e non c'è altro modo.
+ *
+ * `BenePf` non ha un sottotipo: la classe dice «debiti» e il resto è il nome
+ * che ha scritto una persona. Quindi questa è una lettura del testo, con tutti
+ * i limiti del caso — un mutuo chiamato «casa Milano» non si riconosce — e per
+ * questo quello che ne esce è **un'osservazione, non un errore**: aggiunge una
+ * riga che spiega, non blocca niente e non cambia nessun numero.
+ */
+const PAROLE_MUTUO = /\bmutu\w*/i;
 
 /**
  * Il patrimonio a una data, o a oggi se non la si dice.
@@ -91,10 +111,13 @@ export function patrimonio(
       voci,
     };
   });
+  const conMutuo = beni.some((b) => b.classe === "debiti" && PAROLE_MUTUO.test(b.nome));
+  const beniFisici = beni.some((b) => b.classe === "beni");
   return {
     liquidita,
     righe,
     netto: round2(liquidita + somma(...righe.map((r) => r.valore))),
     debiti: righe.find((r) => r.classe === "debiti")?.valoreScritto ?? 0,
+    mancaImmobile: conMutuo && !beniFisici,
   };
 }

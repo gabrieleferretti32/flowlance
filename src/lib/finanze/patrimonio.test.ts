@@ -128,3 +128,58 @@ describe("le classi", () => {
     expect(CLASSI.map((c) => c.classe).sort()).toEqual([...nelTipo].sort());
   });
 });
+
+/**
+ * **Il mutuo senza la casa.**
+ *
+ * È lo sbilancio più facile da produrre: il debito te lo ricorda la rata, il
+ * bene no — nessuno manda l'estratto conto di un immobile. Chi registra solo
+ * il primo si vede un patrimonio netto più basso del vero di tutto il valore
+ * della casa, e non ha nessun modo di accorgersene guardando la cifra.
+ */
+describe("**un mutuo senza beni fisici**", () => {
+  it("si nota, e lo si dice", () => {
+    const p = patrimonio([], [], [bene("Mutuo prima casa", "debiti", 84_000)]);
+    expect(p.mancaImmobile).toBe(true);
+  });
+
+  it("con la casa fra i beni fisici, non si dice niente", () => {
+    const p = patrimonio(
+      [],
+      [],
+      [bene("Mutuo prima casa", "debiti", 84_000), bene("Casa", "beni", 210_000)],
+    );
+    expect(p.mancaImmobile).toBe(false);
+  });
+
+  it("un debito che non è un mutuo non fa scattare niente", () => {
+    const p = patrimonio([], [], [bene("Prestito auto", "debiti", 6_000)]);
+    expect(p.mancaImmobile).toBe(false);
+  });
+
+  it("e nemmeno un archivio senza debiti", () => {
+    expect(patrimonio([], [], []).mancaImmobile).toBe(false);
+    expect(patrimonio([], [], [bene("Casa", "beni", 210_000)]).mancaImmobile).toBe(false);
+  });
+
+  it("il nome si legge come lo scrive una persona: maiuscole e flessioni comprese", () => {
+    for (const nome of ["MUTUO", "Mutuo residuo", "mutuo ipotecario", "Il Mutuo della casa"]) {
+      expect(patrimonio([], [], [bene(nome, "debiti", 1)]).mancaImmobile, nome).toBe(true);
+    }
+  });
+
+  /*
+    Il limite, scritto come test perché non si perda: il riconoscimento è una
+    lettura del nome, e un mutuo chiamato in un altro modo non si riconosce.
+    Questo test **documenta** il comportamento, non lo approva.
+  */
+  it("ma un mutuo chiamato in un altro modo no, ed è il limite del metodo", () => {
+    const p = patrimonio([], [], [bene("Banca Intesa, rata 320 €", "debiti", 84_000)]);
+    expect(p.mancaImmobile).toBe(false);
+  });
+
+  it("non tocca nessun numero: resta un'osservazione", () => {
+    const con = patrimonio([conto("a", 1_000)], [], [bene("Mutuo", "debiti", 84_000)]);
+    expect(con.netto).toBe(-83_000);
+  });
+});

@@ -142,6 +142,18 @@ export function SchermataConti() {
                 ))}
             </dl>
             )}
+            {/*
+              Il mutuo senza la casa: il debito c'è, il bene no, e il netto
+              scende di tutto il valore dell'immobile. Non è un errore da
+              correggere al posto di chi scrive — magari la casa non è sua — ed
+              è per questo una riga che spiega, non un avviso che allarma.
+            */}
+            {conto.mancaImmobile && (
+              <p className="mt-3 text-micro text-attenzione">
+                Fra i debiti c&apos;è un mutuo e fra i beni fisici non c&apos;è niente: manca il
+                valore dell&apos;immobile, quindi il netto è più basso del reale.
+              </p>
+            )}
           </Card>
         </section>
 
@@ -190,18 +202,33 @@ export function SchermataConti() {
                         spostare la data, i movimenti già registrati verrebbero
                         applicati sopra una cifra che li contiene già.
                       */}
-                      <CellaModificabile
-                        tipo="valuta"
-                        etichetta={`Saldo di ${c.nome}`}
-                        valore={saldoConto(c, dati.pfMovimenti, oggi)}
-                        className="w-36"
-                        onSalva={(v) =>
-                          void salvaConto(
-                            { ...c, saldoRiferimento: Number(v ?? 0), dataRiferimento: oggi },
-                            "Saldo aggiornato a oggi",
-                          )
-                        }
-                      />
+                      {/*
+                        Il saldo mostrato è quello scritto **più i movimenti
+                        registrati dopo**, quindi non è sempre la cifra che si è
+                        digitata. La data dell'ancora sta accanto a ogni conto e
+                        non solo nel totale: senza, la differenza fra quello che
+                        hai scritto e quello che leggi non ha nessuna
+                        spiegazione a portata d'occhio.
+                      */}
+                      <span className="flex flex-col items-end">
+                        <CellaModificabile
+                          tipo="valuta"
+                          etichetta={`Saldo di ${c.nome}`}
+                          valore={saldoConto(c, dati.pfMovimenti, oggi)}
+                          className="w-36"
+                          onSalva={(v) =>
+                            void salvaConto(
+                              { ...c, saldoRiferimento: Number(v ?? 0), dataRiferimento: oggi },
+                              "Saldo aggiornato a oggi",
+                            )
+                          }
+                        />
+                        <span className="px-2 text-micro text-inchiostro-tenue">
+                          scritto il {fmtData(c.dataRiferimento)}
+                          {movimenti > 0 &&
+                            ` · ${movimenti === 1 ? "un movimento" : `${movimenti} movimenti`} dopo`}
+                        </span>
+                      </span>
                       <Button
                         scrive
                         variante="quieto"
