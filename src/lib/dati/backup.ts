@@ -732,6 +732,24 @@ function convalidaMappatura(grezza: unknown): MappaturaColonne | null {
   };
 }
 
+/**
+ * Le impostazioni del modulo: una riga sola, e valori prudenti.
+ *
+ * Un cuscinetto negativo o non numerico diventa zero — «conto tutto», che è
+ * il comportamento di sempre — invece di far fallire l'import di un archivio
+ * intero per un campo che ha un valore di ripiego ovvio.
+ */
+const convalidaImpostazioniPf: Convalida<Dati["pfImpostazioni"][number]> = (riga) => ({
+  id: "unico",
+  cuscinetto: Math.max(0, numero(riga.cuscinetto, 0)),
+  /*
+    Assente vuol dire **acceso**, perché è il comportamento che il modulo ha
+    sempre avuto: un backup scritto prima che il campo esistesse non può dire
+    «spento», e spegnerlo cambierebbe il limite di ogni mese in silenzio.
+  */
+  riportoAttivo: riga.riportoAttivo === undefined ? true : booleano(riga.riportoAttivo),
+});
+
 const convalidaMovimentoPf: Convalida<Dati["pfMovimenti"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "pfMovimenti", i, errori);
   if (!id) return null;
@@ -920,6 +938,12 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
   dati.pfBeni = convalidaElenco(contenuto.pfBeni, "pfBeni", convalidaBene, errori);
   dati.pfRegole = convalidaElenco(contenuto.pfRegole, "pfRegole", convalidaRegola, errori);
   dati.pfImport = convalidaElenco(contenuto.pfImport, "pfImport", convalidaImportPf, errori);
+  dati.pfImpostazioni = convalidaElenco(
+    contenuto.pfImpostazioni,
+    "pfImpostazioni",
+    convalidaImpostazioniPf,
+    errori,
+  );
 
   // Qui gli errori sono di riga: il file è un backup vero, con dentro dei
   // guasti localizzati. Si dice, perché si può rimediare.

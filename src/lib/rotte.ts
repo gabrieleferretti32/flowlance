@@ -46,6 +46,7 @@ export const ROTTE = {
   finanzeMovimenti: `${BASE_APP}/finanze/movimenti`,
   finanzeCategorie: `${BASE_APP}/finanze/categorie`,
   finanzeRendiconto: `${BASE_APP}/finanze/rendiconto`,
+  finanzeSpesa: `${BASE_APP}/finanze/spesa`,
   avvio: `${BASE_APP}/avvio`,
   parametri: `${BASE_APP}/parametri`,
   dati: `${BASE_APP}/dati`,

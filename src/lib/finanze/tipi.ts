@@ -164,6 +164,35 @@ export type RegolaPf = {
   tipo: TipoMovimento;
 };
 
+/**
+ * Le impostazioni del modulo: una riga sola, in archivio.
+ *
+ * In archivio e non nel browser, perché viaggiano nel backup: un cuscinetto
+ * scritto in `localStorage` sparisce al primo cambio di computer, e sparisce
+ * in silenzio — il limite di spesa si alza di colpo e nessuno sa perché.
+ */
+export type ImpostazioniPf = {
+  /** Sempre `unico`: la riga è una sola, e la chiave lo dice. */
+  id: "unico";
+  /**
+   * Quanto lasciare sul conto senza contarlo fra i soldi spendibili.
+   *
+   * Non è risparmio: è il margine per l'imprevisto, e serve che resti lì. Zero
+   * è una scelta legittima — vuol dire «conto tutto» — e infatti è il valore
+   * di partenza, perché un cuscinetto messo da noi al posto di chi legge
+   * sarebbe una cifra sua decisa da altri.
+   */
+  cuscinetto: number;
+  /** Quello che avanza in un mese si somma al mese dopo. */
+  riportoAttivo: boolean;
+};
+
+export const IMPOSTAZIONI_PF_PREDEFINITE: ImpostazioniPf = {
+  id: "unico",
+  cuscinetto: 0,
+  riportoAttivo: true,
+};
+
 export type ImportPf = {
   id: string;
   data: string;

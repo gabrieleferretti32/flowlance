@@ -664,9 +664,23 @@ investire» perché non lo sa e non è autorizzato a dirlo.
 
 ### Quello che manca ancora, e quando
 
-**Il tetto dato dal conto deve togliere anche l'accantonato non versato.**
-Segnalato il 20 settembre 2026, da fare alla **fase 4**, quando la schermata
-«Quanto posso spendere» arriva davvero.
+**Il tetto dato dal conto toglie il fisco non ancora versato.** ~~Da fare
+alla fase 4~~ — **fatto il 21 settembre 2026**, con la schermata «Quanto posso
+spendere». Quello che segue resta perché spiega la scelta, e perché una cosa
+sola è cambiata rispetto a come l'avevamo detta.
+
+Il numero che si toglie **non** è «quanto ho accantonato finora meno quanto ho
+già versato», come previsto qui sotto: quello richiederebbe di osservare dai
+movimenti quanto è davvero finito da parte, e il modulo lo saprà solo quando
+avrà una categoria o un conto dedicati al fondo fiscale. Si toglie invece
+**quello che resta da versare** — `quotaAccantonamento`, imposte, contributi e
+IVA — che è la stessa cifra della card del cruscotto. È più prudente e non ha
+bisogno di osservare niente: se quei soldi li hai messi da parte sono sul
+conto e non sono tuoi; se non li hai messi da parte li devi lo stesso.
+
+Resta da fare: distinguere il fondo fiscale davvero accantonato dal debito
+maturato, quando i movimenti sapranno dirlo. Serve a chi tiene il fondo su un
+conto separato e vuole vedere il suo conto corrente per quello che è.
 
 Il controllo sul conto, come sta nel brief, confronta «resta da spendere» con
 il saldo totale meno il cuscinetto e meno fisse, risparmi e rate ancora da

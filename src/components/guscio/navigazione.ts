@@ -48,6 +48,7 @@ const ICONE: Record<string, LucideIcon> = {
   [ROTTE.cashflow]: BarChart3,
   [ROTTE.patrimonio]: PiggyBank,
   [ROTTE.pianificazione]: Target,
+  [ROTTE.finanzeSpesa]: PiggyBank,
   [ROTTE.finanzeConti]: Wallet,
   [ROTTE.finanzeMovimenti]: ArrowLeftRight,
   [ROTTE.finanzeCategorie]: Tags,

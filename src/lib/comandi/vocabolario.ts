@@ -58,6 +58,7 @@ export const DESTINAZIONI: Destinazione[] = [
   { href: ROTTE.cashflow, etichetta: "Cashflow", gruppo: "Finanza", tasto: "w", sinonimi: ["flusso di cassa", "liquidita"], pronta: true },
   { href: ROTTE.patrimonio, etichetta: "Bilancio dell'attività", gruppo: "Finanza", tasto: "p", sinonimi: ["patrimonio", "attivi", "passivi", "netto", "bilancio"], pronta: true },
   { href: ROTTE.pianificazione, etichetta: "Pianificazione", gruppo: "Finanza", tasto: "n", sinonimi: ["obiettivi", "scenari"], pronta: true },
+  { href: ROTTE.finanzeSpesa, etichetta: "Quanto posso spendere", gruppo: "Finanze personali", sinonimi: ["limite", "budget mensile", "resta", "spendibile"], pronta: true },
   { href: ROTTE.finanzeConti, etichetta: "Conti e patrimonio", gruppo: "Finanze personali", tasto: "t", sinonimi: ["conti", "banca", "saldo", "patrimonio netto", "beni", "debiti", "mutuo"], pronta: true },
   { href: ROTTE.finanzeMovimenti, etichetta: "Movimenti", gruppo: "Finanze personali", sinonimi: ["registro", "spese personali", "entrate", "giroconto", "estratto conto"], pronta: true },
   { href: ROTTE.finanzeCategorie, etichetta: "Categorie", gruppo: "Finanze personali", sinonimi: ["spese fisse", "budget", "accantonamento", "etichette"], pronta: true },

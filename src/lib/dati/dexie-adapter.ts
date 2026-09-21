@@ -92,6 +92,7 @@ export class DexieAdapter implements StorageAdapter {
   readonly pfBeni: StorageAdapter["pfBeni"];
   readonly pfRegole: StorageAdapter["pfRegole"];
   readonly pfImport: StorageAdapter["pfImport"];
+  readonly pfImpostazioni: StorageAdapter["pfImpostazioni"];
 
   constructor(database: DatabaseFinanze = dbCondiviso()) {
     this.database = database;
@@ -133,6 +134,9 @@ export class DexieAdapter implements StorageAdapter {
     this.pfBeni = deposito(database.pfBeni as unknown as Table<Dati["pfBeni"][number], string>);
     this.pfRegole = deposito(database.pfRegole as unknown as Table<Dati["pfRegole"][number], string>);
     this.pfImport = deposito(database.pfImport as unknown as Table<Dati["pfImport"][number], string>);
+    this.pfImpostazioni = deposito(
+      database.pfImpostazioni as unknown as Table<Dati["pfImpostazioni"][number], string>,
+    );
   }
 
   private tabelle(): Table[] {

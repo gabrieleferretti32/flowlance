@@ -964,6 +964,7 @@ export function datiVetrina(): Dati {
     pfBeni: PF_BENI,
     pfRegole: [],
     pfImport: [],
+    pfImpostazioni: [],
   };
 }
 

@@ -561,6 +561,7 @@ export function datiDemo(): Dati {
     pfBeni: PF_BENI,
     pfRegole: [],
     pfImport: [],
+    pfImpostazioni: [],
   };
 }
 

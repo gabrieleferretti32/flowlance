@@ -21,6 +21,7 @@ import type {
   CategoriaPf,
   ContoPersonale,
   ImportPf,
+  ImpostazioniPf,
   MovimentoPf,
   RegolaPf,
 } from "@/lib/finanze/tipi";
@@ -39,7 +40,7 @@ import type {
  * un elenco vuoto, e un test in `backup.test.ts` che importa un file senza il
  * modulo.
  */
-export const VERSIONE_SCHEMA = 8;
+export const VERSIONE_SCHEMA = 9;
 
 /**
  * Lo schema IndexedDB.
@@ -73,6 +74,7 @@ export class DatabaseFinanze extends Dexie {
   pfBeni!: EntityTable<BenePf, "id">;
   pfRegole!: EntityTable<RegolaPf, "id">;
   pfImport!: EntityTable<ImportPf, "id">;
+  pfImpostazioni!: EntityTable<ImpostazioniPf, "id">;
 
   // Il nome del database resta quello originale anche dopo il rename del
   // progetto in Flowlance: in IndexedDB il nome È la chiave dell'archivio,
@@ -144,6 +146,15 @@ export class DatabaseFinanze extends Dexie {
       pfBeni: "id, classe",
       pfRegole: "id",
       pfImport: "id, data",
+    });
+    /*
+      Versione 9: le impostazioni del modulo, una riga sola. Nessuna
+      migrazione: chi apre l'app dopo l'aggiornamento non ne ha nessuna, e
+      «nessuna» vuol dire i valori predefiniti — cuscinetto a zero e riporto
+      acceso, che è il comportamento di prima.
+    */
+    this.version(9).stores({
+      pfImpostazioni: "id",
     });
   }
 }

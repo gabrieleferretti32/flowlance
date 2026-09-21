@@ -43,6 +43,7 @@ import type {
   CategoriaPf,
   ContoPersonale,
   ImportPf,
+  ImpostazioniPf,
   MovimentoPf,
   RegolaPf,
 } from "@/lib/finanze/tipi";
@@ -1080,4 +1081,11 @@ export async function creaRegola(regola: Omit<RegolaPf, "id">): Promise<RegolaPf
     },
   );
   return nuova;
+}
+
+/** Le impostazioni del modulo: una riga sola, creata la prima volta che serve. */
+export async function salvaImpostazioniPf(impostazioni: ImpostazioniPf) {
+  await conAnnullamento(archivio().pfImpostazioni, impostazioni.id, "Impostazione aggiornata", async () => {
+    await archivio().pfImpostazioni.salva(impostazioni);
+  });
 }
