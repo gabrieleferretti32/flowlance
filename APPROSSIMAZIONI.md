@@ -687,6 +687,47 @@ il primo**: non sa quanto una persona abbia messo da parte davvero. Lo saprà il
 modulo, quando i movimenti diranno quanto è finito nelle categorie di risparmio
 del fisco o su un conto dedicato. È una dipendenza fra le due metà, e va
 disegnata alla fase 4 invece di essere scoperta lì.
+
+**Il denaro personale si scrive in due posti, e per ora si può contare due
+volte.** Segnalato il 21 settembre 2026. **Da chiudere prima che il modulo vada
+in produzione**, non dopo: è una scadenza, non un'intenzione.
+
+Nel Cashflow c'è un riepilogo mensile — prelievi, altre entrate, altre uscite —
+che si compila a mano e serve alla cassa dell'attività. Nel modulo c'è il
+registro, una riga per movimento. Sono lo stesso denaro: un prelievo di 800 €
+scritto in tutti e due i posti viene contato due volte, e nessuna delle due
+schermate se ne accorge da sola.
+
+Per adesso la convivenza è dichiarata e **misurata**: quando il registro ha
+movimenti nell'anno guardato, il Cashflow mostra quanti sono, quanto entra e
+quanto esce, e il collegamento al registro — `sovrapposizionePersonale` in
+`src/lib/finanze/sovrapposizione.ts`, con i suoi test. Vede il doppione dove
+nasce e non tocca il motore, ma **non lo impedisce**.
+
+La chiusura è derivare il riepilogo dal registro. Tre regole, decise adesso
+perché a farle dopo si decidono di fretta:
+
+1. La derivazione vale **solo per i mesi che hanno movimenti registrati**. Un
+   mese compilato a mano prima del modulo resta com'è: riscriverlo
+   cancellerebbe un dato vero con un dato assente.
+2. La riga deve **dire quale dei due sta leggendo**, mese per mese. Due fonti
+   che si alternano senza dirlo sono peggio di due fonti separate.
+3. Tocca `cashflow`, il bilancio dell'attività e la catena degli anni — cioè il
+   motore che usano i clienti — quindi va con le sue migrazioni e i suoi test,
+   e non insieme a una schermata nuova.
+
+**«Liquidità del conto personale» e il saldo dei conti personali sono due cifre
+per la stessa cosa.** Segnalato il 21 settembre 2026, si chiude con la
+derivazione qui sopra.
+
+Nel bilancio dell'attività la riga «Liquidità del conto personale» nasce dal
+riepilogo mensile — saldo iniziale più prelievi e altre entrate, meno spese e
+risparmio — mentre nel modulo ogni conto personale ha un saldo scritto e
+ancorato, che i movimenti muovono. Chi compila tutti e due vede due numeri che
+dovrebbero essere lo stesso numero e non lo sono, in due schermate che non si
+nominano a vicenda. Fino alla derivazione restano due, ed è questa riga a
+dirlo.
+
 ---
 
 ## La quota di accantonamento del mese

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/card";
@@ -43,6 +44,8 @@ import {
   salvaMovimentoPersonale,
 } from "@/lib/dati/azioni";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
+import { ROTTE } from "@/lib/rotte";
+import { sovrapposizionePersonale } from "@/lib/finanze/sovrapposizione";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import type { VersamentoF24 } from "@/lib/dati/tipi";
@@ -72,6 +75,18 @@ export function SchermataCashflow() {
       </Guscio>
     );
   }
+
+  /*
+    Il registro delle finanze personali, se c'è.
+
+    Qui si scrivono a mano i prelievi e le altre uscite del mese; di là si
+    registra movimento per movimento. Sono lo stesso denaro, e finché il
+    riepilogo non si deriva dal registro — prima che il modulo esca, sta in
+    APPROSSIMAZIONI.md — chi compila tutti e due i posti conta due volte gli
+    stessi soldi senza che niente glielo dica. Questa è una lettura in più in
+    questa schermata: non tocca il motore e non cambia nessun numero.
+  */
+  const registro = sovrapposizionePersonale(dati.pfMovimenti, anno);
 
   const versamentiAnno = dati.versamenti
     .filter((v) => v.data.startsWith(String(anno)))
@@ -130,6 +145,27 @@ export function SchermataCashflow() {
               Le colonne chiare arrivano dai registri. Le altre entrate, le altre uscite e i
               prelievi li scrivi tu: bastano un clic e Invio.
             </CardSottotitolo>
+            {/*
+              Il doppione, detto dove nasce. La riga compare solo quando il
+              registro personale ha qualcosa in quest'anno: un avviso che c'è
+              sempre è un avviso che non si legge più.
+            */}
+            {registro.quanti > 0 && (
+              <p className="mt-2 text-micro text-attenzione">
+                Nel registro personale ci sono{" "}
+                {registro.quanti === 1 ? "un movimento" : `${registro.quanti} movimenti`} in{" "}
+                {registro.mesi.length === 1
+                  ? nomeMese(registro.mesi[0].mese).toLowerCase()
+                  : `${registro.mesi.length} mesi (${registro.mesi.map((m) => nomeMese(m.mese).toLowerCase()).join(", ")})`}
+                : {euro(registro.entrate)} in entrata e {euro(registro.uscite)} in uscita. Le
+                colonne qui sotto si scrivono a mano e non li conoscono: quello che compare in tutti
+                e due i posti è contato due volte.{" "}
+                <Link href={ROTTE.finanzeConti} className="underline underline-offset-2">
+                  Vedi il registro
+                </Link>
+                .
+              </p>
+            )}
           </CardCorpo>
           {/*
             Alta abbastanza da contenere l'apertura, i dodici mesi e il totale
