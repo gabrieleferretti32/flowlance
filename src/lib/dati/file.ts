@@ -45,6 +45,34 @@ export function scegliFile(
   });
 }
 
+/**
+ * Il file **in byte**, non in testo.
+ *
+ * `file.text()` decide da solo che il contenuto è UTF-8, e su un rendiconto
+ * esportato in ANSI gli accenti si perdono prima che qualcuno possa
+ * accorgersene. Chi deve riconoscere l'alfabeto ha bisogno dei byte com'erano:
+ * vedi `decodificaRendiconto`.
+ */
+export function scegliFileByte(
+  accetta = "text/csv,.csv",
+): Promise<{ nome: string; byte: ArrayBuffer } | null> {
+  return new Promise((risolvi) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accetta;
+    input.addEventListener("change", async () => {
+      const file = input.files?.[0];
+      risolvi(file ? { nome: file.name, byte: await file.arrayBuffer() } : null);
+    });
+    window.addEventListener(
+      "focus",
+      () => setTimeout(() => { if (!input.files?.length) risolvi(null); }, 400),
+      { once: true },
+    );
+    input.click();
+  });
+}
+
 export function scegliFileTesto(accetta = "application/json,.json"): Promise<string | null> {
   return new Promise((risolvi) => {
     const input = document.createElement("input");

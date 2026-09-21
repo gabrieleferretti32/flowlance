@@ -43,7 +43,8 @@ import { Guscio } from "@/components/guscio/guscio";
 import { ROTTE } from "@/lib/rotte";
 import { useDati } from "@/lib/dati/hooks";
 import { leggiCsv, type Tabella } from "@/lib/csv/parser";
-import { scegliFile } from "@/lib/dati/file";
+import { scegliFileByte } from "@/lib/dati/file";
+import { decodificaRendiconto, nomeCodifica, type Codifica } from "@/lib/finanze/codifica";
 import { nuovoId } from "@/lib/dati/tipi";
 import {
   annullaImportRendiconto,
@@ -60,13 +61,23 @@ import {
 import { tipoDiCategoria } from "@/lib/finanze/categorizza";
 import {
   applicaMappatura,
+  formatoDelleDate,
+  nomeFormatoData,
   proponiMappatura,
+  type LetturaFormatoData,
   type MappaturaColonne,
   type ScartoRendiconto,
 } from "@/lib/finanze/rendiconto";
 import type { ContoPersonale, ImportPf, TipoMovimento } from "@/lib/finanze/tipi";
 import { data as fmtData } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Perché una riga non è entrata, detto in italiano invece che in gergo. */
+const MOTIVI: Record<ScartoRendiconto["motivo"], string> = {
+  data: "data non leggibile",
+  importo: "importo non leggibile",
+  colonne: "più campi dell'intestazione: un separatore dentro un campo",
+};
 
 const TIPI: { valore: TipoMovimento; etichetta: string }[] = [
   { valore: "entrata", etichetta: "Entrata" },
@@ -78,10 +89,12 @@ const TIPI: { valore: TipoMovimento; etichetta: string }[] = [
 
 type FileCaricato = {
   nome: string;
-  testo: string;
   contoId: string;
   tabella: Tabella;
   mappatura: MappaturaColonne | null;
+  /** Che alfabeto parlava il file, e in che ordine scrive le date. */
+  codifica: Codifica;
+  formato: LetturaFormatoData;
 };
 
 export function SchermataRendiconto() {
@@ -94,19 +107,31 @@ export function SchermataRendiconto() {
   const categorie = dati?.pfCategorie ?? [];
 
   async function aggiungiFile() {
-    const scelto = await scegliFile("text/csv,.csv,text/plain");
+    const scelto = await scegliFileByte("text/csv,.csv,text/plain");
     if (scelto === null) return;
-    const tabella = leggiCsv(scelto.testo);
+    /*
+      I byte, non il testo: `file.text()` decide da solo che sia UTF-8, e su un
+      rendiconto in ANSI gli accenti si perderebbero prima che qualcuno possa
+      accorgersene — con le regole di categoria che smettono di riconoscere
+      «caffè» senza che niente sia cambiato tranne il file.
+    */
+    const { testo, codifica } = decodificaRendiconto(scelto.byte);
+    const tabella = leggiCsv(testo);
     const contoId = conti[0]?.id ?? "";
     const salvata = conti.find((c) => c.id === contoId)?.mappaturaImport ?? null;
+    const proposta = salvata ?? proponiMappatura(tabella.intestazioni);
+    const formato = formatoDelleDate(
+      proposta ? tabella.righe.map((r) => r[proposta.data] ?? "") : [],
+    );
     setFile((f) => [
       ...f,
       {
         nome: scelto.nome,
-        testo: scelto.testo,
         contoId,
         tabella,
-        mappatura: salvata ?? proponiMappatura(tabella.intestazioni),
+        codifica,
+        formato,
+        mappatura: proposta ? { ...proposta, formatoData: formato.formato } : null,
       },
     ]);
     setRighe(null);
@@ -231,8 +256,16 @@ export function SchermataRendiconto() {
                 <li key={`${f.nome}-${i}`} className="space-y-2 px-6 py-3">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="min-w-40 flex-1 font-medium">{f.nome}</span>
+                    {/*
+                      Quello che l'app ha riconosciuto da sola, detto prima di
+                      importare: alfabeto e ordine delle date. Sono le due cose
+                      che, sbagliate, non si vedono nel registro — una data
+                      plausibile e un accento perso non somigliano a un errore.
+                    */}
                     <span className="text-micro text-inchiostro-tenue">
-                      {f.tabella.righe.length} righe · separatore «{f.tabella.separatore}»
+                      {f.tabella.righe.length} righe · separatore «{f.tabella.separatore}» ·{" "}
+                      {nomeCodifica(f.codifica)} · date {nomeFormatoData(f.formato.formato)}
+                      {f.formato.certezza === "predefinito" && " (nessuna prova nel file)"}
                     </span>
                     <Select value={f.contoId} onValueChange={(v) => cambiaConto(i, v)}>
                       <SelectTrigger className="w-44" aria-label={`Conto di ${f.nome}`}>
@@ -258,11 +291,29 @@ export function SchermataRendiconto() {
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
+                  {f.formato.certezza === "incoerente" && (
+                    <p className="text-micro text-attenzione">
+                      Le date di questo file non si leggono tutte allo stesso modo: ci sono righe
+                      che solo giorno/mese spiega e righe che solo mese/giorno spiega. Sono state
+                      lette all&apos;italiana: controlla le date in anteprima prima di importare.
+                    </p>
+                  )}
                   <Mappatura
                     intestazioni={f.tabella.intestazioni}
                     mappatura={f.mappatura}
                     onCambia={(m) => {
-                      setFile((x) => x.map((y, j) => (j === i ? { ...y, mappatura: m } : y)));
+                      /* Cambiata la colonna della data, il formato si rilegge:
+                         era stato dedotto da un'altra colonna. */
+                      const formato = formatoDelleDate(
+                        f.tabella.righe.map((r) => r[m.data] ?? ""),
+                      );
+                      setFile((x) =>
+                        x.map((y, j) =>
+                          j === i
+                            ? { ...y, formato, mappatura: { ...m, formatoData: formato.formato } }
+                            : y,
+                        ),
+                      );
                       setRighe(null);
                     }}
                   />
@@ -334,7 +385,11 @@ export function SchermataRendiconto() {
                   {scarti.length === 1
                     ? "Una riga non si è potuta leggere"
                     : `${scarti.length} righe non si sono potute leggere`}
-                  : {scarti.slice(0, 4).map((s) => `riga ${s.indice} (${s.motivo})`).join(", ")}
+                  :{" "}
+                  {scarti
+                    .slice(0, 4)
+                    .map((s) => `riga ${s.indice} (${MOTIVI[s.motivo]})`)
+                    .join(", ")}
                   {scarti.length > 4 && "…"}. Se sono intestazioni o totali va bene così; se sono
                   movimenti, controlla la mappatura delle colonne.
                 </p>
