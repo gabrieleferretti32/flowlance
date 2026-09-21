@@ -28,6 +28,43 @@ function deposito<T, K extends string | number>(tabella: Table<T, K>): Deposito<
   };
 }
 
+/**
+ * Il budget, la cui chiave è composta.
+ *
+ * Dexie la vuole come array — `[categoriaId, anno]`, com'è nell'indice — e
+ * l'interfaccia la espone come stringa `categoria|anno`, perché un adapter in
+ * memoria con un array come chiave di Map confronterebbe per riferimento e non
+ * troverebbe mai niente. La traduzione vive qui, che è l'unico posto dove
+ * servono tutte e due le forme.
+ */
+function depositoBudget(
+  tabella: Table<Dati["pfBudget"][number], [string, number]>,
+): Deposito<Dati["pfBudget"][number]> {
+  const composta = (chiave: string | number): [string, number] => {
+    const grezza = String(chiave);
+    const taglio = grezza.lastIndexOf("|");
+    return [grezza.slice(0, taglio), Number(grezza.slice(taglio + 1))];
+  };
+  return {
+    tutti: () => tabella.toArray(),
+    leggi: (chiave) => tabella.get(composta(chiave)),
+    salva: async (valore) => {
+      await tabella.put(valore);
+      return `${valore.categoriaId}|${valore.anno}`;
+    },
+    salvaMolti: async (valori) => {
+      await tabella.bulkPut(valori);
+    },
+    elimina: async (chiave) => {
+      await tabella.delete(composta(chiave));
+    },
+    eliminaMolti: async (chiavi) => {
+      await tabella.bulkDelete(chiavi.map(composta));
+    },
+    conta: () => tabella.count(),
+  };
+}
+
 export class DexieAdapter implements StorageAdapter {
   readonly nome = "indexeddb";
   private readonly database: DatabaseFinanze;
@@ -46,6 +83,15 @@ export class DexieAdapter implements StorageAdapter {
   readonly percorsi: StorageAdapter["percorsi"];
   readonly importazioni: StorageAdapter["importazioni"];
   readonly istantanee: StorageAdapter["istantanee"];
+
+  // ——— Finanze personali ———
+  readonly pfConti: StorageAdapter["pfConti"];
+  readonly pfMovimenti: StorageAdapter["pfMovimenti"];
+  readonly pfCategorie: StorageAdapter["pfCategorie"];
+  readonly pfBudget: StorageAdapter["pfBudget"];
+  readonly pfBeni: StorageAdapter["pfBeni"];
+  readonly pfRegole: StorageAdapter["pfRegole"];
+  readonly pfImport: StorageAdapter["pfImport"];
 
   constructor(database: DatabaseFinanze = dbCondiviso()) {
     this.database = database;
@@ -75,6 +121,18 @@ export class DexieAdapter implements StorageAdapter {
     this.istantanee = deposito(
       database.istantanee as unknown as Table<IstantaneaArchivio, string>,
     );
+
+    this.pfConti = deposito(database.pfConti as unknown as Table<Dati["pfConti"][number], string>);
+    this.pfMovimenti = deposito(
+      database.pfMovimenti as unknown as Table<Dati["pfMovimenti"][number], string>,
+    );
+    this.pfCategorie = deposito(
+      database.pfCategorie as unknown as Table<Dati["pfCategorie"][number], string>,
+    );
+    this.pfBudget = depositoBudget(database.pfBudget as unknown as Table<Dati["pfBudget"][number], [string, number]>);
+    this.pfBeni = deposito(database.pfBeni as unknown as Table<Dati["pfBeni"][number], string>);
+    this.pfRegole = deposito(database.pfRegole as unknown as Table<Dati["pfRegole"][number], string>);
+    this.pfImport = deposito(database.pfImport as unknown as Table<Dati["pfImport"][number], string>);
   }
 
   private tabelle(): Table[] {

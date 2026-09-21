@@ -18,6 +18,7 @@ import {
   Compass,
   Target,
   Users,
+  Wallet,
   type LucideIcon,
 } from "lucide-react";
 import { DESTINAZIONI, type Destinazione } from "@/lib/comandi/vocabolario";
@@ -44,6 +45,7 @@ const ICONE: Record<string, LucideIcon> = {
   [ROTTE.cashflow]: BarChart3,
   [ROTTE.patrimonio]: PiggyBank,
   [ROTTE.pianificazione]: Target,
+  [ROTTE.finanzeConti]: Wallet,
   [ROTTE.avvio]: Compass,
   [ROTTE.parametri]: Settings,
   [ROTTE.dati]: Database,
@@ -60,7 +62,7 @@ const ICONE: Record<string, LucideIcon> = {
 export const SOLO_CON_TASTIERA = new Set<string>([ROTTE.scorciatoie]);
 
 /** L'ordine dei gruppi nel menu, che non è quello alfabetico. */
-const ORDINE = ["Ogni giorno", "Fisco", "Finanza", "Impostazioni"];
+const ORDINE = ["Ogni giorno", "Fisco", "Finanza", "Finanze personali", "Impostazioni"];
 
 export const GRUPPI: { titolo: string; voci: Voce[] }[] = ORDINE.map((titolo) => ({
   titolo,

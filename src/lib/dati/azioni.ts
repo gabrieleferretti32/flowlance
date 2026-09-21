@@ -38,6 +38,7 @@ import { scaricaTesto } from "./file";
 import { promemoriaDopoExport } from "./promemoria-backup";
 import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
+import type { BenePf, ContoPersonale, MovimentoPf } from "@/lib/finanze/tipi";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { datasetDi, DATASET_PREDEFINITO, type IdDataset } from "./dataset";
@@ -791,5 +792,81 @@ export async function caricaDataset(id: IdDataset = DATASET_PREDEFINITO): Promis
     const stato = useStatoBackup.getState();
     if (promemoriaPrecedente) stato.segna(promemoriaPrecedente);
     else stato.dimentica();
+  });
+}
+
+// ————————————————————————————————————————————————————————————
+// Finanze personali
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Un conto nuovo nasce con il saldo di **oggi**, e con oggi come ancora.
+ *
+ * La data di riferimento non è un dettaglio da chiedere: è la riga che rende
+ * il saldo stabile. `saldoConto` somma solo i movimenti successivi a
+ * quell'ancora, quindi caricare i rendiconti dei mesi passati non tocca il
+ * saldo che hai scritto — e senza ancora, ogni import lo sposterebbe.
+ */
+export async function creaConto(conto: Omit<ContoPersonale, "id">): Promise<ContoPersonale> {
+  const nuovo: ContoPersonale = { ...conto, id: nuovoId() };
+  await archivio().pfConti.salva(nuovo);
+  toast.conferma("Conto aggiunto", async () => {
+    await archivio().pfConti.elimina(nuovo.id);
+  });
+  return nuovo;
+}
+
+export async function salvaConto(conto: ContoPersonale, messaggio = "Conto aggiornato") {
+  await conAnnullamento(archivio().pfConti, conto.id, messaggio, async () => {
+    await archivio().pfConti.salva(conto);
+  });
+}
+
+/**
+ * Elimina un conto **e i suoi movimenti**, o non elimina niente.
+ *
+ * Un movimento che punta a un conto che non c'è più non sparisce dal registro:
+ * resta lì con un'origine che non si può nominare, e il saldo totale — che
+ * somma i conti — smette di essere d'accordo con l'elenco dei movimenti, che
+ * li mostra ancora. Due letture della stessa cassa che divergono in silenzio.
+ * Quindi o vanno via insieme, e l'annullamento li riporta insieme, oppure la
+ * schermata chiede prima di spostarli.
+ */
+export async function eliminaConto(conto: ContoPersonale, movimenti: MovimentoPf[]) {
+  const suoi = movimenti.filter(
+    (m) => m.contoId === conto.id || m.contoDestinazioneId === conto.id,
+  );
+  await archivio().pfConti.elimina(conto.id);
+  if (suoi.length > 0) await archivio().pfMovimenti.eliminaMolti(suoi.map((m) => m.id));
+  toast.conferma(
+    suoi.length === 0
+      ? "Conto eliminato"
+      : `Conto eliminato, con ${suoi.length === 1 ? "il suo movimento" : `i suoi ${suoi.length} movimenti`}`,
+    async () => {
+      await archivio().pfConti.salva(conto);
+      if (suoi.length > 0) await archivio().pfMovimenti.salvaMolti(suoi);
+    },
+  );
+}
+
+export async function creaBene(bene: Omit<BenePf, "id">): Promise<BenePf> {
+  const nuovo: BenePf = { ...bene, id: nuovoId() };
+  await archivio().pfBeni.salva(nuovo);
+  toast.conferma(nuovo.classe === "debiti" ? "Debito aggiunto" : "Voce aggiunta", async () => {
+    await archivio().pfBeni.elimina(nuovo.id);
+  });
+  return nuovo;
+}
+
+export async function salvaBene(bene: BenePf, messaggio = "Voce aggiornata") {
+  await conAnnullamento(archivio().pfBeni, bene.id, messaggio, async () => {
+    await archivio().pfBeni.salva(bene);
+  });
+}
+
+export async function eliminaBene(bene: BenePf) {
+  await archivio().pfBeni.elimina(bene.id);
+  toast.conferma("Voce eliminata", async () => {
+    await archivio().pfBeni.salva(bene);
   });
 }

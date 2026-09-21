@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { MemoriaAdapter } from "./memoria-adapter";
 import { ErroreSolaLettura, conSolaLettura } from "./sola-lettura";
 import { creaBackup, serializzaBackup } from "./backup";
+import { COLLEZIONI } from "./tipi";
 import type { Fattura } from "@/lib/fisco/tipi";
 
 const FATTURA: Fattura = {
@@ -156,5 +157,47 @@ describe("la guardia si interroga a ogni scrittura", () => {
     bloccato = false;
     await archivio.fatture.salva({ ...FATTURA, id: "f10" });
     expect(await archivio.fatture.conta()).toBe(3);
+  });
+});
+
+/**
+ * **L'archivio che l'app riceve ha un deposito per ogni collezione.**
+ *
+ * `conSolaLettura` non avvolge l'adapter: lo **ricostruisce**, un deposito per
+ * volta, a partire da `depositiDi`. Una collezione che manca lì non arriva
+ * all'applicazione — e non manca con un errore, manca con `undefined`, che si
+ * scopre alla prima schermata che prova a scrivere.
+ *
+ * È successo: le sette tabelle delle finanze personali erano in `COLLEZIONI`,
+ * nei tipi, nel backup e in `leggiTutto`, ma non in `depositiDi`, dove un cast
+ * zittiva il controllo. La prima schermata che ha salvato un conto ha trovato
+ * `Cannot read properties of undefined`.
+ */
+describe("**ogni collezione ha il suo deposito, anche dietro la sola lettura**", () => {
+  it("nessuna resta senza", async () => {
+    const protetto = conSolaLettura(new MemoriaAdapter(), () => false);
+    const senza = COLLEZIONI.filter(
+      (c) => typeof (protetto as unknown as Record<string, unknown>)[c] !== "object",
+    );
+    expect(senza).toEqual([]);
+  });
+
+  it("e ciascuno sa fare le quattro cose che gli si chiedono", async () => {
+    const protetto = conSolaLettura(new MemoriaAdapter(), () => false);
+    for (const c of COLLEZIONI) {
+      const deposito = (protetto as unknown as Record<string, Record<string, unknown>>)[c];
+      for (const metodo of ["tutti", "leggi", "salva", "elimina"]) {
+        expect(typeof deposito[metodo], `${c}.${metodo}`).toBe("function");
+      }
+      await expect(deposito.tutti as () => Promise<unknown[]>).toBeDefined();
+      expect(await (deposito.tutti as () => Promise<unknown[]>)()).toEqual([]);
+    }
+  });
+
+  /* La misura al contrario: se il controllo guardasse una proprietà qualunque
+     direbbe di sì anche su un nome inventato, e non proverebbe niente. */
+  it("e la misura vede la differenza: un nome che non è una collezione non c'è", () => {
+    const protetto = conSolaLettura(new MemoriaAdapter(), () => false);
+    expect((protetto as unknown as Record<string, unknown>).pfInventata).toBeUndefined();
   });
 });

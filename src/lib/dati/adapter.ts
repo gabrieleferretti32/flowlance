@@ -60,6 +60,24 @@ export interface StorageAdapter {
    */
   readonly istantanee: Deposito<IstantaneaArchivio>;
 
+  // ——— Finanze personali ———
+  readonly pfConti: Deposito<Dati["pfConti"][number]>;
+  readonly pfMovimenti: Deposito<Dati["pfMovimenti"][number]>;
+  readonly pfCategorie: Deposito<Dati["pfCategorie"][number]>;
+  /**
+   * Il budget non ha un id: la sua chiave è la coppia categoria-anno.
+   *
+   * Nell'interfaccia è **una stringa**, `categoria|anno`, e non l'array che
+   * Dexie usa nell'indice composto: due adapter con due forme di chiave per la
+   * stessa riga sarebbero due identità, e chi scrive contro l'interfaccia non
+   * saprebbe quale delle due gli tocca. La traduzione la fa l'adapter di
+   * Dexie, che è l'unico a cui serve l'array.
+   */
+  readonly pfBudget: Deposito<Dati["pfBudget"][number]>;
+  readonly pfBeni: Deposito<Dati["pfBeni"][number]>;
+  readonly pfRegole: Deposito<Dati["pfRegole"][number]>;
+  readonly pfImport: Deposito<Dati["pfImport"][number]>;
+
   /** Legge tutto, in una sola transazione dove la tecnologia lo consente. */
   leggiTutto(): Promise<Dati>;
   /** Scrive tutto. `sostituisci` svuota prima, `unisci` fa upsert per chiave. */
@@ -84,11 +102,23 @@ export interface StorageAdapter {
   vuoto(): Promise<boolean>;
 }
 
-/** I depositi nell'ordine delle collezioni, per iterarci sopra. */
+/**
+ * I depositi nell'ordine delle collezioni, per iterarci sopra.
+ *
+ * **Senza il cast, e non è un dettaglio di stile.** Qui c'era un
+ * `as Record<NomeCollezione, …>` che zittiva il controllo: le sette collezioni
+ * delle finanze personali erano entrate in `COLLEZIONI`, nei tipi, nel backup e
+ * in `leggiTutto`, ma non in questa mappa — e `conSolaLettura`, che ricostruisce
+ * l'adapter da qui, restituiva un archivio **senza quei depositi**. La prima
+ * schermata che ha provato a scrivere un conto ha trovato `undefined.salva`.
+ *
+ * L'oggetto letterale senza cast fa fallire la compilazione quando manca una
+ * chiave: il difetto si vede a `tsc`, non in una console del browser.
+ */
 export function depositiDi(
   adapter: StorageAdapter,
 ): Record<NomeCollezione, Deposito<never, never>> {
-  return {
+  const mappa: Record<NomeCollezione, unknown> = {
     impostazioni: adapter.impostazioni,
     clienti: adapter.clienti,
     fatture: adapter.fatture,
@@ -101,5 +131,13 @@ export function depositiDi(
     spunte: adapter.spunte,
     chiusure: adapter.chiusure,
     percorsi: adapter.percorsi,
-  } as Record<NomeCollezione, Deposito<never, never>>;
+    pfConti: adapter.pfConti,
+    pfMovimenti: adapter.pfMovimenti,
+    pfCategorie: adapter.pfCategorie,
+    pfBudget: adapter.pfBudget,
+    pfBeni: adapter.pfBeni,
+    pfRegole: adapter.pfRegole,
+    pfImport: adapter.pfImport,
+  };
+  return mappa as Record<NomeCollezione, Deposito<never, never>>;
 }

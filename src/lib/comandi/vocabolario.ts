@@ -58,6 +58,7 @@ export const DESTINAZIONI: Destinazione[] = [
   { href: ROTTE.cashflow, etichetta: "Cashflow", gruppo: "Finanza", tasto: "w", sinonimi: ["flusso di cassa", "liquidita"], pronta: true },
   { href: ROTTE.patrimonio, etichetta: "Patrimonio", gruppo: "Finanza", tasto: "p", sinonimi: ["attivi", "passivi", "netto"], pronta: true },
   { href: ROTTE.pianificazione, etichetta: "Pianificazione", gruppo: "Finanza", tasto: "n", sinonimi: ["obiettivi", "scenari"], pronta: true },
+  { href: ROTTE.finanzeConti, etichetta: "Conti e patrimonio", gruppo: "Finanze personali", tasto: "t", sinonimi: ["conti", "banca", "saldo", "patrimonio netto", "beni", "debiti", "mutuo"], pronta: true },
   { href: ROTTE.avvio, etichetta: "Configurazione", gruppo: "Impostazioni", sinonimi: ["onboarding", "percorso", "regime"], pronta: true },
   { href: ROTTE.parametri, etichetta: "Parametri", gruppo: "Impostazioni", sinonimi: ["addizionale", "aliquote", "regione", "comune", "cassa", "contributi fissi", "ore fatturabili"], pronta: true },
   { href: ROTTE.dati, etichetta: "Dati e backup", gruppo: "Impostazioni", tasto: "d", sinonimi: ["esporta", "importa", "demo", "backup"], pronta: true },
