@@ -179,8 +179,8 @@ export function Cruscotto() {
   */
   const ripartizione = (
     [
-      ["IVA", analisi.quota.iva],
       ["Imposte e contributi", analisi.quota.imposte],
+      ["IVA", analisi.quota.iva],
     ] as const
   ).filter(([, parte]) => parte.voci.length > 0);
   /* La prima scadenza che deve ancora arrivare: quelle passate non sono «la
@@ -373,11 +373,14 @@ export function Cruscotto() {
                 {(analisi.quota.imposte.voci.length > 0 || analisi.quota.iva.voci.length > 0) && (
                   <details className="group">
                     <summary className="cursor-pointer list-none text-inchiostro-tenue [&::-webkit-details-marker]:hidden">
-                      {/* L'ultima parola e la freccia restano insieme: a due
-                          colonne su telefono la freccia finiva da sola su una riga. */}
-                      scadenza per{" "}
+                      {/* Un comando, non un'etichetta: «scadenza per scadenza»
+                          si leggeva come il titolo di quello che c'era sotto, e
+                          niente diceva che ci fosse da premere. L'ultima parola
+                          e la freccia restano insieme, che a due colonne su
+                          telefono la freccia finiva da sola su una riga. */}
+                      Vedi le{" "}
                       <span className="whitespace-nowrap">
-                        scadenza
+                        scadenze
                         <span className="text-accento group-open:hidden"> ▸</span>
                         <span className="hidden text-accento group-open:inline"> ▾</span>
                       </span>
