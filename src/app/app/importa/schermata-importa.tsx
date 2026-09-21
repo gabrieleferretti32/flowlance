@@ -443,6 +443,20 @@ export function SchermataImporta() {
             </CardCorpo>
           </Card>
         )}
+
+        {/*
+          Il raccordo con l'altro import. Sono due porte diverse su due
+          archivi diversi, e senza questa riga si prova a far entrare un
+          estratto conto da qui — dove le colonne che chiede non ci sono.
+        */}
+        <p className="text-micro text-inchiostro-tenue">
+          Qui entrano <strong>fatture, costi e clienti</strong>, nei registri fiscali. I rendiconti
+          della banca si caricano da{" "}
+          <Link href={ROTTE.finanzeRendiconto} className="underline underline-offset-2">
+            Carica rendiconto
+          </Link>
+          , e diventano movimenti personali.
+        </p>
       </div>
     </Guscio>
   );

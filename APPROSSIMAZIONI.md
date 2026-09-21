@@ -716,6 +716,31 @@ perché a farle dopo si decidono di fretta:
    motore che usano i clienti — quindi va con le sue migrazioni e i suoi test,
    e non insieme a una schermata nuova.
 
+**L'import legge il CSV, non l'Excel.** Segnalato il 21 settembre 2026.
+
+Il `.xlsx` richiede una libreria — quattrocento chilobyte — e farla pesare a
+tutti per una funzione che si usa una volta al mese non torna. Arriverà con il
+caricamento a richiesta: la si scarica quando si sceglie un file Excel, e chi
+carica solo CSV non la incontra mai. Nel frattempo un `.xlsx` si esporta in CSV
+da qualunque foglio di calcolo, ed è un passaggio in più che si fa una volta.
+
+**Il dizionario delle parole è italiano, corto e di parte.** Riconosce le
+catene e le parole che compaiono nei rendiconti italiani — «esselunga»,
+«bolletta», «carburante» — e nient'altro. Quello che non riconosce finisce in
+«Non definito», che è la scelta giusta: una categoria sbagliata ma plausibile
+non la controlla nessuno, e il budget di fine mese è sbagliato in silenzio. Si
+corregge in anteprima, e la correzione può diventare una regola — che da lì in
+poi vale più del dizionario. Non c'è nessun modello e nessuna chiamata di rete:
+i movimenti bancari non escono dal browser per essere catalogati.
+
+**Un giroconto nuovo di pari importo fra gli stessi conti entro tre giorni da
+uno già in archivio viene segnalato come doppione.** È il prezzo del
+riconoscimento per struttura, che serve a non raddoppiare i giroconti quando si
+ricarica lo stesso rendiconto: in archivio la coppia unita lascia una riga
+sola, con la descrizione dell'uscita, e la riga d'entrata non somiglia a niente
+di scritto. La riga resta visibile e la spunta si rimette: un doppione
+segnalato si corregge, uno scartato in silenzio no.
+
 **«Liquidità del conto personale» e il saldo dei conti personali sono due cifre
 per la stessa cosa.** Segnalato il 21 settembre 2026, si chiude con la
 derivazione qui sopra.

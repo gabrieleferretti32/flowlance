@@ -38,7 +38,15 @@ import { scaricaTesto } from "./file";
 import { promemoriaDopoExport } from "./promemoria-backup";
 import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
-import type { BenePf, CategoriaPf, ContoPersonale, MovimentoPf } from "@/lib/finanze/tipi";
+import type {
+  BenePf,
+  CategoriaPf,
+  ContoPersonale,
+  ImportPf,
+  MovimentoPf,
+  RegolaPf,
+} from "@/lib/finanze/tipi";
+import type { MappaturaColonne } from "@/lib/finanze/rendiconto";
 import {
   CATEGORIE_INIZIALI,
   movimentiDellaCategoria,
@@ -980,4 +988,96 @@ export async function eliminaCategoria(
     await archivio().pfCategorie.salva(categoria);
   });
   return true;
+}
+
+// ————————————————————————————————————————————————————————————
+// Import dei rendiconti
+// ————————————————————————————————————————————————————————————
+
+/**
+ * La mappatura delle colonne si salva sul conto, non su un profilo di banca.
+ *
+ * Il tracciato è una proprietà del file che quella banca esporta per quel
+ * conto: il mese dopo l'import non chiede più niente, e il giorno in cui la
+ * banca cambia colonne si rifà una mappatura sola.
+ */
+export async function salvaMappaturaConto(conto: ContoPersonale, mappatura: MappaturaColonne) {
+  await archivio().pfConti.salva({ ...conto, mappaturaImport: mappatura });
+}
+
+/**
+ * Scrive i movimenti scelti, e lascia il biglietto per tornare indietro.
+ *
+ * Il biglietto è `ImportPf`: quando è stato fatto, da che file, quanti
+ * movimenti. Ogni movimento porta il suo `importId`, quindi annullare è
+ * trovare quelli con quell'id e toglierli — senza toccare quelli scritti a
+ * mano nello stesso giorno, che non hanno nessun import addosso.
+ */
+export async function eseguiImportRendiconto(
+  movimenti: MovimentoPf[],
+  file: string[],
+  contoId: string,
+): Promise<ImportPf | null> {
+  if (movimenti.length === 0) return null;
+  const registrazione: ImportPf = {
+    id: movimenti[0].importId ?? nuovoId(),
+    data: new Date().toISOString(),
+    file: file.join(" · "),
+    contoId,
+    numeroMovimenti: movimenti.length,
+  };
+  await archivio().pfMovimenti.salvaMolti(movimenti);
+  await archivio().pfImport.salva(registrazione);
+  toast.conferma(
+    `${movimenti.length === 1 ? "Un movimento importato" : `${movimenti.length} movimenti importati`}`,
+    async () => {
+      await annullaImportRendiconto(registrazione);
+    },
+  );
+  return registrazione;
+}
+
+/**
+ * Annulla un import: toglie i suoi movimenti e la sua registrazione.
+ *
+ * Quello che è stato modificato a mano dopo l'import se ne va insieme al
+ * resto, ed è la scelta giusta: «annulla questo import» vuol dire «rimetti le
+ * cose com'erano prima», e una riga corretta a mano resta comunque una riga
+ * che senza quell'import non ci sarebbe.
+ */
+export async function annullaImportRendiconto(importazione: ImportPf): Promise<number> {
+  const tutti = await archivio().pfMovimenti.tutti();
+  const suoi = tutti.filter((m) => m.importId === importazione.id);
+  await archivio().pfMovimenti.eliminaMolti(suoi.map((m) => m.id));
+  await archivio().pfImport.elimina(importazione.id);
+  return suoi.length;
+}
+
+/**
+ * La regola che nasce da una correzione in anteprima.
+ *
+ * Punta alla categoria per id, come i movimenti: rinominare la categoria non
+ * stacca la regola. Il testo da cercare è quello che ha scelto la persona —
+ * di norma una parola della descrizione — e non tutta la riga, che non si
+ * ripeterebbe mai identica.
+ */
+export async function creaRegola(regola: Omit<RegolaPf, "id">): Promise<RegolaPf | null> {
+  const testoPulito = regola.testoDaCercare.trim();
+  if (testoPulito === "") return null;
+  const esistenti = await archivio().pfRegole.tutti();
+  const gia = esistenti.find(
+    (r) =>
+      r.testoDaCercare.trim().toLocaleLowerCase("it-IT") === testoPulito.toLocaleLowerCase("it-IT")
+      && r.tipo === regola.tipo,
+  );
+  const nuova: RegolaPf = { ...regola, testoDaCercare: testoPulito, id: gia?.id ?? nuovoId() };
+  await archivio().pfRegole.salva(nuova);
+  toast.conferma(
+    gia ? `Regola aggiornata: «${testoPulito}»` : `Regola creata: «${testoPulito}»`,
+    async () => {
+      if (gia) await archivio().pfRegole.salva(gia);
+      else await archivio().pfRegole.elimina(nuova.id);
+    },
+  );
+  return nuova;
 }

@@ -26,6 +26,8 @@
  * hanno già in `NotaCredito`.
  */
 
+import type { MappaturaColonne } from "./rendiconto";
+
 /** Dove stanno i soldi. */
 export type TipoConto = "corrente" | "deposito" | "carta" | "contanti" | "wallet";
 
@@ -46,6 +48,19 @@ export type ContoPersonale = {
   dataRiferimento: string;
   /** Il conto della partita IVA, quando ce n'è uno dedicato. */
   professionale: boolean;
+  /**
+   * Come si leggono i rendiconti **di questo conto**: quale colonna è la data,
+   * quale la descrizione, dove sta l'importo.
+   *
+   * Sta sul conto e non in una tabella di profili per banca, perché il
+   * tracciato è una proprietà del file che quella banca esporta per quel
+   * conto: salvarla qui vuol dire che il mese dopo l'import non chiede niente,
+   * e che il giorno in cui la banca cambia colonne si rifà una mappatura sola.
+   *
+   * Assente vuol dire «non ne è ancora entrato nessuno»: il primo import la
+   * chiede, e da lì in poi la propone già fatta.
+   */
+  mappaturaImport?: MappaturaColonne;
 };
 
 /**

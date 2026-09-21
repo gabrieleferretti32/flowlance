@@ -12,6 +12,7 @@ import { aliquota } from "@/lib/format";
 import { VERSIONE_SCHEMA } from "./db";
 import { parametriDi, parametriSonoDellAnno } from "@/lib/fisco/parametri";
 import { GESTIONI, type Gestione, type ScaglioneIrpef } from "@/lib/fisco/tipi";
+import type { MappaturaColonne } from "@/lib/finanze/rendiconto";
 import {
   COLLEZIONI,
   datiVuoti,
@@ -672,6 +673,7 @@ const unoDi = <T extends string>(v: unknown, ammessi: readonly T[], predefinito:
 const convalidaConto: Convalida<Dati["pfConti"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "pfConti", i, errori);
   if (!id) return null;
+  const mappatura = convalidaMappatura(riga.mappaturaImport);
   const dataRiferimento = dataOpzionale(riga.dataRiferimento);
   if (!dataRiferimento) {
     errori.push(
@@ -687,8 +689,48 @@ const convalidaConto: Convalida<Dati["pfConti"][number]> = (riga, i, errori) => 
     saldoRiferimento: numero(riga.saldoRiferimento, 0),
     dataRiferimento,
     professionale: booleano(riga.professionale),
+    ...(mappatura ? { mappaturaImport: mappatura } : {}),
   };
 };
+
+/**
+ * La mappatura delle colonne di un rendiconto, letta da un backup.
+ *
+ * Tutto o niente: una mappatura a metà — la colonna della data e non quella
+ * dell'importo — leggerebbe il prossimo file scartando ogni riga, e lo
+ * farebbe dopo aver detto «mappatura già pronta». Meglio nessuna mappatura,
+ * che la richiede e si vede.
+ */
+function convalidaMappatura(grezza: unknown): MappaturaColonne | null {
+  if (typeof grezza !== "object" || grezza === null) return null;
+  const m = grezza as Record<string, unknown>;
+  const forma = (m.forma ?? {}) as Record<string, unknown>;
+  const indice = (v: unknown) =>
+    typeof v === "number" && Number.isInteger(v) && v >= 0 ? v : null;
+  const data = indice(m.data);
+  const descrizione = indice(m.descrizione);
+  if (data === null || descrizione === null) return null;
+
+  if (forma.tipo === "separate") {
+    const entrate = indice(forma.entrate);
+    const uscite = indice(forma.uscite);
+    if (entrate === null || uscite === null) return null;
+    return {
+      data,
+      descrizione,
+      forma: { tipo: "separate", entrate, uscite },
+      ...(m.invertiSegno === true ? { invertiSegno: true } : {}),
+    };
+  }
+  const importo = indice(forma.importo);
+  if (importo === null) return null;
+  return {
+    data,
+    descrizione,
+    forma: { tipo: "unica", importo },
+    ...(m.invertiSegno === true ? { invertiSegno: true } : {}),
+  };
+}
 
 const convalidaMovimentoPf: Convalida<Dati["pfMovimenti"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "pfMovimenti", i, errori);
