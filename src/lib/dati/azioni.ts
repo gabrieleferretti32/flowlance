@@ -38,8 +38,12 @@ import { scaricaTesto } from "./file";
 import { promemoriaDopoExport } from "./promemoria-backup";
 import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
-import type { BenePf, ContoPersonale, MovimentoPf } from "@/lib/finanze/tipi";
-import { CATEGORIE_INIZIALI } from "@/lib/finanze/categorie";
+import type { BenePf, CategoriaPf, ContoPersonale, MovimentoPf } from "@/lib/finanze/tipi";
+import {
+  CATEGORIE_INIZIALI,
+  movimentiDellaCategoria,
+  nomeGiaUsato,
+} from "@/lib/finanze/categorie";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { datasetDi, DATASET_PREDEFINITO, type IdDataset } from "./dataset";
@@ -910,4 +914,70 @@ export async function eliminaMovimentoPf(movimento: MovimentoPf) {
   toast.conferma("Movimento eliminato", async () => {
     await archivio().pfMovimenti.salva(movimento);
   });
+}
+
+/**
+ * Una categoria nuova, con il nome già controllato.
+ *
+ * Il controllo sul nome doppio sta nella schermata — che lo mostra mentre si
+ * scrive, invece di rifiutare dopo — ma vive anche qui: un'azione che si fida
+ * di chi la chiama è un'azione che il secondo chiamante romperà.
+ */
+export async function creaCategoria(
+  categoria: Omit<CategoriaPf, "id">,
+): Promise<CategoriaPf | null> {
+  const esistenti = await archivio().pfCategorie.tutti();
+  if (nomeGiaUsato(esistenti, categoria.tipo, categoria.nome)) {
+    toast.errore(`C'è già una categoria «${categoria.nome.trim()}» fra quelle di questo tipo`);
+    return null;
+  }
+  const nuova: CategoriaPf = { ...categoria, nome: categoria.nome.trim(), id: nuovoId() };
+  await archivio().pfCategorie.salva(nuova);
+  toast.conferma("Categoria aggiunta", async () => {
+    await archivio().pfCategorie.elimina(nuova.id);
+  });
+  return nuova;
+}
+
+export async function salvaCategoria(categoria: CategoriaPf, messaggio = "Categoria aggiornata") {
+  const esistenti = await archivio().pfCategorie.tutti();
+  if (nomeGiaUsato(esistenti, categoria.tipo, categoria.nome, categoria.id)) {
+    toast.errore(`C'è già una categoria «${categoria.nome.trim()}» fra quelle di questo tipo`);
+    return;
+  }
+  await conAnnullamento(archivio().pfCategorie, categoria.id, messaggio, async () => {
+    await archivio().pfCategorie.salva({ ...categoria, nome: categoria.nome.trim() });
+  });
+}
+
+/**
+ * Eliminare una categoria **collegata a dei movimenti non si fa**.
+ *
+ * I movimenti puntano alla categoria per id: tolta la categoria, restano lì
+ * con un id che non risolve più. Nell'elenco comparirebbero con un trattino al
+ * posto del nome, nel limite di spesa uscirebbero da tutti i gruppi — perché
+ * nessun gruppo li riconosce — e la cifra spendibile salirebbe senza che
+ * nessuno abbia speso di meno. Un dato che si rompe in silenzio, e si scopre
+ * guardando un numero che sembra buono.
+ *
+ * Quindi si rifiuta, dicendo quanti sono: chi vuole davvero toglierla li
+ * sposta su un'altra e riprova. Spostarli al posto suo vorrebbe dire scegliere
+ * noi dove finiscono duecento spese.
+ */
+export async function eliminaCategoria(
+  categoria: CategoriaPf,
+  movimenti: MovimentoPf[],
+): Promise<boolean> {
+  const collegati = movimentiDellaCategoria(movimenti, categoria.id);
+  if (collegati.length > 0) {
+    toast.errore(
+      `«${categoria.nome}» ha ${collegati.length === 1 ? "un movimento collegato" : `${collegati.length} movimenti collegati`}: spostali su un'altra categoria, poi eliminala.`,
+    );
+    return false;
+  }
+  await archivio().pfCategorie.elimina(categoria.id);
+  toast.conferma("Categoria eliminata", async () => {
+    await archivio().pfCategorie.salva(categoria);
+  });
+  return true;
 }

@@ -78,3 +78,65 @@ export const CATEGORIE_INIZIALI: Seme[] = [
 
 /** Dove finisce quello che l'import non ha saputo riconoscere. */
 export const CATEGORIA_NON_DEFINITO = "non-definito";
+
+/**
+ * Due categorie dello stesso tipo non possono chiamarsi uguale.
+ *
+ * Non è pignoleria di forma: il nome è l'unica cosa che si legge scegliendo
+ * una categoria in un elenco a tendina, e due «Trasporti» nello stesso elenco
+ * sono due righe indistinguibili che portano in due posti diversi. Chi
+ * sbaglia non se ne accorge — le spese finiscono metà di qua e metà di là — e
+ * a fine mese il budget di una delle due sembra sforato senza motivo.
+ *
+ * Il confronto ignora maiuscole, spazi ai bordi e spazi doppi: «  Trasporti »
+ * e «trasporti» sono lo stesso nome per chi legge, e la macchina deve leggere
+ * come chi guarda. Gli accenti no: «però» e «pero» sono due parole diverse.
+ *
+ * Tipi diversi convivono: una categoria di spesa «Auto» e un risparmio «Auto»
+ * non compaiono mai nello stesso elenco, perché il tipo del movimento decide
+ * quale elenco si apre.
+ */
+export function nomeNormalizzato(nome: string): string {
+  return nome.trim().replace(/\s+/g, " ").toLocaleLowerCase("it-IT");
+}
+
+export function nomeGiaUsato(
+  categorie: CategoriaPf[],
+  tipo: CategoriaPf["tipo"],
+  nome: string,
+  escludiId?: string,
+): boolean {
+  const cercato = nomeNormalizzato(nome);
+  if (cercato === "") return false;
+  return categorie.some(
+    (c) => c.tipo === tipo && c.id !== escludiId && nomeNormalizzato(c.nome) === cercato,
+  );
+}
+
+/**
+ * Quanti movimenti ha ogni categoria in un anno.
+ *
+ * Serve a sapere quali categorie sono vive **prima** di toccarle: rinominare
+ * una categoria con duecento movimenti dentro è una cosa, rinominarne una mai
+ * usata è un'altra. I giroconti non hanno categoria e non si contano.
+ */
+export function usoDelleCategorie(
+  movimenti: { data: string; tipo: string; categoriaId: string }[],
+  anno: number,
+): Map<string, number> {
+  const conta = new Map<string, number>();
+  for (const m of movimenti) {
+    if (m.tipo === "giroconto") continue;
+    if (Number(m.data.slice(0, 4)) !== anno) continue;
+    conta.set(m.categoriaId, (conta.get(m.categoriaId) ?? 0) + 1);
+  }
+  return conta;
+}
+
+/** Tutti i movimenti che puntano a una categoria, di qualunque anno. */
+export function movimentiDellaCategoria<T extends { tipo: string; categoriaId: string }>(
+  movimenti: T[],
+  categoriaId: string,
+): T[] {
+  return movimenti.filter((m) => m.tipo !== "giroconto" && m.categoriaId === categoriaId);
+}
