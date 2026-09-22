@@ -813,11 +813,39 @@ seriali **prima del 1° marzo 1900** non si convertono: in un estratto conto non
 esistono, e un test lo fissa insieme ai due seriali di controllo (45658 è il
 1° gennaio 2025, 36526 il 1° gennaio 2000).
 
-Resta fuori un caso: un foglio con le righe che cominciano sotto una
-copertina — titoli, loghi, righe di totale — dove la prima riga non vuota non
-è l'intestazione. Il lettore prende il **primo foglio che ha righe** e la sua
-prima riga piena, e se sbaglia si vede subito nell'anteprima, dove le colonne
-si rimappano a mano.
+**~~Resta fuori la copertina sopra la tabella.~~ Chiusa il 22 settembre 2026,
+e non era un caso di nicchia.** Il primo file vero provato — un estratto conto
+di Trade Republic, foglio «Lista Operazione» — aveva sette righe di copertina
+sopra la tabella: uscivano colonne chiamate «Colonna 1» e «Conto
+1000/00065493», e tutte e 47 le righe venivano scartate per «data non
+leggibile». Quasi tutte le banche scrivono qualcosa sopra la tabella: assumere
+la prima riga vuol dire fallire sulla maggioranza dei file veri, e fallire in
+un modo che sembra colpa del file.
+
+La riga d'intestazione adesso si cerca, e non dal contenuto — «Data»,
+«Importo» sono parole che cambiano da banca a banca — ma da quello che c'è
+sotto: è la riga dopo la quale cominciano le righe con una data dentro.
+`intestazione.ts`, tre regole in ordine: una riga che contiene già una data non
+è un'intestazione (è un movimento); vince chi ha la frazione più alta di righe
+con una data **nella finestra di dieci righe sotto** — sotto la prima riga
+della copertina ci sono altre righe di copertina, sotto l'intestazione ci sono
+solo dati; a parità vince chi ha più celle piene, e poi la più in alto.
+
+Vale per il CSV come per l'Excel, si dichiara — «intestazione alla riga 9» — e
+**si cambia a mano** con un menu che mostra le prime venticinque righe con
+dentro quello che c'è scritto. I numeri di riga sono quelli del file: le righe
+vuote sopra restano al loro posto per contare, e sotto l'intestazione si
+buttano, perché diventerebbero altrettante righe scartate che errori non sono.
+
+Tre cose che restano, e si vedono tutte nell'anteprima:
+
+- **una riga di totale in fondo alla tabella** non ha una data, quindi finisce
+  fra le scartate con «data non leggibile»: è un errore dichiarato su una riga
+  che errore non è, e si toglie spuntandola;
+- **una copertina più lunga di venticinque righe** non si cerca: si ripiega
+  sulla prima riga, e la schermata scrive «non sono riuscito a riconoscerla»;
+- il riconoscimento **si appoggia alle date che sappiamo leggere**: un foglio
+  che scrive «12 gen 2026» non offre nessuna candidata, ripiega e lo dice.
 
 **Il dizionario delle parole è italiano, corto e di parte.** Riconosce le
 catene e le parole che compaiono nei rendiconti italiani — «esselunga»,

@@ -59,6 +59,11 @@ import {
   type RigaAnteprima,
 } from "@/lib/finanze/anteprima-import";
 import { tipoDiCategoria } from "@/lib/finanze/categorizza";
+import {
+  conIntestazioneAllaRiga,
+  RIGHE_ESAMINATE,
+  trovaIntestazione,
+} from "@/lib/finanze/intestazione";
 import { anniChiusiToccati } from "@/lib/finanze/derivazione";
 import {
   applicaMappatura,
@@ -72,6 +77,56 @@ import {
 import type { ContoPersonale, ImportPf, TipoMovimento } from "@/lib/finanze/tipi";
 import { data as fmtData } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/**
+ * Quale riga fa da intestazione, con l'anteprima delle candidate.
+ *
+ * Il menu mostra le prime righe con dentro quello che c'è scritto — «riga 9 ·
+ * Data · Tipo · Descrizione» — perché scegliere un numero senza vedere la riga
+ * vuol dire provare a caso finché l'anteprima non smette di lamentarsi.
+ */
+function SceltaIntestazione({
+  file,
+  onCambia,
+}: {
+  file: FileCaricato;
+  onCambia: (riga: number) => void;
+}) {
+  const id = React.useId();
+  const candidate = file.tutte.slice(0, RIGHE_ESAMINATE);
+  const anteprima = (riga: string[]) => {
+    const piene = riga.filter((c) => c.trim() !== "");
+    if (piene.length === 0) return "(riga vuota)";
+    return piene.slice(0, 3).join(" · ") + (piene.length > 3 ? " …" : "");
+  };
+
+  return (
+    <span className="flex flex-wrap items-center gap-1.5">
+      <label htmlFor={id} className="text-micro text-inchiostro-tenue">
+        intestazione alla
+      </label>
+      <BloccoScrittura>
+        <Select value={String(file.rigaIntestazione)} onValueChange={(v) => onCambia(Number(v))}>
+          <SelectTrigger id={id} className="h-7 w-56 text-micro" aria-label={`Riga d'intestazione di ${file.nome}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {candidate.map((riga, i) => (
+              <SelectItem key={i} value={String(i + 1)}>
+                riga {i + 1} · {anteprima(riga)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </BloccoScrittura>
+      {!file.intestazioneCerta && (
+        <span className="text-micro text-attenzione">
+          non sono riuscito a riconoscerla: ho preso la prima
+        </span>
+      )}
+    </span>
+  );
+}
 
 /** Perché una riga non è entrata, detto in italiano invece che in gergo. */
 const MOTIVI: Record<ScartoRendiconto["motivo"], string> = {
@@ -91,7 +146,20 @@ const TIPI: { valore: TipoMovimento; etichetta: string }[] = [
 type FileCaricato = {
   nome: string;
   contoId: string;
-  tabella: Tabella;
+  /**
+   * Tutte le righe del file, **copertina compresa**.
+   *
+   * Si tiene il foglio intero e non la tabella già tagliata, perché la riga
+   * d'intestazione si può cambiare: senza le righe di sopra, correggere una
+   * scelta sbagliata vorrebbe dire ricaricare il file.
+   */
+  tutte: string[][];
+  /** La riga d'intestazione, contata da 1 come la vede chi apre il file. */
+  rigaIntestazione: number;
+  /** L'ha trovata guardando i dati, o è un ripiego sulla prima riga. */
+  intestazioneCerta: boolean;
+  /** Il separatore del CSV, per dirlo. Vuoto per un Excel. */
+  separatore: string;
   mappatura: MappaturaColonne | null;
   /**
    * Che alfabeto parlava il file. `null` per un Excel: lì dentro l'XML è
@@ -137,7 +205,8 @@ export function SchermataRendiconto() {
     if (scelto === null) return;
     setErroreFile(null);
 
-    let tabella: Tabella;
+    let tutte: string[][];
+    let separatore = "";
     let codifica: Codifica | null = null;
     let foglio: string | undefined;
 
@@ -157,7 +226,7 @@ export function SchermataRendiconto() {
         setErroreFile(`${scelto.nome}: ${esito.motivo}`);
         return;
       }
-      tabella = esito.tabella;
+      tutte = esito.righe;
       foglio = esito.foglio;
     } else {
       /*
@@ -168,8 +237,31 @@ export function SchermataRendiconto() {
       */
       const letto = decodificaRendiconto(scelto.byte);
       codifica = letto.codifica;
-      tabella = leggiCsv(letto.testo);
+      const csv = leggiCsv(letto.testo, { tieniVuote: true });
+      separatore = csv.separatore;
+      /*
+        Anche qui il foglio intero: `leggiCsv` ha già separato la prima riga
+        dalle altre, ma la prima riga non è detto che sia l'intestazione —
+        anche i CSV delle banche hanno la copertina sopra.
+      */
+      tutte = [csv.intestazioni, ...csv.righe];
     }
+
+    /*
+      **Quale riga è l'intestazione.**
+
+      Il primo file vero del giro era un estratto conto con sette righe di
+      copertina sopra la tabella: prendendo la prima riga uscivano colonne
+      chiamate «Colonna 1» e «Conto 1000/00065493», e tutte e 47 le righe
+      venivano scartate per «data non leggibile». Adesso la riga si cerca —
+      `intestazione.ts` — si dice quale è stata scelta, e si può cambiare.
+    */
+    const scelta = trovaIntestazione(tutte);
+    const tabella: Tabella = {
+      intestazioni: scelta.intestazioni,
+      righe: scelta.righe,
+      separatore,
+    };
 
     const contoId = conti[0]?.id ?? "";
     const salvata = conti.find((c) => c.id === contoId)?.mappaturaImport ?? null;
@@ -190,13 +282,52 @@ export function SchermataRendiconto() {
       {
         nome: scelto.nome,
         contoId,
-        tabella,
+        tutte,
+        rigaIntestazione: scelta.riga,
+        intestazioneCerta: scelta.certa,
+        separatore,
         codifica,
         foglio,
         formato,
         mappatura: proposta ? { ...proposta, formatoData: formato.formato } : null,
       },
     ]);
+    setRighe(null);
+  }
+
+  /** La tabella di un file, tagliata alla sua riga d'intestazione. */
+  function tabellaDi(f: FileCaricato): Tabella {
+    const { intestazioni, righe } = conIntestazioneAllaRiga(f.tutte, f.rigaIntestazione);
+    return { intestazioni, righe, separatore: f.separatore };
+  }
+
+  /**
+   * La riga d'intestazione scelta a mano.
+   *
+   * Cambiandola cambiano i nomi delle colonne, quindi la mappatura si rifà da
+   * capo: una mappatura costruita sulle intestazioni sbagliate non vuol dire
+   * niente, e tenerla sarebbe il modo di far sembrare che la correzione non
+   * abbia funzionato.
+   */
+  function cambiaIntestazione(indice: number, riga: number) {
+    setFile((f) =>
+      f.map((x, i) => {
+        if (i !== indice) return x;
+        const { intestazioni, righe } = conIntestazioneAllaRiga(x.tutte, riga);
+        const proposta = proponiMappatura(intestazioni);
+        const formato: LetturaFormatoData =
+          x.codifica === null
+            ? { formato: "giorno-mese", certezza: "dedotto" }
+            : formatoDelleDate(proposta ? righe.map((r) => r[proposta.data] ?? "") : []);
+        return {
+          ...x,
+          rigaIntestazione: riga,
+          intestazioneCerta: true,
+          formato,
+          mappatura: proposta ? { ...proposta, formatoData: formato.formato } : null,
+        };
+      }),
+    );
     setRighe(null);
   }
 
@@ -211,7 +342,7 @@ export function SchermataRendiconto() {
                  conto: è la sua banca, non quella di prima. */
               mappatura:
                 conti.find((c) => c.id === contoId)?.mappaturaImport
-                ?? proponiMappatura(x.tabella.intestazioni),
+                ?? proponiMappatura(tabellaDi(x).intestazioni),
             }
           : x,
       ),
@@ -225,7 +356,7 @@ export function SchermataRendiconto() {
     const letti = file
       .filter((f) => f.mappatura !== null && f.contoId !== "")
       .map((f) => {
-        const esito = applicaMappatura(f.tabella, f.mappatura as MappaturaColonne);
+        const esito = applicaMappatura(tabellaDi(f), f.mappatura as MappaturaColonne);
         scartate.push(...esito.scartate.map((s) => ({ ...s, grezzo: `${f.nome}: ${s.grezzo}` })));
         return { nome: f.nome, contoId: f.contoId, righe: esito.righe };
       });
@@ -339,13 +470,24 @@ export function SchermataRendiconto() {
                       plausibile e un accento perso non somigliano a un errore.
                     */}
                     <span className="text-micro text-inchiostro-tenue">
-                      {f.tabella.righe.length} righe ·{" "}
+                      {tabellaDi(f).righe.length} righe ·{" "}
                       {f.codifica === null
                         ? `foglio «${f.foglio ?? ""}»`
-                        : `separatore «${f.tabella.separatore}» · ${nomeCodifica(f.codifica)}`}{" "}
+                        : `separatore «${f.separatore}» · ${nomeCodifica(f.codifica)}`}{" "}
                       · date {nomeFormatoData(f.formato.formato)}
                       {f.formato.certezza === "predefinito" && " (nessuna prova nel file)"}
                     </span>
+                    {/*
+                      Quale riga è stata presa per intestazione, e la possibilità
+                      di cambiarla. Sta accanto al file e non dentro un dettaglio
+                      da aprire: se è sbagliata, tutto quello che viene dopo —
+                      colonne, date, importi — è sbagliato di conseguenza, e non
+                      si capisce perché.
+                    */}
+                    <SceltaIntestazione
+                      file={f}
+                      onCambia={(riga) => cambiaIntestazione(i, riga)}
+                    />
                     <Select value={f.contoId} onValueChange={(v) => cambiaConto(i, v)}>
                       <SelectTrigger className="w-44" aria-label={`Conto di ${f.nome}`}>
                         <SelectValue />
@@ -378,13 +520,13 @@ export function SchermataRendiconto() {
                     </p>
                   )}
                   <Mappatura
-                    intestazioni={f.tabella.intestazioni}
+                    intestazioni={tabellaDi(f).intestazioni}
                     mappatura={f.mappatura}
                     onCambia={(m) => {
                       /* Cambiata la colonna della data, il formato si rilegge:
                          era stato dedotto da un'altra colonna. */
                       const formato = formatoDelleDate(
-                        f.tabella.righe.map((r) => r[m.data] ?? ""),
+                        tabellaDi(f).righe.map((r) => r[m.data] ?? ""),
                       );
                       setFile((x) =>
                         x.map((y, j) =>

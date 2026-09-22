@@ -74,10 +74,15 @@ function contaFuoriDaVirgolette(riga: string, carattere: string): number {
  *
  * @param separatore se omesso, si indovina.
  * @param conIntestazioni la prima riga contiene i nomi delle colonne.
+ * @param tieniVuote le righe vuote restano nell'elenco, al loro posto.
  */
 export function leggiCsv(
   testo: string,
-  { separatore, conIntestazioni = true }: { separatore?: string; conIntestazioni?: boolean } = {},
+  {
+    separatore,
+    conIntestazioni = true,
+    tieniVuote = false,
+  }: { separatore?: string; conIntestazioni?: boolean; tieniVuote?: boolean } = {},
 ): Tabella {
   const sep = separatore ?? separatoreProbabile(testo);
   const pulito = testo.replace(/^﻿/, "");
@@ -93,8 +98,17 @@ export function leggiCsv(
   };
   const chiudiRiga = () => {
     chiudiCampo();
-    // Una riga di soli campi vuoti è una riga vuota, non un record.
-    if (riga.some((c) => c.trim() !== "")) righe.push(riga);
+    /*
+      Una riga di soli campi vuoti è una riga vuota, non un record — e di
+      norma si butta.
+
+      `tieniVuote` la tiene al suo posto, e serve a una cosa sola: **contare
+      le righe come le conta chi apre il file**. Chi carica un rendiconto
+      bancario deve poter leggere «intestazione alla riga 9» e ritrovare la
+      riga 9 nel suo foglio; se per strada ne abbiamo buttate due, quel numero
+      indica un'altra riga e la correzione a mano diventa un indovinello.
+    */
+    if (tieniVuote || riga.some((c) => c.trim() !== "")) righe.push(riga);
     riga = [];
   };
 

@@ -1,6 +1,7 @@
 import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
 import { leggiXlsx } from "./xlsx";
+import { trovaIntestazione } from "./intestazione";
 
 /**
  * I file di prova si costruiscono qui, byte per byte.
@@ -112,8 +113,8 @@ describe("un rendiconto in Excel", () => {
     expect(esito.ok, esito.ok ? "" : esito.motivo).toBe(true);
     if (!esito.ok) return;
     expect(esito.foglio).toBe("Movimenti");
-    expect(esito.tabella.intestazioni).toEqual(["Data", "Descrizione", "Importo"]);
-    expect(esito.tabella.righe).toHaveLength(2);
+    expect(esito.righe[0]).toEqual(["Data", "Descrizione", "Importo"]);
+    expect(esito.righe.slice(1)).toHaveLength(2);
   });
 
   it("**le date tornano giorno/mese/anno, non numeri di serie**", async () => {
@@ -128,8 +129,8 @@ describe("un rendiconto in Excel", () => {
       Se uscisse «46082» nessuno se ne accorgerebbe fino all'anteprima, dove
       sarebbe una riga scartata per «data non leggibile».
     */
-    expect(esito.tabella.righe[0][0]).toBe("01/03/2026");
-    expect(esito.tabella.righe[1][0]).toBe("02/03/2026");
+    expect(esito.righe[1][0]).toBe("01/03/2026");
+    expect(esito.righe[2][0]).toBe("02/03/2026");
   });
 
   it("**l'epoca è quella giusta: i due seriali che si trovano scritti ovunque**", async () => {
@@ -140,26 +141,26 @@ describe("un rendiconto in Excel", () => {
     </sheetData></worksheet>`;
     const esito = await leggiXlsx(rendiconto({ foglio }));
     if (!esito.ok) throw new Error(esito.motivo);
-    expect(esito.tabella.righe.map((r) => r[0])).toEqual(["01/01/2025", "01/01/2000"]);
+    expect(esito.righe.slice(1).map((r) => r[0])).toEqual(["01/01/2025", "01/01/2000"]);
   });
 
   it("e un numero con un formato non di data resta un numero", async () => {
     const esito = await leggiXlsx(rendiconto());
     if (!esito.ok) throw new Error(esito.motivo);
-    expect(esito.tabella.righe[0][2]).toBe("-42.9");
-    expect(esito.tabella.righe[1][2]).toBe("1500");
+    expect(esito.righe[1][2]).toBe("-42.9");
+    expect(esito.righe[2][2]).toBe("1500");
   });
 
   it("le stringhe condivise spezzate in più pezzi si ricompongono", async () => {
     const esito = await leggiXlsx(rendiconto());
     if (!esito.ok) throw new Error(esito.motivo);
-    expect(esito.tabella.righe[0][1]).toBe("PAGAMENTO POS ESSELUNGA");
+    expect(esito.righe[1][1]).toBe("PAGAMENTO POS ESSELUNGA");
   });
 
   it("le stringhe scritte dentro la cella si leggono, con le entità sciolte", async () => {
     const esito = await leggiXlsx(rendiconto());
     if (!esito.ok) throw new Error(esito.motivo);
-    expect(esito.tabella.righe[1][1]).toBe("BONIFICO da Studio & C.");
+    expect(esito.righe[2][1]).toBe("BONIFICO da Studio & C.");
   });
 
   it("**una cella saltata lascia una colonna vuota, non sposta le altre**", async () => {
@@ -169,16 +170,47 @@ describe("un rendiconto in Excel", () => {
     </sheetData></worksheet>`;
     const esito = await leggiXlsx(rendiconto({ foglio: buchi }));
     if (!esito.ok) throw new Error(esito.motivo);
-    expect(esito.tabella.intestazioni).toEqual(["Data", "", "Importo"]);
+    expect(esito.righe[0]).toEqual(["Data", "", "Importo"]);
     // Se l'importo scivolasse in prima colonna finirebbe sotto «Data».
-    expect(esito.tabella.righe[0]).toEqual(["", "", "12"]);
+    expect(esito.righe[1]).toEqual(["", "", "12"]);
   });
 
-  it("le righe vuote non diventano movimenti", async () => {
+  it("le righe vuote in coda non contano", async () => {
     const conVuote = FOGLIO.replace("</sheetData>", '<row r="4"><c r="A4"/></row></sheetData>');
     const esito = await leggiXlsx(rendiconto({ foglio: conVuote }));
     if (!esito.ok) throw new Error(esito.motivo);
-    expect(esito.tabella.righe).toHaveLength(2);
+    expect(esito.righe).toHaveLength(3);
+  });
+
+  it("**una riga vuota in mezzo resta al suo posto: i numeri devono tornare**", async () => {
+    /*
+      Il foglio salta la riga 3 e riprende dalla 4. Leggendo le righe in fila
+      tutto scivolerebbe in su di una, e «intestazione alla riga 9» indicherebbe
+      la riga 8 del foglio di chi guarda.
+    */
+    const conBuco = `<worksheet><sheetData>
+      <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>
+      <row r="4"><c r="A4" s="1"><v>46082</v></c><c r="B4" t="s"><v>3</v></c></row>
+    </sheetData></worksheet>`;
+    const esito = await leggiXlsx(rendiconto({ foglio: conBuco }));
+    if (!esito.ok) throw new Error(esito.motivo);
+    expect(esito.righe).toHaveLength(4);
+    expect(esito.righe[1]).toEqual([]);
+    expect(esito.righe[2]).toEqual([]);
+    expect(esito.righe[3][0]).toBe("01/03/2026");
+  });
+
+  it("e sotto l'intestazione quelle vuote non diventano righe da scartare", async () => {
+    const conBuco = `<worksheet><sheetData>
+      <row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row>
+      <row r="2"><c r="A2" s="1"><v>46082</v></c><c r="B2" t="s"><v>3</v></c></row>
+      <row r="4"><c r="A4" s="1"><v>46083</v></c><c r="B4" t="s"><v>3</v></c></row>
+    </sheetData></worksheet>`;
+    const esito = await leggiXlsx(rendiconto({ foglio: conBuco }));
+    if (!esito.ok) throw new Error(esito.motivo);
+    const scelta = trovaIntestazione(esito.righe);
+    expect(scelta.riga).toBe(1);
+    expect(scelta.righe).toHaveLength(2);
   });
 
   it("legge anche le voci non compresse: negli ZIP capitano", async () => {
@@ -191,6 +223,76 @@ describe("un rendiconto in Excel", () => {
     ]);
     const esito = await leggiXlsx(crudo);
     expect(esito.ok, esito.ok ? "" : esito.motivo).toBe(true);
+  });
+});
+
+describe("**un foglio con la copertina sopra la tabella**", () => {
+  /*
+    Il primo file vero del giro: un estratto conto con sette righe di
+    copertina — banca, intestatario, numero di conto, periodo — e la tabella
+    solo dopo. Il lettore consegna tutte le righe, e a trovare l'intestazione
+    è `trovaIntestazione`: qui si prova che le due cose insieme fanno quello
+    che il file chiede.
+  */
+  const testi = [
+    "Trade Republic Bank GmbH", "Estratto conto", "Intestatario", "Mario Rossi",
+    "Conto", "1000/00065493", "Periodo", "01/01/2026 - 31/03/2026",
+    "Data", "Tipo", "Descrizione", "Importo", "Pagamento", "POS ESSELUNGA",
+    "Accredito", "BONIFICO DA STUDIO",
+  ];
+  const s = (parola: string) => testi.indexOf(parola);
+  const sst = `<sst>${testi.map((x) => `<si><t>${x}</t></si>`).join("")}</sst>`;
+
+  const riga = (n: number, celle: string) => `<row r="${n}">${celle}</row>`;
+  const testo = (rif: string, parola: string) => `<c r="${rif}" t="s"><v>${s(parola)}</v></c>`;
+  const data = (rif: string, seriale: number) => `<c r="${rif}" s="1"><v>${seriale}</v></c>`;
+  const numero = (rif: string, v: string) => `<c r="${rif}" s="2"><v>${v}</v></c>`;
+
+  const foglio = `<worksheet><sheetData>
+    ${riga(1, testo("A1", "Trade Republic Bank GmbH"))}
+    ${riga(2, testo("A2", "Estratto conto"))}
+    ${riga(3, testo("A3", "Intestatario") + testo("B3", "Mario Rossi"))}
+    ${riga(4, testo("A4", "Conto") + testo("B4", "1000/00065493"))}
+    ${riga(5, testo("A5", "Periodo") + testo("B5", "01/01/2026 - 31/03/2026"))}
+    ${riga(6, testo("A6", "Data") + testo("B6", "Tipo") + testo("C6", "Descrizione") + testo("D6", "Importo"))}
+    ${riga(7, data("A7", 46034) + testo("B7", "Pagamento") + testo("C7", "POS ESSELUNGA") + numero("D7", "-42.9"))}
+    ${riga(8, data("A8", 46037) + testo("B8", "Accredito") + testo("C8", "BONIFICO DA STUDIO") + numero("D8", "1500"))}
+    ${riga(9, data("A9", 46060) + testo("B9", "Pagamento") + testo("C9", "POS ESSELUNGA") + numero("D9", "-64.1"))}
+  </sheetData></worksheet>`;
+
+  const file = zip([
+    { nome: "xl/workbook.xml", contenuto: `<workbook><sheets><sheet name="Lista Operazione" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+    { nome: "xl/_rels/workbook.xml.rels", contenuto: RELS },
+    { nome: "xl/sharedStrings.xml", contenuto: sst },
+    { nome: "xl/styles.xml", contenuto: STILI },
+    { nome: "xl/worksheets/sheet1.xml", contenuto: foglio },
+  ]);
+
+  it("il lettore consegna tutte le righe, copertina compresa", async () => {
+    const esito = await leggiXlsx(file);
+    expect(esito.ok, esito.ok ? "" : esito.motivo).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.righe).toHaveLength(9);
+    expect(esito.righe[0][0]).toBe("Trade Republic Bank GmbH");
+  });
+
+  it("**e l'intestazione si trova alla riga 6, con le sue quattro colonne**", async () => {
+    const esito = await leggiXlsx(file);
+    if (!esito.ok) throw new Error(esito.motivo);
+    const scelta = trovaIntestazione(esito.righe);
+    expect(scelta.riga).toBe(6);
+    expect(scelta.intestazioni).toEqual(["Data", "Tipo", "Descrizione", "Importo"]);
+    expect(scelta.righe).toHaveLength(3);
+    expect(scelta.righe.map((r) => r[0])).toEqual(["12/01/2026", "15/01/2026", "07/02/2026"]);
+  });
+
+  it("e «Periodo · 01/01/2026 - 31/03/2026» non viene scambiata per una riga di dati", async () => {
+    const esito = await leggiXlsx(file);
+    if (!esito.ok) throw new Error(esito.motivo);
+    // Due date dentro una cella sola non sono una data: se lo fossero, la
+    // copertina diventerebbe l'ultima riga di dati e l'intestazione sarebbe
+    // quella sbagliata.
+    expect(trovaIntestazione(esito.righe).riga).toBe(6);
   });
 });
 
@@ -216,7 +318,7 @@ describe("più fogli", () => {
     expect(esito.ok, esito.ok ? "" : esito.motivo).toBe(true);
     if (!esito.ok) return;
     expect(esito.foglio).toBe("Conto corrente");
-    expect(esito.tabella.righe).toHaveLength(2);
+    expect(esito.righe.slice(1)).toHaveLength(2);
   });
 });
 

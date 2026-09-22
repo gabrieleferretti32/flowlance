@@ -31,10 +31,20 @@
  * con tre fogli dove il secondo è quello buono è un caso che esiste, e la
  * schermata deve poterlo nominare.
  */
-import type { Tabella } from "@/lib/csv/parser";
-
 export type EsitoXlsx =
-  | { ok: true; tabella: Tabella; foglio: string }
+  | {
+      ok: true;
+      /**
+       * Tutte le righe non vuote, **copertina compresa**.
+       *
+       * Non è il lettore a decidere quale sia l'intestazione: quasi tutte le
+       * banche scrivono qualcosa sopra la tabella, e riconoscere quella riga
+       * è un mestiere a parte — `intestazione.ts` — che guarda i dati e si
+       * può correggere a mano. Qui si consegnano le righe come stanno.
+       */
+      righe: string[][];
+      foglio: string;
+    }
   | { ok: false; motivo: string };
 
 // ————————————————————————————————————————————————————————————
@@ -196,12 +206,24 @@ function colonnaDi(riferimento: string): number {
   return n - 1;
 }
 
+/**
+ * Le righe del foglio, **al numero che hanno nel foglio**.
+ *
+ * L'attributo `r` di `<row>` dice qual è: un foglio può saltare le righe vuote
+ * invece di scriverle, e leggerle in fila farebbe scivolare tutto in su. Chi
+ * carica il file deve poter leggere «intestazione alla riga 9» e ritrovare la
+ * riga 9 in Excel, altrimenti la correzione a mano diventa un indovinello.
+ */
 function righeDelFoglio(xml: string, condivise: string[], dataPerStile: boolean[]): string[][] {
   const righe: string[][] = [];
-  const row = /<row\b[^>]*\/>|<row\b[^>]*>([\s\S]*?)<\/row>/g;
+  const row = /<row\b([^>]*)\/>|<row\b([^>]*)>([\s\S]*?)<\/row>/g;
   let r: RegExpExecArray | null;
   while ((r = row.exec(xml)) !== null) {
-    const dentro = r[1] ?? "";
+    const numero = Number(attributo(r[1] ?? r[2] ?? "", "r") ?? "");
+    if (Number.isFinite(numero) && numero > 0) {
+      while (righe.length < numero - 1) righe.push([]);
+    }
+    const dentro = r[3] ?? "";
     const celle: string[] = [];
     const c = /<c\b([^>]*)\/>|<c\b([^>]*)>([\s\S]*?)<\/c>/g;
     let m: RegExpExecArray | null;
@@ -297,11 +319,11 @@ function fogliDelLibro(workbook: string | null, rels: string | null): { nome: st
 }
 
 /**
- * Legge il primo foglio con delle righe.
+ * Legge il primo foglio che ha delle righe, e le consegna tutte.
  *
- * La prima riga non vuota diventa l'intestazione, come nel CSV: da lì in poi
- * il rendiconto passa per la stessa strada — la mappatura delle colonne,
- * l'anteprima, i duplicati — e non c'è un secondo percorso da tenere allineato.
+ * Da lì in poi il rendiconto passa per la stessa strada del CSV — la riga
+ * d'intestazione, la mappatura delle colonne, l'anteprima, i duplicati — e non
+ * c'è un secondo percorso da tenere allineato.
  */
 export async function leggiXlsx(byte: ArrayBuffer): Promise<EsitoXlsx> {
   const dati = new Uint8Array(byte);
@@ -355,19 +377,18 @@ export async function leggiXlsx(byte: ArrayBuffer): Promise<EsitoXlsx> {
         motivo: "Il foglio è compresso in un modo che non conosco: riprova salvandolo di nuovo.",
       };
     }
-    const righe = righeDelFoglio(xml, condivise, dataPerStile).filter((r) =>
-      r.some((c) => c.trim() !== ""),
-    );
+    /*
+      Le righe vuote restano dove sono — servono a contare — tranne quelle in
+      coda, che non contano niente: un foglio può dichiarare mille righe vuote
+      dopo l'ultimo movimento.
+    */
+    const tutte = righeDelFoglio(xml, condivise, dataPerStile);
+    let ultima = tutte.length;
+    while (ultima > 0 && !tutte[ultima - 1].some((c) => c.trim() !== "")) ultima -= 1;
+    const righe = tutte.slice(0, ultima);
     if (righe.length === 0) continue;
 
-    const [intestazioni, ...resto] = righe;
-    return {
-      ok: true,
-      foglio: foglio.nome,
-      // Nessun separatore: in un foglio le colonne sono già colonne, ed è il
-      // motivo per cui l'Excel non ha il problema che il CSV ha.
-      tabella: { intestazioni, righe: resto, separatore: "" },
-    };
+    return { ok: true, foglio: foglio.nome, righe };
   }
 
   return { ok: false, motivo: "Tutti i fogli del file sono vuoti." };
