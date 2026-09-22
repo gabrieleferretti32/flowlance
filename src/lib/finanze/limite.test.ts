@@ -3,7 +3,7 @@ import { quantoResta, tabellaLimite, type IngressoLimite } from "./limite";
 import type { CategoriaPf, MovimentoPf } from "./tipi";
 
 const cat = (p: Partial<CategoriaPf> & { id: string; tipo: CategoriaPf["tipo"] }): CategoriaPf => ({
-  nome: p.id, fissa: false, pagataDallAccantonamento: false, ...p,
+  nome: p.id, fissa: false, pagataDallAccantonamento: false, arrivaDallAttivita: false, ...p,
 });
 
 const CATEGORIE: CategoriaPf[] = [

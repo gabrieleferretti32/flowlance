@@ -791,6 +791,13 @@ const convalidaCategoriaPf: Convalida<Dati["pfCategorie"][number]> = (riga, i, e
       spese che nessuno ha mai dichiarato coperte.
     */
     pagataDallAccantonamento: booleano(riga.pagataDallAccantonamento),
+    /*
+      Assente vuol dire «no», per la stessa ragione dell'altro flag: un backup
+      scritto prima che il campo esistesse non può dire che una categoria porta
+      denaro dell'attività, e darlo per acceso marcherebbe come prelievi delle
+      entrate che nessuno ha mai dichiarato tali.
+    */
+    arrivaDallAttivita: booleano(riga.arrivaDallAttivita),
     ...(typeof riga.icona === "string" ? { icona: riga.icona } : {}),
   };
 };

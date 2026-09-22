@@ -40,7 +40,7 @@ import type {
  * un elenco vuoto, e un test in `backup.test.ts` che importa un file senza il
  * modulo.
  */
-export const VERSIONE_SCHEMA = 9;
+export const VERSIONE_SCHEMA = 10;
 
 /**
  * Lo schema IndexedDB.
@@ -155,6 +155,29 @@ export class DatabaseFinanze extends Dexie {
     */
     this.version(9).stores({
       pfImpostazioni: "id",
+    });
+    /*
+      Versione 10: il flag «arriva dall'attività» sulle categorie.
+
+      Nessuna tabella nuova — un campo in più su righe che ci sono già — ma
+      **una migrazione sì**, e riguarda una riga sola: «Fatture incassate»
+      nasce con il flag acceso, e chi ha seminato le categorie prima di oggi
+      deve trovarcelo lo stesso. Senza, il flag sarebbe acceso solo per chi
+      installa l'app da domani, e la stessa app direbbe due cose diverse a due
+      persone a seconda di quando hanno cominciato.
+
+      Le categorie inventate da chi usa l'app non si toccano: non c'è modo di
+      sapere se una «Bonifici dallo studio» porta denaro dell'attività, e
+      indovinarlo marcherebbe come prelievi delle entrate che nessuno ha
+      dichiarato tali.
+    */
+    this.version(10).upgrade(async (tx) => {
+      await tx
+        .table("pfCategorie")
+        .toCollection()
+        .modify((c: { id?: string; arrivaDallAttivita?: boolean }) => {
+          c.arrivaDallAttivita = c.id === "fatture";
+        });
     });
   }
 }

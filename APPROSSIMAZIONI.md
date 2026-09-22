@@ -702,15 +702,41 @@ modulo, quando i movimenti diranno quanto è finito nelle categorie di risparmio
 del fisco o su un conto dedicato. È una dipendenza fra le due metà, e va
 disegnata alla fase 4 invece di essere scoperta lì.
 
-**Il denaro personale si scrive in due posti, e per ora si può contare due
-volte.** Segnalato il 21 settembre 2026. **Da chiudere prima che il modulo vada
-in produzione**, non dopo: è una scadenza, non un'intenzione.
+**Gli stessi euro sono disponibili in due posti. Oggi nessun numero li conta
+due volte; la derivazione, fatta male, li conterebbe.** Misurato il 22
+settembre 2026. **Da chiudere prima che il modulo vada in produzione**, non
+dopo: è una scadenza, non un'intenzione.
 
 Nel Cashflow c'è un riepilogo mensile — prelievi, altre entrate, altre uscite —
 che si compila a mano e serve alla cassa dell'attività. Nel modulo c'è il
-registro, una riga per movimento. Sono lo stesso denaro: un prelievo di 800 €
-scritto in tutti e due i posti viene contato due volte, e nessuna delle due
-schermate se ne accorge da sola.
+registro, una riga per movimento. Sono lo stesso denaro.
+
+La misura, seguendo una sola fattura da 2.400 € incassata sul conto personale e
+registrata anche nel modulo:
+
+| Dove si guarda | Quanto dice |
+| --- | --- |
+| Liquidità dell'attività, nel bilancio dell'attività | 2.402 € |
+| Saldo dei conti personali, nel modulo | 2.400 € |
+| Entrate del mese, nel registro | 2.400 € |
+
+**Nessun numero conta due volte oggi.** Il riepilogo mensile del Cashflow ha
+`prelievi` a zero — nessuno l'ha compilato — e finché vale zero i due lati non
+si sommano da nessuna parte. La liquidità dell'attività tiene quei 2.400 €
+perché per il motore fiscale non sono mai usciti dalla cassa; il modulo li
+tiene perché sul conto ci sono davvero. Sono gli stessi euro visti da due
+inquadrature, e questa è una divergenza, non un doppio conteggio.
+
+Il doppio conteggio vero comincia il giorno della derivazione. Se il riepilogo
+mensile nascesse dal registro senza sapere che quell'entrata è un prelievo,
+sommerebbe 2.402 + 2.400 per 2.400 € reali: la divergenza diventerebbe un
+errore. Per questo `CategoriaPf` ha da oggi `arrivaDallAttivita`, acceso di
+partenza su «Fatture incassate». **Per adesso il campo è dichiarativo: non
+cambia nessun numero**, e lo dice anche la schermata delle categorie. Diventa
+una regola insieme alla derivazione (regola 4 qui sotto). Si scrive adesso
+perché tocca lo schema — versione 10, con la sua migrazione e i suoi test in
+`src/lib/dati/migrazione-arriva-dall-attivita.test.ts` — e più tardi lo si fa,
+più archivi ci sono da migrare.
 
 Per adesso la convivenza è dichiarata e **misurata**: quando il registro ha
 movimenti nell'anno guardato, il Cashflow mostra quanti sono, quanto entra e
@@ -718,7 +744,7 @@ quanto esce, e il collegamento al registro — `sovrapposizionePersonale` in
 `src/lib/finanze/sovrapposizione.ts`, con i suoi test. Vede il doppione dove
 nasce e non tocca il motore, ma **non lo impedisce**.
 
-La chiusura è derivare il riepilogo dal registro. Tre regole, decise adesso
+La chiusura è derivare il riepilogo dal registro. Quattro regole, decise adesso
 perché a farle dopo si decidono di fretta:
 
 1. La derivazione vale **solo per i mesi che hanno movimenti registrati**. Un
@@ -729,6 +755,13 @@ perché a farle dopo si decidono di fretta:
 3. Tocca `cashflow`, il bilancio dell'attività e la catena degli anni — cioè il
    motore che usano i clienti — quindi va con le sue migrazioni e i suoi test,
    e non insieme a una schermata nuova.
+4. Un'entrata di una categoria con `arrivaDallAttivita` acceso è **anche**
+   un'uscita di cassa dell'attività, non solo un'entrata personale. È il punto
+   che trasforma il flag da dichiarazione in regola, ed è l'unico modo di
+   derivare senza sommare due volte gli stessi euro. Le categorie che il flag
+   non ce l'hanno restano fuori: indovinare quali entrate vengano dall'attività
+   marcherebbe come prelievi del denaro che nessuno ha dichiarato tale, e lo
+   farebbe in silenzio.
 
 **L'import legge il CSV, non l'Excel.** Segnalato il 21 settembre 2026.
 

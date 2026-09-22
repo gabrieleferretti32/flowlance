@@ -23,7 +23,7 @@ const conFinanze = (): Dati => ({
   }],
   pfCategorie: [{
     id: "spesa", tipo: "spesa", nome: "Spesa alimentare",
-    fissa: false, pagataDallAccantonamento: false,
+    fissa: false, pagataDallAccantonamento: false, arrivaDallAttivita: false,
   }],
   pfBudget: [{ categoriaId: "spesa", anno: 2026, importi: Array(12).fill(400) }],
   pfBeni: [{ id: "b1", classe: "investimenti", nome: "ETF", valore: 12_000, aggiornatoIl: "2026-09-01" }],

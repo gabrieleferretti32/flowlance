@@ -100,8 +100,8 @@ describe("con queste categorie, un F24 non abbassa il limite", () => {
 
 describe("due categorie dello stesso tipo non si chiamano uguale", () => {
   const categorie: CategoriaPf[] = [
-    { id: "a", tipo: "spesa", nome: "Trasporti", fissa: false, pagataDallAccantonamento: false },
-    { id: "b", tipo: "risparmio", nome: "Auto", fissa: false, pagataDallAccantonamento: false },
+    { id: "a", tipo: "spesa", nome: "Trasporti", fissa: false, pagataDallAccantonamento: false, arrivaDallAttivita: false },
+    { id: "b", tipo: "risparmio", nome: "Auto", fissa: false, pagataDallAccantonamento: false, arrivaDallAttivita: false },
   ];
 
   it("lo stesso nome nello stesso tipo è occupato", () => {
@@ -116,7 +116,7 @@ describe("due categorie dello stesso tipo non si chiamano uguale", () => {
 
   it("e nemmeno uno spazio doppio in mezzo", () => {
     const con: CategoriaPf[] = [
-      { id: "s", tipo: "spesa", nome: "Spesa alimentare", fissa: false, pagataDallAccantonamento: false },
+      { id: "s", tipo: "spesa", nome: "Spesa alimentare", fissa: false, pagataDallAccantonamento: false, arrivaDallAttivita: false },
     ];
     expect(nomeGiaUsato(con, "spesa", "Spesa  alimentare")).toBe(true);
   });
@@ -129,7 +129,7 @@ describe("due categorie dello stesso tipo non si chiamano uguale", () => {
 
   it("gli accenti sì: «pero» e «però» sono due parole", () => {
     const con: CategoriaPf[] = [
-      { id: "c", tipo: "spesa", nome: "Però", fissa: false, pagataDallAccantonamento: false },
+      { id: "c", tipo: "spesa", nome: "Però", fissa: false, pagataDallAccantonamento: false, arrivaDallAttivita: false },
     ];
     expect(nomeGiaUsato(con, "spesa", "Pero")).toBe(false);
   });
@@ -194,7 +194,7 @@ describe("**rinominare una categoria non stacca i suoi collegamenti**", () => {
   it("i movimenti restano attaccati, perché puntano all'id", () => {
     const prima: CategoriaPf = {
       id: "affitto", tipo: "spesa", nome: "Affitto e casa",
-      fissa: true, pagataDallAccantonamento: false,
+      fissa: true, pagataDallAccantonamento: false, arrivaDallAttivita: false,
     };
     const movimenti = [{ data: "2026-01-10", tipo: "spesa", categoriaId: "affitto" }];
     const dopo: CategoriaPf = { ...prima, nome: "Casa" };
@@ -209,5 +209,30 @@ describe("**rinominare una categoria non stacca i suoi collegamenti**", () => {
     const rinominata = { id: "affitto", nome: "Casa" };
     expect(budget.filter((b) => b.categoriaId === rinominata.id)).toHaveLength(1);
     expect(regole.filter((r) => r.categoriaId === rinominata.id)).toHaveLength(1);
+  });
+});
+
+/**
+ * **«Fatture incassate» nasce dichiarata come prelievo.**
+ *
+ * Un bonifico di un cliente sul conto personale è denaro che ha lasciato la
+ * cassa della partita IVA. Se il seme lasciasse il flag spento, il campo
+ * esisterebbe senza che lo usi nessuno — e il giorno della derivazione il
+ * doppio conteggio arriverebbe lo stesso.
+ */
+describe("**il flag «arriva dall'attività» nelle categorie di partenza**", () => {
+  it("è acceso su «Fatture incassate»", () => {
+    const fatture = CATEGORIE_INIZIALI.find((c) => c.id === "fatture")!;
+    expect(fatture.arrivaDallAttivita).toBe(true);
+  });
+
+  it("**ed è spento su tutte le altre, comprese le entrate**", () => {
+    const accese = CATEGORIE_INIZIALI.filter((c) => c.arrivaDallAttivita).map((c) => c.id);
+    expect(accese).toEqual(["fatture"]);
+  });
+
+  it("non si confonde con l'altro flag della coppia", () => {
+    const coperte = CATEGORIE_INIZIALI.filter((c) => c.pagataDallAccantonamento).map((c) => c.id);
+    expect(coperte).toEqual(["tasse", "inps", "f24"]);
   });
 });

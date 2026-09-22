@@ -113,18 +113,32 @@ export function SchermataCategorie() {
         */}
         <Card>
           <CardCorpo className="space-y-2">
-            <CardTitolo>I due interruttori</CardTitolo>
+            <CardTitolo>Gli interruttori</CardTitolo>
             <p className="text-etichetta text-inchiostro-tenue">
               <strong className="text-inchiostro">Fissa</strong> — solo per le spese: nel limite
               mensile la categoria finisce fra le fisse invece che fra le variabili, e le fisse si
               sottraggono per intero all&apos;inizio del mese.
             </p>
+            {/*
+              I due che seguono parlano della stessa famiglia di cose: soldi che
+              stanno su un conto personale ma appartengono a un'altra storia.
+              Uno guarda le uscite, l'altro le entrate, e si leggono in coppia.
+            */}
             <p className="text-etichetta text-inchiostro-tenue">
-              <strong className="text-inchiostro">Pagata dall&apos;accantonamento</strong> — la
-              categoria esce da <strong className="text-inchiostro">tutti e quattro</strong> i
-              gruppi del limite (entrate, fisse, risparmi, rate), perché quei soldi sono già messi
-              da parte: contarli anche come spesa li conterebbe due volte. È il caso di Tasse, INPS
-              e F24.
+              <strong className="text-inchiostro">Coperta dall&apos;accantonamento</strong> — la
+              spesa esce da <strong className="text-inchiostro">tutti e quattro</strong> i gruppi
+              del limite (entrate, fisse, risparmi, rate), perché quei soldi erano già messi da
+              parte: contarli anche come spesa li conterebbe due volte. È il caso di Tasse, INPS e
+              F24.
+            </p>
+            <p className="text-etichetta text-inchiostro-tenue">
+              <strong className="text-inchiostro">Arriva dall&apos;attività</strong> — l&apos;altra
+              faccia: l&apos;entrata è un prelievo, denaro che ha lasciato la cassa della partita
+              IVA. È il caso di Fatture incassate.{" "}
+              <strong className="text-inchiostro">Per ora non cambia nessun numero</strong>: lo
+              dichiara e basta. Diventerà una regola quando il riepilogo mensile del Cashflow
+              deriverà dal registro — senza, quella derivazione conterebbe gli stessi euro due
+              volte, una nella cassa dell&apos;attività e una nel conto personale.
             </p>
           </CardCorpo>
         </Card>
@@ -178,7 +192,9 @@ function RigaCategoria({
 }) {
   const idFissa = React.useId();
   const idCoperta = React.useId();
+  const idAttivita = React.useId();
   const spesa = categoria.tipo === "spesa";
+  const entrata = categoria.tipo === "entrata";
 
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2">
@@ -225,17 +241,37 @@ function RigaCategoria({
               }
             />
           )}
-          <Interruttore
-            id={idCoperta}
-            etichetta="Accantonamento"
-            attivo={categoria.pagataDallAccantonamento}
-            onCambia={(v) =>
-              void salvaCategoria(
-                { ...categoria, pagataDallAccantonamento: v },
-                v ? "Esclusa dal limite di spesa" : "Torna dentro il limite di spesa",
-              )
-            }
-          />
+          {/*
+            I due flag della stessa famiglia, ognuno dove ha senso: quello
+            dell'accantonamento sulle uscite, quello del prelievo sulle
+            entrate. Mostrarli tutti e due ovunque insegnerebbe che gli
+            interruttori non cambiano niente.
+          */}
+          {entrata ? (
+            <Interruttore
+              id={idAttivita}
+              etichetta="Arriva dall'attività"
+              attivo={categoria.arrivaDallAttivita}
+              onCambia={(v) =>
+                void salvaCategoria(
+                  { ...categoria, arrivaDallAttivita: v },
+                  v ? "Dichiarata come prelievo dall'attività" : "Non è più un prelievo",
+                )
+              }
+            />
+          ) : (
+            <Interruttore
+              id={idCoperta}
+              etichetta="Coperta dall'accantonamento"
+              attivo={categoria.pagataDallAccantonamento}
+              onCambia={(v) =>
+                void salvaCategoria(
+                  { ...categoria, pagataDallAccantonamento: v },
+                  v ? "Esclusa dal limite di spesa" : "Torna dentro il limite di spesa",
+                )
+              }
+            />
+          )}
           <Button
             scrive
             variante="quieto"
@@ -300,7 +336,13 @@ function ModuloCategoria({
       onSubmit={(e) => {
         e.preventDefault();
         if (vuoto || occupato) return;
-        void creaCategoria({ tipo, nome, fissa: false, pagataDallAccantonamento: false });
+        void creaCategoria({
+          tipo,
+          nome,
+          fissa: false,
+          pagataDallAccantonamento: false,
+          arrivaDallAttivita: false,
+        });
         setNome("");
       }}
     >

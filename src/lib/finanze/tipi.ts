@@ -128,6 +128,25 @@ export type CategoriaPf = {
    * il mestiere di questo modulo.
    */
   pagataDallAccantonamento: boolean;
+  /**
+   * Il denaro di questa categoria **viene dall'attività**: è un prelievo.
+   *
+   * Una fattura incassata sul conto personale è un'entrata personale vera —
+   * si può spendere, e il limite di spesa fa bene a contarla — ma è anche
+   * denaro che ha lasciato la cassa dell'attività. Oggi il motore fiscale non
+   * lo sa: tiene quei soldi nella liquidità dell'attività mentre il modulo li
+   * tiene nel saldo personale, e gli stessi euro risultano disponibili in due
+   * posti. Misurato: 2.402 € di cassa attività e 2.400 € di conto personale
+   * per una sola fattura da 2.400 €.
+   *
+   * **Per adesso il campo è dichiarativo: non cambia nessun numero.** Diventa
+   * una regola il giorno in cui il riepilogo mensile del Cashflow deriverà dal
+   * registro — allora un'entrata marcata così sarà anche un'uscita di cassa
+   * dell'attività. Senza il campo, quella derivazione sommerebbe 2.402 + 2.400
+   * per 2.400 € veri: la divergenza diventerebbe un doppio conteggio.
+   * Vedi APPROSSIMAZIONI.md.
+   */
+  arrivaDallAttivita: boolean;
   icona?: string;
 };
 
