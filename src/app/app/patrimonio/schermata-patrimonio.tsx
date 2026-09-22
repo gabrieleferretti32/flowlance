@@ -20,6 +20,7 @@ import {
 } from "@/lib/dati/azioni";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
+import { round2 } from "@/lib/fisco/aritmetica";
 import { analizzaNumero, euro, num, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { VocePatrimonio } from "@/lib/dati/tipi";
@@ -42,7 +43,9 @@ export function SchermataPatrimonio() {
     const p = calcolo.prospetto;
     return calcolaPatrimonio({
       liquiditaAttivita: cashflow.saldoFinale,
-      liquiditaPersonale: Math.round(personale * 100) / 100,
+      // `round2`, non `Math.round`: sugli importi arrotonda come il foglio di
+      // calcolo, ed è la regola del progetto. Qui c'era la versione a mano.
+      liquiditaPersonale: round2(personale),
       // Anche le fatture incassate in parte sono un credito, per quello che manca.
       creditiClienti: p.fattureCalcolate.reduce((a, f) => a + f.daIncassare, 0),
       creditoIva: calcolo.iva.creditoFinale,

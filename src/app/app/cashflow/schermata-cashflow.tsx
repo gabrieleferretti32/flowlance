@@ -46,6 +46,7 @@ import {
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { ROTTE } from "@/lib/rotte";
 import { sovrapposizionePersonale } from "@/lib/finanze/sovrapposizione";
+import { riepilogoDellAnno, seRiaprissi } from "@/lib/finanze/derivazione";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import type { VersamentoF24 } from "@/lib/dati/tipi";
@@ -87,6 +88,35 @@ export function SchermataCashflow() {
     questa schermata: non tocca il motore e non cambia nessun numero.
   */
   const registro = sovrapposizionePersonale(dati.pfMovimenti, anno);
+
+  /*
+    Da dove arriva il riepilogo di ogni mese: il registro, o quello che si
+    scrive qui. La regola 2 della derivazione dice che va detto mese per mese,
+    e non basta una frase in testa alla tabella: chi guarda una riga deve
+    sapere se quella cifra la può ancora cambiare.
+
+    In un anno chiuso il registro non deriva niente — la chiusura è una
+    dichiarazione — ma i movimenti ci sono, e tacerli farebbe credere che
+    l'import non abbia funzionato.
+  */
+  const righeRiepilogo = riepilogoDellAnno(
+    dati.movimentiPersonali,
+    dati.pfMovimenti,
+    dati.pfCategorie,
+    anno,
+    calcolo.chiuso,
+  );
+  const fonteDi = (mese: number) => righeRiepilogo[mese - 1];
+  const derivati = righeRiepilogo.filter((r) => r.fonte === "registro");
+  const trattenuti = righeRiepilogo.filter((r) => r.fonte === "chiuso");
+  /** «giugno», «giugno e agosto», «giugno, luglio e agosto». */
+  const nomiMesi = (righe: typeof righeRiepilogo) => {
+    const nomi = righe.map((r) => nomeMese(r.mese).toLowerCase());
+    if (nomi.length <= 1) return nomi.join("");
+    return `${nomi.slice(0, -1).join(", ")} e ${nomi[nomi.length - 1]}`;
+  };
+  /* Che cosa cambierebbe riaprendo: si può dire solo finché la chiusura c'è. */
+  const cambierebbe = seRiaprissi(dati.movimentiPersonali, dati.pfMovimenti, dati.pfCategorie, anno);
 
   const versamentiAnno = dati.versamenti
     .filter((v) => v.data.startsWith(String(anno)))
@@ -146,26 +176,46 @@ export function SchermataCashflow() {
               prelievi li scrivi tu: bastano un clic e Invio.
             </CardSottotitolo>
             {/*
-              Il doppione, detto dove nasce. La riga compare solo quando il
-              registro personale ha qualcosa in quest'anno: un avviso che c'è
-              sempre è un avviso che non si legge più.
+              Prima qui c'era l'avviso del doppio conteggio: «quello che
+              compare in tutti e due i posti è contato due volte». Adesso il
+              riepilogo si deriva, quindi il doppione non c'è più e l'avviso
+              non serve — resta da dire **da dove arrivano** le cifre, che è la
+              regola 2, e da dire quando un anno chiuso sta tenendo ferme cifre
+              che il registro contraddice, che è la regola 5.
             */}
-            {registro.quanti > 0 && (
+            {trattenuti.length > 0 ? (
               <p className="mt-2 text-micro text-attenzione">
-                Nel registro personale ci sono{" "}
+                Il {anno} è chiuso, quindi <strong>il riepilogo resta quello dichiarato alla
+                chiusura</strong>: nel registro personale ci sono{" "}
                 {registro.quanti === 1 ? "un movimento" : `${registro.quanti} movimenti`} in{" "}
-                {registro.mesi.length === 1
-                  ? nomeMese(registro.mesi[0].mese).toLowerCase()
-                  : `${registro.mesi.length} mesi (${registro.mesi.map((m) => nomeMese(m.mese).toLowerCase()).join(", ")})`}
-                : {euro(registro.entrate)} in entrata e {euro(registro.uscite)} in uscita. Le
-                colonne qui sotto si scrivono a mano e non li conoscono: quello che compare in tutti
-                e due i posti è contato due volte.{" "}
-                <Link href={ROTTE.finanzeConti} className="underline underline-offset-2">
+                {nomiMesi(trattenuti)} — {euro(registro.entrate)} in entrata e{" "}
+                {euro(registro.uscite)} in uscita — e non entrano in queste colonne.{" "}
+                {/*
+                  Che cosa cambierebbe, detto **prima**: riaprire cancella la
+                  chiusura, e con lei il termine di paragone, quindi lo
+                  scostamento «alla chiusura era X» dopo non si può più
+                  mostrare. Il momento per vedere la differenza è questo.
+                */}
+                Riaprendo l&apos;anno i prelievi di {nomiMesi(trattenuti)} passerebbero da{" "}
+                {euro(cambierebbe.dichiarati)} a {euro(cambierebbe.derivati)} (
+                {cambierebbe.differenza > 0 ? "+" : ""}
+                {euro(cambierebbe.differenza)}), e da lì in poi arriverebbero dal registro.{" "}
+                <Link href={ROTTE.chiusura} className="underline underline-offset-2">
+                  Vai alla chiusura d&apos;anno
+                </Link>
+                .
+              </p>
+            ) : derivati.length > 0 ? (
+              <p className="mt-2 text-micro text-inchiostro-tenue">
+                I prelievi di {nomiMesi(derivati)} <strong>arrivano dal registro personale</strong>{" "}
+                ({registro.quanti === 1 ? "un movimento" : `${registro.quanti} movimenti`}): si
+                aggiornano da soli e non si scrivono più a mano. Gli altri mesi restano tuoi.{" "}
+                <Link href={ROTTE.finanzeMovimenti} className="underline underline-offset-2">
                   Vedi il registro
                 </Link>
                 .
               </p>
-            )}
+            ) : null}
           </CardCorpo>
           {/*
             Alta abbastanza da contenere l'apertura, i dodici mesi e il totale
@@ -236,14 +286,30 @@ export function SchermataCashflow() {
                     <TabellaCella numerica>{euro(m.costiPagati)}</TabellaCella>
                     <TabellaCella numerica>{euro(m.ivaVersata)}</TabellaCella>
                     <TabellaCella numerica>{euro(m.imposteEContributi)}</TabellaCella>
-                    <TabellaCella className="p-1">
-                      <CellaModificabile
-                        tipo="valuta"
-                        etichetta={`Prelievi di ${nomeMese(m.mese)}`}
-                        valore={m.prelieviPersonali}
-                        onSalva={(v) => void salvaMovimentoPersonale(anno, m.mese, { prelievi: Number(v) })}
-                      />
-                    </TabellaCella>
+                    {fonteDi(m.mese).fonte === "registro" ? (
+                      /*
+                        Derivato: non si scrive a mano, e si vede che non si
+                        può. Lasciare la cella modificabile sarebbe peggio di
+                        un campo grigio — si scriverebbe un numero che al
+                        prossimo render torna quello di prima, senza un errore.
+                      */
+                      <TabellaCella
+                        numerica
+                        className="italic text-inchiostro-tenue"
+                        title={`Dal registro personale: ${fonteDi(m.mese).quanti} movimenti in ${nomeMese(m.mese).toLowerCase()}.`}
+                      >
+                        {euro(m.prelieviPersonali)}
+                      </TabellaCella>
+                    ) : (
+                      <TabellaCella className="p-1">
+                        <CellaModificabile
+                          tipo="valuta"
+                          etichetta={`Prelievi di ${nomeMese(m.mese)}`}
+                          valore={m.prelieviPersonali}
+                          onSalva={(v) => void salvaMovimentoPersonale(anno, m.mese, { prelievi: Number(v) })}
+                        />
+                      </TabellaCella>
+                    )}
                     <TabellaCella className="p-1">
                       <CellaModificabile
                         tipo="valuta"
@@ -372,6 +438,7 @@ export function SchermataCashflow() {
                     etichetta="Prelievi"
                     valore={m.prelieviPersonali}
                     nome={`Prelievi di ${nomeMese(m.mese)}`}
+                    derivato={fonteDi(m.mese).fonte === "registro"}
                     onSalva={(v) => void salvaMovimentoPersonale(anno, m.mese, { prelievi: v })}
                   />
                 </div>
@@ -565,23 +632,33 @@ function CampoMese({
   etichetta,
   nome,
   valore,
+  derivato = false,
   onSalva,
 }: {
   etichetta: string;
   nome: string;
   valore: number;
+  /** Arriva dal registro: si legge e non si scrive. */
+  derivato?: boolean;
   onSalva: (valore: number) => void;
 }) {
   return (
     <div>
-      <p className="text-micro text-inchiostro-tenue">{etichetta}</p>
-      <CellaModificabile
-        tipo="valuta"
-        etichetta={nome}
-        valore={valore}
-        className="border-bordo"
-        onSalva={(v) => onSalva(Number(v))}
-      />
+      <p className="text-micro text-inchiostro-tenue">
+        {etichetta}
+        {derivato && " · dal registro"}
+      </p>
+      {derivato ? (
+        <p className="px-2 py-2 text-corpo italic text-inchiostro-tenue">{euro(valore)}</p>
+      ) : (
+        <CellaModificabile
+          tipo="valuta"
+          etichetta={nome}
+          valore={valore}
+          className="border-bordo"
+          onSalva={(v) => onSalva(Number(v))}
+        />
+      )}
     </div>
   );
 }

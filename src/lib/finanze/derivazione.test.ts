@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { riepilogoDelMese, riepilogoDellAnno, riepilogoEffettivo } from "./derivazione";
+import {
+  anniChiusi,
+  anniChiusiToccati,
+  riepilogoDelMese,
+  seRiaprissi,
+  riepilogoDellAnno,
+  riepilogoEffettivo,
+} from "./derivazione";
 import type { MovimentoPersonale } from "@/lib/dati/tipi";
 import type { CategoriaPf, MovimentoPf } from "./tipi";
 
@@ -181,5 +188,84 @@ describe("le righe che vanno al motore", () => {
     const manuali = [manuale(2026, 9)];
     const soloGiri = [mov("2026-09-15", "giroconto", "fondo", 900)];
     expect(riepilogoEffettivo(manuali, soloGiri, CATEGORIE)).toBe(manuali);
+  });
+});
+
+describe("**regola 5: un anno chiuso non si deriva**", () => {
+  const manuali = [manuale(2026, 9)];
+
+  it("i movimenti ci sono, si contano, e non entrano nel riepilogo", () => {
+    const anno = riepilogoDellAnno(manuali, SETTEMBRE, CATEGORIE, 2026, true);
+    const set = anno[8];
+    expect(set.fonte).toBe("chiuso");
+    expect(set.quanti, "i movimenti si vedono").toBe(6);
+    expect(set.riga, "ma la riga è quella dichiarata").toEqual(manuali[0]);
+  });
+
+  it("«chiuso» non è «manuale»: la schermata deve poterli distinguire", () => {
+    const chiuso = riepilogoDellAnno(manuali, SETTEMBRE, CATEGORIE, 2026, true);
+    const aperto = riepilogoDellAnno(manuali, [], CATEGORIE, 2026, false);
+    expect(chiuso[8].fonte).toBe("chiuso");
+    expect(aperto[8].fonte).toBe("manuale");
+  });
+
+  it("le righe che vanno al motore restano quelle di prima, identiche", () => {
+    expect(riepilogoEffettivo(manuali, SETTEMBRE, CATEGORIE, [2026])).toBe(manuali);
+  });
+
+  it("**e riaprendo l'anno la derivazione riprende**", () => {
+    const righe = riepilogoEffettivo(manuali, SETTEMBRE, CATEGORIE, []);
+    expect(righe.find((r) => r.mese === 9)?.prelievi).toBe(2_400);
+  });
+
+  it("un anno chiuso non blocca gli altri", () => {
+    const misti = [manuale(2025, 9), manuale(2026, 9)];
+    const movimenti = [...SETTEMBRE, mov("2025-09-02", "entrata", "fatture", 999)];
+    const righe = riepilogoEffettivo(misti, movimenti, CATEGORIE, [2025]);
+    expect(righe.find((r) => r.anno === 2025 && r.mese === 9)).toEqual(misti[0]);
+    expect(righe.find((r) => r.anno === 2026 && r.mese === 9)?.prelievi).toBe(2_400);
+  });
+
+  it("anniChiusi legge le chiusure così come stanno in archivio", () => {
+    expect(anniChiusi([{ anno: 2024 }, { anno: 2025 }])).toEqual([2024, 2025]);
+    expect(anniChiusi([])).toEqual([]);
+  });
+});
+
+describe("l'esito di un import dentro un anno chiuso", () => {
+  const chiusure = [{ anno: 2025 }];
+
+  it("dice quali anni chiusi ha toccato, e con quanti movimenti", () => {
+    const movimenti = [
+      mov("2025-03-01", "entrata", "fatture", 100),
+      mov("2025-04-01", "spesa", "spesa", 50),
+      mov("2026-01-01", "spesa", "spesa", 70),
+    ];
+    expect(anniChiusiToccati(movimenti, chiusure)).toEqual([{ anno: 2025, quanti: 2 }]);
+  });
+
+  it("un import tutto dentro un anno aperto non ha niente da dire", () => {
+    expect(anniChiusiToccati([mov("2026-01-01", "spesa", "spesa", 70)], chiusure)).toEqual([]);
+  });
+
+  it("i giroconti non si contano: non entrano nel riepilogo nemmeno da aperti", () => {
+    expect(anniChiusiToccati([mov("2025-01-01", "giroconto", "fondo", 70)], chiusure)).toEqual([]);
+  });
+});
+
+describe("che cosa cambierebbe riaprendo l'anno", () => {
+  it("confronta i prelievi dichiarati con quelli che uscirebbero dal registro", () => {
+    const manuali = [manuale(2026, 9, { prelievi: 1_000 }), manuale(2026, 8, { prelievi: 1_000 })];
+    const c = seRiaprissi(manuali, SETTEMBRE, CATEGORIE, 2026);
+    expect(c.mesi, "solo i mesi che il registro conosce").toEqual([9]);
+    expect(c.dichiarati).toBe(1_000);
+    expect(c.derivati).toBe(2_400);
+    expect(c.differenza).toBe(1_400);
+  });
+
+  it("senza registro non c'è niente da confrontare", () => {
+    const c = seRiaprissi([manuale(2026, 9)], [], CATEGORIE, 2026);
+    expect(c.mesi).toEqual([]);
+    expect(c.differenza).toBe(0);
   });
 });

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { creaCosto } from "@/lib/dati/azioni";
 import type { Costo } from "@/lib/dati/tipi";
+import { round2 } from "@/lib/fisco/aritmetica";
 import { analizzaNumero, analizzaPercentuale, euro } from "@/lib/format";
 
 export function ModuloCosto({
@@ -55,7 +56,13 @@ export function ModuloCosto({
 
   const valore = analizzaNumero(imponibile) ?? 0;
   const aliquotaIva = analizzaPercentuale(aliquota) ?? 0;
-  const iva = Math.round(valore * aliquotaIva * 100) / 100;
+  /*
+    `round2` e non `Math.round(x * 100) / 100`: sono due arrotondamenti
+    diversi — `4324,9 × 0,15` fa 648,73 col secondo e 648,74 col primo, che è
+    quello che dicono Excel e l'Agenzia — e questa anteprima si confronta a
+    occhio con l'IVA che il motore calcolerà sulla stessa riga.
+  */
+  const iva = round2(valore * aliquotaIva);
   const valido = valore > 0 && fornitore.trim().length > 0;
 
   async function salva() {

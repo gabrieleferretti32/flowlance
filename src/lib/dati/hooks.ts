@@ -15,6 +15,7 @@ import {
 } from "@/lib/onboarding/percorso";
 import type { Dati } from "./tipi";
 import { situazioneDelMese, type SituazioneMese } from "@/lib/finanze/mese";
+import { anniChiusi, riepilogoEffettivo } from "@/lib/finanze/derivazione";
 
 /**
  * Lo strato reattivo.
@@ -60,7 +61,25 @@ function archivioDa(dati: Dati): ArchivioPerAnni {
     costi: dati.costi,
     versamenti: dati.versamenti,
     movimentiAttivita: dati.movimentiAttivita,
-    movimentiPersonali: dati.movimentiPersonali,
+    /*
+      **Qui entra la derivazione, e qui soltanto.**
+
+      Il riepilogo mensile del denaro personale non arriva più solo da quello
+      che si scrive a mano: dove il registro ha movimenti, la riga si ricava da
+      loro. Cashflow, bilancio dell'attività e catena degli anni continuano a
+      leggere `movimentiPersonali` come hanno sempre fatto e non sanno che
+      alcune di quelle righe sono calcolate — un innesto in un punto solo si
+      misura prima e dopo, sparso in tre schermate no.
+
+      Gli anni chiusi restano fuori: la chiusura è una dichiarazione, e un
+      import non la riscrive. Vedi la regola 5 in `derivazione.ts`.
+    */
+    movimentiPersonali: riepilogoEffettivo(
+      dati.movimentiPersonali,
+      dati.pfMovimenti,
+      dati.pfCategorie,
+      anniChiusi(dati.chiusure),
+    ),
     chiusure: dati.chiusure,
   };
 }

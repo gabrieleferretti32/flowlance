@@ -702,10 +702,10 @@ modulo, quando i movimenti diranno quanto è finito nelle categorie di risparmio
 del fisco o su un conto dedicato. È una dipendenza fra le due metà, e va
 disegnata alla fase 4 invece di essere scoperta lì.
 
-**Gli stessi euro sono disponibili in due posti. Oggi nessun numero li conta
-due volte; la derivazione, fatta male, li conterebbe.** Misurato il 22
-settembre 2026. **Da chiudere prima che il modulo vada in produzione**, non
-dopo: è una scadenza, non un'intenzione.
+**~~Gli stessi euro sono disponibili in due posti.~~ Chiuso il 22 settembre
+2026: il riepilogo mensile si deriva dal registro.** La voce resta perché
+racconta com'è stato misurato e deciso, e perché le cinque regole valgono
+ancora per chi le tocca.
 
 Nel Cashflow c'è un riepilogo mensile — prelievi, altre entrate, altre uscite —
 che si compila a mano e serve alla cassa dell'attività. Nel modulo c'è il
@@ -738,14 +738,24 @@ perché tocca lo schema — versione 10, con la sua migrazione e i suoi test in
 `src/lib/dati/migrazione-arriva-dall-attivita.test.ts` — e più tardi lo si fa,
 più archivi ci sono da migrare.
 
-Per adesso la convivenza è dichiarata e **misurata**: quando il registro ha
-movimenti nell'anno guardato, il Cashflow mostra quanti sono, quanto entra e
-quanto esce, e il collegamento al registro — `sovrapposizionePersonale` in
-`src/lib/finanze/sovrapposizione.ts`, con i suoi test. Vede il doppione dove
-nasce e non tocca il motore, ma **non lo impedisce**.
+**Com'è finita.** Il riepilogo mensile adesso si ricava dal registro —
+`riepilogoEffettivo` in `src/lib/finanze/derivazione.ts`, innestato in un punto
+solo, dentro `archivioDa` in `hooks.ts` — quindi Cashflow, bilancio
+dell'attività e catena degli anni leggono `movimentiPersonali` come hanno
+sempre fatto, e nei mesi con movimenti quelle righe sono calcolate. Il
+doppione non c'è più: l'avviso che stava in cima al Cashflow è sparito con lui,
+e al suo posto c'è la riga che dice **quali mesi arrivano dal registro**, con
+le celle di quei mesi che non si scrivono più a mano.
 
-La chiusura è derivare il riepilogo dal registro. Quattro regole, decise adesso
-perché a farle dopo si decidono di fretta:
+**Sui due dataset non cambia un euro, ed è misurato**: vetrina e dimostrativo
+hanno il registro vuoto, quindi non c'è niente da derivare — saldo di cassa,
+liquidità netta, liquidità personale e netto sono identici prima e dopo. Su un
+archivio con quattro mesi di registro, i prelievi dell'anno salgono di 350 €,
+il saldo di cassa scende di altrettanto e il netto dell'attività sale di
+1.010 €: la dimensione dello scarto dipende solo da quanto le due scritture
+divergevano.
+
+Le cinque regole, decise prima di scrivere il codice:
 
 1. La derivazione vale **solo per i mesi che hanno movimenti registrati**. Un
    mese compilato a mano prima del modulo resta com'è: riscriverlo
@@ -762,6 +772,22 @@ perché a farle dopo si decidono di fretta:
    non ce l'hanno restano fuori: indovinare quali entrate vengano dall'attività
    marcherebbe come prelievi del denaro che nessuno ha dichiarato tale, e lo
    farebbe in silenzio.
+5. **Un anno chiuso non si deriva.** La chiusura è una dichiarazione, e un
+   import non la riscrive. Misurato prima di decidere: un registro dentro il
+   2025 chiuso della vetrina faceva scendere il saldo di cassa di quell'anno da
+   10.851,18 € a 10.301,18 €, faceva comparire lo scostamento dalla chiusura, e
+   **spostava il 2026 di 550 € senza che nessuno dei suoi mesi cambiasse** — un
+   numero che si muove per una ragione che in quella schermata non si vede.
+   Adesso quei movimenti entrano in archivio, si vedono, e non toccano il
+   riepilogo: lo dicono l'esito dell'import («2 movimenti cadono nel 2025, che è
+   chiuso») e il Cashflow di quell'anno, che aggiunge di quanto cambierebbero i
+   prelievi riaprendolo.
+
+   Il confronto si può fare **solo prima**: riaprire un anno cancella la
+   chiusura, e con lei l'istantanea con cui confrontarsi, quindi lo scostamento
+   «alla chiusura era X» dopo non esiste più. Per questo la cifra si mostra
+   mentre l'anno è ancora chiuso — `seRiaprissi` in `derivazione.ts` — e non
+   dopo.
 
 **L'import legge il CSV, non l'Excel.** Segnalato il 21 settembre 2026.
 
@@ -789,8 +815,23 @@ di scritto. La riga resta visibile e la spunta si rimette: un doppione
 segnalato si corregge, uno scartato in silenzio no.
 
 **«Liquidità del conto personale» e il saldo dei conti personali sono due cifre
-per la stessa cosa.** Segnalato il 21 settembre 2026, si chiude con la
-derivazione qui sopra.
+per la stessa cosa.** Segnalato il 21 settembre 2026. **La derivazione non ha
+chiuso questa**, e vale la pena dirlo perché sembrava che dovesse: la
+derivazione ha tolto il doppio conteggio fra il riepilogo e il registro, non ha
+unito i due modi di contare la liquidità personale.
+
+Misurato il 22 settembre 2026 su un archivio con il registro pieno: il bilancio
+dell'attività dice **2.085,00 €** e la schermata dei conti dice **4.000,00 €**.
+Non è un errore di nessuno dei due: il bilancio parte dal saldo personale
+iniziale delle impostazioni e somma i riepiloghi mese per mese; il modulo parte
+dal saldo letto sull'estratto conto, con la sua data, e somma solo i movimenti
+successivi. Due strade diverse per lo stesso numero danno lo stesso numero solo
+se tutto è completo e coerente, e non lo è mai.
+
+La chiusura vera sarebbe far leggere al bilancio il saldo ancorato quando i
+conti ci sono. Non è gratis: il bilancio è una fotografia **al 31 dicembre**, e
+il saldo ancorato è quello di oggi — su un anno passato sarebbe la cifra
+sbagliata. Va deciso, non fatto di corsa.
 
 Nel bilancio dell'attività la riga «Liquidità del conto personale» nasce dal
 riepilogo mensile — saldo iniziale più prelievi e altre entrate, meno spese e

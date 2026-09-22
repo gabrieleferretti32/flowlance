@@ -24,6 +24,15 @@
  *    derivazione sommerebbe due volte gli stessi euro — misurato: 2.402 € di
  *    liquidità dell'attività più 2.400 € di conto personale per una fattura
  *    da 2.400 € incassata una volta sola.
+ * 5. **Un anno chiuso non si deriva.** La chiusura è una dichiarazione, e un
+ *    import non può riscriverla. Misurato: mettendo un registro dentro il
+ *    2025 chiuso della vetrina, il saldo di cassa di quell'anno scendeva da
+ *    10.851,18 € a 10.301,18 € — con lo scostamento dalla chiusura che
+ *    compariva da solo — e il 2026 ereditava 550 € in meno **senza che
+ *    nessuno dei suoi mesi cambiasse**: un numero che si muove per una
+ *    ragione che in quella schermata non si vede. Se l'anno si riapre la
+ *    derivazione riprende, e lì lo scostamento è giusto che compaia: è il
+ *    momento in cui si è deciso di rimettere mano a quei numeri.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Dove finisce ogni movimento
@@ -52,8 +61,16 @@ import { round2, somma } from "@/lib/fisco/aritmetica";
 import type { MovimentoPersonale } from "@/lib/dati/tipi";
 import type { CategoriaPf, MovimentoPf } from "./tipi";
 
-/** Da dove arriva il riepilogo di un mese. */
-export type FonteRiepilogo = "registro" | "manuale" | "assente";
+/**
+ * Da dove arriva il riepilogo di un mese.
+ *
+ * `chiuso` è il caso che si spiega meno da solo: **ci sono movimenti nel
+ * registro, e non si usano**, perché l'anno è chiuso. Non è «manuale» — quello
+ * è un mese in cui il registro tace — ed è la differenza che la schermata deve
+ * dire, altrimenti chi ha appena importato un estratto conto vede numeri che
+ * non si muovono e pensa che l'import non abbia funzionato.
+ */
+export type FonteRiepilogo = "registro" | "manuale" | "assente" | "chiuso";
 
 export type MeseRiepilogo = {
   anno: number;
@@ -120,6 +137,8 @@ export function riepilogoDellAnno(
   movimenti: MovimentoPf[],
   categorie: CategoriaPf[],
   anno: number,
+  /** L'anno è chiuso: il riepilogo resta quello dichiarato. Vedi la regola 5. */
+  chiuso = false,
 ): MeseRiepilogo[] {
   const dellAnno = movimenti.filter((m) => annoDi(m.data) === anno && m.tipo !== "giroconto");
   const perMese = new Map<number, MovimentoPf[]>();
@@ -144,6 +163,21 @@ export function riepilogoDellAnno(
         quanti: 0,
         riga: manuale ?? vuota(anno, mese, id),
       } as MeseRiepilogo;
+    }
+
+    /*
+      Regola 5: l'anno chiuso tiene quello che è stato dichiarato. I movimenti
+      ci sono e si contano — la schermata li nomina — ma non entrano nel
+      riepilogo.
+    */
+    if (chiuso) {
+      return {
+        anno,
+        mese,
+        fonte: "chiuso",
+        quanti: suoi.length,
+        riga: manuale ?? vuota(anno, mese, id),
+      };
     }
 
     return {
@@ -174,8 +208,16 @@ export function riepilogoEffettivo(
   manuali: MovimentoPersonale[],
   movimenti: MovimentoPf[],
   categorie: CategoriaPf[],
+  /** Gli anni chiusi, che non si derivano. Vedi la regola 5. */
+  anniChiusi: Iterable<number> = [],
 ): MovimentoPersonale[] {
-  const anni = new Set(movimenti.filter((m) => m.tipo !== "giroconto").map((m) => annoDi(m.data)));
+  const chiusi = new Set(anniChiusi);
+  const anni = new Set(
+    movimenti
+      .filter((m) => m.tipo !== "giroconto")
+      .map((m) => annoDi(m.data))
+      .filter((a) => !chiusi.has(a)),
+  );
   if (anni.size === 0) return manuali;
 
   const fuori = manuali.filter((r) => !anni.has(r.anno));
@@ -185,4 +227,81 @@ export function riepilogoEffettivo(
       .map((m) => m.riga),
   );
   return [...fuori, ...dentro];
+}
+
+/**
+ * I mesi di un anno in cui il registro ha qualcosa da dire, con la loro fonte.
+ *
+ * Serve alle schermate: il Cashflow segna le righe che arrivano dal registro e
+ * non si scrivono più a mano, e dice quando un anno chiuso sta tenendo ferme
+ * cifre che il registro contraddice.
+ */
+export function mesiConRegistro(righe: MeseRiepilogo[]): MeseRiepilogo[] {
+  return righe.filter((r) => r.quanti > 0);
+}
+
+/** Gli anni che una chiusura ha dichiarato finiti. */
+export function anniChiusi(chiusure: { anno: number }[]): number[] {
+  return chiusure.map((c) => c.anno);
+}
+
+/**
+ * Gli anni chiusi in cui un gruppo di movimenti va a cadere, con quanti sono.
+ *
+ * Serve all'esito di un import: chi carica l'estratto conto di un anno che ha
+ * già chiuso deve leggerlo lì, subito, e non scoprirlo dal fatto che i numeri
+ * non si muovono. «Non è successo niente» e «è successo, e non tocca quel
+ * riepilogo» sono due cose diverse, e senza la riga si vedono uguali.
+ */
+export function anniChiusiToccati(
+  movimenti: MovimentoPf[],
+  chiusure: { anno: number }[],
+): { anno: number; quanti: number }[] {
+  const chiusi = new Set(chiusure.map((c) => c.anno));
+  const quanti = new Map<number, number>();
+  for (const m of movimenti) {
+    if (m.tipo === "giroconto") continue;
+    const a = annoDi(m.data);
+    if (!chiusi.has(a)) continue;
+    quanti.set(a, (quanti.get(a) ?? 0) + 1);
+  }
+  return [...quanti.entries()]
+    .map(([anno, quanti]) => ({ anno, quanti }))
+    .sort((x, y) => x.anno - y.anno);
+}
+
+/**
+ * Che cosa cambierebbe riaprendo un anno chiuso.
+ *
+ * Riaprire un anno **cancella la chiusura**, e con lei il termine di
+ * paragone: lo scostamento «alla chiusura era X, adesso è Y» non può comparire
+ * dopo, perché la X non c'è più. L'unico momento in cui quel confronto si può
+ * fare è **prima**, ed è qui: i prelievi dichiarati contro quelli che
+ * uscirebbero dal registro, sui soli mesi che il registro conosce.
+ *
+ * Serve a decidere con un numero in mano invece che al buio. Non cambia
+ * niente da solo: è una lettura.
+ */
+export function seRiaprissi(
+  manuali: MovimentoPersonale[],
+  movimenti: MovimentoPf[],
+  categorie: CategoriaPf[],
+  anno: number,
+): { dichiarati: number; derivati: number; differenza: number; mesi: number[] } {
+  const derivate = riepilogoDellAnno(manuali, movimenti, categorie, anno, false);
+  const conRegistro = derivate.filter((r) => r.quanti > 0);
+  const dichiarati = round2(
+    somma(
+      ...conRegistro.map(
+        (r) => manuali.find((m) => m.anno === anno && m.mese === r.mese)?.prelievi ?? 0,
+      ),
+    ),
+  );
+  const derivati = round2(somma(...conRegistro.map((r) => r.riga.prelievi)));
+  return {
+    dichiarati,
+    derivati,
+    differenza: round2(derivati - dichiarati),
+    mesi: conRegistro.map((r) => r.mese),
+  };
 }

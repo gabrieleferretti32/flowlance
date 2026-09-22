@@ -59,6 +59,7 @@ import {
   type RigaAnteprima,
 } from "@/lib/finanze/anteprima-import";
 import { tipoDiCategoria } from "@/lib/finanze/categorizza";
+import { anniChiusiToccati } from "@/lib/finanze/derivazione";
 import {
   applicaMappatura,
   formatoDelleDate,
@@ -102,6 +103,10 @@ export function SchermataRendiconto() {
   const [file, setFile] = React.useState<FileCaricato[]>([]);
   const [righe, setRighe] = React.useState<RigaAnteprima[] | null>(null);
   const [scarti, setScarti] = React.useState<ScartoRendiconto[]>([]);
+  const [esito, setEsito] = React.useState<{
+    quanti: number;
+    chiusi: { anno: number; quanti: number }[];
+  } | null>(null);
 
   const conti = dati?.pfConti ?? [];
   const categorie = dati?.pfCategorie ?? [];
@@ -186,7 +191,7 @@ export function SchermataRendiconto() {
   }
 
   async function conferma() {
-    if (!righe) return;
+    if (!righe || !dati) return;
     const importId = nuovoId();
     const movimenti = movimentiDaScrivere(
       righe.map((r) => ({ ...r, importId })),
@@ -198,6 +203,19 @@ export function SchermataRendiconto() {
       file.map((f) => f.nome),
       file[0]?.contoId ?? "",
     );
+    /*
+      L'esito resta sulla pagina, e non solo nel toast che passa.
+
+      Il pezzo che deve restare è quello sugli anni chiusi: chi carica
+      l'estratto conto di un anno che ha già chiuso vede i movimenti entrare e
+      il Cashflow di quell'anno non muoversi di un euro. Senza questa riga,
+      «non è successo niente» e «è successo, e per regola non tocca quel
+      riepilogo» si leggono uguali.
+    */
+    setEsito({
+      quanti: movimenti.length,
+      chiusi: anniChiusiToccati(movimenti, dati.chiusure),
+    });
     setFile([]);
     setRighe(null);
     setScarti([]);
@@ -395,6 +413,46 @@ export function SchermataRendiconto() {
                 </p>
               </CardCorpo>
             )}
+          </Card>
+        )}
+
+        {esito && (
+          <Card>
+            <CardCorpo className="space-y-1.5">
+              <CardTitolo>
+                {esito.quanti === 1 ? "Un movimento registrato" : `${esito.quanti} movimenti registrati`}
+              </CardTitolo>
+              {esito.chiusi.length === 0 ? (
+                <CardSottotitolo>
+                  Il riepilogo mensile del Cashflow adesso arriva dal registro, nei mesi che hanno
+                  movimenti.
+                </CardSottotitolo>
+              ) : (
+                <p className="text-etichetta text-attenzione">
+                  {esito.chiusi.map((c) => (
+                    <span key={c.anno} className="block">
+                      {c.quanti === 1 ? "Un movimento cade" : `${c.quanti} movimenti cadono`} nel{" "}
+                      {c.anno}, che è <strong>chiuso</strong>: il riepilogo del {c.anno} resta
+                      quello della chiusura e non cambia. Riaprendo l&apos;anno la derivazione
+                      riprende, e le differenze rispetto alla chiusura si vedono.
+                    </span>
+                  ))}
+                </p>
+              )}
+              <p className="text-micro text-inchiostro-tenue">
+                <Link href={ROTTE.cashflow} className="underline underline-offset-2">
+                  Vai al Cashflow
+                </Link>
+                {esito.chiusi.length > 0 && (
+                  <>
+                    {" · "}
+                    <Link href={ROTTE.chiusura} className="underline underline-offset-2">
+                      Chiusura d&apos;anno
+                    </Link>
+                  </>
+                )}
+              </p>
+            </CardCorpo>
           </Card>
         )}
 

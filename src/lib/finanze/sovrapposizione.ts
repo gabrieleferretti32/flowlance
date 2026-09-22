@@ -14,10 +14,16 @@
  * viene contato due volte, e nessuna delle due schermate se ne accorge: la
  * prima non sa che il registro esiste, la seconda non sa del riepilogo.
  *
- * Questa funzione è la misura che rompe il silenzio. **Non corregge niente** —
- * la correzione è derivare il riepilogo dal registro, e va fatta prima che il
- * modulo esca, come dice APPROSSIMAZIONI.md — ma mette il doppione sotto gli
- * occhi nel punto in cui nasce, che è la schermata dove si scrive a mano.
+ * Questa funzione è nata come la misura che rompeva il silenzio, quando il
+ * doppione c'era davvero. **Adesso il riepilogo si deriva dal registro**
+ * (`derivazione.ts`), quindi nei mesi derivati il doppio conteggio non esiste
+ * più e l'avviso che c'era in cima al Cashflow è sparito con lui.
+ *
+ * Quello che resta a questa funzione è il caso in cui le due scritture
+ * convivono ancora per una ragione dichiarata: **l'anno chiuso**, che non si
+ * deriva perché una chiusura è una dichiarazione e un import non la riscrive.
+ * Lì il Cashflow dice quanti movimenti ci sono e quanto pesano, e che il
+ * riepilogo resta quello della chiusura.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Entrate e uscite separate, e non un saldo
