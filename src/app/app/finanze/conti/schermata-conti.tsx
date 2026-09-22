@@ -33,6 +33,7 @@ import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/ca
 import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Cifra, Etichetta } from "@/components/ui/etichetta";
 import { Campo, Input } from "@/components/ui/input";
+import { InputData } from "@/components/ui/input-data";
 import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
 import {
   Select,
@@ -175,9 +176,9 @@ export function SchermataConti() {
           <CardCorpo className="pb-3">
             <CardTitolo>Conti</CardTitolo>
             <CardSottotitolo>
-              Scrivi il saldo di oggi: quello che hai scritto contiene già tutto quello che è
-              successo fino a quel giorno. I movimenti <strong>datati dopo</strong> lo muovono, i
-              rendiconti dei mesi passati no.
+              Scrivi il saldo che leggi sull&apos;estratto conto e il giorno in cui l&apos;hai
+              letto: quella cifra contiene già tutto quello che è successo fino a quel giorno. I
+              movimenti <strong>datati dopo</strong> lo muovono, i rendiconti dei mesi passati no.
             </CardSottotitolo>
           </CardCorpo>
 
@@ -239,10 +240,39 @@ export function SchermataConti() {
                             )
                           }
                         />
-                        <span className="px-2 text-micro text-inchiostro-tenue">
-                          scritto il {fmtData(c.dataRiferimento)}
-                          {movimenti > 0 &&
-                            ` · ${movimenti === 1 ? "un movimento" : `${movimenti} movimenti`} da allora`}
+                        {/*
+                          L'ancora si può spostare, ed è una cosa che capita:
+                          si scrive il saldo il lunedì leggendo l'estratto
+                          conto di venerdì. Prima la data era sempre «oggi» e
+                          non si poteva toccare, quindi quei tre giorni di
+                          movimenti venivano contati due volte — una dentro il
+                          saldo scritto, una perché successivi all'ancora.
+
+                          Si scrive in italiano, e si salva quando si è finito
+                          e non a ogni battuta: digitando «1/1/2026» si passa
+                          da «1/1/20», che è una data legittima del 2020, e
+                          quella finirebbe in archivio per un istante.
+                        */}
+                        <span className="flex flex-wrap items-center justify-end gap-x-1.5 px-2 text-micro text-inchiostro-tenue">
+                          <label htmlFor={`ancora-${c.id}`}>saldo letto il</label>
+                          <InputData
+                            id={`ancora-${c.id}`}
+                            valore={c.dataRiferimento}
+                            onConferma={(iso) => {
+                              if (!iso || iso === c.dataRiferimento) return;
+                              void salvaConto(
+                                { ...c, dataRiferimento: iso },
+                                "Data del saldo aggiornata",
+                              );
+                            }}
+                            className="h-7 w-28 px-2 text-micro"
+                          />
+                          {movimenti > 0 && (
+                            <span>
+                              {movimenti === 1 ? "un movimento" : `${movimenti} movimenti`} da
+                              allora
+                            </span>
+                          )}
                         </span>
                       </span>
                       <Button
@@ -392,6 +422,12 @@ function ModuloConto({ oggi }: { oggi: string }) {
   const [nome, setNome] = React.useState("");
   const [tipo, setTipo] = React.useState<TipoConto>("corrente");
   const [saldo, setSaldo] = React.useState("");
+  /*
+    Il saldo si legge sull'estratto conto, e non sempre lo stesso giorno in cui
+    lo si scrive qui. La data parte da oggi perché è il caso più frequente, ma
+    si cambia: da lei dipende quali movimenti si sommano sopra.
+  */
+  const [letto, setLetto] = React.useState<string | null>(oggi);
 
   return (
     <form
@@ -403,12 +439,13 @@ function ModuloConto({ oggi }: { oggi: string }) {
           nome: nome.trim(),
           tipo,
           saldoRiferimento: analizzaNumero(saldo) ?? 0,
-          dataRiferimento: oggi,
+          dataRiferimento: letto ?? oggi,
           professionale: false,
         });
         setNome("");
         setTipo("corrente");
         setSaldo("");
+        setLetto(oggi);
       }}
     >
       <BloccoScrittura className="contents">
@@ -434,7 +471,7 @@ function ModuloConto({ oggi }: { oggi: string }) {
             </SelectContent>
           </Select>
         </Campo>
-        <Campo etichetta="Saldo di oggi" htmlFor="conto-saldo" className="w-36">
+        <Campo etichetta="Saldo" htmlFor="conto-saldo" className="w-36">
           <Input
             id="conto-saldo"
             numerico
@@ -443,6 +480,9 @@ function ModuloConto({ oggi }: { oggi: string }) {
             onChange={(e) => setSaldo(e.target.value)}
             placeholder="0,00"
           />
+        </Campo>
+        <Campo etichetta="Letto il" htmlFor="conto-letto" className="w-36">
+          <InputData id="conto-letto" valore={letto} onCambia={setLetto} />
         </Campo>
         <Button type="submit" variante="contorno" disabled={!nome.trim()}>
           <Plus className="size-4" aria-hidden />

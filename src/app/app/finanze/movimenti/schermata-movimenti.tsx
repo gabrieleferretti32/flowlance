@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/card";
 import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Campo, Input } from "@/components/ui/input";
+import { InputData } from "@/components/ui/input-data";
 import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
 import {
   Select,
@@ -387,8 +388,15 @@ function ModuloMovimento({
       }}
     >
       <BloccoScrittura className="contents">
+        {/*
+          La data di un movimento è quella che si scrive a mano più spesso, ed
+          è dove l'inversione giorno/mese fa più danni: il 3 aprile registrato
+          il 4 marzo finisce nel mese sbagliato, cambia il limite di due mesi e
+          non lo nota nessuno. Il campo nativo mostra il formato della lingua
+          del browser — vedi `InputData` — quindi qui non si usa.
+        */}
         <Campo etichetta="Data" htmlFor="m-data" className="w-40">
-          <Input id="m-data" type="date" value={data} onChange={(e) => setData(e.target.value)} />
+          <InputData id="m-data" valore={data} onCambia={(iso) => setData(iso ?? "")} />
         </Campo>
         <Campo etichetta="Tipo" htmlFor="m-tipo" className="w-36">
           <Select value={tipo} onValueChange={(v) => setTipo(v as TipoMovimento)}>

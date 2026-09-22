@@ -33,13 +33,29 @@ export function InputData({
   id,
   valore,
   onCambia,
+  onConferma,
   className,
   ...props
 }: Omit<React.InputHTMLAttributes<HTMLInputElement>, "value" | "onChange"> & {
   /** La data in archivio, `aaaa-mm-gg`, oppure `null` per «nessuna». */
   valore: string | null;
-  /** Chiamato solo quando quello che c'è scritto è una data vera, o niente. */
-  onCambia: (iso: string | null) => void;
+  /**
+   * Chiamato a ogni battuta che produce una data vera, o il campo svuotato.
+   *
+   * Va bene per lo stato di un modulo, che si scrive e si riscrive senza
+   * conseguenze. **Non va bene per chi scrive in archivio**: digitando
+   * «1/1/2026» si passa da «1/1/20», che è una data legittima del 2020, e
+   * quella finirebbe salvata per un istante — con il suo avviso, il suo
+   * annulla, e una riga che nel frattempo si è spostata di sei anni.
+   */
+  onCambia?: (iso: string | null) => void;
+  /**
+   * Chiamato quando si è finito: Invio, o uscendo dal campo.
+   *
+   * È questo che usa chi scrive in archivio. Arriva una volta sola, con
+   * quello che c'è scritto alla fine.
+   */
+  onConferma?: (iso: string | null) => void;
 }) {
   /*
     Il testo scritto è di chi scrive, e resta com'è finché non si tocca il
@@ -57,6 +73,19 @@ export function InputData({
 
   const vuoto = bozza.trim() === "";
   const storta = !vuoto && analizzaData(bozza) === null;
+
+  /*
+    Una data storta non si conferma e non si cancella: resta lì, rossa, con
+    quello che è stato scritto dentro. Svuotarla al posto di chi scrive
+    farebbe sparire una data buona per un refuso; salvarla a metà scriverebbe
+    in archivio un giorno che nessuno ha scelto.
+  */
+  function conferma() {
+    if (storta) return;
+    const iso = analizzaData(bozza);
+    setUltimo(iso);
+    onConferma?.(iso);
+  }
 
   return (
     <>
@@ -77,10 +106,16 @@ export function InputData({
             è ancora a metà, e mandare fuori un `null` a metà digitazione
             cancellerebbe quello che c'era.
           */
-          if (iso !== null || testo.trim() === "") {
+          if (onCambia && (iso !== null || testo.trim() === "")) {
             setUltimo(iso);
             onCambia(iso);
           }
+        }}
+        onBlur={() => conferma()}
+        onKeyDown={(e) => {
+          if (e.key !== "Enter") return;
+          e.preventDefault();
+          conferma();
         }}
         className={cn(storta && "border-negativo", className)}
         {...props}
