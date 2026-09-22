@@ -566,3 +566,30 @@ cookie — `_clck`, `_clsk` — non sono scritti da nessuna parte: il documento
 elenca finalità, fornitore e durata. Le due cose non si contraddicono (uno dice
 a che cosa serve, l'altro che cosa accendi), ma chi cerca la categoria in cui
 sono dichiarati quei due cookie non la trova. Da decidere se nominarli.
+
+---
+
+**Un mese passato e importato a metà tira giù il limite del mese in corso.**
+Misurato il 22 settembre 2026 sul dataset di vetrina: in agosto c'era un solo
+movimento — una spesa di 260 € e nessuna entrata registrata — e il limite di
+settembre usciva **−232,90 €**. Il conto è giusto per la regola che c'è:
+agosto ha movimenti, quindi `tabellaLimite` lo tratta come un mese di cui si
+sa tutto, e il suo avanzo (0 di entrate meno l'accantonamento, meno i 260
+spesi: −1.286,45 €) si riporta su settembre. Registrata anche un'entrata di
+agosto, settembre torna a 3.417,10 €.
+
+Il difetto non è l'aritmetica, è la premessa: **avere un movimento non vuol
+dire avere il mese**. Chi importa il rendiconto di un conto solo, o carica un
+CSV che parte da metà mese, si vede un limite negativo senza capire da dove
+arrivi. Due strade, nessuna gratis: chiedere che un mese abbia almeno
+un'entrata prima di riportarne l'avanzo — semplice ma sbagliato per chi in
+quel mese non ha incassato davvero niente — oppure dire nel riporto da quale
+mese arriva e quanto vale, lasciando decidere a chi guarda. La seconda è più
+onesta e vuole spazio nella schermata.
+
+**Il budget delle entrate non entra nel tetto dal conto.** Nella schermata
+Budget si può prevedere un incasso di 4.000 € a novembre: `tabellaLimite` lo
+usa per il limite di quel mese, ma il tetto dal conto guarda solo il saldo di
+oggi. Sono due domande diverse e va bene così — il conto dice quello che c'è,
+non quello che arriverà — ma chi compila un budget di entrate generoso vede
+cambiare una delle due cifre e non l'altra, e la schermata non lo spiega.

@@ -61,6 +61,7 @@ export const DESTINAZIONI: Destinazione[] = [
   { href: ROTTE.finanzeSpesa, etichetta: "Quanto posso spendere", gruppo: "Finanze personali", sinonimi: ["limite", "budget mensile", "resta", "spendibile"], pronta: true },
   { href: ROTTE.finanzeConti, etichetta: "Conti e patrimonio", gruppo: "Finanze personali", tasto: "t", sinonimi: ["conti", "banca", "saldo", "patrimonio netto", "beni", "debiti", "mutuo"], pronta: true },
   { href: ROTTE.finanzeMovimenti, etichetta: "Movimenti", gruppo: "Finanze personali", sinonimi: ["registro", "spese personali", "entrate", "giroconto", "estratto conto"], pronta: true },
+  { href: ROTTE.finanzeBudget, etichetta: "Budget", gruppo: "Finanze personali", sinonimi: ["previsto", "previsione", "quanto spendo", "tetto per categoria", "sforamento"], pronta: true },
   { href: ROTTE.finanzeCategorie, etichetta: "Categorie", gruppo: "Finanze personali", sinonimi: ["spese fisse", "budget", "accantonamento", "etichette"], pronta: true },
   { href: ROTTE.finanzeRendiconto, etichetta: "Carica rendiconto", gruppo: "Finanze personali", sinonimi: ["estratto conto", "import banca", "csv banca", "movimenti bancari"], pronta: true },
   { href: ROTTE.avvio, etichetta: "Configurazione", gruppo: "Impostazioni", sinonimi: ["onboarding", "percorso", "regime"], pronta: true },

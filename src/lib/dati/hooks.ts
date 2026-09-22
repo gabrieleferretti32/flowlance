@@ -14,6 +14,7 @@ import {
   type StatoPercorso,
 } from "@/lib/onboarding/percorso";
 import type { Dati } from "./tipi";
+import { situazioneDelMese, type SituazioneMese } from "@/lib/finanze/mese";
 
 /**
  * Lo strato reattivo.
@@ -122,4 +123,38 @@ export function useSituazione(anno: number, oggi: string): SituazioneApp | undef
       completati: dati.percorsi.filter((p) => p.completatoIl).map((p) => p.id),
     };
   }, [dati, catena, anno]);
+}
+
+// ————————————————————————————————————————————————————————————
+// Finanze personali
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Il mese in corso, con tutte e due le risposte: quanto permette il mese e
+ * quanto permette il conto.
+ *
+ * Il calcolo sta in `lib/finanze/mese.ts`, che è puro e provato. Qui ci sono
+ * solo le letture dall'archivio — ed è un hook e non due righe copiate in ogni
+ * schermata perché due copie della stessa catena diventano due cifre diverse
+ * il giorno in cui una delle due cambia.
+ */
+export function useSituazioneMese(anno: number, oggi: string): SituazioneMese | undefined {
+  const dati = useDati();
+  const catena = useCatenaAnni(anno, oggi);
+  return useMemo(() => {
+    const calcolo = catena?.get(anno);
+    if (!dati || !calcolo) return undefined;
+    return situazioneDelMese({
+      anno,
+      oggi,
+      calcolo,
+      precedente: catena?.get(anno - 1) ?? null,
+      versamenti: dati.versamenti,
+      conti: dati.pfConti,
+      movimenti: dati.pfMovimenti,
+      categorie: dati.pfCategorie,
+      budget: dati.pfBudget,
+      impostazioniPf: dati.pfImpostazioni[0] ?? null,
+    });
+  }, [dati, catena, anno, oggi]);
 }

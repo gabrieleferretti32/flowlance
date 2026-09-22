@@ -40,6 +40,7 @@ import { useStatoBackup } from "@/lib/stato/backup";
 import { costoGrezzo, fatturaGrezza } from "@/lib/fisco/documenti";
 import type {
   BenePf,
+  BudgetPf,
   CategoriaPf,
   ContoPersonale,
   ImportPf,
@@ -47,6 +48,7 @@ import type {
   MovimentoPf,
   RegolaPf,
 } from "@/lib/finanze/tipi";
+import { dodiciMesi, importiDi } from "@/lib/finanze/budget";
 import type { MappaturaColonne } from "@/lib/finanze/rendiconto";
 import {
   CATEGORIE_INIZIALI,
@@ -1088,4 +1090,73 @@ export async function salvaImpostazioniPf(impostazioni: ImpostazioniPf) {
   await conAnnullamento(archivio().pfImpostazioni, impostazioni.id, "Impostazione aggiornata", async () => {
     await archivio().pfImpostazioni.salva(impostazioni);
   });
+}
+
+// ————————————————————————————————————————————————————————————
+// Budget
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Il budget non ha un `id`: la sua chiave è la coppia categoria-anno.
+ *
+ * `conAnnullamento` vuole righe con un `id`, quindi qui l'annullamento si
+ * scrive a mano — e si scrive, perché una tabella di caselle è il posto dove
+ * si sbaglia a digitare più spesso di ogni altro, e «annulla» è l'unica
+ * risposta onesta a un 4.000 battuto al posto di 400.
+ */
+async function scriviBudget(
+  categoriaId: string,
+  anno: number,
+  importi: number[],
+  messaggio: string,
+): Promise<void> {
+  const chiave = `${categoriaId}|${anno}`;
+  const precedente = await archivio().pfBudget.leggi(chiave);
+  /*
+    Dodici zeri non sono un budget: sono l'assenza di un budget, e le due cose
+    devono stare nello stesso posto in archivio. Se restasse una riga di zeri,
+    `previsto` varrebbe 0 come per una categoria mai compilata — uguale a
+    vedersi, diversa da leggersi.
+  */
+  const vuoto = importi.every((n) => n === 0);
+  if (vuoto) await archivio().pfBudget.elimina(chiave);
+  else await archivio().pfBudget.salva({ categoriaId, anno, importi });
+
+  toast.conferma(messaggio, async () => {
+    if (precedente) await archivio().pfBudget.salva(precedente);
+    else await archivio().pfBudget.elimina(chiave);
+  });
+}
+
+/** Un mese solo, quello che si sta guardando. */
+export async function salvaBudgetMese(
+  categoriaId: string,
+  anno: number,
+  mese: number,
+  importo: number,
+  budget: BudgetPf[],
+): Promise<void> {
+  const importi = importiDi(budget, categoriaId, anno);
+  importi[mese - 1] = round2(importo);
+  await scriviBudget(categoriaId, anno, importi, "Budget del mese aggiornato");
+}
+
+/**
+ * Lo stesso importo per dodici mesi.
+ *
+ * È un gesto esplicito e non l'effetto collaterale di una casella: scrivere
+ * 400 a settembre e ritrovarselo su dicembre senza averlo chiesto è il modo
+ * di perdere un budget compilato mese per mese.
+ */
+export async function applicaBudgetATuttoLAnno(
+  categoriaId: string,
+  anno: number,
+  importo: number,
+): Promise<void> {
+  await scriviBudget(categoriaId, anno, dodiciMesi(importo), "Budget applicato a tutto l'anno");
+}
+
+/** Via il budget di una categoria per quell'anno, con l'annullamento. */
+export async function azzeraBudget(categoriaId: string, anno: number): Promise<void> {
+  await scriviBudget(categoriaId, anno, Array(12).fill(0), "Budget tolto");
 }

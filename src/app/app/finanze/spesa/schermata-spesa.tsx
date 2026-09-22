@@ -28,15 +28,9 @@ import { Vuoto } from "@/components/ui/vuoto";
 import { Guscio } from "@/components/guscio/guscio";
 import { ROTTE } from "@/lib/rotte";
 import { Button } from "@/components/ui/button";
-import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
+import { useDati, useSituazioneMese } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { salvaImpostazioniPf } from "@/lib/dati/azioni";
-import { parametriDi } from "@/lib/fisco/parametri";
-import { quotaAccantonamento } from "@/lib/fisco/accantonamento";
-import { quantoResta, tabellaLimite } from "@/lib/finanze/limite";
-import { saldoTotale } from "@/lib/finanze/saldo";
-import { limiteEffettivo, tettoDalConto } from "@/lib/finanze/tetto";
-import { IMPOSTAZIONI_PF_PREDEFINITE } from "@/lib/finanze/tipi";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -44,72 +38,16 @@ export function SchermataSpesa() {
   const anno = usePreferenze((s) => s.periodo.anno);
   const [oggi] = React.useState(() => new Date().toISOString().slice(0, 10));
   const dati = useDati();
-  const calcolo = useCalcoloAnno(anno, oggi);
-  const precedente = useCalcoloAnno(anno - 1, oggi);
 
-  const conto = React.useMemo(() => {
-    if (!dati || !calcolo) return null;
-    const impostazioni = dati.pfImpostazioni[0] ?? IMPOSTAZIONI_PF_PREDEFINITE;
-    const meseCorrente = Number(oggi.slice(5, 7));
+  /*
+    Il calcolo non sta qui: sta in `lib/finanze/mese.ts`, e ci sta da quando
+    una seconda schermata — il budget — ha avuto bisogno degli stessi numeri.
+    Dentro un `useMemo` era anche logica che si poteva provare solo aprendo il
+    browser; fuori ha i suoi test.
+  */
+  const conto = useSituazioneMese(anno, oggi);
 
-    /*
-      La quota del mese e il fisco non ancora versato vengono dallo stesso
-      calcolo del cruscotto: una fonte sola per due schermate, altrimenti
-      sono due numeri che prima o poi smettono di essere d'accordo.
-    */
-    const quota = quotaAccantonamento({
-      prospetto: calcolo.prospetto,
-      impostazioni: calcolo.impostazioni,
-      parametri: parametriDi(anno),
-      iva: calcolo.iva,
-      versamenti: dati.versamenti,
-      precedente: precedente?.prospetto ?? null,
-      oggi,
-    });
-
-    const righe = tabellaLimite({
-      anno,
-      meseCorrente,
-      movimenti: dati.pfMovimenti,
-      categorie: dati.pfCategorie,
-      budget: dati.pfBudget,
-      accantonamentoMensile: quota.alMese,
-      riportoAttivo: impostazioni.riportoAttivo,
-    });
-    const riga = righe[meseCorrente - 1];
-    const dalMese = quantoResta(riga, oggi);
-
-    const tetto = tettoDalConto({
-      saldoConti: saldoTotale(dati.pfConti, dati.pfMovimenti, oggi),
-      cuscinetto: impostazioni.cuscinetto,
-      impegniDelMese: riga.fisse + riga.risparmi + riga.rate,
-      fiscoNonVersato: quota.imposte.daAccantonare + quota.iva.daAccantonare,
-    });
-
-    const effettivo = limiteEffettivo(dalMese.resta, tetto.tetto - riga.speso);
-
-    /*
-      Un mese senza movimenti e senza budget **non è un mese a zero**.
-
-      `tabellaLimite` lo dice — `conMovimenti` — e la prima stesura di questa
-      schermata non lo guardava: sul dataset di vetrina, che ha il motore
-      fiscale pieno e il registro personale vuoto, il numero grande diceva
-      «puoi ancora spendere −1.026,45 €». Era l'accantonamento sottratto a zero
-      entrate: una cifra sicura di sé costruita sul niente, che è peggio di
-      nessuna cifra — perché nessuno la mette in dubbio.
-
-      Quando il mese non ha dati resta valido l'altro vincolo: il conto esiste
-      e il suo saldo pure. Si mostra quello, e si dice che è quello.
-    */
-    const budgetDelMese = dati.pfBudget.some(
-      (b) => b.anno === anno && (b.importi[meseCorrente - 1] ?? 0) !== 0,
-    );
-    const meseSenzaDati = !riga.conMovimenti && !budgetDelMese;
-
-    return { impostazioni, quota, riga, dalMese, tetto, effettivo, meseCorrente, meseSenzaDati };
-  }, [dati, calcolo, precedente, anno, oggi]);
-
-  if (!dati || !calcolo || !conto) {
+  if (!dati || !conto) {
     return (
       <Guscio titolo="Quanto posso spendere">
         <Card>
