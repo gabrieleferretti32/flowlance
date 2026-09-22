@@ -212,6 +212,43 @@ export const IMPOSTAZIONI_PF_PREDEFINITE: ImpostazioniPf = {
   riportoAttivo: true,
 };
 
+/**
+ * Una meta di risparmio: quanto, per quando, e **da dove si misura**.
+ *
+ * La fonte è la parte che di solito manca. Un obiettivo con un importo
+ * aggiornato a mano è un numero che invecchia dal giorno dopo: dice 3.000 €
+ * per mesi mentre sul conto ce ne sono 1.800, e nessuno se ne accorge finché
+ * non serve. Qui l'accumulato si **misura**: il saldo di un conto, o la somma
+ * dei movimenti di una categoria di risparmio da una data in poi.
+ *
+ * `nessuna` è una scelta legittima e dichiarata: la meta esiste, l'importo
+ * pure, e l'avanzamento **non si sa**. Meglio di una barra colorata che si
+ * riempie per finta.
+ */
+export type FonteObiettivo = "conto" | "categoria" | "nessuna";
+
+export type ObiettivoPf = {
+  id: string;
+  nome: string;
+  /** Quanto serve mettere insieme. Sempre positivo. */
+  obiettivo: number;
+  /** La data entro cui, se c'è. `null` vuol dire «senza fretta». */
+  entro: string | null;
+  fonte: FonteObiettivo;
+  /** L'id del conto o della categoria. `null` quando la fonte è `nessuna`. */
+  fonteId: string | null;
+  /**
+   * Da quando si conta, per la fonte «categoria».
+   *
+   * Senza questa data la somma prenderebbe anche i risparmi di anni fa, che
+   * sono già stati spesi per altro: una meta nata oggi risulterebbe quasi
+   * raggiunta il giorno in cui la si scrive. Sul conto non serve — lì il
+   * saldo è quello che c'è adesso.
+   */
+  dal: string;
+  icona?: string;
+};
+
 export type ImportPf = {
   id: string;
   data: string;

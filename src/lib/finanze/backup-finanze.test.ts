@@ -29,6 +29,10 @@ const conFinanze = (): Dati => ({
   pfBeni: [{ id: "b1", classe: "investimenti", nome: "ETF", valore: 12_000, aggiornatoIl: "2026-09-01" }],
   pfRegole: [{ id: "r1", testoDaCercare: "esselunga", categoriaId: "spesa", tipo: "spesa" }],
   pfImport: [{ id: "i1", data: "2026-09-21", file: "conto.csv", contoId: "c1", numeroMovimenti: 1 }],
+  pfObiettivi: [{
+    id: "o1", nome: "Fondo emergenza", obiettivo: 6_000, entro: "2027-06-30",
+    fonte: "conto", fonteId: "c1", dal: "2026-01-01",
+  }],
 });
 
 const rilegge = (dati: Dati) => {
@@ -37,9 +41,9 @@ const rilegge = (dati: Dati) => {
   return esito.backup.dati;
 };
 
-describe("le sette collezioni sono nel giro del backup", () => {
+describe("le collezioni del modulo sono nel giro del backup", () => {
   it("compaiono in COLLEZIONI, quindi nei conteggi e nelle etichette", () => {
-    for (const nome of ["pfConti", "pfMovimenti", "pfCategorie", "pfBudget", "pfBeni", "pfRegole", "pfImport"]) {
+    for (const nome of ["pfConti", "pfMovimenti", "pfCategorie", "pfBudget", "pfBeni", "pfRegole", "pfImport", "pfImpostazioni", "pfObiettivi"]) {
       expect(COLLEZIONI, nome).toContain(nome);
     }
   });
@@ -114,6 +118,48 @@ describe("le righe storte si scartano dicendolo", () => {
     expect(esito.ok).toBe(false);
     if (esito.ok) return;
     expect(esito.errori.join(" ")).toMatch(/ancorare/);
+  });
+
+  it("**una meta che dice «conto» senza dire quale non misura un conto a caso**", () => {
+    const esito = con({
+      pfObiettivi: [{
+        id: "o", nome: "Vacanza", obiettivo: 2_000, entro: null,
+        fonte: "conto", fonteId: null, dal: "2026-01-01",
+      }],
+    });
+    expect(esito.ok, esito.ok ? "" : esito.errori.join(" · ")).toBe(true);
+    if (!esito.ok) return;
+    const meta = esito.backup.dati.pfObiettivi[0];
+    // Si ripiega su «nessuna», che nella schermata si legge «non stai
+    // misurando niente»: scomodo e vero, invece di una barra che si riempie
+    // sul saldo del primo conto che capita.
+    expect(meta.fonte).toBe("nessuna");
+    expect(meta.fonteId).toBeNull();
+  });
+
+  it("e una meta con la fonte intera la tiene", () => {
+    const esito = con({
+      pfObiettivi: [{
+        id: "o", nome: "Vacanza", obiettivo: 2_000, entro: null,
+        fonte: "conto", fonteId: "c1", dal: "2026-01-01",
+      }],
+    });
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.backup.dati.pfObiettivi[0].fonte).toBe("conto");
+    expect(esito.backup.dati.pfObiettivi[0].fonteId).toBe("c1");
+  });
+
+  it("un obiettivo negativo è un errore, non una meta al contrario", () => {
+    const esito = con({
+      pfObiettivi: [{
+        id: "o", nome: "Vacanza", obiettivo: -2_000, entro: null,
+        fonte: "nessuna", fonteId: null, dal: "2026-01-01",
+      }],
+    });
+    expect(esito.ok).toBe(false);
+    if (esito.ok) return;
+    expect(esito.errori.join(" ")).toMatch(/negativo/);
   });
 
   it("un budget con meno di dodici caselle si completa a zero, non produce NaN", () => {

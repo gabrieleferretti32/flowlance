@@ -328,6 +328,7 @@ describe("vetrina · le sezioni hanno tutte qualcosa dentro", () => {
     "pfRegole",
     "pfImport",
     "pfImpostazioni",
+    "pfObiettivi",
   ];
 
   it("nessuna collezione è vuota, tolte quelle dichiarate", () => {

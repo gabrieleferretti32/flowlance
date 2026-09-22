@@ -12,6 +12,7 @@ import type {
   ContoPersonale,
   ImportPf,
   ImpostazioniPf,
+  ObiettivoPf,
   MovimentoPf,
   RegolaPf,
 } from "@/lib/finanze/tipi";
@@ -175,6 +176,7 @@ export const COLLEZIONI = [
   "pfRegole",
   "pfImport",
   "pfImpostazioni",
+  "pfObiettivi",
 ] as const;
 
 export type NomeCollezione = (typeof COLLEZIONI)[number];
@@ -208,6 +210,7 @@ export type Dati = {
   pfRegole: RegolaPf[];
   pfImport: ImportPf[];
   pfImpostazioni: ImpostazioniPf[];
+  pfObiettivi: ObiettivoPf[];
 };
 
 export function datiVuoti(): Dati {
@@ -232,6 +235,7 @@ export function datiVuoti(): Dati {
     pfRegole: [],
     pfImport: [],
     pfImpostazioni: [],
+    pfObiettivi: [],
   };
 }
 

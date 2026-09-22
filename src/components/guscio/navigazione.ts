@@ -53,6 +53,7 @@ const ICONE: Record<string, LucideIcon> = {
   [ROTTE.finanzeConti]: Wallet,
   [ROTTE.finanzeMovimenti]: ArrowLeftRight,
   [ROTTE.finanzeBudget]: ClipboardList,
+  [ROTTE.finanzeObiettivi]: Target,
   [ROTTE.finanzeCategorie]: Tags,
   [ROTTE.finanzeRendiconto]: FileUp,
   [ROTTE.avvio]: Compass,

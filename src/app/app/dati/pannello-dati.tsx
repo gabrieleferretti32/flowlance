@@ -64,6 +64,7 @@ const ETICHETTE: Record<NomeCollezione, string> = {
   pfRegole: "Regole di categoria",
   pfImport: "Import dei movimenti",
   pfImpostazioni: "Impostazioni delle finanze personali",
+  pfObiettivi: "Mete di risparmio",
 };
 
 export function PannelloDati() {

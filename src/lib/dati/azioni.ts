@@ -46,6 +46,7 @@ import type {
   ImportPf,
   ImpostazioniPf,
   MovimentoPf,
+  ObiettivoPf,
   RegolaPf,
 } from "@/lib/finanze/tipi";
 import { dodiciMesi, importiDi } from "@/lib/finanze/budget";
@@ -1159,4 +1160,40 @@ export async function applicaBudgetATuttoLAnno(
 /** Via il budget di una categoria per quell'anno, con l'annullamento. */
 export async function azzeraBudget(categoriaId: string, anno: number): Promise<void> {
   await scriviBudget(categoriaId, anno, Array(12).fill(0), "Budget tolto");
+}
+
+// ————————————————————————————————————————————————————————————
+// Mete di risparmio
+// ————————————————————————————————————————————————————————————
+
+export async function creaObiettivo(
+  obiettivo: Omit<ObiettivoPf, "id">,
+): Promise<ObiettivoPf> {
+  const nuovo: ObiettivoPf = { ...obiettivo, nome: obiettivo.nome.trim(), id: nuovoId() };
+  await archivio().pfObiettivi.salva(nuovo);
+  toast.conferma("Meta aggiunta", async () => {
+    await archivio().pfObiettivi.elimina(nuovo.id);
+  });
+  return nuovo;
+}
+
+export async function salvaObiettivo(obiettivo: ObiettivoPf, messaggio = "Meta aggiornata") {
+  await conAnnullamento(archivio().pfObiettivi, obiettivo.id, messaggio, async () => {
+    await archivio().pfObiettivi.salva({ ...obiettivo, nome: obiettivo.nome.trim() });
+  });
+}
+
+/**
+ * Eliminare una meta non tocca i soldi.
+ *
+ * È la differenza fra questa e l'eliminazione di una categoria: lì i movimenti
+ * restano orfani e il limite cambia, qui la meta è solo un modo di guardare un
+ * saldo che continua a esistere. Quindi si può fare senza chiedere niente, con
+ * l'annullamento per chi ha premuto per sbaglio.
+ */
+export async function eliminaObiettivo(obiettivo: ObiettivoPf) {
+  await archivio().pfObiettivi.elimina(obiettivo.id);
+  toast.conferma("Meta eliminata", async () => {
+    await archivio().pfObiettivi.salva(obiettivo);
+  });
 }

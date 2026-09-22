@@ -80,6 +80,7 @@ export class MemoriaAdapter implements StorageAdapter {
   readonly pfRegole = new DepositoMemoria<Dati["pfRegole"][number], string>((v) => v.id);
   readonly pfImport = new DepositoMemoria<Dati["pfImport"][number], string>((v) => v.id);
   readonly pfImpostazioni = new DepositoMemoria<Dati["pfImpostazioni"][number], string>((v) => v.id);
+  readonly pfObiettivi = new DepositoMemoria<Dati["pfObiettivi"][number], string>((v) => v.id);
 
   private deposito(collezione: NomeCollezione) {
     return this[collezione] as DepositoMemoria<unknown, string | number>;

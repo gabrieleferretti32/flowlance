@@ -562,6 +562,7 @@ export function datiDemo(): Dati {
     pfRegole: [],
     pfImport: [],
     pfImpostazioni: [],
+    pfObiettivi: [],
   };
 }
 

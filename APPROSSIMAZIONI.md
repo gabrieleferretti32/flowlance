@@ -800,6 +800,38 @@ dovrebbero essere lo stesso numero e non lo sono, in due schermate che non si
 nominano a vicenda. Fino alla derivazione restano due, ed è questa riga a
 dirlo.
 
+**Un budget scritto su un mese già passato non cambia il limite di quel
+mese.** Un mese passato che ha movimenti si legge per quello che è successo —
+`tabellaLimite` prende i numeri veri e ignora il previsto — quindi il budget
+di marzo, scritto a settembre, serve al confronto «previsto contro speso» e
+non alla cifra del limite. È la scelta giusta (un preventivo non riscrive un
+consuntivo) ma non è quello che ci si aspetta da una casella che si può
+ancora compilare, e la schermata non lo dice riga per riga.
+
+**Due mete di risparmio sulla stessa fonte mostrano gli stessi euro due
+volte.** Se «Vacanza» e «Fondo emergenza» misurano tutte e due il saldo del
+conto deposito, quel saldo compare intero sotto tutte e due e la somma delle
+barre racconta un patrimonio che non c'è. Il modulo lo **dichiara** —
+`condivisa` in `src/lib/finanze/obiettivi.ts`, e un'etichetta accanto alla
+barra — ma non lo impedisce: dividere un saldo fra due mete vorrebbe dire
+decidere noi quale delle due viene prima. È lo stesso difetto di famiglia
+degli euro disponibili in due posti, e qui almeno si vede dove nasce.
+
+**Il fabbisogno mensile delle mete si confronta con quello che stai mettendo
+via, non con quello che potresti.** La schermata mette accanto «le mete
+chiedono 861,54 € al mese» e «in settembre ne stai mettendo via 300»: è un
+confronto fra una decisione e un fatto. Quanto *potresti* metterne via è
+un'altra domanda — dipende dal limite del mese e da quanto sei disposto a
+togliere alle variabili — e non si risponde con una sottrazione, quindi non
+c'è.
+
+**La fonte «categoria» conta da una data, e quella data è il giorno in cui la
+meta è nata.** Serve a non regalare a una meta scritta stamattina i risparmi
+di gennaio, che erano stati messi via per altro; il prezzo è che chi risparmia
+da marzo e scrive la meta a settembre parte da zero. La data si vede accanto
+alla fonte e si può cambiare — ma è una modifica da fare sapendo cosa si sta
+facendo, non un campo da riempire distrattamente.
+
 ---
 
 ## La quota di accantonamento del mese

@@ -652,8 +652,10 @@ const importoPositivo = (
   collezione: NomeCollezione,
   i: number,
   errori: string[],
+  /** Il nome del campo, quando non si chiama né `importo` né `valore`. */
+  campo?: string,
 ): number | null => {
-  const v = numero(riga.importo ?? riga.valore, Number.NaN);
+  const v = numero(campo ? riga[campo] : riga.importo ?? riga.valore, Number.NaN);
   if (!Number.isFinite(v)) {
     errori.push(`${collezione}, riga ${i + 1}: importo mancante o non numerico.`);
     return null;
@@ -852,6 +854,35 @@ const convalidaRegola: Convalida<Dati["pfRegole"][number]> = (riga, i, errori) =
   };
 };
 
+/**
+ * Una meta di risparmio.
+ *
+ * La coppia fonte/fonteId si convalida **insieme**: una meta che dice «conto»
+ * e non dice quale non è una meta a metà, è una meta che misurerebbe
+ * l'avanzamento su un conto a caso. Quando la coppia non regge si ripiega su
+ * `nessuna`, che nella schermata si legge «non stai misurando niente» — una
+ * frase scomoda e vera, al posto di una barra che si riempie per sbaglio.
+ */
+const convalidaObiettivo: Convalida<Dati["pfObiettivi"][number]> = (riga, i, errori) => {
+  const id = richiedeId(riga, "pfObiettivi", i, errori);
+  if (!id) return null;
+  const obiettivo = importoPositivo(riga, "pfObiettivi", i, errori, "obiettivo");
+  if (obiettivo === null) return null;
+  const fonte = unoDi(riga.fonte, ["conto", "categoria", "nessuna"] as const, "nessuna");
+  const fonteId = typeof riga.fonteId === "string" && riga.fonteId !== "" ? riga.fonteId : null;
+  const misurabile = fonte !== "nessuna" && fonteId !== null;
+  return {
+    id,
+    nome: testo(riga.nome),
+    obiettivo,
+    entro: dataOpzionale(riga.entro),
+    fonte: misurabile ? fonte : "nessuna",
+    fonteId: misurabile ? fonteId : null,
+    dal: dataOpzionale(riga.dal) ?? "",
+    ...(typeof riga.icona === "string" ? { icona: riga.icona } : {}),
+  };
+};
+
 const convalidaImportPf: Convalida<Dati["pfImport"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "pfImport", i, errori);
   if (!id) return null;
@@ -949,6 +980,12 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
     contenuto.pfImpostazioni,
     "pfImpostazioni",
     convalidaImpostazioniPf,
+    errori,
+  );
+  dati.pfObiettivi = convalidaElenco(
+    contenuto.pfObiettivi,
+    "pfObiettivi",
+    convalidaObiettivo,
     errori,
   );
 

@@ -23,6 +23,7 @@ import type {
   ImportPf,
   ImpostazioniPf,
   MovimentoPf,
+  ObiettivoPf,
   RegolaPf,
 } from "@/lib/finanze/tipi";
 
@@ -40,7 +41,7 @@ import type {
  * un elenco vuoto, e un test in `backup.test.ts` che importa un file senza il
  * modulo.
  */
-export const VERSIONE_SCHEMA = 10;
+export const VERSIONE_SCHEMA = 11;
 
 /**
  * Lo schema IndexedDB.
@@ -75,6 +76,7 @@ export class DatabaseFinanze extends Dexie {
   pfRegole!: EntityTable<RegolaPf, "id">;
   pfImport!: EntityTable<ImportPf, "id">;
   pfImpostazioni!: EntityTable<ImpostazioniPf, "id">;
+  pfObiettivi!: EntityTable<ObiettivoPf, "id">;
 
   // Il nome del database resta quello originale anche dopo il rename del
   // progetto in Flowlance: in IndexedDB il nome È la chiave dell'archivio,
@@ -178,6 +180,14 @@ export class DatabaseFinanze extends Dexie {
         .modify((c: { id?: string; arrivaDallAttivita?: boolean }) => {
           c.arrivaDallAttivita = c.id === "fatture";
         });
+    });
+    /*
+      Versione 11: le mete di risparmio. Tabella nuova e nessuna migrazione:
+      chi apre l'app dopo l'aggiornamento non ne ha nessuna, e «nessuna meta»
+      è esattamente lo stato di prima. Le righe che ci sono non si toccano.
+    */
+    this.version(11).stores({
+      pfObiettivi: "id",
     });
   }
 }

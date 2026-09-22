@@ -71,6 +71,15 @@ async function apriArchivioDiSettembre() {
   return vecchio;
 }
 
+/** L'archivio aperto dalla classe di oggi, per guardarci dentro. */
+async function apertoDaOggi<T>(dentro: (db: DatabaseFinanze) => Promise<T>): Promise<T> {
+  const nuovo = new DatabaseFinanze(NOME);
+  await nuovo.open();
+  const esito = await dentro(nuovo);
+  nuovo.close();
+  return esito;
+}
+
 async function categorieDopoLApertura(): Promise<CategoriaPf[]> {
   const nuovo = new DatabaseFinanze(NOME);
   await nuovo.open();
@@ -130,5 +139,28 @@ describe("l'archivio nato prima del flag", () => {
     expect(f24?.nome).toBe("F24 e contributi");
     expect(f24?.fissa).toBe(true);
     expect(f24?.pagataDallAccantonamento).toBe(true);
+  });
+});
+
+describe("le tabelle nate dopo", () => {
+  /*
+    La versione 11 aggiunge le mete di risparmio: tabella nuova, nessuna
+    migrazione. Il caso da provare non è che la tabella esista — Dexie la crea
+    — ma che aprirla **non tocchi quello che c'era**: una tabella nuova che
+    arriva insieme a una migrazione su un'altra tabella è il punto in cui i
+    due cambiamenti si guastano a vicenda.
+  */
+  it("pfObiettivi compare vuota, e le categorie di prima restano quattro", async () => {
+    const vecchio = await apriArchivioDiSettembre();
+    vecchio.close();
+
+    const { mete, categorie } = await apertoDaOggi(async (db) => ({
+      mete: await db.pfObiettivi.toArray(),
+      categorie: await db.pfCategorie.toArray(),
+    }));
+
+    expect(mete).toEqual([]);
+    expect(categorie).toHaveLength(4);
+    expect(categorie.find((c) => c.id === "fatture")?.arrivaDallAttivita).toBe(true);
   });
 });
