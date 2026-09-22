@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * Carica rendiconto: dai file CSV della banca al registro, passando da
- * un'anteprima che si può correggere.
+ * Carica rendiconto: dai file della banca — CSV o Excel — al registro,
+ * passando da un'anteprima che si può correggere.
  *
  * ─────────────────────────────────────────────────────────────────────────
  * Il conto si sceglie prima di leggere
@@ -93,10 +93,29 @@ type FileCaricato = {
   contoId: string;
   tabella: Tabella;
   mappatura: MappaturaColonne | null;
-  /** Che alfabeto parlava il file, e in che ordine scrive le date. */
-  codifica: Codifica;
+  /**
+   * Che alfabeto parlava il file. `null` per un Excel: lì dentro l'XML è
+   * sempre UTF-8, e non c'è nessuna scelta da dichiarare.
+   */
+  codifica: Codifica | null;
+  /** Il foglio da cui sono uscite le righe, quando il file è un Excel. */
+  foglio?: string;
   formato: LetturaFormatoData;
 };
+
+/**
+ * È un Excel?
+ *
+ * Il nome non basta — un CSV rinominato `.xlsx` capita — e i byte da soli
+ * nemmeno: un `.xlsx` comincia per `PK` come qualunque ZIP. Si guardano tutti
+ * e due, e chi sbaglia lo scopre subito dopo: il lettore rifiuta il file
+ * dicendo cosa non va, invece di mangiarselo a metà.
+ */
+function sembraExcel(nome: string, byte: ArrayBuffer): boolean {
+  if (/\.xlsx?$/i.test(nome)) return true;
+  const primi = new Uint8Array(byte.slice(0, 2));
+  return primi[0] === 0x50 && primi[1] === 0x4b;
+}
 
 export function SchermataRendiconto() {
   const dati = useDati();
@@ -107,27 +126,65 @@ export function SchermataRendiconto() {
     quanti: number;
     chiusi: { anno: number; quanti: number }[];
   } | null>(null);
+  /** Un file che non si è potuto leggere, con il motivo scritto in italiano. */
+  const [erroreFile, setErroreFile] = React.useState<string | null>(null);
 
   const conti = dati?.pfConti ?? [];
   const categorie = dati?.pfCategorie ?? [];
 
   async function aggiungiFile() {
-    const scelto = await scegliFileByte("text/csv,.csv,text/plain");
+    const scelto = await scegliFileByte("text/csv,.csv,text/plain,.xlsx");
     if (scelto === null) return;
-    /*
-      I byte, non il testo: `file.text()` decide da solo che sia UTF-8, e su un
-      rendiconto in ANSI gli accenti si perderebbero prima che qualcuno possa
-      accorgersene — con le regole di categoria che smettono di riconoscere
-      «caffè» senza che niente sia cambiato tranne il file.
-    */
-    const { testo, codifica } = decodificaRendiconto(scelto.byte);
-    const tabella = leggiCsv(testo);
+    setErroreFile(null);
+
+    let tabella: Tabella;
+    let codifica: Codifica | null = null;
+    let foglio: string | undefined;
+
+    if (sembraExcel(scelto.nome, scelto.byte)) {
+      /*
+        **Il lettore Excel si carica adesso, non all'avvio.**
+
+        `import()` dentro la funzione diventa un pezzo di programma a parte,
+        che il browser scarica la prima volta che qualcuno sceglie un `.xlsx`.
+        Chi carica solo CSV — la maggioranza — non lo incontra mai. Era la
+        condizione con cui l'Excel era stato rimandato, ed è l'unico motivo
+        per cui questa riga non è un `import` in cima al file.
+      */
+      const { leggiXlsx } = await import("@/lib/finanze/xlsx");
+      const esito = await leggiXlsx(scelto.byte);
+      if (!esito.ok) {
+        setErroreFile(`${scelto.nome}: ${esito.motivo}`);
+        return;
+      }
+      tabella = esito.tabella;
+      foglio = esito.foglio;
+    } else {
+      /*
+        I byte, non il testo: `file.text()` decide da solo che sia UTF-8, e su
+        un rendiconto in ANSI gli accenti si perderebbero prima che qualcuno
+        possa accorgersene — con le regole di categoria che smettono di
+        riconoscere «caffè» senza che niente sia cambiato tranne il file.
+      */
+      const letto = decodificaRendiconto(scelto.byte);
+      codifica = letto.codifica;
+      tabella = leggiCsv(letto.testo);
+    }
+
     const contoId = conti[0]?.id ?? "";
     const salvata = conti.find((c) => c.id === contoId)?.mappaturaImport ?? null;
     const proposta = salvata ?? proponiMappatura(tabella.intestazioni);
-    const formato = formatoDelleDate(
-      proposta ? tabella.righe.map((r) => r[proposta.data] ?? "") : [],
-    );
+    /*
+      In un Excel le date non sono testo: sono numeri con un formato, e il
+      giorno e il mese li abbiamo messi noi in quell'ordine leggendole. Farle
+      indovinare a `formatoDelleDate` come se fossero stringhe qualsiasi
+      aggiungeva «nessuna prova nel file» a un file dove il dubbio non
+      esiste — un avviso vero su un CSV e falso qui.
+    */
+    const formato: LetturaFormatoData =
+      codifica === null
+        ? { formato: "giorno-mese", certezza: "dedotto" }
+        : formatoDelleDate(proposta ? tabella.righe.map((r) => r[proposta.data] ?? "") : []);
     setFile((f) => [
       ...f,
       {
@@ -135,6 +192,7 @@ export function SchermataRendiconto() {
         contoId,
         tabella,
         codifica,
+        foglio,
         formato,
         mappatura: proposta ? { ...proposta, formatoData: formato.formato } : null,
       },
@@ -256,7 +314,7 @@ export function SchermataRendiconto() {
   return (
     <Guscio
       titolo="Carica rendiconto"
-      descrizione="CSV della banca · più file insieme, uno per conto"
+      descrizione="CSV o Excel della banca · più file insieme, uno per conto"
     >
       <div className="mx-auto max-w-5xl space-y-4">
         <Card>
@@ -281,8 +339,11 @@ export function SchermataRendiconto() {
                       plausibile e un accento perso non somigliano a un errore.
                     */}
                     <span className="text-micro text-inchiostro-tenue">
-                      {f.tabella.righe.length} righe · separatore «{f.tabella.separatore}» ·{" "}
-                      {nomeCodifica(f.codifica)} · date {nomeFormatoData(f.formato.formato)}
+                      {f.tabella.righe.length} righe ·{" "}
+                      {f.codifica === null
+                        ? `foglio «${f.foglio ?? ""}»`
+                        : `separatore «${f.tabella.separatore}» · ${nomeCodifica(f.codifica)}`}{" "}
+                      · date {nomeFormatoData(f.formato.formato)}
                       {f.formato.certezza === "predefinito" && " (nessuna prova nel file)"}
                     </span>
                     <Select value={f.contoId} onValueChange={(v) => cambiaConto(i, v)}>
@@ -344,7 +405,7 @@ export function SchermataRendiconto() {
             <BloccoScrittura>
               <Button variante="contorno" onClick={() => void aggiungiFile()}>
                 <FileUp className="size-4" aria-hidden />
-                Aggiungi un file CSV
+                Aggiungi un file CSV o Excel
               </Button>
             </BloccoScrittura>
             {file.length > 0 && (
@@ -360,6 +421,12 @@ export function SchermataRendiconto() {
                 Prima semina le categorie
               </Button>
             )}
+            {/*
+              Un file che non si è potuto leggere lo dice qui, con il motivo
+              vero: «protetto da password», «è un .xls vecchio». Un file che
+              sparisce senza spiegazione fa ricaricare lo stesso file tre volte.
+            */}
+            {erroreFile && <p className="w-full text-micro text-negativo">{erroreFile}</p>}
           </CardCorpo>
         </Card>
 

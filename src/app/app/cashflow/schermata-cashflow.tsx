@@ -47,6 +47,7 @@ import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { ROTTE } from "@/lib/rotte";
 import { sovrapposizionePersonale } from "@/lib/finanze/sovrapposizione";
 import { riepilogoDellAnno, seRiaprissi } from "@/lib/finanze/derivazione";
+import { InputData } from "@/components/ui/input-data";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import type { VersamentoF24 } from "@/lib/dati/tipi";
@@ -573,8 +574,14 @@ function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: Vers
           }}
         >
           <BloccoScrittura className="contents">
+          {/*
+            La data di un F24 si scrive a mano, e il campo nativo mostra il
+            formato della lingua del browser: un italiano con Chrome in
+            inglese scriverebbe il 30 giugno nella casella del 6 luglio. Vedi
+            `InputData`.
+          */}
           <Campo etichetta="Data" htmlFor="f24-data" className="w-44">
-            <Input id="f24-data" type="date" value={data} onChange={(e) => setData(e.target.value)} />
+            <InputData id="f24-data" valore={data} onCambia={(iso) => setData(iso ?? "")} />
           </Campo>
           <Campo etichetta="Tipo" htmlFor="f24-tipo" className="w-44">
             <Select value={tipo} onValueChange={(v) => setTipo(v as VersamentoF24["tipo"])}>

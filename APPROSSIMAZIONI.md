@@ -789,13 +789,35 @@ Le cinque regole, decise prima di scrivere il codice:
    mentre l'anno è ancora chiuso — `seRiaprissi` in `derivazione.ts` — e non
    dopo.
 
-**L'import legge il CSV, non l'Excel.** Segnalato il 21 settembre 2026.
+**~~L'import legge il CSV, non l'Excel.~~ Chiuso il 22 settembre 2026.**
 
-Il `.xlsx` richiede una libreria — quattrocento chilobyte — e farla pesare a
-tutti per una funzione che si usa una volta al mese non torna. Arriverà con il
-caricamento a richiesta: la si scarica quando si sceglie un file Excel, e chi
-carica solo CSV non la incontra mai. Nel frattempo un `.xlsx` si esporta in CSV
-da qualunque foglio di calcolo, ed è un passaggio in più che si fa una volta.
+Il `.xlsx` si legge, e il lettore si carica **a richiesta**: è un pezzo di
+programma a parte, 5,6 KB, che il browser scarica la prima volta che si sceglie
+un file Excel. Misurato sul sito costruito: aprendo la schermata e caricando un
+CSV quel pezzo non viene mai chiesto — 204 richieste senza — e compare alla
+205ª, subito dopo la scelta del file.
+
+Niente libreria: le due che si usano pesano 900 KB e 2,4 MB srotolate, e quella
+più nota su npm è ferma a una versione con una falla proprio nel pezzo che
+legge i file altrui — che è esattamente quello che si fa qui. Un `.xlsx` è uno
+ZIP con dentro dell'XML, e quello che serve a un rendiconto si scrive in meno
+righe di quante ne costi importare un parser generale: la stessa scelta già
+fatta per il CSV.
+
+**Quello che non legge lo dice, e non restituisce mezze righe**: i vecchi
+`.xls` binari (con il consiglio di risalvarli), i file protetti da password,
+gli ZIP in formato zip64 e le compressioni diverse da «nessuna» e «deflate».
+Le date escono dal numero di serie di Excel con l'epoca del 30 dicembre 1899 —
+quella che tiene conto del 29 febbraio 1900 che non è mai esistito — quindi i
+seriali **prima del 1° marzo 1900** non si convertono: in un estratto conto non
+esistono, e un test lo fissa insieme ai due seriali di controllo (45658 è il
+1° gennaio 2025, 36526 il 1° gennaio 2000).
+
+Resta fuori un caso: un foglio con le righe che cominciano sotto una
+copertina — titoli, loghi, righe di totale — dove la prima riga non vuota non
+è l'intestazione. Il lettore prende il **primo foglio che ha righe** e la sua
+prima riga piena, e se sbaglia si vede subito nell'anteprima, dove le colonne
+si rimappano a mano.
 
 **Il dizionario delle parole è italiano, corto e di parte.** Riconosce le
 catene e le parole che compaiono nei rendiconti italiani — «esselunga»,
@@ -828,10 +850,20 @@ dal saldo letto sull'estratto conto, con la sua data, e somma solo i movimenti
 successivi. Due strade diverse per lo stesso numero danno lo stesso numero solo
 se tutto è completo e coerente, e non lo è mai.
 
-La chiusura vera sarebbe far leggere al bilancio il saldo ancorato quando i
-conti ci sono. Non è gratis: il bilancio è una fotografia **al 31 dicembre**, e
-il saldo ancorato è quello di oggi — su un anno passato sarebbe la cifra
-sbagliata. Va deciso, non fatto di corsa.
+**Deciso il 22 settembre 2026: restano due, e la divergenza è per
+costruzione.** Far leggere al bilancio il saldo ancorato sembrava la chiusura
+ovvia, e non lo è: il bilancio è una fotografia **al 31 dicembre**, il saldo
+ancorato è quello di oggi, e su un anno passato metterebbe dentro una
+fotografia di dicembre una cifra di settembre. Due strade diverse per due
+domande diverse — «quanto era rimasto a fine anno» e «quanto c'è adesso» — non
+sono un errore da correggere.
+
+Quello che mancava era la frase, e adesso c'è: sulla riga del bilancio si legge
+che la cifra è al 31 dicembre e viene dai movimenti dell'anno, con il
+collegamento a Conti e patrimonio per il saldo di oggi. **Quello che resta
+aperto non è la divergenza, è il caso in cui le due si contraddicono per un
+dato incompleto** — un saldo personale iniziale mai impostato, o mesi non
+importati — e lì nessuna delle due sa di essere quella sbagliata.
 
 Nel bilancio dell'attività la riga «Liquidità del conto personale» nasce dal
 riepilogo mensile — saldo iniziale più prelievi e altre entrate, meno spese e

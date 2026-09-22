@@ -99,6 +99,30 @@ export function SchermataPatrimonio() {
             totale={patrimonio.totaleAttivo}
             vociLibere={dati.patrimonio.filter((v) => v.tipo === "attivo")}
             tipo="attivo"
+            spiegazioni={{
+              /*
+                Due numeri diversi per la stessa cosa, senza una riga che lo
+                spieghi, si leggono come un errore.
+
+                Questa cifra è **al 31 dicembre** e nasce dal saldo personale
+                iniziale più i riepiloghi dei dodici mesi; la schermata dei
+                conti mostra il **saldo di oggi**, letto sull'estratto conto e
+                mosso dai movimenti successivi. Coincidono solo per caso, e
+                farle coincidere per forza vorrebbe dire mettere il saldo di
+                oggi dentro una fotografia di fine anno. La divergenza resta
+                per costruzione: vedi APPROSSIMAZIONI.md.
+              */
+              "cassa-personale": (
+                <>
+                  Al 31 dicembre {anno}, dai movimenti dell&apos;anno. Il saldo di oggi, quello
+                  letto sull&apos;estratto conto, sta in{" "}
+                  <Link href={ROTTE.finanzeConti} className="underline underline-offset-2">
+                    Conti e patrimonio
+                  </Link>
+                  : sono due numeri diversi per costruzione, non uno sbagliato.
+                </>
+              ),
+            }}
           />
           <ColonnaPatrimonio
             titolo="Passivo"
@@ -174,6 +198,7 @@ function ColonnaPatrimonio({
   totale,
   vociLibere,
   tipo,
+  spiegazioni = {},
 }: {
   titolo: string;
   sottotitolo: string;
@@ -181,6 +206,8 @@ function ColonnaPatrimonio({
   totale: number;
   vociLibere: VocePatrimonio[];
   tipo: "attivo" | "passivo";
+  /** Righe che hanno bisogno di più di una nota: per id della voce. */
+  spiegazioni?: Record<string, React.ReactNode>;
 }) {
   const [descrizione, setDescrizione] = React.useState("");
   const [valore, setValore] = React.useState("");
@@ -209,6 +236,9 @@ function ColonnaPatrimonio({
                 <span className="block text-corpo">{v.descrizione}</span>
                 {v.nota && (
                   <span className="block text-micro text-inchiostro-tenue">{v.nota}</span>
+                )}
+                {spiegazioni[v.id] && (
+                  <span className="block text-micro text-inchiostro-tenue">{spiegazioni[v.id]}</span>
                 )}
               </span>
               <span className="flex shrink-0 items-center gap-1">

@@ -64,7 +64,7 @@ export const DESTINAZIONI: Destinazione[] = [
   { href: ROTTE.finanzeBudget, etichetta: "Budget", gruppo: "Finanze personali", sinonimi: ["previsto", "previsione", "quanto spendo", "tetto per categoria", "sforamento"], pronta: true },
   { href: ROTTE.finanzeObiettivi, etichetta: "Mete di risparmio", gruppo: "Finanze personali", sinonimi: ["obiettivi", "risparmio", "fondo emergenza", "traguardi", "quanto al mese"], pronta: true },
   { href: ROTTE.finanzeCategorie, etichetta: "Categorie", gruppo: "Finanze personali", sinonimi: ["spese fisse", "budget", "accantonamento", "etichette"], pronta: true },
-  { href: ROTTE.finanzeRendiconto, etichetta: "Carica rendiconto", gruppo: "Finanze personali", sinonimi: ["estratto conto", "import banca", "csv banca", "movimenti bancari"], pronta: true },
+  { href: ROTTE.finanzeRendiconto, etichetta: "Carica rendiconto", gruppo: "Finanze personali", sinonimi: ["estratto conto", "import banca", "csv banca", "excel banca", "xlsx", "movimenti bancari"], pronta: true },
   { href: ROTTE.avvio, etichetta: "Configurazione", gruppo: "Impostazioni", sinonimi: ["onboarding", "percorso", "regime"], pronta: true },
   { href: ROTTE.parametri, etichetta: "Parametri", gruppo: "Impostazioni", sinonimi: ["addizionale", "aliquote", "regione", "comune", "cassa", "contributi fissi", "ore fatturabili"], pronta: true },
   { href: ROTTE.dati, etichetta: "Dati e backup", gruppo: "Impostazioni", tasto: "d", sinonimi: ["esporta", "importa", "demo", "backup"], pronta: true },
