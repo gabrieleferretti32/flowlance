@@ -61,6 +61,30 @@ export type SituazioneMese = {
    * dubbio.
    */
   meseSenzaDati: boolean;
+  /**
+   * Il mese ha movimenti, ma **nessuna entrata registrata**.
+   *
+   * È il caso di chi importa il rendiconto di una carta di credito, o di un
+   * conto su cui gli incassi non arrivano: di quel mese si sanno le uscite e
+   * non le entrate. Il limite del mese, che parte dalle entrate, esce
+   * negativo — l'accantonamento e le spese fisse sottratti a zero — e quel
+   * numero non è un limite: è la misura di quanto manca all'importazione.
+   *
+   * Vale come `meseSenzaDati`: si mostra il tetto dal conto, e si dice
+   * perché.
+   */
+  meseSenzaEntrate: boolean;
+  /**
+   * Il riporto arriva da un mese che a sua volta non aveva entrate
+   * registrate.
+   *
+   * Un mese così lascia un disavanzo grande quanto l'accantonamento più le
+   * spese, e se lo porta appresso: è il modo in cui un mese importato a metà
+   * abbassa il limite di un mese che invece i suoi incassi ce li ha. Il
+   * calcolo non cambia — distinguere «non ho incassato» da «non ho importato»
+   * non si può fare senza indovinare — ma la schermata lo dice.
+   */
+  riportoDaMeseSenzaEntrate: boolean;
 };
 
 export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
@@ -107,6 +131,8 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
     (b) => b.anno === ing.anno && (b.importi[meseCorrente - 1] ?? 0) !== 0,
   );
 
+  const precedente = meseCorrente > 1 ? righe[meseCorrente - 2] : null;
+
   return {
     impostazioni,
     quota,
@@ -117,5 +143,8 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
     effettivo,
     meseCorrente,
     meseSenzaDati: !riga.conMovimenti && !budgetDelMese,
+    meseSenzaEntrate: riga.conMovimenti && riga.entrate === 0,
+    riportoDaMeseSenzaEntrate:
+      riga.riporto < 0 && precedente !== null && precedente.conMovimenti && precedente.entrate === 0,
   };
 }

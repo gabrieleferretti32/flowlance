@@ -186,3 +186,59 @@ export function totaleDi(righe: RigaBudget[]): { previsto: number; speso: number
   const speso = round2(somma(...righe.map((r) => r.speso)));
   return { previsto, speso, differenza: round2(previsto - speso) };
 }
+
+/**
+ * Il quadro del mese: entrate contro uscite previste.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Una previsione che manca non vale zero
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * La prima stesura sottraeva le uscite previste dalle entrate previste e
+ * basta. Su un mese con 9.000 € di budget di spesa e nessuna previsione di
+ * entrate scriveva **«Differenza −9.000,00 €»** in rosso, con accanto, nella
+ * riga del gruppo, «incassato 3.200,00 €»: due numeri veri che insieme
+ * dicevano una cosa falsa, cioè che il mese chiude a meno novemila.
+ *
+ * Il difetto è lo stesso di sempre — una casella vuota letta come uno zero —
+ * e la correzione è la stessa: se una previsione di entrate non c'è ma il mese
+ * ha incassi registrati, si usano quelli **e lo si dice**. Se non c'è né l'una
+ * né gli altri, la differenza non si calcola: `null`, e la schermata spiega
+ * perché invece di stampare un rosso costruito sul niente.
+ */
+export type FonteEntrate = "previsione" | "registrate" | "nessuna";
+
+export type QuadroMese = {
+  entrate: number;
+  fonteEntrate: FonteEntrate;
+  uscite: number;
+  /** `null` quando non c'è nessuna entrata da cui partire. */
+  differenza: number | null;
+};
+
+export function quadroDelMese(confronto: ConfrontoBudget): QuadroMese {
+  const entrateRighe = confronto.righe.filter((r) => r.categoria.tipo === "entrata");
+  const uscite = totaleDi(confronto.righe.filter((r) => r.categoria.tipo !== "entrata")).previsto;
+
+  const previste = totaleDi(entrateRighe).previsto;
+  if (previste > 0) {
+    return { entrate: previste, fonteEntrate: "previsione", uscite, differenza: round2(previste - uscite) };
+  }
+
+  /*
+    Le entrate registrate valgono solo se il mese ha davvero dei movimenti:
+    su un mese non importato la somma fa zero, e uno zero letto come «non hai
+    incassato niente» è la bugia che questo modulo non racconta.
+  */
+  const registrate = confronto.conMovimenti ? totaleDi(entrateRighe).speso : 0;
+  if (registrate > 0) {
+    return {
+      entrate: registrate,
+      fonteEntrate: "registrate",
+      uscite,
+      differenza: round2(registrate - uscite),
+    };
+  }
+
+  return { entrate: 0, fonteEntrate: "nessuna", uscite, differenza: null };
+}

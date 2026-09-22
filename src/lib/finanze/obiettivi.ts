@@ -23,11 +23,16 @@
  * ─────────────────────────────────────────────────────────────────────────
  *
  * Se «Vacanza» e «Fondo emergenza» misurano tutte e due il saldo del conto
- * deposito, quel saldo compare intero sotto tutte e due, e la somma delle
- * barre racconta un patrimonio che non c'è. È la stessa famiglia di difetti
- * che questo progetto insegue — gli stessi soldi disponibili in due posti — e
- * qui si può almeno **dire**: `condivisa` marca le mete che si contendono una
- * fonte, e la schermata lo scrive accanto alla barra.
+ * deposito, quel saldo non è l'avanzamento di nessuna delle due: è il saldo di
+ * un conto che ne alimenta due. Mostrarlo intero sotto ognuna dava per
+ * raggiunta una meta da 900 € con 2.000 € sul conto che dovevano bastare anche
+ * per le altre — **una percentuale del 222% su soldi che non erano suoi.**
+ *
+ * Quindi quando una fonte è condivisa **l'avanzamento non si sa**, ed è la
+ * stessa risposta che si dà quando la fonte non c'è: niente barra, niente
+ * percentuale, niente «raggiunta». Dividere il saldo fra le mete vorrebbe dire
+ * decidere noi quale viene prima, e quella decisione non è nostra: chi vuole
+ * misurarle separatamente apre due conti, o due categorie.
  */
 import { round2, somma } from "@/lib/fisco/aritmetica";
 import { mesiFinoA } from "@/lib/fisco/accantonamento";
@@ -57,8 +62,17 @@ export type StatoObiettivo = {
   alMese: number | null;
   /** La data è passata e la meta non è raggiunta. */
   scaduto: boolean;
-  /** Un'altra meta misura la stessa fonte: gli stessi euro contano due volte. */
+  /**
+   * Un'altra meta misura la stessa fonte, quindi l'avanzamento non si sa.
+   *
+   * Non è un avviso accanto a un numero: è il motivo per cui il numero non
+   * c'è. `accumulato`, `quota`, `mancano` e `alMese` restano `null`, e
+   * `raggiunto` resta falso — con il saldo diviso fra due mete, «raggiunta»
+   * non si può dire di nessuna delle due.
+   */
   condivisa: boolean;
+  /** I nomi delle altre mete che leggono la stessa fonte, per poterle nominare. */
+  altreSullaStessaFonte: string[];
   /** La fonte dichiarata non esiste più: cancellata, o mai esistita. */
   fonteMancante: boolean;
 };
@@ -112,14 +126,30 @@ function accumulatoDi(
 }
 
 export function statoObiettivi(ing: IngressoObiettivi): StatoObiettivo[] {
-  const quante = new Map<string, number>();
+  /* Chi legge cosa: serve a sapere se una fonte è di una meta sola. */
+  const sulla = new Map<string, ObiettivoPf[]>();
   for (const o of ing.obiettivi) {
     const chiave = chiaveFonte(o);
-    if (chiave) quante.set(chiave, (quante.get(chiave) ?? 0) + 1);
+    if (!chiave) continue;
+    sulla.set(chiave, [...(sulla.get(chiave) ?? []), o]);
   }
 
   return ing.obiettivi.map((obiettivo) => {
-    const accumulato = accumulatoDi(obiettivo, ing.conti, ing.movimenti, ing.oggi);
+    const chiave = chiaveFonte(obiettivo);
+    const altre = (chiave ? sulla.get(chiave) ?? [] : [])
+      .filter((o) => o.id !== obiettivo.id)
+      .map((o) => o.nome);
+    const condivisa = altre.length > 0;
+
+    /*
+      La fonte condivisa non si misura: vedi il commento in testa al file. Il
+      saldo esisterebbe — `accumulatoDi` lo leggerebbe — ma non è
+      l'avanzamento di questa meta, ed è proprio la cifra che si leggeva bene
+      e diceva il falso.
+    */
+    const accumulato = condivisa
+      ? null
+      : accumulatoDi(obiettivo, ing.conti, ing.movimenti, ing.oggi);
     const mancano = accumulato === null ? null : round2(Math.max(0, obiettivo.obiettivo - accumulato));
     const raggiunto = accumulato !== null && accumulato >= obiettivo.obiettivo;
     const mesiMancanti = obiettivo.entro ? mesiFinoA(obiettivo.entro, ing.oggi) : null;
@@ -139,7 +169,6 @@ export function statoObiettivi(ing: IngressoObiettivi): StatoObiettivo[] {
           ? mancano
           : round2(mancano / mesiMancanti);
 
-    const chiave = chiaveFonte(obiettivo);
     return {
       obiettivo,
       accumulato,
@@ -149,8 +178,15 @@ export function statoObiettivi(ing: IngressoObiettivi): StatoObiettivo[] {
       mesiMancanti,
       alMese,
       scaduto,
-      condivisa: chiave !== null && (quante.get(chiave) ?? 0) > 1,
-      fonteMancante: obiettivo.fonte !== "nessuna" && accumulato === null,
+      condivisa,
+      altreSullaStessaFonte: altre,
+      /*
+        «Manca» vuol dire che la fonte dichiarata non c'è più. Una fonte
+        condivisa c'è eccome: è il motivo opposto per cui non si misura, e
+        confonderli farebbe dire «il conto è stato eliminato» di un conto che
+        sta lì.
+      */
+      fonteMancante: obiettivo.fonte !== "nessuna" && !condivisa && accumulato === null,
     };
   });
 }

@@ -36,7 +36,7 @@ import { ROTTE } from "@/lib/rotte";
 import { useDati, useSituazioneMese } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { applicaBudgetATuttoLAnno, azzeraBudget, salvaBudgetMese } from "@/lib/dati/azioni";
-import { confrontoBudget, totaleDi, type RigaBudget } from "@/lib/finanze/budget";
+import { confrontoBudget, quadroDelMese, totaleDi, type RigaBudget } from "@/lib/finanze/budget";
 import type { BudgetPf } from "@/lib/finanze/tipi";
 import { euro, meseBreve, nomeMese, percentuale } from "@/lib/format";
 import { round2 } from "@/lib/fisco/aritmetica";
@@ -150,9 +150,7 @@ export function SchermataBudget() {
     );
   }
 
-  const uscite = confronto.righe.filter((r) => r.categoria.tipo !== "entrata");
-  const totaleUscite = totaleDi(uscite);
-  const totaleEntrate = totaleDi(confronto.righe.filter((r) => r.categoria.tipo === "entrata"));
+  const quadro = quadroDelMese(confronto);
   const variabili = totaleDi(confronto.righe.filter(GRUPPI[2].tiene));
 
   return (
@@ -165,15 +163,42 @@ export function SchermataBudget() {
 
         <Card>
           <CardCorpo className="space-y-3">
+            {/*
+              La differenza esiste solo se esiste un'entrata da cui partire.
+              Con la casella delle entrate vuota la prima stesura scriveva
+              «−9.000,00 €» in rosso su un mese che aveva incassato 3.200 €:
+              due numeri veri che insieme dicevano una cosa falsa.
+            */}
             <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-              <Totale etichetta="Entrate previste" valore={totaleEntrate.previsto} />
-              <Totale etichetta="Uscite previste" valore={totaleUscite.previsto} />
-              <Totale
-                etichetta="Differenza"
-                valore={round2(totaleEntrate.previsto - totaleUscite.previsto)}
-                colorata
-              />
+              {quadro.fonteEntrate !== "nessuna" && (
+                <Totale
+                  etichetta={
+                    quadro.fonteEntrate === "previsione" ? "Entrate previste" : "Entrate registrate"
+                  }
+                  valore={quadro.entrate}
+                />
+              )}
+              <Totale etichetta="Uscite previste" valore={quadro.uscite} />
+              {quadro.differenza !== null && (
+                <Totale etichetta="Differenza" valore={quadro.differenza} colorata />
+              )}
             </div>
+
+            {quadro.fonteEntrate === "registrate" && (
+              <p className="text-etichetta text-inchiostro-tenue">
+                Uso le entrate registrate: per {nomeMese(mese).toLowerCase()} non c&apos;è nessuna
+                previsione. Scrivine una nelle categorie di entrata e la differenza si calcola su
+                quella.
+              </p>
+            )}
+            {quadro.fonteEntrate === "nessuna" && quadro.uscite > 0 && (
+              <p className="text-etichetta text-inchiostro-tenue">
+                La differenza non si può calcolare: per {nomeMese(mese).toLowerCase()} non c&apos;è
+                né una previsione di entrate né un incasso registrato.{" "}
+                <strong>Non vuol dire che il mese chiuda a meno {euro(quadro.uscite)}</strong>:
+                vuol dire che di quel lato non si sa ancora niente.
+              </p>
+            )}
 
             {/*
               Il confronto con il limite vero. Un budget si può scrivere in
@@ -194,6 +219,23 @@ export function SchermataBudget() {
                     Il limite calcolato vale per {nomeMese(situazione.meseCorrente).toLowerCase()},
                     il mese in corso: {euro(situazione.riga.limite)} per le spese variabili. Qui
                     stai guardando {nomeMese(mese).toLowerCase()}.
+                  </>
+                ) : situazione.meseSenzaEntrate ? (
+                  /*
+                    Stessa distinzione di «Quanto posso spendere»: un mese con
+                    movimenti ma senza incassi registrati non ha un limite
+                    negativo, non ha un limite. Citare qui la cifra negativa
+                    mentre l'altra schermata dice che non si può calcolare
+                    sarebbe la stessa app che dice due cose diverse.
+                  */
+                  <>
+                    Di {nomeMese(mese).toLowerCase()} ci sono movimenti ma nessuna entrata
+                    registrata, quindi il limite del mese non si può calcolare e non c&apos;è
+                    niente con cui confrontare questo budget.{" "}
+                    <Link href={ROTTE.finanzeSpesa} className="underline underline-offset-2">
+                      Vedi «Quanto posso spendere»
+                    </Link>
+                    .
                   </>
                 ) : situazione.riga.limite <= 0 ? (
                   /*

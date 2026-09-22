@@ -30,6 +30,7 @@ import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/ca
 import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Chip } from "@/components/ui/chip";
 import { Campo, Input } from "@/components/ui/input";
+import { InputData } from "@/components/ui/input-data";
 import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
 import {
   Select,
@@ -193,6 +194,13 @@ export function SchermataObiettivi() {
   );
 }
 
+/** «Vacanza», «Vacanza e Macchina», «Vacanza, Macchina e Telefono». */
+function elenco(nomi: string[]): string {
+  const virgolette = nomi.map((n) => `«${n}»`);
+  if (virgolette.length <= 1) return virgolette.join("");
+  return `${virgolette.slice(0, -1).join(", ")} e ${virgolette[virgolette.length - 1]}`;
+}
+
 function RigaMeta({
   stato,
   conti,
@@ -265,7 +273,22 @@ function RigaMeta({
       */}
       {accumulato === null ? (
         <p className="text-micro text-inchiostro-tenue">
-          {stato.fonteMancante ? (
+          {stato.condivisa ? (
+            /*
+              La fonte c'è, ma è di più di una meta: il suo saldo non è
+              l'avanzamento di nessuna: è il saldo di un conto che ne alimenta
+              due. Mostrarlo intero sotto ognuna dava per raggiunta una meta da
+              900 € con 2.000 € che dovevano bastare anche per le altre.
+            */
+            <>
+              <strong>L&apos;avanzamento non si sa:</strong>{" "}
+              {obiettivo.fonte === "conto" ? "questo conto alimenta" : "questa categoria alimenta"}{" "}
+              anche {elenco(stato.altreSullaStessaFonte)}. Quei soldi non sono tutti di questa
+              meta, e dividerli vorrebbe dire decidere noi quale viene prima: per misurarle
+              separatamente servono{" "}
+              {obiettivo.fonte === "conto" ? "due conti" : "due categorie"}.
+            </>
+          ) : stato.fonteMancante ? (
             <>
               <strong className="text-attenzione">La fonte non c&apos;è più.</strong> Questa meta
               misurava {obiettivo.fonte === "conto" ? "un conto" : "una categoria"} che è stato
@@ -291,18 +314,14 @@ function RigaMeta({
               <span>mancano {euro(stato.mancano ?? 0)}</span>
             )}
             {stato.scaduto && <Chip tono="negativo">la data è passata</Chip>}
-            {/*
-              Il doppio conteggio, detto dove succede: due mete sullo stesso
-              conto mostrano lo stesso saldo, e sommare le due barre
-              racconterebbe un patrimonio che non c'è.
-            */}
-            {stato.condivisa && (
-              <Chip tono="attenzione" title="Un'altra meta misura la stessa fonte: è lo stesso denaro, mostrato due volte.">
-                stessa fonte di un&apos;altra meta
-              </Chip>
-            )}
           </p>
         </>
+      )}
+
+      {accumulato === null && stato.scaduto && (
+        <p className="text-micro text-negativo">
+          E la data è passata: era il {fmtData(obiettivo.entro)}.
+        </p>
       )}
 
       <SceltaFonte obiettivo={obiettivo} conti={conti} categorie={categorie} />
@@ -414,7 +433,7 @@ function ModuloMeta({
 }) {
   const [nome, setNome] = React.useState("");
   const [importo, setImporto] = React.useState("");
-  const [entro, setEntro] = React.useState("");
+  const [entro, setEntro] = React.useState<string | null>(null);
   const [fonte, setFonte] = React.useState(SENZA_FONTE);
 
   const numero = analizzaNumero(importo);
@@ -430,7 +449,7 @@ function ModuloMeta({
         void creaObiettivo({
           nome,
           obiettivo: Math.abs(numero),
-          entro: entro === "" ? null : entro,
+          entro,
           fonte: tipo as FonteObiettivo,
           fonteId: id ?? null,
           /*
@@ -443,7 +462,7 @@ function ModuloMeta({
         });
         setNome("");
         setImporto("");
-        setEntro("");
+        setEntro(null);
       }}
     >
       <BloccoScrittura className="contents">
@@ -465,8 +484,13 @@ function ModuloMeta({
             placeholder="0,00"
           />
         </Campo>
+        {/*
+          Non il campo data nativo: quello mostra il formato della lingua del
+          browser, e un italiano con Chrome in inglese si vede `mm/dd/yyyy` in
+          mezzo a una schermata tutta italiana. Vedi `InputData`.
+        */}
         <Campo etichetta="Entro (facoltativo)" htmlFor="o-entro" className="w-44">
-          <Input id="o-entro" type="date" value={entro} onChange={(e) => setEntro(e.target.value)} />
+          <InputData id="o-entro" valore={entro} onCambia={(iso) => setEntro(iso)} />
         </Campo>
         <Campo etichetta="Si misura da" htmlFor="o-fonte" className="w-56">
           <Select value={fonte} onValueChange={setFonte}>

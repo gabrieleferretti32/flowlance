@@ -112,20 +112,64 @@ describe("**senza fonte non c'è avanzamento, e si dice**", () => {
   });
 });
 
-describe("**due mete sulla stessa fonte contano gli stessi euro due volte**", () => {
+describe("**una fonte condivisa non misura niente**", () => {
   const due = stato([
     meta({ id: "a", nome: "Vacanza", fonte: "conto", fonteId: "deposito" }),
     meta({ id: "b", nome: "Emergenza", fonte: "conto", fonteId: "deposito" }),
   ]);
 
-  it("l'avanzamento è lo stesso per tutte e due, e il modulo lo marca", () => {
-    expect(due.map((s) => s.accumulato)).toEqual([2_000, 2_000]);
-    expect(due.every((s) => s.condivisa)).toBe(true);
+  it("niente avanzamento, niente percentuale, niente «quanto al mese»", () => {
+    for (const s of due) {
+      expect(s.condivisa, s.obiettivo.nome).toBe(true);
+      expect(s.accumulato, s.obiettivo.nome).toBeNull();
+      expect(s.quota, s.obiettivo.nome).toBeNull();
+      expect(s.mancano, s.obiettivo.nome).toBeNull();
+      expect(s.alMese, s.obiettivo.nome).toBeNull();
+    }
   });
 
-  it("una sola meta su quella fonte non è condivisa", () => {
+  it("**e nessuna delle due è «raggiunta», nemmeno la più piccola**", () => {
+    /*
+      Il difetto vero, visto sullo schermo: tre mete sul conto Deposito da
+      2.000 €, e quella da 900 € si dichiarava raggiunta al 222% con soldi che
+      dovevano bastare anche per le altre due.
+    */
+    const tre = stato([
+      meta({ id: "a", nome: "Vacanza", obiettivo: 6_000, fonte: "conto", fonteId: "deposito" }),
+      meta({ id: "b", nome: "Macchina", obiettivo: 8_000, fonte: "conto", fonteId: "deposito" }),
+      meta({ id: "c", nome: "Telefono", obiettivo: 900, fonte: "conto", fonteId: "deposito" }),
+    ]);
+    const telefono = tre.find((s) => s.obiettivo.nome === "Telefono")!;
+    expect(telefono.raggiunto).toBe(false);
+    expect(telefono.quota).toBeNull();
+  });
+
+  it("le altre mete si possono nominare: serve a dire di chi è la colpa", () => {
+    expect(due[0].altreSullaStessaFonte).toEqual(["Emergenza"]);
+    expect(due[1].altreSullaStessaFonte).toEqual(["Vacanza"]);
+  });
+
+  it("**e non è una fonte mancante**: il conto c'è, ed è la ragione opposta", () => {
+    expect(due.every((s) => s.fonteMancante)).toBe(false);
+  });
+
+  it("una sola meta su quella fonte misura, come prima", () => {
     const [s] = stato([meta({ fonte: "conto", fonteId: "deposito" })]);
     expect(s.condivisa).toBe(false);
+    expect(s.altreSullaStessaFonte).toEqual([]);
+    expect(s.accumulato).toBe(2_000);
+  });
+
+  it("due mete su fonti diverse non si disturbano", () => {
+    const [conto, categoria] = stato(
+      [
+        meta({ id: "a", fonte: "conto", fonteId: "deposito" }),
+        meta({ id: "b", fonte: "categoria", fonteId: "fondo" }),
+      ],
+      [mov("fondo", "2026-08-10", 750)],
+    );
+    expect(conto.accumulato).toBe(2_000);
+    expect(categoria.accumulato).toBe(750);
   });
 
   it("due mete senza fonte non condividono niente: non misurano niente", () => {
@@ -178,13 +222,21 @@ describe("il fabbisogno di tutte le mete", () => {
   it("somma solo quelle che una cifra ce l'hanno, e conta le altre", () => {
     const stati = stato([
       meta({ id: "a", obiettivo: 6_000, fonte: "conto", fonteId: "deposito" }), // 400 al mese
-      meta({ id: "b", obiettivo: 12_000, entro: null, fonte: "conto", fonteId: "deposito" }), // senza data
+      meta({ id: "b", obiettivo: 12_000, entro: null, fonte: "categoria", fonteId: "fondo" }), // senza data
       meta({ id: "c", obiettivo: 900 }), // senza fonte
     ]);
     const f = fabbisognoMensile(stati);
     expect(f.totale).toBe(400);
     expect(f.contate).toBe(1);
     expect(f.escluse).toBe(2);
+  });
+
+  it("**una meta su una fonte condivisa finisce fra le escluse**, non nel totale", () => {
+    const stati = stato([
+      meta({ id: "a", obiettivo: 6_000, fonte: "conto", fonteId: "deposito" }),
+      meta({ id: "b", obiettivo: 8_000, fonte: "conto", fonteId: "deposito" }),
+    ]);
+    expect(fabbisognoMensile(stati)).toEqual({ totale: 0, contate: 0, escluse: 2 });
   });
 
   it("le mete raggiunte non gonfiano il conto delle escluse", () => {

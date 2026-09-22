@@ -167,3 +167,66 @@ describe("chi dei due vincoli decide", () => {
     expect(s.effettivo.differenza).toBe(round2(s.dalMese.resta - s.effettivo.limite));
   });
 });
+
+describe("**un mese con movimenti ma senza entrate registrate**", () => {
+  /*
+    È il caso di chi carica solo la carta di credito: di quel mese si sanno le
+    uscite e non gli incassi. Il limite esce negativo — l'accantonamento
+    sottratto a zero — e quel numero non è un limite.
+  */
+  const soloUscite = [mov("spesa", "2026-09-04", 80, "spesa"), mov("casa", "2026-09-05", 900, "spesa")];
+
+  it("si dichiara, e non è lo stesso caso del mese senza dati", () => {
+    const s = situazione({ movimenti: soloUscite });
+    expect(s.meseSenzaDati).toBe(false);
+    expect(s.meseSenzaEntrate).toBe(true);
+    expect(s.riga.limite).toBeLessThan(0);
+  });
+
+  it("e la misura vede la differenza: con un'entrata registrata si spegne", () => {
+    const s = situazione({
+      movimenti: [...soloUscite, mov("fatture", "2026-09-02", 3_000, "entrata")],
+    });
+    expect(s.meseSenzaEntrate).toBe(false);
+  });
+
+  it("anche una previsione di entrate a budget lo spegne: un'entrata prevista è un'entrata", () => {
+    const s = situazione({
+      movimenti: soloUscite,
+      budget: [{ categoriaId: "fatture", anno: 2026, importi: dodiciMesi(3_000) }],
+    });
+    expect(s.riga.entrate).toBe(3_000);
+    expect(s.meseSenzaEntrate).toBe(false);
+  });
+
+  it("un mese senza nessun movimento non è «senza entrate»: è senza dati", () => {
+    const s = situazione({});
+    expect(s.meseSenzaDati).toBe(true);
+    expect(s.meseSenzaEntrate).toBe(false);
+  });
+});
+
+describe("il riporto che arriva da un mese importato a metà", () => {
+  it("**si dichiara**: agosto con la sola spesa abbassa il limite di settembre", () => {
+    const s = situazione({
+      movimenti: [
+        mov("spesa", "2026-08-10", 260, "spesa"),
+        mov("fatture", "2026-09-02", 9_000, "entrata"),
+      ],
+    });
+    expect(s.riga.riporto).toBeLessThan(0);
+    expect(s.riportoDaMeseSenzaEntrate).toBe(true);
+  });
+
+  it("e non si dichiara quando il mese prima le entrate ce le aveva", () => {
+    const s = situazione({
+      movimenti: [
+        mov("fatture", "2026-08-01", 9_000, "entrata"),
+        mov("spesa", "2026-08-10", 260, "spesa"),
+        mov("fatture", "2026-09-02", 9_000, "entrata"),
+      ],
+    });
+    expect(s.riga.riporto).toBeGreaterThan(0);
+    expect(s.riportoDaMeseSenzaEntrate).toBe(false);
+  });
+});

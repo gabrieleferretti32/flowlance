@@ -808,14 +808,33 @@ non alla cifra del limite. È la scelta giusta (un preventivo non riscrive un
 consuntivo) ma non è quello che ci si aspetta da una casella che si può
 ancora compilare, e la schermata non lo dice riga per riga.
 
-**Due mete di risparmio sulla stessa fonte mostrano gli stessi euro due
-volte.** Se «Vacanza» e «Fondo emergenza» misurano tutte e due il saldo del
-conto deposito, quel saldo compare intero sotto tutte e due e la somma delle
-barre racconta un patrimonio che non c'è. Il modulo lo **dichiara** —
-`condivisa` in `src/lib/finanze/obiettivi.ts`, e un'etichetta accanto alla
-barra — ma non lo impedisce: dividere un saldo fra due mete vorrebbe dire
-decidere noi quale delle due viene prima. È lo stesso difetto di famiglia
-degli euro disponibili in due posti, e qui almeno si vede dove nasce.
+**Due mete di risparmio sulla stessa fonte non hanno un avanzamento.** Se
+«Vacanza» e «Fondo emergenza» misurano tutte e due il saldo del conto
+deposito, quel saldo non è l'avanzamento di nessuna delle due: è il saldo di
+un conto che ne alimenta due. La prima stesura lo mostrava intero sotto
+ognuna, e sullo schermo si leggeva **«2.000,00 € di 900,00 € · 222% ·
+raggiunta»** su una meta da 900 € mentre quei 2.000 dovevano bastare anche
+per le altre.
+
+Adesso una fonte condivisa non misura: niente barra, niente percentuale,
+niente «raggiunta», e la riga dice quali altre mete leggono la stessa fonte —
+`condivisa` e `altreSullaStessaFonte` in `src/lib/finanze/obiettivi.ts`, con
+i loro test. Dividere il saldo fra le mete vorrebbe dire decidere noi quale
+viene prima, e quella decisione non è nostra: chi vuole misurarle
+separatamente apre due conti, o due categorie. Quelle mete finiscono anche
+fuori dal fabbisogno mensile, che dichiara quante ne lascia fuori.
+
+**Il campo data si scrive `gg/mm/aaaa`, e non è il campo data del browser.**
+`<input type="date">` mostra il formato della **lingua dell'interfaccia del
+browser**: non quella della pagina, non `lang`, non la `locale` del contesto.
+Misurato il 22 settembre 2026: lo stesso campo in una pagina `lang="it"`,
+aperto con Chromium avviato con `--lang=it-IT`, continua a mostrare
+`mm/dd/yyyy`. Un italiano con Chrome in inglese scriverebbe il 3 aprile nella
+casella del 4 marzo senza accorgersene. Nelle Mete il campo è
+`InputData` — testo, segnaposto `gg/mm/aaaa`, letto da `analizzaData`, che
+rifiuta il 31 febbraio invece di trasformarlo nel 3 marzo. **Gli altri campi
+data del modulo — la data di un movimento, l'ancora di un conto — sono ancora
+quelli nativi**, e lì il formato resta quello del browser.
 
 **Il fabbisogno mensile delle mete si confronta con quello che stai mettendo
 via, non con quello che potresti.** La schermata mette accanto «le mete

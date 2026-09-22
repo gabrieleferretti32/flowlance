@@ -580,12 +580,22 @@ agosto, settembre torna a 3.417,10 €.
 
 Il difetto non è l'aritmetica, è la premessa: **avere un movimento non vuol
 dire avere il mese**. Chi importa il rendiconto di un conto solo, o carica un
-CSV che parte da metà mese, si vede un limite negativo senza capire da dove
-arrivi. Due strade, nessuna gratis: chiedere che un mese abbia almeno
-un'entrata prima di riportarne l'avanzo — semplice ma sbagliato per chi in
-quel mese non ha incassato davvero niente — oppure dire nel riporto da quale
-mese arriva e quanto vale, lasciando decidere a chi guarda. La seconda è più
-onesta e vuole spazio nella schermata.
+CSV che parte da metà mese, si vedeva un limite negativo senza capire da dove
+arrivasse.
+
+**Chiuso il 22 settembre 2026**, per la strada che non cambia nessun numero:
+distinguere «non ho incassato» da «non ho importato» non si può fare senza
+indovinare, quindi il calcolo resta quello e a parlare è la schermata. Quando
+il mese in corso ha movimenti e nessuna entrata registrata, «Quanto posso
+spendere» mostra il tetto dal conto e dice perché, come già faceva con i mesi
+senza dati; quando il riporto negativo arriva da un mese così, lo nomina e
+dice come sistemarlo. Sono `meseSenzaEntrate` e `riportoDaMeseSenzaEntrate` in
+`src/lib/finanze/mese.ts`, con i loro test.
+
+Resta aperto il caso simmetrico: un mese in cui davvero non si è incassato
+niente produce lo stesso avviso, e lì l'avviso è di troppo. Per distinguerli
+servirebbe sapere se il rendiconto di quel mese è stato caricato tutto, che è
+un'informazione che oggi nessuno ha.
 
 **Il budget delle entrate non entra nel tetto dal conto.** Nella schermata
 Budget si può prevedere un incasso di 4.000 € a novembre: `tabellaLimite` lo

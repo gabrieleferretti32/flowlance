@@ -3,6 +3,7 @@ import {
   confrontoBudget,
   dodiciMesi,
   importiDi,
+  quadroDelMese,
   righeDelTipo,
   totaleDi,
   uniforme,
@@ -272,5 +273,57 @@ describe("i totali", () => {
       speso: 2_400,
       differenza: -2_400,
     });
+  });
+});
+
+describe("il quadro del mese", () => {
+  const con = (b: BudgetPf[], m: MovimentoPf[] = []) =>
+    quadroDelMese(confrontoBudget({ anno: 2026, mese: 9, movimenti: m, categorie: CATEGORIE, budget: b }));
+
+  it("con una previsione di entrate usa quella", () => {
+    const q = con([budget("fatture", 2026, dodiciMesi(3_000)), budget("spesa", 2026, dodiciMesi(400))]);
+    expect(q).toEqual({ entrate: 3_000, fonteEntrate: "previsione", uscite: 400, differenza: 2_600 });
+  });
+
+  it("**senza previsione ma con incassi registrati usa quelli**", () => {
+    /*
+      Era il difetto: 9.000 € di budget di spesa, nessuna previsione di
+      entrate, e la schermata scriveva «Differenza −9.000,00 €» accanto a
+      «incassato 3.200,00 €».
+    */
+    const q = con(
+      [budget("spesa", 2026, dodiciMesi(9_000))],
+      [mov("fatture", "2026-09-10", 3_200, "entrata")],
+    );
+    expect(q.fonteEntrate).toBe("registrate");
+    expect(q.entrate).toBe(3_200);
+    expect(q.differenza).toBe(-5_800);
+  });
+
+  it("e la previsione, quando c'è, vince sugli incassi: è quella che stai decidendo", () => {
+    const q = con(
+      [budget("fatture", 2026, dodiciMesi(2_000))],
+      [mov("fatture", "2026-09-10", 3_200, "entrata")],
+    );
+    expect(q.fonteEntrate).toBe("previsione");
+    expect(q.entrate).toBe(2_000);
+  });
+
+  it("**senza né l'una né gli altri la differenza non si calcola**", () => {
+    const q = con([budget("spesa", 2026, dodiciMesi(9_000))]);
+    expect(q.fonteEntrate).toBe("nessuna");
+    expect(q.entrate).toBe(0);
+    expect(q.differenza).toBeNull();
+    // Le uscite previste restano un numero vero, e si possono mostrare.
+    expect(q.uscite).toBe(9_000);
+  });
+
+  it("un mese senza movimenti non ha «entrate registrate» pari a zero: non ne ha", () => {
+    const q = con(
+      [budget("spesa", 2026, dodiciMesi(400))],
+      [mov("fatture", "2026-07-10", 3_200, "entrata")],
+    );
+    expect(q.fonteEntrate).toBe("nessuna");
+    expect(q.differenza).toBeNull();
   });
 });

@@ -77,7 +77,27 @@ export function SchermataSpesa() {
     );
   }
 
-  const { impostazioni, riga, dalMese, tetto, effettivo, meseCorrente, meseSenzaDati } = conto;
+  const {
+    impostazioni,
+    riga,
+    dalMese,
+    tetto,
+    effettivo,
+    meseCorrente,
+    meseSenzaDati,
+    meseSenzaEntrate,
+  } = conto;
+
+  /*
+    Due modi diversi di non avere un limite del mese, con la stessa
+    conseguenza: si mostra quello che permette il conto, e si dice perché.
+
+    Il secondo è il caso normale di chi importa solo la carta di credito: di
+    quel mese si sanno le uscite e non gli incassi, e il limite esce negativo
+    — l'accantonamento e le spese fisse sottratti a zero entrate. Quel numero
+    non è un limite, è la misura di quanto manca all'importazione.
+  */
+  const senzaLimiteDelMese = meseSenzaDati || meseSenzaEntrate;
 
   /*
     Le scadenze che stanno dentro il fisco da versare, nominate. La più
@@ -94,8 +114,8 @@ export function SchermataSpesa() {
           .map((v) => v.titolo.toLowerCase())
           .join(", ")}.`;
   const stretto = effettivo.vincolo === "conto";
-  /* Senza dati del mese vale il solo tetto: vedi il commento nel calcolo. */
-  const mostrato = meseSenzaDati ? tetto.tetto - riga.speso : effettivo.limite;
+  /* Senza un limite del mese vale il solo tetto: vedi il commento qui sopra. */
+  const mostrato = senzaLimiteDelMese ? tetto.tetto - riga.speso : effettivo.limite;
 
   return (
     <Guscio
@@ -119,10 +139,24 @@ export function SchermataSpesa() {
           <p
             className={cn(
               "mt-3 text-etichetta",
-              stretto && !meseSenzaDati ? "text-attenzione" : "text-inchiostro-tenue",
+              stretto && !senzaLimiteDelMese ? "text-attenzione" : "text-inchiostro-tenue",
             )}
           >
-            {meseSenzaDati ? (
+            {meseSenzaEntrate ? (
+              <>
+                <strong>Questo è quello che permette il conto.</strong> Di{" "}
+                {nomeMese(meseCorrente).toLowerCase()} ci sono movimenti, ma{" "}
+                <strong>nessuna entrata registrata</strong>: succede quando si carica solo il
+                rendiconto di una carta, o di un conto su cui gli incassi non arrivano. Il limite
+                del mese parte dalle entrate, quindi senza quelle non si può calcolare — uscirebbe
+                negativo, e sarebbe la misura di quanto manca all&apos;importazione, non di quanto
+                puoi spendere.{" "}
+                <Link href={ROTTE.finanzeRendiconto} className="underline underline-offset-2">
+                  Carica anche il conto dove arrivano gli incassi
+                </Link>{" "}
+                o registra le entrate a mano.
+              </>
+            ) : meseSenzaDati ? (
               <>
                 <strong>Questo è quello che permette il conto.</strong> Di{" "}
                 {nomeMese(meseCorrente).toLowerCase()} non c&apos;è ancora nessun movimento e
@@ -169,6 +203,26 @@ export function SchermataSpesa() {
               <Voce etichetta="Già speso" valore={-riga.speso} />
               <Voce etichetta="Resta" valore={dalMese.resta} forte />
             </dl>
+            {/*
+              Un riporto negativo che arriva da un mese importato a metà è la
+              ragione per cui un mese con i suoi incassi può avere un limite
+              basso o negativo. Il calcolo non lo può distinguere da un mese in
+              cui non si è incassato davvero — indovinare non si può — ma la
+              riga lo dice, che è l'unica cosa onesta da fare.
+            */}
+            {conto.riportoDaMeseSenzaEntrate && (
+              <CardCorpo className="pt-2">
+                <p className="text-micro text-attenzione">
+                  Il riporto negativo viene da {nomeMese(meseCorrente - 1).toLowerCase()}: quel
+                  mese ha movimenti ma nessuna entrata registrata, quindi il suo avanzo è un
+                  disavanzo grande quanto l&apos;accantonamento e le spese.{" "}
+                  <Link href={ROTTE.finanzeRendiconto} className="underline underline-offset-2">
+                    Carica anche gli incassi di quel mese
+                  </Link>{" "}
+                  e il riporto torna quello vero.
+                </p>
+              </CardCorpo>
+            )}
             {riga.stimate.length > 0 && (
               <CardCorpo className="pt-2">
                 <p className="text-micro text-inchiostro-tenue">
