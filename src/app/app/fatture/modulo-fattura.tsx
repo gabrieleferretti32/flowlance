@@ -14,6 +14,7 @@ import {
 import { creaCliente, creaFattura, prossimoNumero } from "@/lib/dati/azioni";
 import type { Cliente, Fattura } from "@/lib/dati/tipi";
 import { analizzaNumero, euro } from "@/lib/format";
+import { InputData } from "@/components/ui/input-data";
 
 const NUOVO = "__nuovo__";
 
@@ -67,7 +68,14 @@ export function ModuloFattura({
   const totale = valore + iva + bollo;
 
   const nomeCliente = clienteId === NUOVO ? nuovoCliente.trim() : "";
-  const valido = valore > 0 && (clienteId !== NUOVO || nomeCliente.length > 0);
+  /*
+    La data fra le condizioni: senza, una fattura con la casella svuotata
+    entrava in archivio con `dataEmissione: ""` e spariva da ogni periodo —
+    non in un anno, non in un trimestre, e il totale dei ricavi più basso del
+    vero senza niente che lo dicesse.
+  */
+  const valido =
+    valore > 0 && dataEmissione !== "" && (clienteId !== NUOVO || nomeCliente.length > 0);
 
   async function salva() {
     if (!valido || salvando) return;
@@ -102,9 +110,18 @@ export function ModuloFattura({
             void salva();
           }}
         >
+          {/*
+            Non il campo data nativo: quello mostra il formato della lingua del
+            browser, e sul lato fiscale un giorno e un mese scambiati si
+            scoprono mesi dopo — la fattura finisce nel trimestre sbagliato e
+            l'IVA di quel trimestre è già stata versata. Vedi `InputData`.
+          */}
           <Campo etichetta="Data di emissione" htmlFor="f-data">
-            <Input id="f-data" type="date" value={dataEmissione}
-              onChange={(e) => setDataEmissione(e.target.value)} />
+            <InputData
+              id="f-data"
+              valore={dataEmissione}
+              onCambia={(iso) => setDataEmissione(iso ?? "")}
+            />
           </Campo>
           <Campo etichetta="Numero" htmlFor="f-numero">
             <Input id="f-numero" value={numero} onChange={(e) => setNumero(e.target.value)}

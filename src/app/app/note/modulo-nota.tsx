@@ -4,6 +4,7 @@ import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Campo, Input } from "@/components/ui/input";
+import { InputData } from "@/components/ui/input-data";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { analizzaNumero, euro, perCampo } from "@/lib/format";
 import type { Cliente, NotaCredito } from "@/lib/dati/tipi";
@@ -73,11 +74,10 @@ export function ModuloNota({
         <form onSubmit={invia} className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-2">
             <Campo etichetta="Data del documento" htmlFor="nc-data" aiuto="Comanda sull'IVA">
-              <Input
+              <InputData
                 id="nc-data"
-                type="date"
-                value={dataDocumento}
-                onChange={(e) => setDataDocumento(e.target.value)}
+                valore={dataDocumento}
+                onCambia={(iso) => setDataDocumento(iso ?? "")}
               />
             </Campo>
             <Campo etichetta="Numero" htmlFor="nc-numero">
@@ -134,11 +134,10 @@ export function ModuloNota({
               htmlFor="nc-rimborso"
               aiuto="Quando il denaro torna: comanda sui ricavi"
             >
-              <Input
+              <InputData
                 id="nc-rimborso"
-                type="date"
-                value={dataRimborso}
-                onChange={(e) => setDataRimborso(e.target.value)}
+                valore={dataRimborso === "" ? null : dataRimborso}
+                onCambia={(iso) => setDataRimborso(iso ?? "")}
               />
             </Campo>
           </div>

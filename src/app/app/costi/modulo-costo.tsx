@@ -14,6 +14,7 @@ import {
 import { creaCosto } from "@/lib/dati/azioni";
 import type { Costo } from "@/lib/dati/tipi";
 import { round2 } from "@/lib/fisco/aritmetica";
+import { InputData } from "@/components/ui/input-data";
 import { analizzaNumero, analizzaPercentuale, euro } from "@/lib/format";
 
 export function ModuloCosto({
@@ -63,7 +64,7 @@ export function ModuloCosto({
     occhio con l'IVA che il motore calcolerà sulla stessa riga.
   */
   const iva = round2(valore * aliquotaIva);
-  const valido = valore > 0 && fornitore.trim().length > 0;
+  const valido = valore > 0 && dataDocumento !== "" && fornitore.trim().length > 0;
 
   async function salva() {
     if (!valido || salvando) return;
@@ -104,9 +105,13 @@ export function ModuloCosto({
             void salva();
           }}
         >
+          {/* Come per la fattura: vedi `InputData`. */}
           <Campo etichetta="Data del documento" htmlFor="c-data">
-            <Input id="c-data" type="date" value={dataDocumento}
-              onChange={(e) => setDataDocumento(e.target.value)} />
+            <InputData
+              id="c-data"
+              valore={dataDocumento}
+              onCambia={(iso) => setDataDocumento(iso ?? "")}
+            />
           </Campo>
           <Campo etichetta="Fornitore" htmlFor="c-fornitore">
             <Input id="c-fornitore" value={fornitore} onChange={(e) => setFornitore(e.target.value)}

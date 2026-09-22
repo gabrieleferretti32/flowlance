@@ -4,7 +4,7 @@ import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { InputData } from "@/components/ui/input-data";
 import { Segmenti } from "@/components/ui/segmenti";
 import {
   Select,
@@ -151,21 +151,27 @@ export function SelettorePeriodo({
       )}
 
       {periodo.tipo === "personalizzato" && (
+        /*
+          `onConferma` e non `onCambia`: queste due date cambiano il periodo di
+          tutta l'app, e a ogni battuta che compone una data valida
+          ricalcolerebbero ogni schermata. Digitando «01/01/2026» si passa da
+          «01/01/20», che è un 2020 legittimo: per un istante l'app mostrerebbe
+          un anno che nessuno ha chiesto. Si aspetta Invio, o che il campo
+          perda il fuoco.
+        */
         <div className="flex items-center gap-1.5">
-          <Input
-            type="date"
+          <InputData
             aria-label="Data di inizio"
-            className="h-9 w-40"
-            value={periodo.da ?? `${periodo.anno}-01-01`}
-            onChange={(e) => onChange({ ...periodo, da: e.target.value })}
+            className="h-9 w-36"
+            valore={periodo.da ?? `${periodo.anno}-01-01`}
+            onConferma={(iso) => onChange({ ...periodo, da: iso ?? `${periodo.anno}-01-01` })}
           />
           <span className="text-etichetta text-inchiostro-tenue">–</span>
-          <Input
-            type="date"
+          <InputData
             aria-label="Data di fine"
-            className="h-9 w-40"
-            value={periodo.a ?? `${periodo.anno}-12-31`}
-            onChange={(e) => onChange({ ...periodo, a: e.target.value })}
+            className="h-9 w-36"
+            valore={periodo.a ?? `${periodo.anno}-12-31`}
+            onConferma={(iso) => onChange({ ...periodo, a: iso ?? `${periodo.anno}-12-31` })}
           />
         </div>
       )}

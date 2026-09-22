@@ -903,11 +903,30 @@ browser**: non quella della pagina, non `lang`, non la `locale` del contesto.
 Misurato il 22 settembre 2026: lo stesso campo in una pagina `lang="it"`,
 aperto con Chromium avviato con `--lang=it-IT`, continua a mostrare
 `mm/dd/yyyy`. Un italiano con Chrome in inglese scriverebbe il 3 aprile nella
-casella del 4 marzo senza accorgersene. Nelle Mete il campo è
-`InputData` — testo, segnaposto `gg/mm/aaaa`, letto da `analizzaData`, che
-rifiuta il 31 febbraio invece di trasformarlo nel 3 marzo. **Gli altri campi
-data del modulo — la data di un movimento, l'ancora di un conto — sono ancora
-quelli nativi**, e lì il formato resta quello del browser.
+casella del 4 marzo senza accorgersene, e sul lato fiscale lo scoprirebbe mesi
+dopo: la fattura finisce nel trimestre sbagliato, e l'IVA di quel trimestre è
+già stata versata.
+
+**Dal 22 settembre 2026 nell'app non c'è più nessun `<input type="date">.**
+Tutte le date si scrivono `gg/mm/aaaa` in `InputData`, che le legge con
+`analizzaData` — accetta punti, trattini, anno a due cifre e forma ISO, e
+rifiuta il 31 febbraio invece di trasformarlo nel 3 marzo. Sono la data di una
+fattura, di un costo, le due di una nota di credito, quella di un movimento
+personale, l'ancora di un conto, la data di un F24, la meta di risparmio e i
+due estremi del periodo personalizzato.
+
+Due dettagli che la sostituzione si porta dietro. Il primo: chi scrive in
+archivio usa `onConferma` — Invio o uscita dal campo — e non l'avviso a ogni
+battuta, perché digitando «01/01/2026» si passa da «01/01/20», che è un 2020
+legittimo, e quella data finirebbe salvata per un istante. Il secondo: una
+fattura o un costo **senza data non si salvano più**, e prima si poteva —
+la casella si svuotava, il documento entrava con `dataEmissione: ""` e spariva
+da ogni periodo, lasciando i ricavi più bassi del vero senza niente che lo
+dicesse.
+
+Resta il prezzo della scelta: **sul telefono non c'è più il calendario
+nativo**, e la data si digita. Per una app dove si scrivono dieci date al mese
+è un cambio che si sente, e va guardato al primo giro su un telefono vero.
 
 **Il fabbisogno mensile delle mete si confronta con quello che stai mettendo
 via, non con quello che potresti.** La schermata mette accanto «le mete
