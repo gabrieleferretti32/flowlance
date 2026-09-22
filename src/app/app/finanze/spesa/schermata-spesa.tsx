@@ -37,7 +37,7 @@ import { quantoResta, tabellaLimite } from "@/lib/finanze/limite";
 import { saldoTotale } from "@/lib/finanze/saldo";
 import { limiteEffettivo, tettoDalConto } from "@/lib/finanze/tetto";
 import { IMPOSTAZIONI_PF_PREDEFINITE } from "@/lib/finanze/tipi";
-import { analizzaNumero, euro, nomeMese } from "@/lib/format";
+import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 export function SchermataSpesa() {
@@ -140,6 +140,21 @@ export function SchermataSpesa() {
   }
 
   const { impostazioni, riga, dalMese, tetto, effettivo, meseCorrente, meseSenzaDati } = conto;
+
+  /*
+    Le scadenze che stanno dentro il fisco da versare, nominate. La più
+    lontana è quasi sempre il saldo dell'anno, che si versa a giugno di
+    quello dopo: è il pezzo che rende il tetto severo a gennaio.
+  */
+  const voci = [...conto.quota.imposte.voci, ...conto.quota.iva.voci];
+  const ultimaScadenza =
+    voci.length === 0 ? null : voci.map((v) => v.data).sort().slice(-1)[0];
+  const elencoScadenze =
+    voci.length === 0
+      ? "quello che resta da mettere da parte per imposte, contributi e IVA."
+      : `${voci.length === 1 ? "una scadenza" : `${voci.length} scadenze`}: ${voci
+          .map((v) => v.titolo.toLowerCase())
+          .join(", ")}.`;
   const stretto = effettivo.vincolo === "conto";
   /* Senza dati del mese vale il solo tetto: vedi il commento nel calcolo. */
   const mostrato = meseSenzaDati ? tetto.tetto - riga.speso : effettivo.limite;
@@ -201,7 +216,13 @@ export function SchermataSpesa() {
             </CardCorpo>
             <dl className="divide-y divide-bordo/70 border-y border-bordo text-etichetta">
               <Voce etichetta="Entrate" valore={riga.entrate} />
-              <Voce etichetta="Accantonamento per il fisco" valore={-riga.accantonamento} />
+              {/*
+                «questo mese»: accanto, nella colonna del conto, c'è l'altra
+                cifra del fisco — quella di tutto l'anno. Due numeri per lo
+                stesso argomento sulla stessa schermata vanno distinti
+                dall'etichetta, non dalla posizione.
+              */}
+              <Voce etichetta="Fisco da accantonare, questo mese" valore={-riga.accantonamento} />
               <Voce etichetta="Spese fisse" valore={-riga.fisse} />
               <Voce etichetta="Risparmi" valore={-riga.risparmi} />
               <Voce etichetta="Rate" valore={-riga.rate} />
@@ -235,7 +256,10 @@ export function SchermataSpesa() {
                 trimestri di IVA da versare e il secondo acconto a novembre,
                 quel denaro è in banca e non è disponibile.
               */}
-              <Voce etichetta="Fisco da versare, già in banca" valore={-tetto.fiscoNonVersato} />
+              <Voce
+                etichetta="Fisco ancora da versare in tutto, già in banca"
+                valore={-tetto.fiscoNonVersato}
+              />
               <Voce etichetta="Tetto dal conto" valore={tetto.tetto} />
               {/*
                 Il già speso anche qui, e non solo nella colonna del mese.
@@ -250,17 +274,39 @@ export function SchermataSpesa() {
               <Voce etichetta="Già speso" valore={-riga.speso} />
               <Voce etichetta="Resta dal conto" valore={effettivo.dalConto} forte />
             </dl>
+            {/*
+              Che cosa c'è dentro la sottrazione più grossa della colonna.
+
+              Se comprende il saldo che si versa a giugno dell'anno prossimo —
+              e di norma lo comprende — il tetto è severo a gennaio e si
+              allenta verso dicembre, man mano che quel debito viene versato.
+              È un comportamento giusto ma sorprendente, e una cifra grossa che
+              si muove da sola senza spiegazione si legge come un errore.
+            */}
+            <CardCorpo className="pt-3 pb-0">
+              <p className="text-micro text-inchiostro-tenue">
+                Il fisco da versare comprende {elencoScadenze}
+                {ultimaScadenza !== null && (
+                  <>
+                    {" "}L&apos;ultima scade il {fmtData(ultimaScadenza)}: fino ad allora quel
+                    denaro resta sul conto e il tetto lo tiene fuori, quindi si allenta a ogni
+                    versamento.
+                  </>
+                )}
+              </p>
+            </CardCorpo>
+
             <CardCorpo className="pt-3">
               <ImpostazioniSpesa impostazioni={impostazioni} />
             </CardCorpo>
           </Card>
         </div>
 
+        {/* Le due cifre del fisco le spiegano già le loro righe: qui resta solo
+            da dire da dove vengono, che è l'unica cosa che manca. */}
         <p className="text-micro text-inchiostro-tenue">
-          L&apos;accantonamento del mese è {euro(conto.quota.alMese)} e arriva dal motore fiscale,
-          lo stesso numero della card del cruscotto: qui non si ricalcola niente. Il fisco ancora
-          da versare — {euro(tetto.fiscoNonVersato)} — è quello che resta da mettere da parte per
-          imposte, contributi e IVA.
+          Tutte e due le cifre del fisco arrivano dal motore fiscale, dallo stesso calcolo della
+          card del cruscotto: qui non si ricalcola niente.
         </p>
       </div>
     </Guscio>
@@ -284,8 +330,13 @@ function Voce({
       )}
     >
       <dt>{etichetta}</dt>
+      {/*
+        `-0` è un numero, e `euro()` lo scrive «−0,00 €»: un meno davanti a
+        niente, che si legge come un errore di calcolo. Sommare zero lo
+        riporta allo zero normale.
+      */}
       <dd className={cn("cifre", valore < 0 && "text-inchiostro-tenue", forte && "text-inchiostro")}>
-        {euro(valore)}
+        {euro(valore === 0 ? 0 : valore)}
       </dd>
     </div>
   );
