@@ -1,6 +1,6 @@
 # Cosa Flowlance non calcola
 
-*Ultimo aggiornamento: 11 settembre 2026*
+*Ultimo aggiornamento: 23 settembre 2026*
 
 Quello che Flowlance **non** calcola, o calcola in modo semplificato. È l'elenco
 da leggere prima di vendere il prodotto: ogni voce è una differenza possibile
@@ -647,6 +647,74 @@ Il modulo non calcola imposte: dice quanto resta **dopo** che il motore fiscale
 ha detto quanto accantonare. Le semplificazioni qui sotto riguardano il resto
 del conto, e sono tutte nel modo in cui si stima un mese che non è ancora
 successo.
+
+### Il prelievo netto tassato due volte
+
+*La cosa più grossa che resta aperta sul modulo. Misurata il 23 settembre 2026.*
+
+Il limite del mese parte dalle entrate del conto personale e ne toglie la quota
+di accantonamento. Il conto regge se su quel conto le tasse **devono ancora
+uscire**. Se invece le paga il conto dell'attività, il prelievo che arriva è
+già netto del fisco: la quota toglie una seconda volta lo stesso carico, e il
+limite esce più basso del vero di tutta la quota.
+
+Non è un caso di nicchia. È il caso di chiunque tenga un conto per l'attività e
+uno personale e si versi ogni mese quello che resta — cioè il modo normale di
+fare le cose. E con la partita IVA individuale i due conti non sono due
+patrimoni: sono soldi suoi comunque, e nessuna legge gli dice da quale pagare
+l'F24.
+
+**Quanto vale.** Sulla vetrina, prima del 23 settembre 2026: quota 1.026,45 €
+al mese, limite di gennaio −476,45 € e limite di settembre −9.433,05 €. Dei
+9.238,05 € di rosso accumulato, **tutti** vengono da questa doppia sottrazione:
+senza, il conto di quello stesso archivio si fermava a −515 €, che era la vita
+di Elena davvero un po' sopra il prelievo. E peggiora al crescere del
+fatturato. Misurato sullo stesso motore, con il prelievo pari a quello che
+l'attività lascia davvero (`nettoDisponibile / 12`), costi invariati e l'anno
+prima alla stessa scala: a 44.010 € di compensi il limite di gennaio è
+−1.143 €, a 61.750 € è −2.444 €, a 75.055 € è −3.096 €. Il carico cresce più in
+fretta del margine, quindi più l'attività va bene più il modulo dice che non si
+può spendere.
+
+**Perché non se ne accorge nessuno.** Un limite negativo non sembra un errore
+dell'app: sembra un rimprovero. Chi lo legge pensa di aver speso troppo, non
+che il numero sia sbagliato — ed è l'unica schermata del prodotto che promette
+una cifra da seguire.
+
+**Cosa è già stato fatto.** Il 23 settembre 2026 l'F24 ha un campo `pagatoDa`
+(`attivita` | `personale`) e il Cashflow non sottrae dalla cassa dell'attività
+quelli usciti dal conto personale. È metà della soluzione: rende **possibile**
+raccontare il caso giusto — la vetrina adesso lo fa — e dà all'app il dato su
+cui basare il riconoscimento. Non è ancora la soluzione, perché il limite del
+mese continua a togliere la quota comunque.
+
+**Cosa resta da fare.** Il modulo deve sapere da quale conto escono le tasse, e
+non può chiederlo come un modello contabile: va misurato e fatto confermare.
+Tre segnali, tutti già osservabili:
+
+1. **Nessun F24 nel registro personale** in un periodo importato che contiene
+   almeno una scadenza passata (le scadenze l'app le conosce, `scadenzeAnno`).
+   Se per mesi non esce niente in una categoria «pagata dall'accantonamento»,
+   le tasse da quel conto non escono.
+2. **Il conto degli F24 diverso da quello dei prelievi**: con `pagatoDa` e il
+   `contoId` dei movimenti la differenza è leggibile direttamente.
+3. **Il rapporto fra entrate e carico**: entrate annue ≈ netto disponibile
+   vuol dire prelievo netto, ≈ netto + carico vuol dire prelievo lordo. Le due
+   cifre distano il 40-50 %, quindi il segnale è netto.
+
+E una domanda sola, che è un fatto e non una teoria: **«Gli F24 da quale conto
+li paghi?»**, con la risposta già proposta da quello che i tre segnali hanno
+misurato. Se la risposta è «dal conto dell'attività», dalla quota non si toglie
+niente e la schermata dice perché: quelle tasse sono già uscite altrove, e il
+posto dove vederle è la liquidità netta del Cashflow.
+
+**Il caso del conto unico ha un problema suo**, diverso e più piccolo: se
+incassi, costi e vita stanno sullo stesso conto, la quota è giusta ma i costi
+dell'attività finiscono fra le spese personali, e non esiste una categoria per
+distinguerli. Misurato sulla vetrina rifatta come conto unico: le entrate del
+mese vanno da 0 € (gennaio: la fattura del 3 si incassa a febbraio) a 15.814 €,
+e il limite con loro, da −13.177 € a +5.869 €. Senza un budget che spiani gli
+incassi, quel caso non è leggibile.
 
 | Semplificazione | Coperta da un test? |
 | --- | --- |

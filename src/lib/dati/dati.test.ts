@@ -179,6 +179,26 @@ describe("file di backup", () => {
     },
   );
 
+  /*
+    Il conto da cui esce l'F24 deve sopravvivere al giro di andata e ritorno.
+
+    È un campo nuovo e facoltativo, e i campi facoltativi si perdono in
+    silenzio: chi ha dichiarato che paga il fisco dal conto personale
+    riaprirebbe l'archivio con la cassa dell'attività di nuovo sbagliata, senza
+    un errore da nessuna parte.
+  */
+  it("conserva il conto da cui l'F24 è uscito, e l'assenza resta assenza", () => {
+    const dati = datiVuoti();
+    dati.versamenti = [
+      { id: "p", data: "2026-06-30", tipo: "imposte", importo: 1_000, pagatoDa: "personale" },
+      { id: "a", data: "2026-06-30", tipo: "imposte", importo: 2_000 },
+    ];
+    const esito = analizzaBackup(serializzaBackup(creaBackup(dati)));
+    expect(esito.ok).toBe(true);
+    if (!esito.ok) return;
+    expect(esito.backup.dati.versamenti.map((v) => v.pagatoDa)).toEqual(["personale", undefined]);
+  });
+
   it("rifiuta un backup creato da una versione più recente", () => {
     const esito = analizzaBackup(
       JSON.stringify({ formato: "flowlance", versioneSchema: 99, dati: datiVuoti() }),

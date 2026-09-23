@@ -75,7 +75,7 @@ const SCHERMATE = {
   fisco: "/schermate/fisco.png",
   scadenziario: "/schermate/scadenziario.png",
   costi: "/schermate/costi.png",
-  movimenti: "/schermate/movimenti.png",
+  spesa: "/schermate/spesa.png",
 } as const;
 
 const DEMO = rottaDemo("vetrina");
@@ -449,8 +449,8 @@ function CosaFa() {
       titolo: "Il limite del mese: quanto puoi spendere.",
       testo:
         "Le tasse da mettere da parte le sa già. Toglile dalle entrate, togli l'affitto e le rate, e quello che resta è la cifra che puoi spendere davvero questo mese — non il saldo del conto, che contiene anche i soldi del fisco. Carichi l'estratto conto della banca e ogni riga si categorizza da sola.",
-      src: SCHERMATE.movimenti,
-      alt: "Il registro dei movimenti personali, con categoria e conto su ogni riga",
+      src: SCHERMATE.spesa,
+      alt: "Quanto posso spendere: il limite del mese, al netto delle tasse da accantonare",
     },
     {
       titolo: "Lo scadenzario: quando esce.",

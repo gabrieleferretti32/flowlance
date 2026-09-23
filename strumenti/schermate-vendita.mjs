@@ -89,9 +89,13 @@ const SCHERMATE = [
     divergano. Si scatta dalla vetrina come le altre — che dal 23 settembre
     2026 ha conti, categorie e registro — e non da un archivio costruito per
     la foto.
+
+    È «Quanto posso spendere» e non l'elenco dei movimenti perché la voce
+    della landing promette una cifra, e la cifra si vede solo lì. L'elenco si
+    scattava e non lo guardava nessuno: una schermata che nessuna pagina usa è
+    un file che invecchia in silenzio.
   */
   { file: "spesa.png", rotta: "/app/finanze/spesa/", attesa: "Quanto posso spendere" },
-  { file: "movimenti.png", rotta: "/app/finanze/movimenti/", attesa: "Movimenti" },
 ];
 
 try {

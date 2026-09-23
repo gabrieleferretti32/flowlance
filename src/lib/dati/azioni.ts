@@ -441,6 +441,33 @@ export async function assegnaAnnoImposta(versamento: VersamentoF24, annoImposta:
   });
 }
 
+/**
+ * Cambia il conto da cui l'F24 è uscito.
+ *
+ * Non è una preferenza: sposta un'uscita dalla cassa dell'attività al conto
+ * personale, e la tabella del Cashflow cambia di quell'importo. Si fa da dove
+ * il versamento si vede, perché è lì che chi guarda l'estratto conto si
+ * accorge che quel bonifico non c'è.
+ */
+export async function assegnaPagatoDa(
+  versamento: VersamentoF24,
+  pagatoDa: "attivita" | "personale",
+) {
+  const precedente = { ...versamento };
+  const aggiornato: VersamentoF24 = { ...versamento };
+  if (pagatoDa === "personale") aggiornato.pagatoDa = "personale";
+  else delete aggiornato.pagatoDa;
+  await archivio().versamenti.salva(aggiornato);
+  toast.conferma(
+    pagatoDa === "personale"
+      ? "F24 pagato dal conto personale"
+      : "F24 pagato dal conto dell'attività",
+    async () => {
+      await archivio().versamenti.salva(precedente);
+    },
+  );
+}
+
 export async function eliminaVersamento(versamento: VersamentoF24) {
   await archivio().versamenti.elimina(versamento.id);
   toast.conferma("Versamento eliminato", async () => {

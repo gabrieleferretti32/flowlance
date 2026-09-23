@@ -113,6 +113,52 @@ describe("cashflow", () => {
     expect(inRosso.meseNegativo?.saldoCassa).toBe(-5000);
   });
 
+  /*
+    Il conto da cui esce l'F24.
+
+    Chi tiene un conto per l'attività e uno personale e si preleva lo stipendio
+    **lordo** paga il fisco dal conto personale: quel bonifico sull'estratto
+    conto dell'attività non c'è, e questa tabella deve quadrare con l'estratto
+    conto. Il fisco però è stato pagato, quindi le tasse accantonate scendono
+    lo stesso — altrimenti il fondo crescerebbe per soldi che nessuno userà mai.
+  */
+  describe("un F24 pagato dal conto personale", () => {
+    const base = {
+      anno: ANNO_DEMO,
+      saldoIniziale: 10_000,
+      percentualeAccantonamento: 0.3,
+      fatture: [],
+      costi: [],
+      movimentiAttivita: [],
+      movimentiPersonali: [],
+    };
+    const f24 = { id: "v", data: "2026-03-15", tipo: "imposte" as const, importo: 5_000 };
+    const dallAttivita = calcolaCashflow({ ...base, versamenti: [f24] });
+    const dalPersonale = calcolaCashflow({
+      ...base,
+      versamenti: [{ ...f24, pagatoDa: "personale" as const }],
+    });
+
+    it("non esce dalla cassa dell'attività", () => {
+      expect(dallAttivita.saldoFinale).toBe(5_000);
+      expect(dalPersonale.saldoFinale).toBe(10_000);
+      expect(dalPersonale.mesi[2].imposteEContributi).toBe(0);
+      expect(dalPersonale.mesi[2].f24DalContoPersonale).toBe(5_000);
+    });
+
+    it("ma abbassa lo stesso le tasse accantonate", () => {
+      expect(dalPersonale.mesi.map((m) => m.accantonamentoCumulato)).toEqual(
+        dallAttivita.mesi.map((m) => m.accantonamentoCumulato),
+      );
+    });
+
+    it("e la liquidità netta resta più alta di quanto il conto non ha pagato", () => {
+      expect(
+        Math.round((dalPersonale.liquiditaNettaFinale - dallAttivita.liquiditaNettaFinale) * 100) / 100,
+      ).toBe(5_000);
+    });
+  });
+
   it("calcola i mesi di autonomia, e tace se non sa la spesa", () => {
     expect(mesiDiAutonomia(9000, 1500)).toBe(6);
     expect(mesiDiAutonomia(9000, 0)).toBeNull();

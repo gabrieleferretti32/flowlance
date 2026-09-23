@@ -38,6 +38,7 @@ import { AndamentoCassa } from "@/components/grafici/andamento-cassa";
 import { Guscio } from "@/components/guscio/guscio";
 import {
   assegnaAnnoImposta,
+  assegnaPagatoDa,
   creaVersamento,
   eliminaVersamento,
   salvaMovimentoAttivita,
@@ -122,6 +123,8 @@ export function SchermataCashflow() {
   const versamentiAnno = dati.versamenti
     .filter((v) => v.data.startsWith(String(anno)))
     .sort((a, b) => a.data.localeCompare(b.data));
+  /* Vero solo se in quest'anno qualche F24 è uscito dal conto personale. */
+  const conF24Personali = cashflow.mesi.some((m) => m.f24DalContoPersonale > 0);
 
   return (
     <Guscio
@@ -239,6 +242,18 @@ export function SchermataCashflow() {
                   <TabellaIntestazione numerica className="whitespace-nowrap">
                     Imposte e contributi
                   </TabellaIntestazione>
+                  {/*
+                    La colonna compare solo se qualche F24 dell'anno è uscito
+                    dal conto personale. Tenerla sempre vorrebbe dire una
+                    colonna di zeri per quasi tutti, e undici colonne sono già
+                    tante; ometterla quando serve vorrebbe dire una tabella che
+                    non quadra con l'elenco dei versamenti qui sotto.
+                  */}
+                  {conF24Personali && (
+                    <TabellaIntestazione numerica className="whitespace-nowrap">
+                      F24 dal personale
+                    </TabellaIntestazione>
+                  )}
                   <TabellaIntestazione numerica>Prelievi</TabellaIntestazione>
                   <TabellaIntestazione numerica>Altre uscite</TabellaIntestazione>
                   <TabellaIntestazione numerica>Flusso</TabellaIntestazione>
@@ -259,7 +274,11 @@ export function SchermataCashflow() {
                   <TabellaCella className="whitespace-nowrap font-medium">
                     1° gennaio
                   </TabellaCella>
-                  <TabellaCella numerica colSpan={7} className="text-inchiostro-tenue">
+                  <TabellaCella
+                    numerica
+                    colSpan={conF24Personali ? 8 : 7}
+                    className="text-inchiostro-tenue"
+                  >
                     {cashflow.accantonatoIniziale > 0
                       ? `riporto dal ${anno - 1}, di cui ${euro(cashflow.accantonatoIniziale)} già accantonati`
                       : `saldo di apertura del ${anno}`}
@@ -287,6 +306,11 @@ export function SchermataCashflow() {
                     <TabellaCella numerica>{euro(m.costiPagati)}</TabellaCella>
                     <TabellaCella numerica>{euro(m.ivaVersata)}</TabellaCella>
                     <TabellaCella numerica>{euro(m.imposteEContributi)}</TabellaCella>
+                    {conF24Personali && (
+                      <TabellaCella numerica className="text-inchiostro-tenue">
+                        {euro(m.f24DalContoPersonale)}
+                      </TabellaCella>
+                    )}
                     {fonteDi(m.mese).fonte === "registro" ? (
                       /*
                         Derivato: non si scrive a mano, e si vede che non si
@@ -358,6 +382,11 @@ export function SchermataCashflow() {
                   <TabellaCella numerica>
                     {euro(cashflow.mesi.reduce((a, m) => a + m.imposteEContributi, 0))}
                   </TabellaCella>
+                  {conF24Personali && (
+                    <TabellaCella numerica className="text-inchiostro-tenue">
+                      {euro(cashflow.mesi.reduce((a, m) => a + m.f24DalContoPersonale, 0))}
+                    </TabellaCella>
+                  )}
                   <TabellaCella numerica>
                     {euro(cashflow.mesi.reduce((a, m) => a + m.prelieviPersonali, 0))}
                   </TabellaCella>
@@ -411,6 +440,11 @@ export function SchermataCashflow() {
                       etichetta: "Imposte e contributi",
                       valore: euro(m.imposteEContributi),
                       mostra: m.imposteEContributi > 0,
+                    },
+                    {
+                      etichetta: "F24 dal personale",
+                      valore: euro(m.f24DalContoPersonale),
+                      mostra: m.f24DalContoPersonale > 0,
                     },
                     {
                       etichetta: "Flusso",
@@ -496,6 +530,35 @@ function AnnoImposta({ versamento }: { versamento: VersamentoF24 }) {
   );
 }
 
+/**
+ * Da quale conto è uscito l'F24, e come cambiarlo da dove si vede.
+ *
+ * L'etichetta c'è anche quando la risposta è quella di sempre — «dal conto
+ * dell'attività» — perché altrimenti il caso normale non sarebbe cambiabile:
+ * si potrebbe solo marcare un F24 come personale e mai tornare indietro. Il
+ * caso normale resta però in tono quieto, e quello personale si vede: è
+ * l'unico che spiega perché nella tabella dei mesi quel bonifico non c'è.
+ */
+function PagatoDa({ versamento }: { versamento: VersamentoF24 }) {
+  const personale = versamento.pagatoDa === "personale";
+  return (
+    <Button
+      scrive
+      variante={personale ? "contorno" : "quieto"}
+      taglia="sm"
+      className="text-micro"
+      aria-label={
+        personale
+          ? `Segna l'F24 del ${fmtData(versamento.data)} come pagato dal conto dell'attività`
+          : `Segna l'F24 del ${fmtData(versamento.data)} come pagato dal conto personale`
+      }
+      onClick={() => void assegnaPagatoDa(versamento, personale ? "attivita" : "personale")}
+    >
+      {personale ? "dal conto personale" : "dal conto dell'attività"}
+    </Button>
+  );
+}
+
 function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: VersamentoF24[] }) {
   const [data, setData] = React.useState(`${anno}-06-30`);
   const [tipo, setTipo] = React.useState<VersamentoF24["tipo"]>("imposte");
@@ -506,6 +569,13 @@ function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: Vers
     l'anno della data — scritto, non nascosto — e l'altro è una scelta sola.
   */
   const [annoScelto, setAnnoScelto] = React.useState<number | null>(null);
+  /*
+    Da quale conto esce l'F24. Si propone l'attività perché è quello che fanno
+    quasi tutti, e la scelta è scritta: chi si preleva lo stipendio lordo e
+    paga il fisco dal conto personale deve poterlo dire qui, altrimenti la
+    tabella dei mesi gli toglie due volte lo stesso euro.
+  */
+  const [pagatoDa, setPagatoDa] = React.useState<"attivita" | "personale">("attivita");
   const annoDellaData = Number(data.slice(0, 4)) || anno;
   const annoImposta = annoScelto ?? annoDellaData;
 
@@ -521,7 +591,10 @@ function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: Vers
           cassa nel prospetto fiscale, al posto di quelli di competenza. L&apos;anno
           d&apos;imposta è un&apos;altra cosa dalla data: il 30 giugno si versa insieme il
           saldo dell&apos;anno prima e il primo acconto di quello in corso, e solo il
-          secondo abbassa il dovuto dell&apos;anno in corso.
+          secondo abbassa il dovuto dell&apos;anno in corso. Il conto da cui l&apos;F24 è
+          uscito cambia solo la tabella dei mesi qui sopra: quelli pagati dal conto
+          personale non sono un&apos;uscita di questa cassa, e per il fisco valgono
+          come tutti gli altri.
         </CardSottotitolo>
       </CardCorpo>
 
@@ -539,6 +612,7 @@ function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: Vers
                   {TIPI_F24.find((t) => t.valore === v.tipo)?.etichetta}
                 </span>
                 <AnnoImposta versamento={v} />
+                <PagatoDa versamento={v} />
               </span>
               <span className="flex items-center gap-3">
                 <span className="cifre text-corpo font-medium">{euro(v.importo)}</span>
@@ -569,7 +643,13 @@ function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: Vers
           onSubmit={(e) => {
             e.preventDefault();
             if (valore <= 0) return;
-            void creaVersamento({ data, tipo, importo: valore, annoImposta });
+            void creaVersamento({
+              data,
+              tipo,
+              importo: valore,
+              annoImposta,
+              ...(pagatoDa === "personale" ? { pagatoDa } : {}),
+            });
             setImporto("");
           }}
         >
@@ -607,6 +687,20 @@ function ElencoVersamenti({ anno, versamenti }: { anno: number; versamenti: Vers
                 {[annoDellaData - 1, annoDellaData].map((a) => (
                   <SelectItem key={a} value={String(a)}>{a}</SelectItem>
                 ))}
+              </SelectContent>
+            </Select>
+          </Campo>
+          <Campo etichetta="Pagato da" htmlFor="f24-conto" className="w-52">
+            <Select
+              value={pagatoDa}
+              onValueChange={(v) => setPagatoDa(v as "attivita" | "personale")}
+            >
+              <SelectTrigger id="f24-conto">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="attivita">Conto dell&apos;attività</SelectItem>
+                <SelectItem value="personale">Conto personale</SelectItem>
               </SelectContent>
             </Select>
           </Campo>

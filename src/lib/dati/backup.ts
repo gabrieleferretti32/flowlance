@@ -360,6 +360,10 @@ const convalidaVersamento: Convalida<Dati["versamenti"][number]> = (riga, i, err
     tipo: tipo === "iva" || tipo === "imposte" || tipo === "contributi" ? tipo : "imposte",
     importo: numero(riga.importo),
     ...(Number.isFinite(annoImposta) && annoImposta > 1900 ? { annoImposta } : {}),
+    // Manca nei backup scritti prima che il campo esistesse, e allora l'F24 lo
+    // pagava sempre il conto dell'attività: l'assenza è una risposta, non un
+    // buco, e resta assente.
+    ...(riga.pagatoDa === "personale" ? { pagatoDa: "personale" as const } : {}),
   };
 };
 
