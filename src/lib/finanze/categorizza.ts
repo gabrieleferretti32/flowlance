@@ -47,33 +47,103 @@ export function testoConfrontabile(descrizione: string): string {
  * `categorizza` se ne accorge da sola invece di scrivere un id morto.
  */
 export const DIZIONARIO: { parole: string[]; categoriaId: string }[] = [
-  { categoriaId: "spesa-alimentare", parole: ["supermercat", "esselunga", "coop", "conad", "carrefour", "lidl", "eurospin", "pam ", "despar", "alimentar", "macelleria", "panetteria", "fruttivendolo"] },
-  { categoriaId: "ristoranti", parole: ["ristorant", "pizzeri", "trattoria", "osteria", "bar ", "caffe", "caffè", "pub ", "gelateri", "deliveroo", "glovo", "just eat"] },
-  { categoriaId: "trasporti", parole: ["carburant", "benzina", "gasolio", "eni ", "q8", "ip ", "tamoil", "esso", "autostrad", "telepass", "trenitalia", "italo", "atm ", "gtt", "amat", "taxi", "uber", "parchegg", "revisione", "pneumatic"] },
-  { categoriaId: "bollette", parole: ["enel", "eni luce", "hera", "a2a", "iren", "acea", "acqua", "gas ", "energia", "bolletta", "tim ", "vodafone", "windtre", "fastweb", "iliad", "telefon", "internet"] },
-  { categoriaId: "abbonamenti", parole: ["netflix", "spotify", "disney", "prime video", "abbonament", "icloud", "google one", "dropbox", "adobe", "microsoft 365", "canva", "figma"] },
-  { categoriaId: "salute", parole: ["farmaci", "parafarmac", "dentist", "medic", "analisi clinic", "ottica", "fisioterap", "veterinar"] },
-  { categoriaId: "affitto", parole: ["affitto", "canone locazione", "condominio", "amministratore condominiale", "mutuo casa"] },
-  { categoriaId: "assicurazioni", parole: ["assicuraz", "polizza", "unipol", "generali", "allianz", "axa", "zurich"] },
-  { categoriaId: "tempo-libero", parole: ["cinema", "teatro", "palestra", "piscina", "libreria", "museo", "concerto", "vivaticket", "ticketone"] },
-  { categoriaId: "acquisti", parole: ["amazon", "zalando", "ikea", "decathlon", "mediaworld", "unieuro", "leroy merlin", "abbigliament"] },
-  { categoriaId: "tasse", parole: ["agenzia entrate", "f24", "imu", "tari", "irpef", "tributi"] },
+  { categoriaId: "spesa-alimentare", parole: ["supermercat*", "esselunga", "coop", "conad", "carrefour", "lidl", "eurospin", "penny", "crai", "famila", "todis", "pam", "despar", "aliment*", "macelleri*", "panetteri*", "panificio", "fruttivendolo", "salumeria"] },
+  { categoriaId: "ristoranti", parole: ["ristorant*", "pizzeri*", "trattoria", "osteria", "bar", "caffe*", "caffè", "pub", "birreria", "gelateri*", "pasticceri*", "rosticceria", "paninoteca", "sushi", "bistrot", "enoteca", "deliveroo", "glovo", "just eat", "mcdonald*", "mc donald", "burger king", "kfc"] },
+  { categoriaId: "trasporti", parole: ["carburant*", "benzina", "gasolio", "distributore", "eni station", "q8", "ip", "tamoil", "esso", "autostrad*", "telepass", "trenitalia", "italo", "atm", "gtt", "amat", "taxi", "uber", "parchegg*", "revisione", "pneumatic*", "bollo auto", "officina", "carrozzeria"] },
+  { categoriaId: "bollette", parole: ["enel", "servizio elettrico", "eni luce", "eni gas", "plenitude", "edison", "sorgenia", "illumia", "engie", "hera", "a2a", "iren", "acea", "acqua", "gas", "energia", "bolletta*", "tim", "telecom", "vodafone", "windtre", "wind tre", "wind", "iliad", "fastweb", "tiscali", "eolo", "ho mobile", "very mobile", "poste mobile", "sky wifi", "telefon*", "internet"] },
+  { categoriaId: "abbonamenti", parole: ["netflix", "spotify", "disney", "prime video", "amazon prime", "dazn", "now tv", "sky", "abbonament*", "icloud", "google one", "dropbox", "adobe", "microsoft 365", "canva", "figma"] },
+  { categoriaId: "salute", parole: ["farmaci*", "parafarmac*", "dentist*", "medic*", "analisi clinic", "laboratorio analisi", "poliambulatorio", "asl", "azienda sanitaria", "ottica", "fisioterap*", "psicolog*", "oculist*", "pediatr*", "veterinar*"] },
+  { categoriaId: "affitto", parole: ["affitto", "locazione", "canone locazione", "condominio", "amministratore condominiale", "mutuo casa"] },
+  { categoriaId: "assicurazioni", parole: ["assicuraz*", "polizza", "unipol", "generali", "allianz", "axa", "zurich"] },
+  { categoriaId: "tempo-libero", parole: ["cinema", "teatro", "palestr*", "piscin*", "libreria", "museo", "concerto", "vivaticket", "ticketone"] },
+  { categoriaId: "acquisti", parole: ["amazon", "zalando", "shein", "ikea", "decathlon", "mediaworld", "unieuro", "euronics", "leroy merlin", "bricoman", "abbigliament*"] },
+  { categoriaId: "tasse", parole: ["agenzia entrate", "f24", "imu", "tari", "tasi", "tarsu", "irpef", "tributi", "canone rai"] },
   { categoriaId: "inps", parole: ["inps", "contributi previdenz"] },
   { categoriaId: "commercialista", parole: ["commercialista", "studio associato", "consulenza fiscale"] },
-  { categoriaId: "rate", parole: ["rata", "finanziament", "prestito", "leasing", "findomestic", "agos", "compass"] },
-  { categoriaId: "risparmio", parole: ["giroconto risparmio", "accantonament", "salvadanaio"] },
-  { categoriaId: "investimenti", parole: ["etf", "fondo comune", "directa", "degiro", "fineco investiment", "piano di accumulo", "pac "] },
+  { categoriaId: "rate", parole: ["rata", "rate", "finanziament*", "prestito", "leasing", "findomestic", "agos", "compass"] },
+  { categoriaId: "risparmio", parole: ["giroconto risparmio", "accantonament*", "salvadanaio"] },
+  { categoriaId: "investimenti", parole: ["etf", "fondo comune", "directa", "degiro", "fineco investiment", "piano di accumulo", "pac"] },
   /*
     «per fattura» e «fattura n» sono stretti apposta. Un incasso da cliente
-    arriva scritto in dieci modi — «Bonifico Istantaneo Disposto Da STUDIO
-    ROSSI SRL Per Fattura 12/2025» non contiene «bonifico da» — e questa
-    categoria conta più delle altre: è l'unica marcata «arriva dall'attività»,
-    quindi quello che finisce qui domani diventerà un prelievo dalla cassa
-    dell'attività. La parola «fattura» da sola prenderebbe anche «rimborso
-    fattura», che è un'altra cosa.
+    arriva scritto in dieci modi, e questa categoria conta più delle altre: è
+    l'unica marcata «arriva dall'attività», quindi quello che finisce qui
+    domani diventerà un prelievo dalla cassa dell'attività. La parola
+    «fattura» da sola prenderebbe anche «rimborso fattura», che è un'altra
+    cosa. Per il bonifico da una società c'è `sembraIncassoDaCliente`.
   */
   { categoriaId: "fatture", parole: ["bonifico da", "accredito fattura", "compenso", "saldo fattura", "pagamento fattura", "per fattura", "fattura n"] },
 ];
+
+/**
+ * Come si legge una voce del dizionario.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché non basta cercare la sottostringa
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Cercare `testo.includes(parola)` è la via ovvia e mente in silenzio:
+ * «tari» sta dentro «saniTARIa», e un pagamento all'azienda sanitaria locale
+ * finiva in **Tasse**. Misurato su un rendiconto vero, non immaginato. È la
+ * stessa famiglia del «sport» dentro «traSPORTi» che questo repository ha già
+ * incontrato altrove: una misura che conferma invece di una che rompe.
+ *
+ * Quindi le voci dicono cosa sono:
+ *
+ * - `bar` — una **parola intera**: prende «BAR CENTRALE», non «BARbiere».
+ * - `supermercat*` — un **inizio di parola**: prende «supermercato» e
+ *   «supermercati», non «ipersupermercato» (che non esiste) e soprattutto non
+ *   pezzi in mezzo a un'altra parola.
+ * - `wind tre` — una **frase**: si cerca nel testo intero, perché due parole
+ *   separate da uno spazio parole intere non sono.
+ *
+ * Le frasi si guardano **prima**: sono più specifiche, e senza quest'ordine
+ * «eni luce» perderebbe contro «eni» dei carburanti solo perché i carburanti
+ * stanno più in alto nell'elenco.
+ */
+function combacia(testo: string, parole: string[], frasi: boolean): boolean {
+  const parti = testo.split(" ");
+  for (const parola of parole) {
+    if (parola.includes(" ") !== frasi) continue;
+    if (frasi) {
+      if (testo.includes(parola)) return true;
+    } else if (parola.endsWith("*")) {
+      const inizio = parola.slice(0, -1);
+      if (parti.some((w) => w.startsWith(inizio))) return true;
+    } else if (parti.includes(parola)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Un bonifico in entrata da una **società**: quasi sempre è un cliente.
+ *
+ * Il dizionario da solo non ci arriva: «Bonifico Istantaneo Disposto Da ACME
+ * SRL» non contiene «bonifico da» — in mezzo c'è la formula della banca — e
+ * senza la parola «fattura» quell'incasso finiva nella prima categoria di
+ * entrata che capitava. Misurato su un rendiconto vero.
+ *
+ * Le due condizioni insieme contano: **bonifico** dice che è un accredito
+ * disposto da qualcuno, la **forma societaria** dice che quel qualcuno è
+ * un'azienda. Un bonifico da una persona resta fuori: fra amici ci si manda
+ * denaro per mille motivi, e sbagliare qui costa il doppio, perché «Fatture
+ * incassate» è la categoria marcata «arriva dall'attività».
+ *
+ * `testoConfrontabile` toglie i punti, quindi «S.R.L.» diventa «s r l»: le due
+ * forme si cercano tutte e due.
+ */
+const FORME_SOCIETARIE = ["srl", "srls", "spa", "snc", "sas", "sapa", "scarl"];
+const FORME_PUNTEGGIATE = ["s r l", "s p a", "s n c", "s a s", "s r l s"];
+
+export function sembraIncassoDaCliente(testo: string): boolean {
+  const parti = testo.split(" ");
+  if (!parti.includes("bonifico") && !parti.includes("accredito")) return false;
+  return (
+    parti.some((w) => FORME_SOCIETARIE.includes(w))
+    || FORME_PUNTEGGIATE.some((f) => testo.includes(f))
+  );
+}
 
 export type Proposta = {
   categoriaId: string;
@@ -130,19 +200,52 @@ export function categorizza(
     }
   }
 
-  for (const voce of DIZIONARIO) {
-    const c = categoriaBuona(voce.categoriaId);
-    if (!c) continue;
-    if (voce.parole.some((p) => testo.includes(p))) {
-      return { categoriaId: c.id, tipo: c.tipo, origine: "dizionario" };
+  /* Prima le frasi, poi le parole: vedi `combacia`. */
+  for (const frasi of [true, false]) {
+    for (const voce of DIZIONARIO) {
+      const c = categoriaBuona(voce.categoriaId);
+      if (!c) continue;
+      if (combacia(testo, voce.parole, frasi)) {
+        return { categoriaId: c.id, tipo: c.tipo, origine: "dizionario" };
+      }
     }
   }
 
+  /*
+    L'incasso da un cliente che il dizionario non può riconoscere da solo:
+    bonifico più forma societaria. Sta qui, dopo il dizionario, perché è la
+    regola più larga delle due e non deve scavalcare una parola esplicita.
+  */
+  if (verso === "entrata" && sembraIncassoDaCliente(testo)) {
+    const c = categoriaBuona("fatture");
+    if (c) return { categoriaId: c.id, tipo: c.tipo, origine: "dizionario" };
+  }
+
   const predefinito: TipoMovimento = verso === "entrata" ? "entrata" : "spesa";
+  if (verso === "uscita" && perId.has(CATEGORIA_NON_DEFINITO)) {
+    return { categoriaId: CATEGORIA_NON_DEFINITO, tipo: predefinito, origine: "nessuna" };
+  }
+
+  /*
+    **Un'entrata che non si è riconosciuta non finisce in un prelievo.**
+
+    Per le uscite il ripiego è «Non definito», che è un'ammissione. Per le
+    entrate quella categoria non esiste, e si prendeva la prima di tipo
+    entrata che capitava nell'elenco — cioè una scelta decisa dall'ordine con
+    cui l'archivio restituisce le categorie. Su un archivio quella prima era
+    «Altre entrate» e non si vedeva; su un altro sarebbe «Fatture incassate»,
+    che è marcata **arriva dall'attività**: lo stesso movimento non
+    riconosciuto diventerebbe un prelievo dalla cassa della partita IVA, e il
+    riepilogo conterebbe due volte gli stessi euro. Misurato: «Movimento
+    Salvadanaio» finito in «Fatture incassate» solo per l'ordine dell'elenco.
+
+    Quindi il ripiego evita le categorie marcate «arriva dall'attività»: se
+    proprio non c'è altro resta la prima, ma quel caso vuol dire che l'unica
+    categoria di entrata è quella, e allora non è più un'ipotesi.
+  */
+  const entrate = categorie.filter((c) => c.tipo === predefinito);
   const ripiego =
-    verso === "uscita" && perId.has(CATEGORIA_NON_DEFINITO)
-      ? CATEGORIA_NON_DEFINITO
-      : (categorie.find((c) => c.tipo === predefinito)?.id ?? "");
+    entrate.find((c) => !c.arrivaDallAttivita)?.id ?? entrate[0]?.id ?? "";
   return { categoriaId: ripiego, tipo: predefinito, origine: "nessuna" };
 }
 

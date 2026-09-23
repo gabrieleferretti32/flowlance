@@ -657,3 +657,42 @@ dove si sa — oggi `Adempimento` non lo porta, e a giugno si versano insieme il
 saldo dell'anno prima e il primo acconto di quello in corso; la data dell'F24 è
 quella di uscita dal conto e comanda sulla deducibilità dei contributi; e
 togliere la spunta non deve cancellare il versamento, che è un fatto.
+
+---
+
+**L'anteprima con centinaia di righe: il clic è a posto, il primo disegno no.**
+Misurato il 23 settembre 2026 con l'Event Timing API, cioè la stessa misura da
+cui Chrome ricava l'INP, su un rendiconto di 400 righe.
+
+Prima: ogni spunta costava **840 ms** di gestori (peggiore 4.024 ms), perché
+ogni riga riceveva una funzione nuova a ogni render e quindi si ridisegnavano
+tutte e quattrocento. Adesso, con `React.memo` sulla riga, un gestore solo e
+stabile per tutte, e le tabelle dei file tenute da parte: **15-18 ms di
+gestori, 48 ms di evento** a 400 righe, 32 ms alle 37 del caso vero. Sotto la
+soglia dei 200 ms con un margine largo.
+
+Resta il **primo disegno**: il clic su «Leggi» che costruisce l'anteprima vale
+2,9 secondi a 400 righe (396 ms a 37). È un'interazione sola, annunciata da un
+pulsante, ma è comunque un secondo e mezzo oltre la soglia. Le strade, in
+ordine di costo: disegnare solo le righe visibili (finestra virtuale), oppure
+mostrare i tre menu di una riga — tipo, categoria, conto — solo quando quella
+riga viene toccata, tenendo il testo per tutte le altre. La seconda costa meno
+e cambia il comportamento di una cosa sola; la prima non cambia niente di
+visibile ma tocca l'impaginazione dell'elenco. Da decidere insieme.
+
+**Le righe che il dizionario non prova a indovinare.** Sul rendiconto vero
+restano «Non definito» i pagamenti PayPal — sei righe su trentasette — i
+prelievi allo sportello, le commissioni CBILL/PagoPA e il saldo della carta di
+credito. È giusto così: in tutti e quattro i casi la controparte **non è nel
+testo** — dietro «PayPal Europe S.a.r.l.» può esserci qualunque cosa — e una
+categoria plausibile messa lì da noi sarebbe esattamente il difetto che
+`categorizza` esiste per evitare. Si risolvono con una regola scritta a mano,
+che è il gradino giusto: la sa solo chi ha fatto quella spesa.
+
+**Per le entrate non c'è un «Non definito».** Il ripiego adesso evita almeno le
+categorie marcate «arriva dall'attività» — un'entrata non riconosciuta non può
+più diventare un prelievo dalla cassa dell'attività, che era un doppio
+conteggio — ma resta una categoria vera, scelta da noi, senza che niente lo
+dica. Per le uscite «Non definito» è un'ammissione che si vede e si corregge;
+per le entrate quell'ammissione non esiste. Aggiungerla vuol dire una
+categoria in più fra quelle di partenza: da decidere.
