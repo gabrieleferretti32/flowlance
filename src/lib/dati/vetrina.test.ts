@@ -321,14 +321,20 @@ describe("vetrina · le sezioni hanno tutte qualcosa dentro", () => {
    * si tolgono una per una, e finché ci sono si vede che cosa manca.
    */
   const ANCORA_VUOTE: NomeCollezione[] = [
-    "pfConti",
-    "pfMovimenti",
-    "pfCategorie",
+    /*
+      Conti, movimenti, categorie e mete si sono riempiti quando le schermate
+      che li mostrano sono arrivate, ed è il motivo per cui questo elenco
+      esiste: si accorcia da sé, un test alla volta.
+
+      Restano fuori il budget — che nella vetrina resterebbe una previsione
+      inventata accanto a spese vere — le regole di categoria, che sono di chi
+      usa l'app, e gli import, che non sono mai stati fatti: il registro della
+      vetrina è scritto, non importato.
+    */
     "pfBudget",
     "pfRegole",
     "pfImport",
     "pfImpostazioni",
-    "pfObiettivi",
   ];
 
   it("nessuna collezione è vuota, tolte quelle dichiarate", () => {

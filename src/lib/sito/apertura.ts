@@ -42,5 +42,18 @@ export const APERTURA: {
   titolo: [
     { testo: "Sul conto hai 30.000 €." },
     { testo: "Tuoi ne sono 17.000.", accento: true },
+    /*
+      La terza riga è il modulo personale, ed è il numero che nessuna delle due
+      righe sopra sa dare: quanto di quei 17.000 si può spendere **questo
+      mese**, tolti il fisco da mettere da parte, l'affitto e quello che si
+      risparmia. I tre numeri raccontano un caso solo e si ricostruiscono con
+      l'app: 30.000 € di compensi in ordinario con Gestione Separata lasciano
+      16.971 € netti — il motore, non una stima a mano — e un dodicesimo di
+      quello che arriva sul conto, meno 1.086 € di quota fiscale, 650 € di
+      spese fisse e 100 € di risparmio, fa 664 €. In pagina si scrive 650, che
+      è il tondo per difetto: l'unico verso in cui una cifra di vendita può
+      sbagliare.
+    */
+    { testo: "Questo mese: 650 €." },
   ],
 };
