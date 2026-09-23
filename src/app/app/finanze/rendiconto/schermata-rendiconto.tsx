@@ -52,6 +52,7 @@ import {
   eseguiImportRendiconto,
   salvaMappaturaConto,
   seminaCategorie,
+  spostaImportSuConto,
 } from "@/lib/dati/azioni";
 import {
   anteprimaImport,
@@ -66,6 +67,7 @@ import {
 } from "@/lib/finanze/intestazione";
 import { anniChiusiToccati } from "@/lib/finanze/derivazione";
 import { movimentiPerConto } from "@/lib/finanze/registro";
+import { contoPropostoPerFile, distintiviDeiConti } from "@/lib/finanze/conti";
 import {
   applicaMappatura,
   formatoDelleDate,
@@ -77,6 +79,7 @@ import {
 } from "@/lib/finanze/rendiconto";
 import type { ContoPersonale, ImportPf, MovimentoPf, TipoMovimento } from "@/lib/finanze/tipi";
 import { data as fmtData } from "@/lib/format";
+import { VoceConto } from "@/components/finanze/voce-conto";
 import { cn } from "@/lib/utils";
 
 /**
@@ -146,7 +149,10 @@ const TIPI: { valore: TipoMovimento; etichetta: string }[] = [
 
 type FileCaricato = {
   nome: string;
+  /** Vuoto finché qualcuno non sceglie: vedi `contoPropostoPerFile`. */
   contoId: string;
+  /** Il conto arriva da un import precedente dello stesso nome, non da una scelta. */
+  contoProposto: boolean;
   /**
    * Tutte le righe del file, **copertina compresa**.
    *
@@ -200,8 +206,20 @@ export function SchermataRendiconto() {
   /** Un file che non si è potuto leggere, con il motivo scritto in italiano. */
   const [erroreFile, setErroreFile] = React.useState<string | null>(null);
 
-  const conti = dati?.pfConti ?? [];
+  /* In un `useMemo` perché un elenco nuovo a ogni render rifarebbe i
+     distintivi a ogni render: i conti cambiano quando cambia l'archivio. */
+  const conti = React.useMemo(() => dati?.pfConti ?? [], [dati?.pfConti]);
   const categorie = dati?.pfCategorie ?? [];
+  /*
+    Che cosa scrivere accanto ai nomi che cominciano uguale — «Fineco» e
+    «Fineco (Tasse)» — perché in un menu stretto sono due righe identiche a
+    colpo d'occhio. Vedi `conti.ts`: una volta per elenco, non riga per riga.
+  */
+  const distintivi = React.useMemo(
+    () => distintiviDeiConti(conti, dati?.pfMovimenti ?? []),
+    [conti, dati?.pfMovimenti],
+  );
+  const nomeDelConto = (id: string) => conti.find((c) => c.id === id)?.nome ?? "";
 
   async function aggiungiFile() {
     const scelto = await scegliFileByte("text/csv,.csv,text/plain,.xlsx");
@@ -266,7 +284,17 @@ export function SchermataRendiconto() {
       separatore,
     };
 
-    const contoId = conti[0]?.id ?? "";
+    /*
+      **Nessuna preselezione, se non si sa.**
+
+      Prima si proponeva `conti[0]`, cioè il primo della fila: su sei conti ne
+      indovina uno su sei, e chi non se ne accorge importa un estratto conto
+      dentro il conto sbagliato — è successo, trentasette movimenti. Adesso si
+      propone solo quello che si **sa**: l'ultimo conto usato per un file che
+      si chiamava così. Se non c'è, il campo resta vuoto e il pulsante che
+      legge sta spento finché qualcuno sceglie.
+    */
+    const contoId = contoPropostoPerFile(scelto.nome, dati?.pfImport ?? [], conti);
     const salvata = conti.find((c) => c.id === contoId)?.mappaturaImport ?? null;
     const proposta = salvata ?? proponiMappatura(tabella.intestazioni);
     /*
@@ -285,6 +313,7 @@ export function SchermataRendiconto() {
       {
         nome: scelto.nome,
         contoId,
+        contoProposto: contoId !== "",
         tutte,
         rigaIntestazione: scelta.riga,
         intestazioneCerta: scelta.certa,
@@ -341,6 +370,7 @@ export function SchermataRendiconto() {
           ? {
               ...x,
               contoId,
+              contoProposto: false,
               /* Cambiando conto, torna buona la mappatura salvata di quel
                  conto: è la sua banca, non quella di prima. */
               mappatura:
@@ -444,6 +474,9 @@ export function SchermataRendiconto() {
   }
 
   const scelte = righe?.filter((r) => r.scelta).length ?? 0;
+  /* Su quali conti finirebbero le righe scelte, contate su di loro: è la
+     stessa funzione che conta i movimenti scritti, dopo. */
+  const contiScelti = movimentiPerConto(righe?.filter((r) => r.scelta) ?? [], conti);
 
   return (
     <Guscio
@@ -492,13 +525,16 @@ export function SchermataRendiconto() {
                       onCambia={(riga) => cambiaIntestazione(i, riga)}
                     />
                     <Select value={f.contoId} onValueChange={(v) => cambiaConto(i, v)}>
-                      <SelectTrigger className="w-44" aria-label={`Conto di ${f.nome}`}>
-                        <SelectValue />
+                      <SelectTrigger
+                        className={cn("w-52", f.contoId === "" && "border-attenzione")}
+                        aria-label={`Conto di ${f.nome}`}
+                      >
+                        <SelectValue placeholder="Scegli il conto" />
                       </SelectTrigger>
                       <SelectContent>
                         {conti.map((c) => (
                           <SelectItem key={c.id} value={c.id}>
-                            {c.nome}
+                            <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -515,6 +551,12 @@ export function SchermataRendiconto() {
                       <Trash2 className="size-4" />
                     </Button>
                   </div>
+                  {f.contoProposto && (
+                    <p className="text-micro text-inchiostro-tenue">
+                      Conto proposto perché l&apos;ultimo file che si chiamava così è entrato in
+                      «{nomeDelConto(f.contoId)}». Controlla che sia ancora quello.
+                    </p>
+                  )}
                   {f.formato.certezza === "incoerente" && (
                     <p className="text-micro text-attenzione">
                       Le date di questo file non si leggono tutte allo stesso modo: ci sono righe
@@ -561,6 +603,18 @@ export function SchermataRendiconto() {
                 Leggi {file.length === 1 ? "il file" : `i ${file.length} file`}
               </Button>
             )}
+            {/*
+              Un pulsante spento senza il motivo è un vicolo cieco: qui il
+              motivo è che manca una scelta, ed è la scelta che questo modulo
+              non deve più indovinare.
+            */}
+            {file.some((f) => f.contoId === "") && (
+              <p className="w-full text-micro text-attenzione">
+                {file.filter((f) => f.contoId === "").length === 1 && file.length === 1
+                  ? "Scegli il conto di questo file: senza, non si sa da dove vengono i movimenti."
+                  : "Scegli il conto di ogni file: senza, non si sa da dove vengono i movimenti."}
+              </p>
+            )}
             {categorie.length === 0 && (
               <>
                 <Button scrive variante="contorno" onClick={() => void seminaCategorie()}>
@@ -594,7 +648,15 @@ export function SchermataRendiconto() {
             <CardCorpo className="pb-3">
               <div className="flex flex-wrap items-end justify-between gap-3">
                 <div>
-                  <CardTitolo>Anteprima</CardTitolo>
+                  <CardTitolo>
+                    Anteprima
+                    {contiScelti.length === 1 && (
+                      <span className="font-normal text-inchiostro-tenue">
+                        {" "}
+                        · su {contiScelti[0].nome}
+                      </span>
+                    )}
+                  </CardTitolo>
                   <CardSottotitolo>
                     {scelte === righe.length
                       ? `${righe.length} righe, tutte scelte`
@@ -602,6 +664,13 @@ export function SchermataRendiconto() {
                     {righe.some((r) => r.duplicato) &&
                       " · i doppioni arrivano senza spunta, ma restano visibili"}
                   </CardSottotitolo>
+                  {/* Con più conti il nome non sta nel titolo: sta qui, e sono
+                      quelli veri delle righe scelte, non quelli dei file. */}
+                  {contiScelti.length > 1 && (
+                    <p className="text-etichetta text-inchiostro-tenue">
+                      {contiScelti.map((c) => `${c.quanti} su ${c.nome}`).join(" · ")}
+                    </p>
+                  )}
                 </div>
                 {/*
                   Senza categorie non si importa. Trentasette movimenti con la
@@ -609,11 +678,27 @@ export function SchermataRendiconto() {
                   spesa: restano in archivio e spariscono dai conti. Meglio un
                   pulsante spento che lo dice.
                 */}
+                {/*
+                  **Il conto sul pulsante che scrive.**
+
+                  Il conto si sceglie in cima alla schermata e non si rivedeva
+                  più: l'ultima cosa che si legge prima di scrivere
+                  trentasette righe era «Importa 37 movimenti», e il conto
+                  sbagliato si scopriva dopo, nel registro. Adesso il nome sta
+                  sul pulsante, che è l'unico posto che si guarda per forza —
+                  e con più conti dice quanti sono, perché elencarli lì non ci
+                  sta e sotto c'è già la riga che li nomina.
+                */}
                 <Button
                   onClick={() => void conferma()}
                   disabled={scelte === 0 || categorie.length === 0}
                 >
                   Importa {scelte} {scelte === 1 ? "movimento" : "movimenti"}
+                  {contiScelti.length === 1
+                    ? ` su ${contiScelti[0].nome}`
+                    : contiScelti.length > 1
+                      ? ` su ${contiScelti.length} conti`
+                      : ""}
                 </Button>
               </div>
             </CardCorpo>
@@ -624,6 +709,7 @@ export function SchermataRendiconto() {
                   key={r.id}
                   riga={r}
                   conti={conti}
+                  distintivi={distintivi}
                   categorie={categorie}
                   onCambia={(nuova) =>
                     setRighe((x) => (x ?? []).map((y) => (y.id === r.id ? nuova : y)))
@@ -712,6 +798,7 @@ export function SchermataRendiconto() {
           importazioni={dati.pfImport}
           movimenti={dati.pfMovimenti}
           conti={conti}
+          distintivi={distintivi}
         />
 
         {/*
@@ -846,11 +933,13 @@ function Mappatura({
 function RigaAnteprimaVista({
   riga,
   conti,
+  distintivi,
   categorie,
   onCambia,
 }: {
   riga: RigaAnteprima;
   conti: ContoPersonale[];
+  distintivi: Map<string, string | null>;
   categorie: { id: string; nome: string; tipo: string }[];
   onCambia: (r: RigaAnteprima) => void;
 }) {
@@ -924,7 +1013,7 @@ function RigaAnteprimaVista({
           <SelectContent>
             {conti.map((c) => (
               <SelectItem key={c.id} value={c.id}>
-                {c.nome}
+                <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
               </SelectItem>
             ))}
           </SelectContent>
@@ -1003,10 +1092,12 @@ function StoricoImport({
   importazioni,
   movimenti,
   conti,
+  distintivi,
 }: {
   importazioni: ImportPf[];
   movimenti: MovimentoPf[];
   conti: ContoPersonale[];
+  distintivi: Map<string, string | null>;
 }) {
   if (importazioni.length === 0) return null;
   const ordinate = [...importazioni].sort((a, b) => b.data.localeCompare(a.data));
@@ -1019,38 +1110,121 @@ function StoricoImport({
         </CardSottotitolo>
       </CardCorpo>
       <ul className="divide-y divide-bordo/70 border-y border-bordo">
-        {ordinate.map((i) => (
-          <li key={i.id} className="flex flex-wrap items-center gap-2 px-6 py-2">
-            <span className="w-28 shrink-0 text-micro text-inchiostro-tenue">
-              {fmtData(i.data.slice(0, 10))}
-            </span>
-            <span className="min-w-40 flex-1 truncate" title={i.file}>
-              {i.file}
-            </span>
-            <span className="text-micro text-inchiostro-tenue">
-              {i.numeroMovimenti} {i.numeroMovimenti === 1 ? "movimento" : "movimenti"}
-              {(() => {
-                const perConto = movimentiPerConto(
-                  movimenti.filter((m) => m.importId === i.id),
-                  conti,
-                );
-                if (perConto.length === 0) return null;
-                return ` · ${perConto.map((c) => `${c.quanti} su ${c.nome}`).join(" · ")}`;
-              })()}
-            </span>
-            <BloccoScrittura>
-              <Button
-                variante="quieto"
-                taglia="sm"
-                onClick={() => void annullaImportRendiconto(i)}
-              >
-                <RotateCcw className="size-4" aria-hidden />
-                Annulla
-              </Button>
-            </BloccoScrittura>
-          </li>
-        ))}
+        {ordinate.map((i) => {
+          const perConto = movimentiPerConto(
+            movimenti.filter((m) => m.importId === i.id),
+            conti,
+          );
+          return (
+            <li key={i.id} className="flex flex-wrap items-center gap-2 px-6 py-2">
+              <span className="w-28 shrink-0 text-micro text-inchiostro-tenue">
+                {fmtData(i.data.slice(0, 10))}
+              </span>
+              <span className="min-w-40 flex-1 truncate" title={i.file}>
+                {i.file}
+              </span>
+              {/*
+                **Un import senza più i suoi movimenti lo dice.**
+
+                Ne è rimasto uno così in un archivio vero: trentasette
+                movimenti finiti sul conto sbagliato e poi cancellati a mano,
+                con la riga di storico che continuava a prometterli e un
+                «Annulla» che non annullava niente. Un comando che non fa
+                niente è peggio di un comando che non c'è.
+              */}
+              {perConto.length === 0 ? (
+                <span className="text-micro text-attenzione">
+                  {i.numeroMovimenti} {i.numeroMovimenti === 1 ? "movimento" : "movimenti"}, in
+                  archivio non ce n&apos;è più nessuno
+                </span>
+              ) : (
+                <span className="flex flex-wrap items-center gap-x-2 gap-y-1 text-micro text-inchiostro-tenue">
+                  {i.numeroMovimenti} {i.numeroMovimenti === 1 ? "movimento" : "movimenti"}
+                  {perConto.map((c) => (
+                    <span key={c.contoId} className="flex items-center gap-1">
+                      · {c.quanti} su {c.nome}
+                      <SpostaSuConto
+                        importazione={i}
+                        daContoId={c.contoId}
+                        quanti={c.quanti}
+                        conti={conti}
+                        distintivi={distintivi}
+                      />
+                    </span>
+                  ))}
+                </span>
+              )}
+              {perConto.length > 0 && (
+                <BloccoScrittura>
+                  <Button
+                    variante="quieto"
+                    taglia="sm"
+                    onClick={() => void annullaImportRendiconto(i)}
+                  >
+                    <RotateCcw className="size-4" aria-hidden />
+                    Annulla
+                  </Button>
+                </BloccoScrittura>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </Card>
+  );
+}
+
+/**
+ * «Sposta su un altro conto», dalla riga dello storico.
+ *
+ * È un menu e non un pulsante perché la domanda non è «spostare sì o no»: è
+ * **su quale conto**, e la risposta sbagliata è quella che ha creato il
+ * problema. Il conto di partenza non compare fra le voci — spostare un conto
+ * su se stesso non vuol dire niente — e i nomi portano il loro distintivo,
+ * per la stessa ragione per cui ce l'hanno di sopra.
+ */
+function SpostaSuConto({
+  importazione,
+  daContoId,
+  quanti,
+  conti,
+  distintivi,
+}: {
+  importazione: ImportPf;
+  daContoId: string;
+  quanti: number;
+  conti: ContoPersonale[];
+  distintivi: Map<string, string | null>;
+}) {
+  const altri = conti.filter((c) => c.id !== daContoId);
+  if (altri.length === 0) return null;
+  return (
+    <BloccoScrittura>
+      <Select
+        value=""
+        onValueChange={(v) => {
+          void spostaImportSuConto(
+            importazione,
+            daContoId,
+            v,
+            (id) => conti.find((c) => c.id === id)?.nome ?? "quel conto",
+          );
+        }}
+      >
+        <SelectTrigger
+          className="h-7 w-auto gap-1 border-0 bg-transparent px-1 text-micro text-accento hover:underline"
+          aria-label={`Sposta i ${quanti} movimenti dell'import del ${fmtData(importazione.data.slice(0, 10))} su un altro conto`}
+        >
+          sposta
+        </SelectTrigger>
+        <SelectContent>
+          {altri.map((c) => (
+            <SelectItem key={c.id} value={c.id}>
+              <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </BloccoScrittura>
   );
 }

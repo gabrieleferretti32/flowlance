@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { archivio, impostaArchivio } from "@/lib/dati/archivio";
 import { MemoriaAdapter } from "@/lib/dati/memoria-adapter";
-import { eseguiImportRendiconto } from "@/lib/dati/azioni";
+import { eseguiImportRendiconto, spostaImportSuConto } from "@/lib/dati/azioni";
 import { anteprimaImport, movimentiDaScrivere, type FileRendiconto } from "./anteprima-import";
 import { CATEGORIE_INIZIALI } from "./categorie";
 import { movimentiPerConto } from "./registro";
@@ -138,8 +138,8 @@ describe("un import con due file su due conti diversi", () => {
     await importa([rendicontoIntesa(), rendicontoFineco()]);
     const scritti = await archivio().pfMovimenti.tutti();
     expect(movimentiPerConto(scritti, [FINECO, INTESA])).toEqual([
-      { nome: "Intesa Sanpaolo", quanti: 3 },
-      { nome: "Fineco (Tasse)", quanti: 2 },
+      { contoId: INTESA.id, nome: "Intesa Sanpaolo", quanti: 3 },
+      { contoId: FINECO.id, nome: "Fineco (Tasse)", quanti: 2 },
     ]);
   });
 
@@ -172,6 +172,48 @@ describe("un import con due file su due conti diversi", () => {
     const movimenti = await archivio().pfMovimenti.tutti();
     expect(saldoConto(INTESA, movimenti)).toBe(3_000);
     expect(saldoConto(FINECO, movimenti)).not.toBe(3_765.5);
+  });
+
+  it("**spostare l'import rimette i movimenti sul conto giusto**", async () => {
+    /*
+      È la strada che nel caso vero non c'era: trentasette movimenti sul conto
+      sbagliato si sono corretti cancellandoli a mano uno per uno e rifacendo
+      l'import. Il conto è l'unica cosa che l'import prende da una scelta e non
+      dal file, quindi è l'unica che si può correggere senza rileggere niente.
+    */
+    await importa([{ ...rendicontoIntesa(), contoId: FINECO.id }]);
+    const [registrazione] = await archivio().pfImport.tutti();
+    expect(await perConto()).toEqual({ "Fineco (Tasse)": 3 });
+
+    const esito = await spostaImportSuConto(
+      registrazione,
+      FINECO.id,
+      INTESA.id,
+      () => "Intesa Sanpaolo",
+    );
+    expect(esito).toEqual({ spostati: 3, bloccati: 0 });
+    expect(await perConto()).toEqual({ "Intesa Sanpaolo": 3 });
+
+    /* E la registrazione smette di nominare il conto di prima. */
+    const [dopo] = await archivio().pfImport.tutti();
+    expect(dopo.contoId).toBe(INTESA.id);
+  });
+
+  it("e non tocca i movimenti che quell'import non ha scritto", async () => {
+    await importa([{ ...rendicontoIntesa(), contoId: FINECO.id }]);
+    const [primo] = await archivio().pfImport.tutti();
+    await archivio().pfMovimenti.salva({
+      id: "a-mano",
+      data: "2026-09-18",
+      tipo: "spesa",
+      categoriaId: "spesa-alimentare",
+      contoId: FINECO.id,
+      importo: 12,
+      descrizione: "Scritto a mano",
+    });
+
+    await spostaImportSuConto(primo, FINECO.id, INTESA.id, () => "Intesa Sanpaolo");
+    expect(await perConto()).toEqual({ "Intesa Sanpaolo": 3, "Fineco (Tasse)": 1 });
   });
 
   it("**due file che si chiamano uguale restano due file**", async () => {

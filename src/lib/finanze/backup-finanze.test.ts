@@ -28,7 +28,16 @@ const conFinanze = (): Dati => ({
   pfBudget: [{ categoriaId: "spesa", anno: 2026, importi: Array(12).fill(400) }],
   pfBeni: [{ id: "b1", classe: "investimenti", nome: "ETF", valore: 12_000, aggiornatoIl: "2026-09-01" }],
   pfRegole: [{ id: "r1", testoDaCercare: "esselunga", categoriaId: "spesa", tipo: "spesa" }],
-  pfImport: [{ id: "i1", data: "2026-09-21", file: "conto.csv", contoId: "c1", numeroMovimenti: 1 }],
+  /*
+    La data con l'ora, come la scrive l'app: `new Date().toISOString()`. Con
+    il `2026-09-21` di prima il test confermava una forma che l'app non
+    produce, e infatti non ha visto che il ripristino svuotava il campo di
+    ogni import — si è visto su un backup vero, con lo storico che diceva «—».
+  */
+  pfImport: [{
+    id: "i1", data: "2026-09-21T08:09:59.449Z", file: "conto.csv",
+    contoId: "c1", numeroMovimenti: 1,
+  }],
   pfObiettivi: [{
     id: "o1", nome: "Fondo emergenza", obiettivo: 6_000, entro: "2027-06-30",
     fonte: "conto", fonteId: "c1", dal: "2026-01-01",
@@ -170,5 +179,24 @@ describe("le righe storte si scartano dicendolo", () => {
     expect(importi).toHaveLength(12);
     expect(importi.every((n) => Number.isFinite(n))).toBe(true);
     expect(importi[11]).toBe(0);
+  });
+});
+
+describe("la data di un import", () => {
+  it("**sopravvive al giro del backup con la sua ora**", () => {
+    const tornate = rilegge(conFinanze());
+    expect(tornate.pfImport[0].data).toBe("2026-09-21T08:09:59.449Z");
+  });
+
+  it("e un backup che porta il solo giorno resta valido", () => {
+    const dati = conFinanze();
+    dati.pfImport = [{ ...dati.pfImport[0], data: "2026-09-21" }];
+    expect(rilegge(dati).pfImport[0].data).toBe("2026-09-21");
+  });
+
+  it("quello che data non è resta vuoto, invece di entrare in archivio", () => {
+    const dati = conFinanze();
+    dati.pfImport = [{ ...dati.pfImport[0], data: "ieri mattina" }];
+    expect(rilegge(dati).pfImport[0].data).toBe("");
   });
 });

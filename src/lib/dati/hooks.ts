@@ -15,6 +15,7 @@ import {
 } from "@/lib/onboarding/percorso";
 import type { Dati } from "./tipi";
 import { situazioneDelMese, type SituazioneMese } from "@/lib/finanze/mese";
+import { contiInOrdine } from "@/lib/finanze/conti";
 import { anniChiusi, riepilogoEffettivo } from "@/lib/finanze/derivazione";
 
 /**
@@ -26,7 +27,23 @@ import { anniChiusi, riepilogoEffettivo } from "@/lib/finanze/derivazione";
  * riscrivere questi hook, non il resto dell'applicazione.
  */
 export function useDati(): Dati | undefined {
-  return useLiveQuery(() => archivio().leggiTutto(), []);
+  const dati = useLiveQuery(() => archivio().leggiTutto(), []);
+  /*
+    **I conti in ordine alfabetico, qui e una volta sola.**
+
+    L'archivio li restituisce nell'ordine dei loro identificatori, che sono
+    numeri casuali: un ordine che cambia a ogni conto aggiunto e che nelle
+    schermate non vuol dire niente. Ordinarli qui vuol dire che import,
+    registro, filtri e moduli leggono tutti lo stesso elenco — ordinarli in
+    ogni schermata vorrebbe dire scoprire un giorno che una se n'è dimenticata.
+
+    Si ordina qui e non in archivio: l'ordine è una cosa di chi guarda, e il
+    backup deve restare quello che c'è scritto.
+  */
+  return useMemo(
+    () => (dati ? { ...dati, pfConti: contiInOrdine(dati.pfConti) } : dati),
+    [dati],
+  );
 }
 
 export function useArchivioVuoto(): boolean | undefined {

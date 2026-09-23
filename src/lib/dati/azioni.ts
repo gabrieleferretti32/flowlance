@@ -57,6 +57,7 @@ import {
   nomeGiaUsato,
 } from "@/lib/finanze/categorie";
 import { iconaDalNome } from "@/lib/finanze/icone";
+import { movimentiDaSpostare } from "@/lib/finanze/conti";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { datasetDi, DATASET_PREDEFINITO, type IdDataset } from "./dataset";
@@ -1096,6 +1097,69 @@ export async function eseguiImportRendiconto(
     },
   );
   return registrazione;
+}
+
+/**
+ * Sposta i movimenti di un import da un conto a un altro.
+ *
+ * Accorgersi è metà del lavoro: rimediare, fino a ieri, voleva dire cancellare
+ * trentasette righe a mano e rifare l'import — che è quello che è successo
+ * davvero. Il conto è l'unica cosa che l'import prende da una scelta e non dal
+ * file, quindi è l'unica che ha senso correggere dopo senza rileggere niente.
+ *
+ * Si sposta **da un conto**, non «tutto l'import»: un import di più file sta
+ * su più conti, e «spostalo» lì non vorrebbe dire niente.
+ *
+ * La registrazione si aggiorna con la stessa regola con cui è nata — il conto
+ * lo dicono i movimenti, e con più conti resta vuoto — perché una riga di
+ * storico che continua a nominare il conto di prima è peggio di una che non
+ * ne nomina nessuno.
+ */
+export async function spostaImportSuConto(
+  importazione: ImportPf,
+  daContoId: string,
+  aContoId: string,
+  nomeDelConto: (id: string) => string,
+): Promise<{ spostati: number; bloccati: number }> {
+  const tutti = await archivio().pfMovimenti.tutti();
+  const { spostati, bloccati } = movimentiDaSpostare(
+    tutti,
+    importazione.id,
+    daContoId,
+    aContoId,
+  );
+  if (spostati.length === 0) {
+    toast.avviso(
+      bloccati.length > 0
+        ? "Sono tutti giroconti che hanno già quel conto dall'altro capo: spostarli non vorrebbe dire niente."
+        : "Nessun movimento di questo import è su quel conto.",
+    );
+    return { spostati: 0, bloccati: bloccati.length };
+  }
+
+  const prima = tutti.filter((m) => spostati.some((x) => x.id === m.id));
+  await archivio().pfMovimenti.salvaMolti(spostati);
+
+  const dopo = await archivio().pfMovimenti.tutti();
+  const suoi = dopo.filter((m) => m.importId === importazione.id);
+  const conti = new Set(suoi.map((m) => m.contoId));
+  const registrazione: ImportPf = {
+    ...importazione,
+    contoId: conti.size === 1 ? [...conti][0] : "",
+  };
+  await archivio().pfImport.salva(registrazione);
+
+  toast.conferma(
+    `${spostati.length === 1 ? "Un movimento spostato" : `${spostati.length} movimenti spostati`} su ${nomeDelConto(aContoId)}`
+      + (bloccati.length > 0
+        ? ` · ${bloccati.length === 1 ? "un giroconto resta" : `${bloccati.length} giroconti restano`} dov'era: quel conto è già l'altro capo`
+        : ""),
+    async () => {
+      await archivio().pfMovimenti.salvaMolti(prima);
+      await archivio().pfImport.salva(importazione);
+    },
+  );
+  return { spostati: spostati.length, bloccati: bloccati.length };
 }
 
 /**

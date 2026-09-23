@@ -61,6 +61,8 @@ import {
 import { CATEGORIE_INIZIALI } from "@/lib/finanze/categorie";
 import type { MovimentoPf, TipoMovimento } from "@/lib/finanze/tipi";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
+import { VoceConto } from "@/components/finanze/voce-conto";
+import { distintiviDeiConti } from "@/lib/finanze/conti";
 import { cn } from "@/lib/utils";
 
 const TIPI: { valore: TipoMovimento; etichetta: string }[] = [
@@ -109,6 +111,8 @@ export function SchermataMovimenti() {
 
   const conti = dati.pfConti;
   const categorie = dati.pfCategorie;
+  /* Quando due conti cominciano uguale, il saldo li separa: vedi `conti.ts`. */
+  const distintivi = distintiviDeiConti(conti, dati.pfMovimenti);
   const nomeConto = (id: string | null | undefined) =>
     conti.find((c) => c.id === id)?.nome ?? "—";
   const nomeCategoria = (id: string) => categorie.find((c) => c.id === id)?.nome ?? "—";
@@ -160,7 +164,12 @@ export function SchermataMovimenti() {
                 }
               />
             ) : (
-              <ModuloMovimento conti={conti} categorie={categorie} oggi={oggi} />
+              <ModuloMovimento
+                conti={conti}
+                distintivi={distintivi}
+                categorie={categorie}
+                oggi={oggi}
+              />
             )}
           </CardCorpo>
         </Card>
@@ -246,7 +255,7 @@ export function SchermataMovimenti() {
                       <SelectItem value={TUTTI}>Tutti i conti</SelectItem>
                       {conti.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
-                          {c.nome}
+                          <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -332,10 +341,12 @@ function segnoDi(m: MovimentoPf): string {
 
 function ModuloMovimento({
   conti,
+  distintivi,
   categorie,
   oggi,
 }: {
   conti: { id: string; nome: string }[];
+  distintivi: Map<string, string | null>;
   categorie: { id: string; nome: string; tipo: string }[];
   oggi: string;
 }) {
@@ -435,7 +446,7 @@ function ModuloMovimento({
             <SelectContent>
               {conti.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
-                  {c.nome}
+                  <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
                 </SelectItem>
               ))}
             </SelectContent>
@@ -452,7 +463,7 @@ function ModuloMovimento({
                   .filter((c) => c.id !== contoId)
                   .map((c) => (
                     <SelectItem key={c.id} value={c.id}>
-                      {c.nome}
+                      <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
                     </SelectItem>
                   ))}
               </SelectContent>

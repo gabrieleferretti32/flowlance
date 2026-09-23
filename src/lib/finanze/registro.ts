@@ -118,17 +118,22 @@ export function mesiConMovimenti(movimenti: MovimentoPf[], annoScelto: number): 
  * parità un ordine che non cambia fra un render e l'altro.
  */
 export function movimentiPerConto(
-  movimenti: MovimentoPf[],
+  /* Basta il conto: così la stessa funzione conta le righe dell'anteprima —
+     che movimenti non sono ancora — e i movimenti scritti in archivio. */
+  movimenti: { contoId: string }[],
   conti: ContoPersonale[],
-): { nome: string; quanti: number }[] {
+): { contoId: string; nome: string; quanti: number }[] {
   const nomi = new Map(conti.map((c) => [c.id, c.nome]));
   const conteggio = new Map<string, number>();
   for (const m of movimenti) {
-    /* Un conto cancellato resta un conto: dire «—» è meglio che non dirlo. */
-    const nome = nomi.get(m.contoId) ?? "conto non più in elenco";
-    conteggio.set(nome, (conteggio.get(nome) ?? 0) + 1);
+    conteggio.set(m.contoId, (conteggio.get(m.contoId) ?? 0) + 1);
   }
   return [...conteggio]
-    .map(([nome, quanti]) => ({ nome, quanti }))
+    .map(([contoId, quanti]) => ({
+      contoId,
+      /* Un conto cancellato resta un conto: dirlo è meglio che non dirlo. */
+      nome: nomi.get(contoId) ?? "conto non più in elenco",
+      quanti,
+    }))
     .sort((a, b) => b.quanti - a.quanti || a.nome.localeCompare(b.nome, "it"));
 }

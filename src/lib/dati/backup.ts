@@ -126,6 +126,25 @@ function dataOpzionale(v: unknown): string | null {
   return typeof v === "string" && ISO_DATA.test(v) ? v : null;
 }
 
+/**
+ * Un istante, non un giorno: «2026-09-23T08:09:59.449Z».
+ *
+ * `dataOpzionale` accetta solo `aaaa-mm-gg`, e la registrazione di un import
+ * porta l'ora — la scrive `new Date().toISOString()`. Passandola di lì il
+ * campo tornava vuoto: **ogni import perdeva la sua data ripristinando un
+ * backup**, lo storico mostrava «—» e l'ordine cronologico spariva con lei.
+ * Trovato su un backup vero, non su un caso costruito: il test aveva la data
+ * scritta a mano come `2026-09-21`, cioè nella forma che l'app non usa.
+ *
+ * Si accettano tutte e due le forme: i backup fatti prima di questa riga
+ * hanno il campo già svuotato, e quelli fatti da altre versioni potrebbero
+ * avere il solo giorno.
+ */
+const ISO_ISTANTE = /^\d{4}-\d{2}-\d{2}([T ][\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/;
+function istante(v: unknown): string {
+  return typeof v === "string" && ISO_ISTANTE.test(v) ? v : "";
+}
+
 function fraZeroEUno(v: unknown, predefinito: number): number {
   const n = numero(v, predefinito);
   return n >= 0 && n <= 1 ? n : predefinito;
@@ -888,7 +907,7 @@ const convalidaImportPf: Convalida<Dati["pfImport"][number]> = (riga, i, errori)
   if (!id) return null;
   return {
     id,
-    data: dataOpzionale(riga.data) ?? "",
+    data: istante(riga.data),
     file: testo(riga.file),
     contoId: testo(riga.contoId),
     numeroMovimenti: numero(riga.numeroMovimenti, 0),

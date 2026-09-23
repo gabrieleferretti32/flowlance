@@ -52,6 +52,7 @@ import {
   statoObiettivi,
   type StatoObiettivo,
 } from "@/lib/finanze/obiettivi";
+import { distintiviDeiConti } from "@/lib/finanze/conti";
 import type { CategoriaPf, ContoPersonale, FonteObiettivo, ObiettivoPf } from "@/lib/finanze/tipi";
 import { analizzaNumero, data as fmtData, euro, nomeMese, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -67,6 +68,12 @@ export function SchermataObiettivi() {
   const [oggi] = React.useState(() => new Date().toISOString().slice(0, 10));
   const dati = useDati();
   const situazione = useSituazioneMese(anno, oggi);
+
+  /* Il saldo accanto ai conti che cominciano uguale: vedi `conti.ts`. */
+  const distintivi = React.useMemo(
+    () => distintiviDeiConti(dati?.pfConti ?? [], dati?.pfMovimenti ?? []),
+    [dati?.pfConti, dati?.pfMovimenti],
+  );
 
   const stati = React.useMemo(
     () =>
@@ -179,6 +186,7 @@ export function SchermataObiettivi() {
                   key={stato.obiettivo.id}
                   stato={stato}
                   conti={dati.pfConti}
+                  distintivi={distintivi}
                   categorie={categorieDiRisparmio}
                 />
               ))}
@@ -186,7 +194,12 @@ export function SchermataObiettivi() {
           )}
 
           <CardCorpo className="pt-3">
-            <ModuloMeta conti={dati.pfConti} categorie={categorieDiRisparmio} oggi={oggi} />
+            <ModuloMeta
+              conti={dati.pfConti}
+              distintivi={distintivi}
+              categorie={categorieDiRisparmio}
+              oggi={oggi}
+            />
           </CardCorpo>
         </Card>
       </div>
@@ -204,10 +217,12 @@ function elenco(nomi: string[]): string {
 function RigaMeta({
   stato,
   conti,
+  distintivi,
   categorie,
 }: {
   stato: StatoObiettivo;
   conti: ContoPersonale[];
+  distintivi: Map<string, string | null>;
   categorie: CategoriaPf[];
 }) {
   const { obiettivo, accumulato, quota } = stato;
@@ -324,7 +339,12 @@ function RigaMeta({
         </p>
       )}
 
-      <SceltaFonte obiettivo={obiettivo} conti={conti} categorie={categorie} />
+      <SceltaFonte
+        obiettivo={obiettivo}
+        conti={conti}
+        distintivi={distintivi}
+        categorie={categorie}
+      />
     </li>
   );
 }
@@ -363,10 +383,12 @@ function Barra({
 function SceltaFonte({
   obiettivo,
   conti,
+  distintivi,
   categorie,
 }: {
   obiettivo: ObiettivoPf;
   conti: ContoPersonale[];
+  distintivi: Map<string, string | null>;
   categorie: CategoriaPf[];
 }) {
   const id = React.useId();
@@ -403,6 +425,9 @@ function SceltaFonte({
             {conti.map((c) => (
               <SelectItem key={c.id} value={`conto:${c.id}`}>
                 Saldo del conto «{c.nome}»
+                {distintivi.get(c.id) && (
+                  <span className="text-micro text-inchiostro-tenue"> · {distintivi.get(c.id)}</span>
+                )}
               </SelectItem>
             ))}
             {categorie.map((c) => (
@@ -424,10 +449,12 @@ function SceltaFonte({
 
 function ModuloMeta({
   conti,
+  distintivi,
   categorie,
   oggi,
 }: {
   conti: ContoPersonale[];
+  distintivi: Map<string, string | null>;
   categorie: CategoriaPf[];
   oggi: string;
 }) {
@@ -502,6 +529,12 @@ function ModuloMeta({
               {conti.map((c) => (
                 <SelectItem key={c.id} value={`conto:${c.id}`}>
                   Saldo del conto «{c.nome}»
+                  {distintivi.get(c.id) && (
+                    <span className="text-micro text-inchiostro-tenue">
+                      {" "}
+                      · {distintivi.get(c.id)}
+                    </span>
+                  )}
                 </SelectItem>
               ))}
               {categorie.map((c) => (
