@@ -49,6 +49,7 @@ const situazione = (extra: {
   budget?: BudgetPf[];
   conti?: ContoPersonale[];
   cuscinetto?: number;
+  fiscoPagatoDa?: "attivita" | "personale";
 }) =>
   situazioneDelMese({
     anno: 2026,
@@ -61,9 +62,14 @@ const situazione = (extra: {
     categorie: CATEGORIE,
     budget: extra.budget ?? [],
     impostazioniPf:
-      extra.cuscinetto === undefined
+      extra.cuscinetto === undefined && extra.fiscoPagatoDa === undefined
         ? null
-        : { id: "unico", cuscinetto: extra.cuscinetto, riportoAttivo: true },
+        : {
+            id: "unico",
+            cuscinetto: extra.cuscinetto ?? 0,
+            riportoAttivo: true,
+            fiscoPagatoDa: extra.fiscoPagatoDa ?? null,
+          },
   });
 
 const mov = (categoriaId: string, data: string, importo: number, tipo: MovimentoPf["tipo"]): MovimentoPf => ({
@@ -228,5 +234,80 @@ describe("il riporto che arriva da un mese importato a metà", () => {
     });
     expect(s.riga.riporto).toBeGreaterThan(0);
     expect(s.riportoDaMeseSenzaEntrate).toBe(false);
+  });
+});
+
+/**
+ * La conseguenza della domanda «gli F24 da quale conto li paghi?».
+ *
+ * Se le paga il conto dell'attività, il prelievo che arriva sul conto
+ * personale è già netto del fisco: toglierne di nuovo la quota la
+ * toglierebbe due volte. Misurato sulla vetrina prima che questa domanda
+ * esistesse, il limite di settembre diceva −9.753,05 € e 9.238,05 € di quel
+ * rosso erano solo la doppia sottrazione.
+ *
+ * `quota` non cambia mai: è la cifra del cruscotto, e l'attività quei soldi
+ * li deve comunque. Quello che cambia è se il **limite** la sottrae.
+ */
+describe("chi paga il fisco cambia il limite, non la quota", () => {
+  const entrate = [mov("fatture", "2026-09-03", 2_000, "entrata")];
+
+  it("se lo paga questo conto, la quota si toglie — come ha sempre fatto", () => {
+    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
+    expect(s.fisco.chiPaga).toBe("personale");
+    expect(s.riga.accantonamento).toBe(s.quota.alMese);
+    expect(s.quota.alMese).toBeGreaterThan(0);
+  });
+
+  it("se lo paga l'attività, il limite non la toglie più", () => {
+    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    expect(s.riga.accantonamento).toBe(0);
+    expect(s.fisco.accantonamentoApplicato).toBe(0);
+    /* Ma la quota resta quella vera: la card del cruscotto non si muove. */
+    expect(s.quota.alMese).toBeGreaterThan(0);
+  });
+
+  it("e la differenza fra i due limiti è esattamente la quota", () => {
+    const con = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
+    const senza = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    expect(round2(senza.riga.limite - con.riga.limite)).toBe(round2(con.quota.alMese));
+  });
+
+  /*
+    L'altro lato della stessa cosa. Il tetto toglie dal saldo il fisco non
+    ancora versato perché quei soldi sono in banca e non sono tuoi: se li
+    paga l'attività, su questo conto non ci sono mai stati.
+  */
+  it("e nemmeno il tetto toglie più dal saldo il fisco da versare", () => {
+    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    expect(s.tetto.fiscoNonVersato).toBe(0);
+    expect(s.tetto.tetto).toBe(
+      round2(s.tetto.saldoConti - s.tetto.cuscinetto - s.tetto.impegniDelMese),
+    );
+  });
+
+  /*
+    Senza dichiarazione decidono i segnali, e su questo archivio — la vetrina,
+    dove gli F24 del 2026 risultano pagati dal conto personale — dicono
+    «questo conto». Il ripiego prudente, quando nemmeno i segnali sanno dire,
+    sta in `chi-paga-il-fisco.test.ts`.
+  */
+  it("senza dichiarazione vale quello che i segnali misurano", () => {
+    const s = situazione({ movimenti: entrate });
+    expect(s.fisco.fonte).toBe("misurato");
+    expect(s.fisco.chiPaga).toBe("personale");
+    expect(s.riga.accantonamento).toBe(s.quota.alMese);
+  });
+
+  /*
+    E una dichiarazione contraria ai segnali non viene ignorata: vince lei —
+    è chi usa l'app che sa come paga — ma la schermata lo dice, invece di
+    tenersi una contraddizione muta.
+  */
+  it("una dichiarazione contraria ai segnali vince, e risulta contraddetta", () => {
+    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    expect(s.fisco.chiPaga).toBe("attivita");
+    expect(s.fisco.lettura.misurato).toBe("personale");
+    expect(s.fisco.contraddetta).toBe(true);
   });
 });

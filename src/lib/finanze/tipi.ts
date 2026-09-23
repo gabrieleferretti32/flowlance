@@ -190,6 +190,15 @@ export type RegolaPf = {
  * scritto in `localStorage` sparisce al primo cambio di computer, e sparisce
  * in silenzio — il limite di spesa si alza di colpo e nessuno sa perché.
  */
+/**
+ * Da quale conto escono le tasse.
+ *
+ * Sta qui e non in `chi-paga-il-fisco.ts` perché `ImpostazioniPf` lo usa, e
+ * quel modulo usa i tipi di questo file: il tipo nel posto più in basso dei
+ * due è l'unico modo di non farli girare in tondo.
+ */
+export type ChiPagaIlFisco = "attivita" | "personale";
+
 export type ImpostazioniPf = {
   /** Sempre `unico`: la riga è una sola, e la chiave lo dice. */
   id: "unico";
@@ -204,12 +213,24 @@ export type ImpostazioniPf = {
   cuscinetto: number;
   /** Quello che avanza in un mese si somma al mese dopo. */
   riportoAttivo: boolean;
+  /**
+   * Da quale conto escono gli F24, dichiarato da chi usa l'app.
+   *
+   * `null` vuol dire che non l'ha ancora detto: allora vale quello che i
+   * segnali misurano, e se non bastano vale «personale». Non è un campo da
+   * riempire di default — vedi `rispostaChiPaga` — perché una dichiarazione
+   * che nessuno ha fatto non si distingue più da una fatta, e su questa
+   * risposta si decide se togliere o no la quota di accantonamento dal limite
+   * del mese.
+   */
+  fiscoPagatoDa: ChiPagaIlFisco | null;
 };
 
 export const IMPOSTAZIONI_PF_PREDEFINITE: ImpostazioniPf = {
   id: "unico",
   cuscinetto: 0,
   riportoAttivo: true,
+  fiscoPagatoDa: null,
 };
 
 /**

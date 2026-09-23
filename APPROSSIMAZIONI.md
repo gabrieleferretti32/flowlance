@@ -681,40 +681,103 @@ dell'app: sembra un rimprovero. Chi lo legge pensa di aver speso troppo, non
 che il numero sia sbagliato — ed è l'unica schermata del prodotto che promette
 una cifra da seguire.
 
-**Cosa è già stato fatto.** Il 23 settembre 2026 l'F24 ha un campo `pagatoDa`
-(`attivita` | `personale`) e il Cashflow non sottrae dalla cassa dell'attività
-quelli usciti dal conto personale. È metà della soluzione: rende **possibile**
-raccontare il caso giusto — la vetrina adesso lo fa — e dà all'app il dato su
-cui basare il riconoscimento. Non è ancora la soluzione, perché il limite del
-mese continua a togliere la quota comunque.
+**Come si chiude, e com'è chiusa adesso.** Il 23 settembre 2026, in due pezzi.
 
-**Cosa resta da fare.** Il modulo deve sapere da quale conto escono le tasse, e
-non può chiederlo come un modello contabile: va misurato e fatto confermare.
-Tre segnali, tutti già osservabili:
+Il primo: l'F24 ha un campo `pagatoDa` (`attivita` | `personale`), e il
+Cashflow non sottrae dalla cassa dell'attività quelli usciti dal conto
+personale. Restano versati a tutti gli effetti fiscali — prospetto,
+accantonamento e scadenzario non cambiano di un centesimo — e continuano ad
+abbassare le tasse accantonate, perché quei soldi sono usciti comunque.
 
-1. **Nessun F24 nel registro personale** in un periodo importato che contiene
-   almeno una scadenza passata (le scadenze l'app le conosce, `scadenzeAnno`).
-   Se per mesi non esce niente in una categoria «pagata dall'accantonamento»,
-   le tasse da quel conto non escono.
-2. **Il conto degli F24 diverso da quello dei prelievi**: con `pagatoDa` e il
-   `contoId` dei movimenti la differenza è leggibile direttamente.
-3. **Il rapporto fra entrate e carico**: entrate annue ≈ netto disponibile
-   vuol dire prelievo netto, ≈ netto + carico vuol dire prelievo lordo. Le due
-   cifre distano il 40-50 %, quindi il segnale è netto.
+Il secondo: **il modulo sa da quale conto escono le tasse**, e non lo chiede
+come un modello contabile. Lo misura da tre segnali e lo fa confermare con una
+domanda sola, che è un fatto e non una teoria: *«Gli F24 da quale conto li
+paghi?»*. I tre segnali (`chi-paga-il-fisco.ts`):
 
-E una domanda sola, che è un fatto e non una teoria: **«Gli F24 da quale conto
-li paghi?»**, con la risposta già proposta da quello che i tre segnali hanno
-misurato. Se la risposta è «dal conto dell'attività», dalla quota non si toglie
-niente e la schermata dice perché: quelle tasse sono già uscite altrove, e il
-posto dove vederle è la liquidità netta del Cashflow.
+1. **Nessun F24 nel registro personale**, in un periodo che copre almeno due
+   mesi e dentro cui è passata almeno una scadenza (le scadenze l'app le
+   conosce, `scadenzeAnno`). È il più forte perché non misura un importo:
+   misura un'assenza in un posto dove qualcosa doveva esserci.
+2. **Il conto degli F24 registrati**, dal campo `pagatoDa` — e conta **solo
+   quelli su cui qualcuno l'ha detto**: il campo assente vuol dire «nessuno ci
+   ha messo mano», e leggerlo come «attività» sarebbe lo stesso difetto
+   girato.
+3. **Il rapporto fra entrate e carico**: entrate ≈ netto disponibile vuol dire
+   prelievo netto, ≈ netto + carico vuol dire prelievo lordo. Le due cifre
+   distano il 40-50 %. È il più fragile — basta un altro reddito sul conto — e
+   parla solo quando un'ipotesi è più vicina dell'altra di tre volte.
 
-**Il caso del conto unico ha un problema suo**, diverso e più piccolo: se
-incassi, costi e vita stanno sullo stesso conto, la quota è giusta ma i costi
-dell'attività finiscono fra le spese personali, e non esiste una categoria per
-distinguerli. Misurato sulla vetrina rifatta come conto unico: le entrate del
-mese vanno da 0 € (gennaio: la fattura del 3 si incassa a febbraio) a 15.814 €,
-e il limite con loro, da −13.177 € a +5.869 €. Senza un budget che spiani gli
-incassi, quel caso non è leggibile.
+Se i segnali sono **discordi** non si vota a maggioranza: il risultato è «non
+si sa», e la schermata mostra i tre motivi invece di una risposta. L'ordine di
+precedenza è: quello che hai dichiarato, poi quello che i segnali misurano, poi
+«questo conto» — che è il verso prudente, perché sbagliarlo fa spendere meno
+del dovuto mentre l'altro fa spendere i soldi del fisco.
+
+Se la risposta è «dal conto dell'attività», la quota non si toglie né dal
+limite del mese né dal tetto dal conto, e le due righe **restano a schermo a
+zero con la ragione scritta** e il collegamento al Cashflow. Una riga che
+sparisce è un numero cambiato senza spiegazione.
+
+E la risposta non si congela: se i segnali cominciano a dire il contrario di
+quello che è scritto — per esempio perché nel registro compaiono F24 — la
+schermata lo dice e propone di cambiarla, invece di tenersi una dichiarazione
+vecchia. Una risposta data a gennaio è indistinguibile da una giusta, e nessuno
+torna in configurazione a ricontrollarla.
+
+**Cosa resta aperto qui.** La risposta è **una sola per tutte e due le metà
+della quota**, imposte+contributi da un lato e IVA dall'altro. Chi paga l'IVA
+dall'attività e i contributi da sé — il caso di chi ha il commercialista che
+gli addebita l'F24 dell'IVA — deve rispondere per la metà più grossa e
+accettare che l'altra sia trattata allo stesso modo. Il segnale 2 se ne
+accorge e lo dice («i due conti sono mescolati»), e nel dubbio non propone
+niente: il verso prudente, «questo conto», mette da parte anche quello che
+l'attività pagherà. Sistemarlo vuol dire una risposta per componente, e
+`quotaAccantonamento` le tiene già separate — ma sono due domande invece di
+una, ed è il motivo per cui non è stato fatto adesso.
+
+### Il conto unico: i costi dell'attività mangiano il limite personale
+
+*Misurato il 23 settembre 2026. È il problema del caso opposto.*
+
+Se incassi, costi, F24 e vita stanno sullo stesso conto, la quota di
+accantonamento è **giusta** — è il caso per cui il modulo è disegnato, ed è
+quello che il flag `arrivaDallAttivita` sulla categoria «Fatture incassate»
+prevede espressamente. Ma i costi dell'attività escono da quel conto e non c'è
+modo di distinguerli: finiscono fra le spese fisse o fra le variabili, e nel
+secondo caso gonfiano il «già speso» e fanno sembrare sforato un mese che non
+lo è.
+
+Misurato rifacendo la vetrina come conto unico, con le date d'incasso vere:
+le entrate del mese vanno da **0 €** (gennaio: la fattura del 3 si incassa a
+febbraio) a **15.814 €**, e il limite con loro da **−13.177 €** a **+5.869 €**.
+Il secondo difetto è quello: su un conto solo gli incassi sono a strappi, e un
+limite che li segue non è una cifra da seguire.
+
+**Basterebbe un flag sulla categoria, speculare a «arriva dall'attività»?** Per
+metà sì, e non nel modo in cui sembra.
+
+*Sì* per i costi: serve un flag — chiamiamolo «spesa dell'attività» — e serve
+che `riepilogoEffettivo` lo tenga fuori dal riepilogo personale, esattamente
+come `arrivaDallAttivita` tiene fuori i prelievi che sono già negli incassi.
+Senza, la stessa uscita comparirebbe due volte: come costo nel Cashflow
+dell'attività e come spesa nel riepilogo.
+
+*Ma non come esclusione.* La tentazione è trattarlo come
+`pagataDallAccantonamento`, cioè toglierlo da tutti i gruppi del limite. Sarebbe
+sbagliato: quel flag esclude perché quei soldi **erano già stati messi da
+parte**, mentre un costo dell'attività non lo ha accantonato nessuno. Escluderlo
+lascerebbe spendere lo stesso euro due volte. Il posto giusto è un **quinto
+gruppo** accanto a fisse, risparmi e rate: sottratto una volta dal limite, e
+non contato fra le spese variabili — così non inquina il «già speso» né i
+«€ al giorno».
+
+Il prezzo del cambiamento: `MovimentoPersonale` ha cinque voci e ne
+servirebbe una sesta, e `schermata-patrimonio` calcola l'avanzo personale da
+quelle cinque. Non è grosso, ma non è nemmeno un flag e basta.
+
+*E non chiude l'altra metà.* Gli incassi a strappi restano: quel caso diventa
+leggibile solo con un budget delle entrate che li spiani, ed è già quello che
+`tabellaLimite` fa quando un budget c'è.
 
 | Semplificazione | Coperta da un test? |
 | --- | --- |

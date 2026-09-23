@@ -454,10 +454,16 @@ export async function assegnaPagatoDa(
   pagatoDa: "attivita" | "personale",
 ) {
   const precedente = { ...versamento };
-  const aggiornato: VersamentoF24 = { ...versamento };
-  if (pagatoDa === "personale") aggiornato.pagatoDa = "personale";
-  else delete aggiornato.pagatoDa;
-  await archivio().versamenti.salva(aggiornato);
+  /*
+    Anche «attività» si scrive, e non si torna al campo vuoto.
+
+    Assente e «attività» si comportano allo stesso modo per la cassa — è il
+    default di sempre — ma non vogliono dire la stessa cosa: assente vuol dire
+    «nessuno l'ha mai detto», e i segnali che propongono la risposta a «gli F24
+    da quale conto li paghi?» contano solo quello che qualcuno ha detto
+    davvero. Cancellare il campo trasformerebbe una risposta in un silenzio.
+  */
+  await archivio().versamenti.salva({ ...versamento, pagatoDa });
   toast.conferma(
     pagatoDa === "personale"
       ? "F24 pagato dal conto personale"

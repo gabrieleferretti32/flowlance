@@ -20,6 +20,15 @@ import type { AnnoCalcolato } from "@/lib/analisi/anno";
 import type { VersamentoF24 } from "@/lib/fisco/tipi";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { quotaAccantonamento, type QuotaAccantonamento } from "@/lib/fisco/accantonamento";
+import { scadenzeAnno } from "@/lib/fisco/scadenze";
+import {
+  chiPagaIlFisco,
+  dichiarazioneContraddetta,
+  rispostaChiPaga,
+  type ChiPagaIlFisco,
+  type FonteRisposta,
+  type LetturaChiPaga,
+} from "./chi-paga-il-fisco";
 import { quantoResta, tabellaLimite, type QuantoResta, type RigaLimite } from "./limite";
 import { saldoTotale } from "./saldo";
 import { limiteEffettivo, tettoDalConto, type LimiteEffettivo, type Tetto } from "./tetto";
@@ -41,9 +50,32 @@ export type IngressoMese = {
   impostazioniPf: ImpostazioniPf | null;
 };
 
+/**
+ * Chi paga il fisco, e cosa ne consegue sul limite.
+ *
+ * `quota` resta sempre quella vera — è la cifra del cruscotto, e l'attività
+ * quei soldi li deve comunque. Quello che cambia è se il **limite del mese**
+ * la sottrae: se le tasse escono dal conto dell'attività, il prelievo che
+ * arriva sul conto personale è già netto, e toglierla di nuovo la toglierebbe
+ * due volte.
+ *
+ * La riga non sparisce dalla schermata: va a zero e dice perché. Una riga che
+ * sparisce è un numero cambiato senza spiegazione.
+ */
+export type FiscoDelMese = {
+  chiPaga: ChiPagaIlFisco;
+  fonte: FonteRisposta;
+  lettura: LetturaChiPaga;
+  /** La dichiarazione salvata dice il contrario di quello che i segnali misurano. */
+  contraddetta: boolean;
+  /** Quanto il limite ha davvero sottratto: `quota.alMese`, oppure zero. */
+  accantonamentoApplicato: number;
+};
+
 export type SituazioneMese = {
   impostazioni: ImpostazioniPf;
   quota: QuotaAccantonamento;
+  fisco: FiscoDelMese;
   righe: RigaLimite[];
   riga: RigaLimite;
   dalMese: QuantoResta;
@@ -106,13 +138,37 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
     oggi: ing.oggi,
   });
 
+  /*
+    Da quale conto escono le tasse. Si misura qui e non nella schermata perché
+    da questa risposta dipende una sottrazione, e una sottrazione decisa dentro
+    un componente è una sottrazione che nessun test guarda.
+  */
+  const lettura = chiPagaIlFisco({
+    anno: ing.anno,
+    oggi: ing.oggi,
+    movimenti: ing.movimenti,
+    categorie: ing.categorie,
+    versamenti: ing.versamenti,
+    scadenze: scadenzeAnno(
+      ing.calcolo.impostazioni,
+      parametriDi(ing.anno),
+      ing.calcolo.prospetto,
+      ing.calcolo.iva,
+      ing.precedente?.prospetto ?? null,
+    ),
+    nettoDisponibile: ing.calcolo.prospetto.nettoDisponibile,
+    caricoTotale: ing.calcolo.prospetto.caricoTotale,
+  });
+  const { chiPaga, fonte } = rispostaChiPaga(impostazioni.fiscoPagatoDa, lettura);
+  const accantonamentoApplicato = chiPaga === "attivita" ? 0 : quota.alMese;
+
   const righe = tabellaLimite({
     anno: ing.anno,
     meseCorrente,
     movimenti: ing.movimenti,
     categorie: ing.categorie,
     budget: ing.budget,
-    accantonamentoMensile: quota.alMese,
+    accantonamentoMensile: accantonamentoApplicato,
     riportoAttivo: impostazioni.riportoAttivo,
   });
   const riga = righe[meseCorrente - 1];
@@ -122,7 +178,13 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
     saldoConti: saldoTotale(ing.conti, ing.movimenti, ing.oggi),
     cuscinetto: impostazioni.cuscinetto,
     impegniDelMese: riga.fisse + riga.risparmi + riga.rate,
-    fiscoNonVersato: quota.imposte.daAccantonare + quota.iva.daAccantonare,
+    /*
+      Stessa ragione della riga sopra, dall'altro lato: quei soldi si tolgono
+      dal saldo perché sono in banca e non sono tuoi. Se il fisco lo paga il
+      conto dell'attività, sul conto personale non ci sono mai stati.
+    */
+    fiscoNonVersato:
+      chiPaga === "attivita" ? 0 : quota.imposte.daAccantonare + quota.iva.daAccantonare,
   });
 
   const effettivo = limiteEffettivo(dalMese.resta, tetto.tetto - riga.speso);
@@ -136,6 +198,13 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
   return {
     impostazioni,
     quota,
+    fisco: {
+      chiPaga,
+      fonte,
+      lettura,
+      contraddetta: dichiarazioneContraddetta(impostazioni.fiscoPagatoDa, lettura),
+      accantonamentoApplicato,
+    },
     righe,
     riga,
     dalMese,
