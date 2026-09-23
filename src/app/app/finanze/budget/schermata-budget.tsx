@@ -38,7 +38,7 @@ import { usePreferenze } from "@/lib/stato/preferenze";
 import { applicaBudgetATuttoLAnno, azzeraBudget, salvaBudgetMese } from "@/lib/dati/azioni";
 import { confrontoBudget, quadroDelMese, totaleDi, type RigaBudget } from "@/lib/finanze/budget";
 import type { BudgetPf } from "@/lib/finanze/tipi";
-import { euro, meseBreve, nomeMese, percentuale } from "@/lib/format";
+import { euro, meseBreve, nomeMese, percentuale, quandoMesi } from "@/lib/format";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { cn } from "@/lib/utils";
 
@@ -290,14 +290,44 @@ export function SchermataBudget() {
               </p>
             )}
 
+            {/*
+              **«Speso non misurabile» da sola non si capisce.**
+
+              Era il rimprovero giusto: diceva che una misura manca e non
+              diceva perché, a chi aveva appena importato trentasette
+              movimenti. Le due cose che servono sono che cosa vuol dire —
+              c'era — e **dove i movimenti di quest'anno ci sono davvero**,
+              che non c'era: un mese vuoto ha due cause opposte, non l'hai
+              ancora caricato, oppure l'hai caricato ed è entrato altrove, con
+              altre date o su un altro conto. Senza l'elenco dei mesi, le due
+              si leggono uguali.
+            */}
             {!confronto.conMovimenti && (
               <p className="text-etichetta text-inchiostro-tenue">
                 Di {nomeMese(mese).toLowerCase()} non ci sono movimenti registrati, quindi la
                 colonna «speso» resta vuota: <strong>non è zero, è un mese che non si sa</strong>.{" "}
-                <Link href={ROTTE.finanzeRendiconto} className="underline underline-offset-2">
-                  Carica il rendiconto
-                </Link>{" "}
-                o registra qualche movimento.
+                {confronto.mesiConRegistro.length === 0 ? (
+                  <>
+                    Nel {anno} non c&apos;è nessun movimento, in nessun mese.{" "}
+                    <Link href={ROTTE.finanzeRendiconto} className="underline underline-offset-2">
+                      Carica il rendiconto
+                    </Link>{" "}
+                    o registra qualche movimento.
+                  </>
+                ) : (
+                  <>
+                    Nel {anno} i movimenti ci sono {quandoMesi(confronto.mesiConRegistro)}: se{" "}
+                    {nomeMese(mese).toLowerCase()} l&apos;hai già importato, guarda in{" "}
+                    <Link href={ROTTE.finanzeMovimenti} className="underline underline-offset-2">
+                      Movimenti
+                    </Link>{" "}
+                    con che date e su che conto è entrato. Altrimenti{" "}
+                    <Link href={ROTTE.finanzeRendiconto} className="underline underline-offset-2">
+                      carica il rendiconto
+                    </Link>
+                    .
+                  </>
+                )}
               </p>
             )}
           </CardCorpo>
@@ -318,7 +348,7 @@ export function SchermataBudget() {
                   previsto {euro(totale.previsto)} ·{" "}
                   {confronto.conMovimenti
                     ? `${gruppo.verso === "entrata" ? "incassato" : "speso"} ${euro(totale.speso)}`
-                    : `${gruppo.verso === "entrata" ? "incassato" : "speso"} non misurabile`}
+                    : `${gruppo.verso === "entrata" ? "incassato" : "speso"} non si sa: ${nomeMese(mese).toLowerCase()} non ha movimenti`}
                 </span>
               </CardCorpo>
               <ul className="divide-y divide-bordo/70 border-y border-bordo">
@@ -475,7 +505,7 @@ function RigaDelBudget({
       </span>
 
       <span className="col-span-2 text-right sm:col-span-1">
-        <Stato riga={riga} verso={verso} />
+        <Stato riga={riga} verso={verso} mese={mese} />
       </span>
 
       {/*
@@ -542,11 +572,24 @@ function Etichettina({ children }: { children: React.ReactNode }) {
  * non lo sa e non deve saperlo — `budget.ts` dice soltanto dove sta il numero —
  * e il colore lo mette qui, che è l'unico posto che conosce il tipo.
  */
-function Stato({ riga, verso }: { riga: RigaBudget; verso: "entrata" | "uscita" }) {
+function Stato({
+  riga,
+  verso,
+  mese,
+}: {
+  riga: RigaBudget;
+  verso: "entrata" | "uscita";
+  mese: number;
+}) {
   const { stato, quota, differenza } = riga;
 
   if (stato === "senza-dati") {
-    return <span className="text-micro text-inchiostro-tenue/70">mese senza movimenti</span>;
+    /* Il mese per nome: «mese senza movimenti» non dice quale mese. */
+    return (
+      <span className="text-micro text-inchiostro-tenue/70">
+        {nomeMese(mese).toLowerCase()} senza movimenti
+      </span>
+    );
   }
   if (stato === "senza-budget") {
     return <span className="text-micro text-inchiostro-tenue/70">nessun budget</span>;

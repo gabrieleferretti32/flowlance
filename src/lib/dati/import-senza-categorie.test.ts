@@ -39,7 +39,6 @@ describe("l'import di un rendiconto", () => {
     const esito = await eseguiImportRendiconto(
       [movimento("spesa-alimentare"), movimento(""), movimento("")],
       ["banca.csv"],
-      "c1",
     );
     expect(esito).toBeNull();
     expect(await archivio().pfMovimenti.tutti()).toHaveLength(0);
@@ -50,7 +49,6 @@ describe("l'import di un rendiconto", () => {
     const esito = await eseguiImportRendiconto(
       [movimento("spesa-alimentare"), movimento("bollette")],
       ["banca.csv"],
-      "c1",
     );
     expect(esito).not.toBeNull();
     expect(await archivio().pfMovimenti.tutti()).toHaveLength(2);
@@ -60,7 +58,6 @@ describe("l'import di un rendiconto", () => {
     const esito = await eseguiImportRendiconto(
       [movimento("", "giroconto"), movimento("bollette")],
       ["banca.csv"],
-      "c1",
     );
     expect(esito).not.toBeNull();
     expect(await archivio().pfMovimenti.tutti()).toHaveLength(2);

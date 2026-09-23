@@ -135,7 +135,7 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
     );
 
   const righe: RigaAnteprima[] = [];
-  for (const f of ing.file) {
+  for (const [posizione, f] of ing.file.entries()) {
     for (const r of f.righe) {
       /*
         Il segno dice il verso; il tipo lo decide la categoria riconosciuta.
@@ -157,7 +157,18 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         || somigliaAUnGiroconto(r.data, r.importo, f.contoId);
       visteInQuestoImport.add(firma);
       righe.push({
-        id: `${f.nome}#${r.indice}`,
+        /*
+          **La posizione del file, non solo il suo nome.**
+
+          Le banche esportano nomi generici — «movimenti.csv», «Lista
+          Operazione.xlsx» — e due conti della stessa banca scaricano due file
+          che si chiamano uguale. Con l'identificatore fatto di nome e riga, le
+          righe dei due file erano le stesse: `conGiroconti` le rilegge da una
+          mappa per id, di due righe con lo stesso id ne resta una, e tutte le
+          righe prendevano il conto dell'ultimo file caricato. Cioè l'import
+          scriveva i movimenti sul conto sbagliato, senza dirlo.
+        */
+        id: `${posizione}:${f.nome}#${r.indice}`,
         file: f.nome,
         indice: r.indice,
         data: r.data,

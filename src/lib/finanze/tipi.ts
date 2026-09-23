@@ -253,6 +253,14 @@ export type ImportPf = {
   id: string;
   data: string;
   file: string;
+  /**
+   * Il conto su cui è finito l'import, quando è uno solo.
+   *
+   * Vuoto quando i file erano più d'uno e andavano su conti diversi: prima
+   * teneva il conto del **primo** file e lo chiamava «il conto dell'import»,
+   * che su due file era falso. Chi vuole sapere dove sono finiti i movimenti
+   * li conta — `movimentiPerConto` — invece di fidarsi di questa riga.
+   */
   contoId: string;
   numeroMovimenti: number;
 };

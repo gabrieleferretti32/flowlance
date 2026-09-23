@@ -603,3 +603,31 @@ usa per il limite di quel mese, ma il tetto dal conto guarda solo il saldo di
 oggi. Sono due domande diverse e va bene così — il conto dice quello che c'è,
 non quello che arriverà — ma chi compila un budget di entrate generoso vede
 cambiare una delle due cifre e non l'altra, e la schermata non lo spiega.
+
+---
+
+**«L'import salva i movimenti sul conto sbagliato»: il caso che riproduce e
+quello che non riproduce.** Segnalato il 23 settembre 2026, da un import vero:
+rendiconto Intesa assegnato a «Intesa Sanpaolo», e in Movimenti trentasette
+righe che dicevano «Fineco (Tasse)», con il filtro su Intesa che non tornava
+niente.
+
+Misurato **un** modo in cui succede, e corretto: due file con lo stesso nome —
+o lo stesso file caricato due volte — producevano righe d'anteprima con lo
+stesso identificatore (`nome#riga`), e `conGiroconti` le rilegge da una mappa
+per id. Di due righe con lo stesso id ne restava una, e tutte prendevano il
+conto dell'ultimo file. Con due rendiconti di tre e due righe: cinque righe in
+anteprima, tutte sullo stesso conto — quattro movimenti su Fineco e uno su
+Intesa invece di due e tre. Adesso l'identificatore porta anche la posizione
+del file, e il test `import-conti.test.ts` lo fissa.
+
+Non riprodotto, invece, il caso di **un file solo**. Provato tre volte nel
+browser sulle schermate vere, leggendo IndexedDB: un file assegnato al secondo
+conto dell'elenco, due file su due conti, trentasette righe di settembre. In
+tutti e tre i movimenti sono finiti sul conto scelto. Restano due strade per
+arrivare a quel risultato senza un difetto nella scrittura: un import
+precedente fatto sul conto proposto per primo — e allora il secondo tentativo
+non scrive niente, perché le righe arrivano deselezionate come doppioni — e le
+righe assegnate a mano riga per riga in anteprima. Per distinguerle adesso
+c'è il posto dove guardare: l'esito dell'import e lo storico dicono **quanti
+movimenti su quale conto**, contandoli in archivio, con la data dell'import.

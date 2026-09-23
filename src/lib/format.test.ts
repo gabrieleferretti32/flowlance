@@ -4,12 +4,14 @@ import {
   analizzaNumero,
   analizzaPercentuale,
   data,
+  elencoMesi,
   euro,
   euroTondo,
   iniziali,
   num,
   perCampo,
   percentuale,
+  quandoMesi,
   variazione,
 } from "./format";
 
@@ -116,5 +118,54 @@ describe("aliquota e la virgola mobile", () => {
     expect(aliquota(0.22)).toBe("22 %");
     expect(aliquota(0.05)).toBe("5 %");
     expect(aliquota(1)).toBe("100 %");
+  });
+});
+
+describe("elencoMesi", () => {
+  /*
+    Serve a spiegare un mese vuoto: «settembre non ha movimenti» da sola non
+    distingue l'archivio da caricare dal file entrato con le date sbagliate.
+  */
+  it("un mese solo si dice per nome", () => {
+    expect(elencoMesi([9])).toBe("settembre");
+  });
+
+  it("due mesi staccati si elencano", () => {
+    expect(elencoMesi([1, 9])).toBe("gennaio e settembre");
+  });
+
+  it("tre o più di fila diventano «da … a …»", () => {
+    expect(elencoMesi([1, 2, 3, 4, 5, 6, 7, 8])).toBe("da gennaio ad agosto");
+    expect(elencoMesi([3, 4, 5])).toBe("da marzo a maggio");
+  });
+
+  it("la d eufonica solo davanti alla stessa vocale", () => {
+    expect(elencoMesi([1, 2, 3, 4])).toBe("da gennaio ad aprile");
+    expect(elencoMesi([5, 6, 7, 8, 9, 10])).toBe("da maggio a ottobre");
+  });
+
+  it("una fila interrotta resta un elenco", () => {
+    expect(elencoMesi([1, 2, 4])).toBe("gennaio, febbraio e aprile");
+  });
+
+  it("nessun mese non è una frase", () => {
+    expect(elencoMesi([])).toBe("");
+  });
+
+  it("i doppioni e il disordine non cambiano niente", () => {
+    expect(elencoMesi([9, 1, 9])).toBe("gennaio e settembre");
+  });
+});
+
+describe("quandoMesi", () => {
+  it("mette la preposizione, e non la mette dove c'è già", () => {
+    expect(quandoMesi([9])).toBe("a settembre");
+    expect(quandoMesi([4])).toBe("ad aprile");
+    expect(quandoMesi([1, 9])).toBe("a gennaio e settembre");
+    expect(quandoMesi([1, 2, 3])).toBe("da gennaio a marzo");
+  });
+
+  it("niente mesi, niente frase", () => {
+    expect(quandoMesi([])).toBe("");
   });
 });

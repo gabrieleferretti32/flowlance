@@ -35,6 +35,7 @@ import { Campo, Input } from "@/components/ui/input";
 import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
 import { Switch } from "@/components/ui/switch";
 import { Vuoto } from "@/components/ui/vuoto";
+import { SceltaEmoji } from "@/components/ui/scelta-emoji";
 import { CellaModificabile } from "@/components/tabella/cella-modificabile";
 import { Guscio } from "@/components/guscio/guscio";
 import { useDati } from "@/lib/dati/hooks";
@@ -46,6 +47,7 @@ import {
   seminaCategorie,
 } from "@/lib/dati/azioni";
 import { CATEGORIE_INIZIALI, nomeGiaUsato, usoDelleCategorie } from "@/lib/finanze/categorie";
+import { ICONE_SCELTA, iconaDalNome } from "@/lib/finanze/icone";
 import type { CategoriaPf, MovimentoPf, TipoCategoria } from "@/lib/finanze/tipi";
 import { cn } from "@/lib/utils";
 
@@ -199,7 +201,25 @@ function RigaCategoria({
   return (
     <li className="flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-2">
         <span className="flex min-w-48 flex-1 items-center gap-2">
-          {categoria.icona && <span aria-hidden>{categoria.icona}</span>}
+          {/*
+            L'emoji si sceglie da qui, anche su quelle che ce l'hanno già.
+            Prima era solo una decorazione stampata: le venti di partenza ce
+            l'avevano e le altre no, e non c'era nessun posto in cui darla o
+            cambiarla.
+          */}
+          <BloccoScrittura>
+            <SceltaEmoji
+              valore={categoria.icona}
+              etichetta={`Emoji di ${categoria.nome}`}
+              emoji={ICONE_SCELTA}
+              onScegli={(icona) =>
+                void salvaCategoria(
+                  { ...categoria, icona },
+                  icona === undefined ? "Emoji tolta" : `Emoji cambiata in ${icona}`,
+                )
+              }
+            />
+          </BloccoScrittura>
           <CellaModificabile
             tipo="testo"
             etichetta={`Nome di ${categoria.nome}`}
@@ -352,14 +372,27 @@ function ModuloCategoria({
           htmlFor={idCampo}
           className="min-w-40 flex-1"
         >
-          <Input
-            id={idCampo}
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            aria-invalid={occupato || undefined}
-            placeholder="Es. Palestra"
-            className={cn(occupato && "border-negativo")}
-          />
+          <span className="flex items-center gap-2">
+            {/*
+              L'emoji che verrà, mentre si scrive il nome. Serve a due cose:
+              far vedere che arriva dal nome — «Palestra» diventa 🏋️ sotto gli
+              occhi — e dire che esiste, visto che poi si cambia dalla riga.
+            */}
+            <span
+              aria-hidden
+              className="flex size-9 shrink-0 items-center justify-center rounded-campo border border-bordo bg-superficie-alt/60 text-corpo"
+            >
+              {iconaDalNome(nome, tipo)}
+            </span>
+            <Input
+              id={idCampo}
+              value={nome}
+              onChange={(e) => setNome(e.target.value)}
+              aria-invalid={occupato || undefined}
+              placeholder="Es. Palestra"
+              className={cn("flex-1", occupato && "border-negativo")}
+            />
+          </span>
         </Campo>
         <Button type="submit" variante="contorno" disabled={vuoto || occupato}>
           <Plus className="size-4" aria-hidden />

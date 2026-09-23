@@ -59,6 +59,15 @@ export type ConfrontoBudget = {
   righe: RigaBudget[];
   /** Il mese guardato ha movimenti registrati. Se no, «speso» non si sa. */
   conMovimenti: boolean;
+  /**
+   * I mesi dell'anno che hanno movimenti, in ordine.
+   *
+   * Sta qui perché «questo mese non ha movimenti» da solo non si capisce, ed
+   * era il rimprovero giusto: non distingue l'archivio ancora vuoto dal mese
+   * caricato che è finito altrove — un anno sbagliato, un file di un altro
+   * periodo. Con l'elenco davanti la risposta è nella stessa frase.
+   */
+  mesiConRegistro: number[];
   totale: { previsto: number; speso: number; differenza: number };
 };
 
@@ -167,6 +176,7 @@ export function confrontoBudget(ing: {
   return {
     righe,
     conMovimenti,
+    mesiConRegistro: [...mesiConMovimenti].sort((a, b) => a - b),
     totale: {
       previsto: round2(somma(...righe.map((r) => r.previsto))),
       speso: round2(somma(...righe.map((r) => r.speso))),

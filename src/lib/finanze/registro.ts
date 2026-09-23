@@ -24,7 +24,7 @@
  */
 import { round2, somma } from "@/lib/fisco/aritmetica";
 import { effettoSulConto } from "./saldo";
-import type { MovimentoPf, TipoMovimento } from "./tipi";
+import type { ContoPersonale, MovimentoPf, TipoMovimento } from "./tipi";
 
 export type FiltroRegistro = {
   anno: number;
@@ -102,4 +102,33 @@ export function mesiConMovimenti(movimenti: MovimentoPf[], annoScelto: number): 
   return [
     ...new Set(movimenti.filter((m) => anno(m.data) === annoScelto).map((m) => mese(m.data))),
   ].sort((a, b) => a - b);
+}
+
+/**
+ * Quanti movimenti su quale conto, contati **sui movimenti**.
+ *
+ * Serve a dire dove sono finiti, subito dopo un import e nello storico, e a
+ * dirlo leggendo l'archivio invece della scelta fatta in anteprima. È la
+ * differenza fra una misura e un'eco: se il conto si perde per strada — è
+ * successo, con due file che si chiamavano uguale — una frase costruita sulla
+ * scelta continuerebbe a dire «su Intesa Sanpaolo» mentre in archivio c'è
+ * scritto un altro conto. Questa no.
+ *
+ * L'ordine è per quantità, poi per nome: la riga più grossa per prima, e a
+ * parità un ordine che non cambia fra un render e l'altro.
+ */
+export function movimentiPerConto(
+  movimenti: MovimentoPf[],
+  conti: ContoPersonale[],
+): { nome: string; quanti: number }[] {
+  const nomi = new Map(conti.map((c) => [c.id, c.nome]));
+  const conteggio = new Map<string, number>();
+  for (const m of movimenti) {
+    /* Un conto cancellato resta un conto: dire «—» è meglio che non dirlo. */
+    const nome = nomi.get(m.contoId) ?? "conto non più in elenco";
+    conteggio.set(nome, (conteggio.get(nome) ?? 0) + 1);
+  }
+  return [...conteggio]
+    .map(([nome, quanti]) => ({ nome, quanti }))
+    .sort((a, b) => b.quanti - a.quanti || a.nome.localeCompare(b.nome, "it"));
 }

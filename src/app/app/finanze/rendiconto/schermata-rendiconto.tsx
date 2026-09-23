@@ -65,6 +65,7 @@ import {
   trovaIntestazione,
 } from "@/lib/finanze/intestazione";
 import { anniChiusiToccati } from "@/lib/finanze/derivazione";
+import { movimentiPerConto } from "@/lib/finanze/registro";
 import {
   applicaMappatura,
   formatoDelleDate,
@@ -74,7 +75,7 @@ import {
   type MappaturaColonne,
   type ScartoRendiconto,
 } from "@/lib/finanze/rendiconto";
-import type { ContoPersonale, ImportPf, TipoMovimento } from "@/lib/finanze/tipi";
+import type { ContoPersonale, ImportPf, MovimentoPf, TipoMovimento } from "@/lib/finanze/tipi";
 import { data as fmtData } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -193,6 +194,8 @@ export function SchermataRendiconto() {
   const [esito, setEsito] = React.useState<{
     quanti: number;
     chiusi: { anno: number; quanti: number }[];
+    /** Dove sono finiti, contati sui movimenti scritti. */
+    perConto: { nome: string; quanti: number }[];
   } | null>(null);
   /** Un file che non si è potuto leggere, con il motivo scritto in italiano. */
   const [erroreFile, setErroreFile] = React.useState<string | null>(null);
@@ -390,7 +393,6 @@ export function SchermataRendiconto() {
     await eseguiImportRendiconto(
       movimenti,
       file.map((f) => f.nome),
-      file[0]?.contoId ?? "",
     );
     /*
       L'esito resta sulla pagina, e non solo nel toast che passa.
@@ -404,6 +406,7 @@ export function SchermataRendiconto() {
     setEsito({
       quanti: movimenti.length,
       chiusi: anniChiusiToccati(movimenti, dati.chiusure),
+      perConto: movimentiPerConto(movimenti, conti),
     });
     setFile([]);
     setRighe(null);
@@ -654,6 +657,23 @@ export function SchermataRendiconto() {
               <CardTitolo>
                 {esito.quanti === 1 ? "Un movimento registrato" : `${esito.quanti} movimenti registrati`}
               </CardTitolo>
+              {/*
+                Su quale conto, detto qui e contato sui movimenti scritti.
+
+                «I movimenti sono finiti sul conto sbagliato» è arrivato da un
+                import vero, e la schermata non aveva mai detto dove li stava
+                mettendo: il conto si sceglieva in cima, tre schermate prima
+                del risultato, e l'unico posto dove ricomparire era l'elenco
+                dei movimenti. Adesso l'ultima cosa che si legge dopo un
+                import è dove sono andati.
+              */}
+              <p className="text-etichetta">
+                {esito.perConto.length === 1
+                  ? `${esito.quanti === 1 ? "Sul conto" : "Tutti sul conto"} ${esito.perConto[0].nome}.`
+                  : esito.perConto
+                      .map((c) => `${c.quanti} su ${c.nome}`)
+                      .join(" · ")}
+              </p>
               {esito.chiusi.length === 0 ? (
                 <CardSottotitolo>
                   Il riepilogo mensile del Cashflow adesso arriva dal registro, nei mesi che hanno
@@ -688,7 +708,11 @@ export function SchermataRendiconto() {
           </Card>
         )}
 
-        <StoricoImport importazioni={dati.pfImport} />
+        <StoricoImport
+          importazioni={dati.pfImport}
+          movimenti={dati.pfMovimenti}
+          conti={conti}
+        />
 
         {/*
           Il raccordo con l'altro import, come fra i due patrimoni: ognuno dice
@@ -966,7 +990,24 @@ function primaParolaUtile(descrizione: string): string {
   return parole.sort((a, b) => b.length - a.length)[0] ?? descrizione.trim();
 }
 
-function StoricoImport({ importazioni }: { importazioni: ImportPf[] }) {
+/**
+ * Gli import fatti, e **su quale conto** ognuno ha messo i suoi movimenti.
+ *
+ * Il conto non si legge dalla registrazione ma dai movimenti che portano quel
+ * codice d'import: è l'unico modo perché questa riga possa smentire la scelta
+ * fatta in anteprima invece di ripeterla. Serve a rispondere alla domanda che
+ * si fa il giorno dopo — «dove sono finiti quei trentasette?» — senza doverli
+ * cercare uno per uno nel registro.
+ */
+function StoricoImport({
+  importazioni,
+  movimenti,
+  conti,
+}: {
+  importazioni: ImportPf[];
+  movimenti: MovimentoPf[];
+  conti: ContoPersonale[];
+}) {
   if (importazioni.length === 0) return null;
   const ordinate = [...importazioni].sort((a, b) => b.data.localeCompare(a.data));
   return (
@@ -988,6 +1029,14 @@ function StoricoImport({ importazioni }: { importazioni: ImportPf[] }) {
             </span>
             <span className="text-micro text-inchiostro-tenue">
               {i.numeroMovimenti} {i.numeroMovimenti === 1 ? "movimento" : "movimenti"}
+              {(() => {
+                const perConto = movimentiPerConto(
+                  movimenti.filter((m) => m.importId === i.id),
+                  conti,
+                );
+                if (perConto.length === 0) return null;
+                return ` · ${perConto.map((c) => `${c.quanti} su ${c.nome}`).join(" · ")}`;
+              })()}
             </span>
             <BloccoScrittura>
               <Button

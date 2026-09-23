@@ -129,6 +129,49 @@ export function nomeMese(indice: number): string {
   return formatDate(new Date(2026, indice - 1, 1), "MMMM", { locale: it });
 }
 
+/**
+ * «gennaio», «gennaio e marzo», «da gennaio ad agosto».
+ *
+ * Serve a dire *dove* il registro ha movimenti quando il mese guardato non ne
+ * ha: «questo mese non ha movimenti» da sola non distingue un archivio vuoto
+ * da un import finito da un'altra parte, ed è la differenza fra «non l'hai
+ * ancora caricato» e «l'hai caricato e non è qui».
+ *
+ * Una fila ininterrotta di tre mesi o più si dice con «da … a …»: elencarne
+ * otto per nome è una riga che nessuno legge fino in fondo. La d eufonica va
+ * solo davanti alla stessa vocale — «ad agosto», «ad aprile» — perché è la
+ * regola che l'italiano di oggi tiene.
+ */
+export function elencoMesi(mesi: number[]): string {
+  const ordinati = [...new Set(mesi)].sort((a, b) => a - b);
+  if (ordinati.length === 0) return "";
+  if (ordinati.length === 1) return nomeMese(ordinati[0]);
+
+  const primo = ordinati[0];
+  const ultimo = ordinati[ordinati.length - 1];
+  const fila = ultimo - primo + 1 === ordinati.length;
+  if (fila && ordinati.length >= 3) {
+    const a = nomeMese(ultimo);
+    return `da ${nomeMese(primo)} a${a.startsWith("a") ? "d" : ""} ${a}`;
+  }
+  const nomi = ordinati.map(nomeMese);
+  return `${nomi.slice(0, -1).join(", ")} e ${nomi[nomi.length - 1]}`;
+}
+
+/**
+ * Lo stesso elenco con la preposizione giusta davanti: «a gennaio», «ad
+ * aprile», «da gennaio ad agosto».
+ *
+ * Sta qui e non nella frase che lo usa perché la preposizione dipende da come
+ * l'elenco è venuto — una fila comincia già per «da» e non ne vuole un'altra —
+ * e quella è una cosa che sa `elencoMesi`, non chi scrive la frase.
+ */
+export function quandoMesi(mesi: number[]): string {
+  const elenco = elencoMesi(mesi);
+  if (elenco === "" || elenco.startsWith("da ")) return elenco;
+  return `a${elenco.startsWith("a") ? "d" : ""} ${elenco}`;
+}
+
 /** Gen, Feb, … per gli assi dei grafici. */
 export function meseBreve(indice: number): string {
   const s = formatDate(new Date(2026, indice - 1, 1), "MMM", { locale: it });

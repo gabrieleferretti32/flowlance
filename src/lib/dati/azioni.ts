@@ -56,6 +56,7 @@ import {
   movimentiDellaCategoria,
   nomeGiaUsato,
 } from "@/lib/finanze/categorie";
+import { iconaDalNome } from "@/lib/finanze/icone";
 import { notaGrezza } from "@/lib/fisco/note";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { datasetDi, DATASET_PREDEFINITO, type IdDataset } from "./dataset";
@@ -956,7 +957,20 @@ export async function creaCategoria(
     toast.errore(`C'è già una categoria «${categoria.nome.trim()}» fra quelle di questo tipo`);
     return null;
   }
-  const nuova: CategoriaPf = { ...categoria, nome: categoria.nome.trim(), id: nuovoId() };
+  const nome = categoria.nome.trim();
+  /*
+    L'emoji si mette qui e non nella schermata: chi crea una categoria è
+    sempre passato da questa funzione — la schermata, e domani l'import che
+    proponesse una categoria nuova — e una riga senza emoji in mezzo a venti
+    che ce l'hanno sembra rotta. Se chi chiama ne ha già scelta una, resta la
+    sua.
+  */
+  const nuova: CategoriaPf = {
+    ...categoria,
+    nome,
+    icona: categoria.icona ?? iconaDalNome(nome, categoria.tipo),
+    id: nuovoId(),
+  };
   await archivio().pfCategorie.salva(nuova);
   toast.conferma("Categoria aggiunta", async () => {
     await archivio().pfCategorie.elimina(nuova.id);
@@ -1033,7 +1047,6 @@ export async function salvaMappaturaConto(conto: ContoPersonale, mappatura: Mapp
 export async function eseguiImportRendiconto(
   movimenti: MovimentoPf[],
   file: string[],
-  contoId: string,
 ): Promise<ImportPf | null> {
   if (movimenti.length === 0) return null;
 
@@ -1057,11 +1070,21 @@ export async function eseguiImportRendiconto(
     );
     return null;
   }
+  /*
+    Il conto della registrazione si legge **dai movimenti**, non da chi chiama.
+
+    Prima arrivava da fuori come «il conto dell'import», e chi chiamava passava
+    quello del primo file: con due rendiconti su due conti diversi la riga
+    dello storico ne nominava uno solo, a caso fra i due. Qui si guarda dove i
+    movimenti sono finiti davvero; se i conti sono più d'uno resta vuoto, e lo
+    storico li conta uno per uno.
+  */
+  const conti = new Set(movimenti.map((m) => m.contoId));
   const registrazione: ImportPf = {
     id: movimenti[0].importId ?? nuovoId(),
     data: new Date().toISOString(),
     file: file.join(" · "),
-    contoId,
+    contoId: conti.size === 1 ? [...conti][0] : "",
     numeroMovimenti: movimenti.length,
   };
   await archivio().pfMovimenti.salvaMolti(movimenti);

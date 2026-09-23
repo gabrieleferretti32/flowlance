@@ -327,3 +327,87 @@ describe("il quadro del mese", () => {
     expect(q.differenza).toBeNull();
   });
 });
+
+/**
+ * Perché un mese con movimenti diceva «mese senza movimenti».
+ *
+ * La segnalazione era questa: trentasette movimenti importati, e il budget di
+ * settembre con «previsto 0,00 € · speso non misurabile» su ogni categoria.
+ * La domanda — è colpa del conto sbagliato o è un difetto a sé? — ha una
+ * risposta misurabile: `conMovimenti` guarda **anno e mese**, e il conto non
+ * lo guarda affatto. Se i movimenti sono in quel mese il confronto li vede,
+ * su qualunque conto siano finiti; se non li vede, sono in un altro mese o in
+ * un altro anno. `mesiConRegistro` esiste per dire dove sono, invece di
+ * lasciare che sia chi guarda a doverlo indovinare.
+ */
+describe("il mese senza movimenti, e come si fa a saperlo", () => {
+  const categorie = [cat("spesa", "spesa")];
+
+  it("**il conto dei movimenti non c'entra niente**: cambiarlo non cambia il confronto", () => {
+    const righe = (contoId: string) =>
+      confrontoBudget({
+        anno: 2026,
+        mese: 9,
+        movimenti: [{ ...mov("spesa", "2026-09-04", 80), contoId }],
+        categorie,
+        budget: [],
+      });
+    expect(righe("c1").conMovimenti).toBe(true);
+    expect(righe("un-altro-conto").conMovimenti).toBe(true);
+    expect(righe("c1").righe[0].speso).toBe(righe("un-altro-conto").righe[0].speso);
+  });
+
+  it("e la misura vede la differenza: spostati di mese, il confronto smette di vederli", () => {
+    const confronto = confrontoBudget({
+      anno: 2026,
+      mese: 9,
+      movimenti: [mov("spesa", "2026-08-04", 80), mov("spesa", "2026-07-04", 80)],
+      categorie,
+      budget: [],
+    });
+    expect(confronto.conMovimenti).toBe(false);
+    expect(confronto.righe[0].stato).toBe("senza-dati");
+  });
+
+  it("**dice in quali mesi il registro ce li ha**, che è la risposta alla domanda vera", () => {
+    const confronto = confrontoBudget({
+      anno: 2026,
+      mese: 9,
+      movimenti: [
+        mov("spesa", "2026-01-04", 80),
+        mov("spesa", "2026-02-04", 80),
+        mov("spesa", "2026-08-04", 80),
+        /* Un altro anno non conta: il registro guardato è quello del 2026. */
+        mov("spesa", "2025-09-04", 80),
+      ],
+      categorie,
+      budget: [],
+    });
+    expect(confronto.conMovimenti).toBe(false);
+    expect(confronto.mesiConRegistro).toEqual([1, 2, 8]);
+  });
+
+  it("un anno senza niente ha l'elenco vuoto, e non è la stessa cosa", () => {
+    const confronto = confrontoBudget({
+      anno: 2026,
+      mese: 9,
+      movimenti: [],
+      categorie,
+      budget: [],
+    });
+    expect(confronto.conMovimenti).toBe(false);
+    expect(confronto.mesiConRegistro).toEqual([]);
+  });
+
+  it("i giroconti non fanno mese: spostare denaro non è né incassare né spendere", () => {
+    const confronto = confrontoBudget({
+      anno: 2026,
+      mese: 9,
+      movimenti: [mov("", "2026-09-04", 500, "giroconto")],
+      categorie,
+      budget: [],
+    });
+    expect(confronto.conMovimenti).toBe(false);
+    expect(confronto.mesiConRegistro).toEqual([]);
+  });
+});
