@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { descrizioneUtile } from "./descrizione";
+import { descrizioneUtile, primaParolaUtile } from "./descrizione";
 import { categorizza } from "./categorizza";
 import { CATEGORIE_INIZIALI } from "./categorie";
 import type { CategoriaPf } from "./tipi";
@@ -136,5 +136,37 @@ describe("un incasso da cliente scritto come lo scrive la banca", () => {
   it("**ma un rimborso no**: «fattura» da sola non basta", () => {
     const proposta = categorizza("RIMBORSO FATTURA ENEL ENERGIA", "entrata", categorie, []);
     expect(proposta.origine).toBe("nessuna");
+  });
+});
+
+describe("**la parola con cui si propone una regola**", () => {
+  /*
+    Su un addebito SDD la parola più lunga è «Mandato»: la regola proposta per
+    un pagamento PayPal diventava «quando la descrizione contiene Mandato», che
+    il mese dopo cattura ogni addebito diretto di chiunque. Misurato in
+    anteprima, con la regola salvata in archivio.
+  */
+  it("è la controparte, non il codice del mandato", () => {
+    expect(
+      primaParolaUtile("PAYPAL EUROPE S.a.r.l. Et Cie S.C.A Mandato 4001"),
+    ).toBe("PAYPAL");
+  });
+
+  it("e non una parola della formula bancaria", () => {
+    expect(primaParolaUtile("Pagamento Pos Presso ESSELUNGA MILANO")).toBe("ESSELUNGA");
+    expect(primaParolaUtile("Addebito Diretto ENEL ENERGIA SPA")).toBe("ENEL");
+  });
+
+  it("i numeri non sono parole", () => {
+    expect(primaParolaUtile("LIDL 2505")).toBe("LIDL");
+  });
+
+  it("quando è tutta formula, resta la prima parola lunga: è comunque una regola utile", () => {
+    /*
+      «PRELIEVO BANCOMAT» non ha una controparte dentro, e va bene così: chi
+      vuole una regola per i prelievi la scrive proprio su «prelievo».
+    */
+    expect(primaParolaUtile("PRELIEVO BANCOMAT")).toBe("PRELIEVO");
+    expect(primaParolaUtile("")).toBe("");
   });
 });

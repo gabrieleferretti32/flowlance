@@ -671,14 +671,12 @@ stabile per tutte, e le tabelle dei file tenute da parte: **15-18 ms di
 gestori, 48 ms di evento** a 400 righe, 32 ms alle 37 del caso vero. Sotto la
 soglia dei 200 ms con un margine largo.
 
-Resta il **primo disegno**: il clic su «Leggi» che costruisce l'anteprima vale
-2,9 secondi a 400 righe (396 ms a 37). È un'interazione sola, annunciata da un
-pulsante, ma è comunque un secondo e mezzo oltre la soglia. Le strade, in
-ordine di costo: disegnare solo le righe visibili (finestra virtuale), oppure
-mostrare i tre menu di una riga — tipo, categoria, conto — solo quando quella
-riga viene toccata, tenendo il testo per tutte le altre. La seconda costa meno
-e cambia il comportamento di una cosa sola; la prima non cambia niente di
-visibile ma tocca l'impaginazione dell'elenco. Da decidere insieme.
+**Chiuso il 23 settembre 2026** con la seconda strada: i tre menu di una riga
+— tipo, categoria, conto — si disegnano solo sulla riga che si apre, e chiusa
+la riga è testo in colonna. Il primo disegno dell'anteprima passa da **2.949 a
+250 ms** su 400 righe, i nodi del documento da 8.059 a 4.859, e il clic
+peggiore da 2.864 a 192 ms: sotto la soglia anche quello. La spunta resta
+sempre attiva, perché è il gesto che si fa su tutte le righe.
 
 **Le righe che il dizionario non prova a indovinare.** Sul rendiconto vero
 restano «Non definito» i pagamenti PayPal — sei righe su trentasette — i
@@ -696,3 +694,27 @@ conteggio — ma resta una categoria vera, scelta da noi, senza che niente lo
 dica. Per le uscite «Non definito» è un'ammissione che si vede e si corregge;
 per le entrate quell'ammissione non esiste. Aggiungerla vuol dire una
 categoria in più fra quelle di partenza: da decidere.
+
+---
+
+**La stessa sottostringa, cercata in altri tre posti.** Dopo il «tari» dentro
+«sanitaria» il controllo è stato fatto dove la stessa forma poteva ripetersi.
+
+1. **Le formule bancarie in testa alla descrizione** (`descrizione.ts`): sane.
+   Confrontano parole intere contro un insieme — `PAROLE_DI_FORMULA.has(…)` —
+   e non pezzi di testo. Il prezzo noto resta quello già scritto: una
+   controparte che comincia con una parola di formula perde quella parola.
+2. **Il riconoscimento delle colonne all'import** (`proponiMappatura`): aveva
+   il difetto, ed è corretto. «in» è nell'elenco delle entrate perché esistono
+   colonne chiamate così, e stava dentro «saldo fINale»: con le colonne `Data ·
+   Descrizione · Importo · Saldo finale · Dare`, il saldo diventava la colonna
+   degli accrediti e «Dare» quella degli addebiti — cioè ogni importo con il
+   segno sbagliato, su un file che l'anteprima mostra ma che nessuno rilegge
+   riga per riga. Adesso usa `parole.ts`.
+3. **Le regole scritte da chi usa l'app**: restano una ricerca di
+   sottostringa, **di proposito**. Il modulo dice «quando la descrizione
+   contiene…», e contiene vuol dire contiene: chi scrive «esselung» si aspetta
+   che prenda «Esselunga». Cambiarle a parole intere spezzerebbe le regole già
+   in archivio, che nessuno ha scritto sapendo di questa distinzione. Quello
+   che è cambiato è la **parola proposta**: era la più lunga della
+   descrizione, cioè «Mandato» su ogni addebito SDD.

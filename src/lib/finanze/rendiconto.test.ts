@@ -259,3 +259,37 @@ describe("le righe che slittano", () => {
     expect(esito.righe[0].importo).toBe(1234.56);
   });
 });
+
+describe("**le colonne si riconoscono a parole, non a pezzi di parola**", () => {
+  /*
+    «in» sta nell'elenco delle entrate perché esistono colonne chiamate così, e
+    sta anche dentro «saldo fINale». Cercando la sottostringa, un rendiconto
+    con la colonna del saldo diventava un rendiconto con la colonna degli
+    accrediti — e gli importi entravano con il segno sbagliato.
+  */
+  it("«Saldo finale» non è la colonna degli accrediti", () => {
+    const m = proponiMappatura(["Data", "Descrizione", "Importo", "Saldo finale", "Dare"]);
+    expect(m).not.toBeNull();
+    /*
+      Cercando la sottostringa: entrate = «Saldo finale» (per il «in» dentro
+      «finale») e uscite = «Dare», cioè due colonne di importo che importi non
+      sono. A parole: nessuna colonna di entrata, e resta «Importo».
+    */
+    expect(m!.forma).toEqual({ tipo: "unica", importo: 2 });
+  });
+
+  it("e le colonne che lo sono davvero si riconoscono lo stesso", () => {
+    const m = proponiMappatura(["Data", "Causale", "In", "Out"]);
+    expect(m!.forma).toEqual({ tipo: "separate", entrate: 2, uscite: 3 });
+  });
+
+  it("gli inizi di parola continuano a prendere i plurali e i femminili", () => {
+    const m = proponiMappatura(["Data valuta", "Descrizione operazione", "Accrediti", "Addebiti"]);
+    expect(m!.forma).toEqual({ tipo: "separate", entrate: 2, uscite: 3 });
+  });
+
+  it("una colonna «Dare/Avere» resta riconosciuta", () => {
+    const m = proponiMappatura(["Data", "Causale", "Avere", "Dare"]);
+    expect(m!.forma).toEqual({ tipo: "separate", entrate: 2, uscite: 3 });
+  });
+});

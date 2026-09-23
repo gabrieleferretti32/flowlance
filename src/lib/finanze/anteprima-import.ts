@@ -64,6 +64,15 @@ export type RigaAnteprima = {
   duplicato: boolean;
   /** Le due righe che sono diventate un giroconto, quando è successo. */
   daGiroconto?: boolean;
+  /**
+   * Qualcuno ha cambiato qualcosa su questa riga, a mano.
+   *
+   * Serve a una cosa sola: quando si crea una regola dall'anteprima, le altre
+   * righe si ricategorizzano — ma non queste. Una decisione presa a mano non
+   * si sovrascrive con una regola dedotta due secondi dopo, nemmeno se la
+   * regola è giusta per tutte le altre.
+   */
+  toccata?: boolean;
   scelta: boolean;
 };
 
@@ -249,6 +258,46 @@ function conGiroconti(righe: RigaAnteprima[], contiTracciati: string[]): RigaAnt
       contoDestinazioneId: m.contoDestinazioneId ?? undefined,
       importo: m.importo,
       daGiroconto: true,
+    };
+  });
+}
+
+/**
+ * Le righe dell'anteprima aperta, dopo che è nata una regola nuova.
+ *
+ * Creare una regola da una riga e vedere le altre sei righe uguali restare
+ * «Non definito» è la cosa che fa pensare che la regola non abbia funzionato:
+ * vale dal prossimo import, e chi guarda non ha modo di saperlo. Qui la
+ * regola si applica subito a quello che si sta guardando.
+ *
+ * Due esclusioni, e sono la parte importante. Le righe **toccate a mano** non
+ * si toccano: una decisione presa da chi guarda non si sovrascrive con una
+ * regola dedotta due secondi dopo. E i **giroconti** restano giroconti: una
+ * categoria non ce l'hanno per definizione.
+ *
+ * Si ricategorizza dal **testo grezzo**, come al primo giro: la descrizione
+ * mostrata è ripulita, e le regole si sono sempre confrontate con quello che
+ * ha scritto la banca.
+ */
+export function riapplicaRegole(
+  righe: RigaAnteprima[],
+  categorie: CategoriaPf[],
+  regole: RegolaPf[],
+): RigaAnteprima[] {
+  return righe.map((r) => {
+    if (r.toccata || r.tipo === "giroconto") return r;
+    const proposta = categorizza(
+      r.descrizioneOriginale,
+      r.tipo === "entrata" ? "entrata" : "uscita",
+      categorie,
+      regole,
+    );
+    if (proposta.categoriaId === r.categoriaId && proposta.tipo === r.tipo) return r;
+    return {
+      ...r,
+      categoriaId: proposta.categoriaId,
+      tipo: proposta.tipo,
+      origineCategoria: proposta.origine,
     };
   });
 }

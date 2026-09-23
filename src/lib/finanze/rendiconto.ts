@@ -31,6 +31,7 @@
  * fare, perché raddoppia il saldo invece di sbagliarlo di poco.
  */
 import { analizzaData } from "@/lib/format";
+import { contieneVoce, testoConfrontabile } from "./parole";
 import { campoDi, type Tabella } from "@/lib/csv/parser";
 import { round2 } from "@/lib/fisco/aritmetica";
 
@@ -159,16 +160,27 @@ export type LetturaRendiconto = {
   scartate: ScartoRendiconto[];
 };
 
-const PAROLE_DATA = ["data", "date", "valuta", "contabile", "giorno"];
-const PAROLE_DESCRIZIONE = ["descrizione", "causale", "operazione", "dettagl", "movimento", "note"];
-const PAROLE_IMPORTO = ["importo", "amount", "saldo riga", "valore"];
-const PAROLE_ENTRATE = ["entrat", "accredit", "avere", "in", "credit"];
-const PAROLE_USCITE = ["uscit", "addebit", "dare", "out", "debit"];
+/*
+  Le intestazioni si riconoscono a **parole**, non a pezzi di parola.
 
-const contiene = (testo: string, parole: string[]) => {
-  const t = testo.trim().toLocaleLowerCase("it-IT");
-  return parole.some((p) => t.includes(p));
-};
+  Cercare la sottostringa qui costa caro quanto nel dizionario delle
+  categorie: «in» — che sta nell'elenco delle entrate perché esistono colonne
+  chiamate così — è dentro «saldo fINale» e «orIGINe». Una colonna «Saldo
+  finale» diventava la colonna degli accrediti, e da lì ogni importo entrava
+  con il segno sbagliato: il difetto che l'anteprima esiste per far vedere,
+  ma che si vede solo se si guarda.
+
+  La convenzione è quella di `parole.ts`: `entrat*` è un inizio di parola,
+  `in` una parola intera, «saldo riga» una frase.
+*/
+const PAROLE_DATA = ["data*", "date", "valuta", "contabile", "giorno"];
+const PAROLE_DESCRIZIONE = ["descrizion*", "causale", "operazion*", "dettagl*", "movimento", "note"];
+const PAROLE_IMPORTO = ["importo", "amount", "saldo riga", "valore"];
+const PAROLE_ENTRATE = ["entrat*", "accredit*", "avere", "in", "credit*"];
+const PAROLE_USCITE = ["uscit*", "addebit*", "dare", "out", "debit*"];
+
+const contiene = (testo: string, parole: string[]) =>
+  contieneVoce(testoConfrontabile(testo), parole);
 
 /**
  * Una proposta di mappatura letta dalle intestazioni.

@@ -57,6 +57,7 @@ import {
 import {
   anteprimaImport,
   movimentiDaScrivere,
+  riapplicaRegole,
   type RigaAnteprima,
 } from "@/lib/finanze/anteprima-import";
 import { tipoDiCategoria } from "@/lib/finanze/categorizza";
@@ -65,6 +66,7 @@ import {
   RIGHE_ESAMINATE,
   trovaIntestazione,
 } from "@/lib/finanze/intestazione";
+import { primaParolaUtile } from "@/lib/finanze/descrizione";
 import { anniChiusiToccati } from "@/lib/finanze/derivazione";
 import { movimentiPerConto } from "@/lib/finanze/registro";
 import { contoPropostoPerFile, distintiviDeiConti } from "@/lib/finanze/conti";
@@ -78,7 +80,7 @@ import {
   type ScartoRendiconto,
 } from "@/lib/finanze/rendiconto";
 import type { ContoPersonale, ImportPf, MovimentoPf, TipoMovimento } from "@/lib/finanze/tipi";
-import { data as fmtData } from "@/lib/format";
+import { data as fmtData, euro } from "@/lib/format";
 import { VoceConto } from "@/components/finanze/voce-conto";
 import { cn } from "@/lib/utils";
 
@@ -357,6 +359,28 @@ export function SchermataRendiconto() {
   const cambiaRiga = React.useCallback((nuova: RigaAnteprima) => {
     setRighe((x) => (x ?? []).map((y) => (y.id === nuova.id ? nuova : y)));
   }, []);
+
+  /*
+    La regola nasce e vale **subito**, anche sulle righe già in anteprima.
+
+    Creare una regola da una riga e vedere le altre sei righe uguali restare
+    «Non definito» fa pensare che non abbia funzionato: valeva dal prossimo
+    import, e niente lo diceva. `riapplicaRegole` lascia stare le righe
+    toccate a mano e i giroconti.
+  */
+  const creaEApplicaRegola = React.useCallback(
+    async (regola: { testoDaCercare: string; categoriaId: string; tipo: TipoMovimento }) => {
+      const nuova = await creaRegola({
+        ...regola,
+        tipo: tipoDiCategoria(regola.tipo),
+      });
+      if (!nuova) return;
+      setRighe((x) =>
+        x === null ? x : riapplicaRegole(x, categorie, [nuova, ...(dati?.pfRegole ?? [])]),
+      );
+    },
+    [categorie, dati?.pfRegole],
+  );
 
 
   /**
@@ -738,6 +762,7 @@ export function SchermataRendiconto() {
                   distintivi={distintivi}
                   categorie={categorie}
                   onCambia={cambiaRiga}
+                  onRegola={creaEApplicaRegola}
                 />
               ))}
             </ul>
@@ -968,16 +993,39 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
   distintivi,
   categorie,
   onCambia,
+  onRegola,
 }: {
   riga: RigaAnteprima;
   conti: ContoPersonale[];
   distintivi: Map<string, string | null>;
   categorie: { id: string; nome: string; tipo: string }[];
   onCambia: (r: RigaAnteprima) => void;
+  onRegola: (regola: {
+    testoDaCercare: string;
+    categoriaId: string;
+    tipo: TipoMovimento;
+  }) => void;
 }) {
-  const perQuestoTipo = categorie.filter((c) => c.tipo === tipoDiCategoria(riga.tipo));
+  /*
+    **I menu si disegnano solo sulla riga che si tocca.**
+
+    Tre menu per riga, su un rendiconto di quattrocento righe, sono
+    milleduecento controlli da costruire prima che si veda qualcosa: il primo
+    disegno dell'anteprima costava quasi tre secondi. Chiusa, la riga è testo
+    — e il testo è anche più leggibile in colonna; aperta, è quella di prima,
+    con gli stessi menu nelle stesse posizioni. La spunta resta sempre attiva,
+    perché è il gesto che si fa su tutte le righe.
+  */
+  const [aperta, setAperta] = React.useState(false);
+  const perQuestoTipo = aperta
+    ? categorie.filter((c) => c.tipo === tipoDiCategoria(riga.tipo))
+    : [];
   const [parola, setParola] = React.useState("");
   const [chiedeRegola, setChiedeRegola] = React.useState(false);
+
+  /* Ogni modifica marca la riga: quello che hai deciso tu non si tocca più —
+     nemmeno quando una regola nuova ricategorizza le altre. */
+  const cambia = (nuova: RigaAnteprima) => onCambia({ ...nuova, toccata: true });
 
   return (
     <li className={cn("px-6 py-2", !riga.scelta && "bg-superficie-alt/40")}>
@@ -1000,68 +1048,96 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
           {riga.daGiroconto && <Chip className="ml-2">giroconto</Chip>}
         </span>
 
-        <Select
-          value={riga.tipo}
-          onValueChange={(v) => onCambia({ ...riga, tipo: v as TipoMovimento })}
-        >
-          <SelectTrigger className="w-32" aria-label={`Tipo della riga del ${fmtData(riga.data)}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {TIPI.map((t) => (
-              <SelectItem key={t.valore} value={t.valore}>
-                {t.etichetta}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        {riga.tipo !== "giroconto" && (
+        {aperta ? (
+          <>
           <Select
-            value={riga.categoriaId}
-            onValueChange={(v) => {
-              onCambia({ ...riga, categoriaId: v });
-              setChiedeRegola(true);
-              setParola(primaParolaUtile(riga.descrizione));
-            }}
+            value={riga.tipo}
+            onValueChange={(v) => cambia({ ...riga, tipo: v as TipoMovimento })}
           >
-            <SelectTrigger className="w-40" aria-label={`Categoria della riga del ${fmtData(riga.data)}`}>
+            <SelectTrigger className="w-32" aria-label={`Tipo della riga del ${fmtData(riga.data)}`}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {perQuestoTipo.map((c) => (
-                <SelectItem key={c.id} value={c.id}>
-                  {c.nome}
+              {TIPI.map((t) => (
+                <SelectItem key={t.valore} value={t.valore}>
+                  {t.etichetta}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+
+          {riga.tipo !== "giroconto" && (
+            <Select
+              value={riga.categoriaId}
+              onValueChange={(v) => {
+                cambia({ ...riga, categoriaId: v });
+                setChiedeRegola(true);
+                setParola(primaParolaUtile(riga.descrizione));
+              }}
+            >
+              <SelectTrigger className="w-40" aria-label={`Categoria della riga del ${fmtData(riga.data)}`}>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {perQuestoTipo.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+
+          <Select value={riga.contoId} onValueChange={(v) => cambia({ ...riga, contoId: v })}>
+            <SelectTrigger className="w-36" aria-label={`Conto della riga del ${fmtData(riga.data)}`}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {conti.map((c) => (
+                <SelectItem key={c.id} value={c.id}>
+                  <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          <Input
+            numerico
+            inputMode="decimal"
+            value={String(riga.importo).replace(".", ",")}
+            onChange={(e) => {
+              const n = Number(e.target.value.replace(",", "."));
+              if (Number.isFinite(n)) cambia({ ...riga, importo: Math.abs(n) });
+            }}
+            aria-label={`Importo della riga del ${fmtData(riga.data)}`}
+            className="w-28 text-right"
+          />
+          </>
+        ) : (
+          <>
+            <span className="w-32 shrink-0 text-micro text-inchiostro-tenue">
+              {TIPI.find((t) => t.valore === riga.tipo)?.etichetta}
+            </span>
+            {riga.tipo !== "giroconto" && (
+              <span className="w-40 shrink-0 truncate text-micro text-inchiostro-tenue">
+                {categorie.find((c) => c.id === riga.categoriaId)?.nome ?? "—"}
+              </span>
+            )}
+            <span className="w-36 shrink-0 truncate text-micro text-inchiostro-tenue">
+              {conti.find((c) => c.id === riga.contoId)?.nome ?? "—"}
+            </span>
+            <span className="cifre w-28 shrink-0 text-right">{euro(riga.importo)}</span>
+            <Button
+              variante="quieto"
+              taglia="sm"
+              onClick={() => setAperta(true)}
+              aria-label={`Modifica la riga del ${fmtData(riga.data)}`}
+            >
+              Modifica
+            </Button>
+          </>
         )}
 
-        <Select value={riga.contoId} onValueChange={(v) => onCambia({ ...riga, contoId: v })}>
-          <SelectTrigger className="w-36" aria-label={`Conto della riga del ${fmtData(riga.data)}`}>
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {conti.map((c) => (
-              <SelectItem key={c.id} value={c.id}>
-                <VoceConto nome={c.nome} distintivo={distintivi.get(c.id)} />
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Input
-          numerico
-          inputMode="decimal"
-          value={String(riga.importo).replace(".", ",")}
-          onChange={(e) => {
-            const n = Number(e.target.value.replace(",", "."));
-            if (Number.isFinite(n)) onCambia({ ...riga, importo: Math.abs(n) });
-          }}
-          aria-label={`Importo della riga del ${fmtData(riga.data)}`}
-          className="w-28 text-right"
-        />
         <span className="w-4 shrink-0 text-micro text-inchiostro-tenue">
           {riga.tipo === "entrata" ? "+" : riga.tipo === "giroconto" ? "→" : "−"}
         </span>
@@ -1083,7 +1159,7 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
               variante="contorno"
               taglia="sm"
               onClick={() => {
-                void creaRegola({
+                onRegola({
                   testoDaCercare: parola,
                   categoriaId: riga.categoriaId,
                   tipo: riga.tipo,
@@ -1103,13 +1179,6 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
   );
 });
 
-/** La parola più lunga della descrizione: di norma è il nome del negozio. */
-function primaParolaUtile(descrizione: string): string {
-  const parole = descrizione
-    .split(/[^\p{L}\p{N}]+/u)
-    .filter((p) => p.length > 3 && !/^\d+$/.test(p));
-  return parole.sort((a, b) => b.length - a.length)[0] ?? descrizione.trim();
-}
 
 /**
  * Gli import fatti, e **su quale conto** ognuno ha messo i suoi movimenti.

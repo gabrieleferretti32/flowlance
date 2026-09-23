@@ -92,3 +92,39 @@ export function descrizioneUtile(grezza: string): string {
   const resto = parole.slice(i).join(" ");
   return resto.length >= MINIMO ? resto : testo;
 }
+
+/**
+ * La parola con cui proporre una regola, letta dalla descrizione ripulita.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Non la più lunga: la prima che dice qualcosa
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Prendeva la parola **più lunga**, e su un addebito SDD la più lunga è
+ * «Mandato»: la regola proposta per un pagamento PayPal diventava «quando la
+ * descrizione contiene Mandato», che il mese dopo cattura ogni addebito
+ * diretto di qualunque fornitore. Una regola sbagliata è peggio di nessuna
+ * regola, perché continua a lavorare da sola.
+ *
+ * I rendiconti mettono la controparte **all'inizio** di quello che resta
+ * dopo la formula — «PAYPAL EUROPE S.a.r.l. … Mandato 4001» — e i codici in
+ * fondo. Quindi si prende la prima parola vera: almeno quattro lettere, non
+ * una parola di formula, non un pezzo di servizio, non un numero.
+ */
+const PAROLE_DI_CODICE = new Set([
+  "mandato", "mandate", "riferimento", "rif", "cro", "trn", "seq", "identificativo",
+  "codice", "cod", "numero", "num", "id", "aut", "autorizzazione", "progressivo",
+]);
+
+export function primaParolaUtile(descrizione: string): string {
+  const parole = descrizione.split(/[^\p{L}\p{N}]+/u).filter((p) => p !== "");
+  const utile = parole.find(
+    (p) =>
+      p.length >= 4
+      && !/^\d+$/.test(p)
+      && !diFormula(p)
+      && !PAROLE_DI_CODICE.has(p.toLocaleLowerCase("it-IT")),
+  );
+  /* Nessuna parola vera: si torna quello che c'è, che chi guarda può correggere. */
+  return utile ?? parole.find((p) => p.length >= 4) ?? descrizione.trim();
+}

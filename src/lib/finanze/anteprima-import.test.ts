@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { anteprimaImport, firmaMovimento, movimentiDaScrivere } from "./anteprima-import";
+import {
+  anteprimaImport,
+  firmaMovimento,
+  movimentiDaScrivere,
+  riapplicaRegole,
+} from "./anteprima-import";
 import { CATEGORIE_INIZIALI } from "./categorie";
 import type { CategoriaPf, MovimentoPf, RegolaPf } from "./tipi";
 
@@ -412,5 +417,83 @@ describe("**la descrizione si ripulisce, l'impronta no**", () => {
 
     const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [salvato] });
     expect(dopo.duplicato, "l'impronta non segue quello che si scrive a mano").toBe(true);
+  });
+});
+
+describe("**la regola creata dall'anteprima vale subito, lì dentro**", () => {
+  /*
+    Quattro addebiti PayPal identici: si corregge il primo, si crea la regola,
+    e gli altri tre restavano «Non definito» fino al prossimo import. Chi
+    guarda conclude che la regola non ha funzionato — e la correggerebbe a
+    mano tre volte.
+  */
+  const quattroUguali = () =>
+    anteprimaImport({
+      ...base,
+      file: [
+        {
+          nome: "banca.csv",
+          contoId: "conto",
+          righe: [
+            riga(2, "2026-09-01", "Addebito Diretto Disposto A Favore Di PAYPAL EUROPE Mandato 1", -12.9),
+            riga(3, "2026-09-02", "Addebito Diretto Disposto A Favore Di PAYPAL EUROPE Mandato 2", -7.4),
+            riga(4, "2026-09-03", "Addebito Diretto Disposto A Favore Di PAYPAL EUROPE Mandato 3", -31),
+            riga(5, "2026-09-04", "Pagamento Pos Presso LIDL 2505", -44.1),
+          ],
+        },
+      ],
+    });
+
+  const regola: RegolaPf = {
+    id: "r-paypal",
+    testoDaCercare: "PAYPAL",
+    categoriaId: "abbonamenti",
+    tipo: "spesa",
+  };
+
+  it("prima della regola quelle righe non si riconoscono", () => {
+    expect(quattroUguali().map((r) => r.categoriaId)).toEqual([
+      "non-definito",
+      "non-definito",
+      "non-definito",
+      "spesa-alimentare",
+    ]);
+  });
+
+  it("**dopo, si riconoscono tutte**, e le altre righe non si toccano", () => {
+    const dopo = riapplicaRegole(quattroUguali(), CATEGORIE, [regola]);
+    expect(dopo.map((r) => r.categoriaId)).toEqual([
+      "abbonamenti",
+      "abbonamenti",
+      "abbonamenti",
+      "spesa-alimentare",
+    ]);
+    expect(dopo[0].origineCategoria).toBe("regola");
+  });
+
+  it("**quello che hai deciso a mano resta tuo**", () => {
+    const righe = quattroUguali().map((r, i) =>
+      i === 0 ? { ...r, categoriaId: "salute", toccata: true } : r,
+    );
+    const dopo = riapplicaRegole(righe, CATEGORIE, [regola]);
+    expect(dopo[0].categoriaId).toBe("salute");
+    expect(dopo[1].categoriaId).toBe("abbonamenti");
+  });
+
+  it("i giroconti restano giroconti: una categoria non ce l'hanno", () => {
+    const righe = quattroUguali().map((r, i) =>
+      i === 1 ? { ...r, tipo: "giroconto" as const, categoriaId: "" } : r,
+    );
+    const dopo = riapplicaRegole(righe, CATEGORIE, [regola]);
+    expect(dopo[1].tipo).toBe("giroconto");
+    expect(dopo[1].categoriaId).toBe("");
+  });
+
+  it("e le righe che la regola non riguarda restano identiche, oggetto compreso", () => {
+    /* Le righe uguali tornano indietro senza essere ricostruite: è quello che
+       permette a `React.memo` di non ridisegnare mezzo elenco. */
+    const righe = quattroUguali();
+    const dopo = riapplicaRegole(righe, CATEGORIE, [regola]);
+    expect(dopo[3]).toBe(righe[3]);
   });
 });

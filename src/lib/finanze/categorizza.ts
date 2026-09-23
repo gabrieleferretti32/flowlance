@@ -28,16 +28,11 @@
  * motivo per cui il dizionario è un elenco leggibile e non un modello.
  */
 import { CATEGORIA_NON_DEFINITO } from "./categorie";
+import { contieneVoce, testoConfrontabile } from "./parole";
+
+export { testoConfrontabile };
 import type { CategoriaPf, RegolaPf, TipoMovimento } from "./tipi";
 
-/** Il testo su cui si cerca: minuscolo, senza doppi spazi, senza punteggiatura. */
-export function testoConfrontabile(descrizione: string): string {
-  return descrizione
-    .toLocaleLowerCase("it-IT")
-    .replace(/[^\p{L}\p{N}\s]/gu, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 /**
  * Il dizionario di partenza: parola → id della categoria iniziale.
@@ -73,48 +68,6 @@ export const DIZIONARIO: { parole: string[]; categoriaId: string }[] = [
   */
   { categoriaId: "fatture", parole: ["bonifico da", "accredito fattura", "compenso", "saldo fattura", "pagamento fattura", "per fattura", "fattura n"] },
 ];
-
-/**
- * Come si legge una voce del dizionario.
- *
- * ─────────────────────────────────────────────────────────────────────────
- * Perché non basta cercare la sottostringa
- * ─────────────────────────────────────────────────────────────────────────
- *
- * Cercare `testo.includes(parola)` è la via ovvia e mente in silenzio:
- * «tari» sta dentro «saniTARIa», e un pagamento all'azienda sanitaria locale
- * finiva in **Tasse**. Misurato su un rendiconto vero, non immaginato. È la
- * stessa famiglia del «sport» dentro «traSPORTi» che questo repository ha già
- * incontrato altrove: una misura che conferma invece di una che rompe.
- *
- * Quindi le voci dicono cosa sono:
- *
- * - `bar` — una **parola intera**: prende «BAR CENTRALE», non «BARbiere».
- * - `supermercat*` — un **inizio di parola**: prende «supermercato» e
- *   «supermercati», non «ipersupermercato» (che non esiste) e soprattutto non
- *   pezzi in mezzo a un'altra parola.
- * - `wind tre` — una **frase**: si cerca nel testo intero, perché due parole
- *   separate da uno spazio parole intere non sono.
- *
- * Le frasi si guardano **prima**: sono più specifiche, e senza quest'ordine
- * «eni luce» perderebbe contro «eni» dei carburanti solo perché i carburanti
- * stanno più in alto nell'elenco.
- */
-function combacia(testo: string, parole: string[], frasi: boolean): boolean {
-  const parti = testo.split(" ");
-  for (const parola of parole) {
-    if (parola.includes(" ") !== frasi) continue;
-    if (frasi) {
-      if (testo.includes(parola)) return true;
-    } else if (parola.endsWith("*")) {
-      const inizio = parola.slice(0, -1);
-      if (parti.some((w) => w.startsWith(inizio))) return true;
-    } else if (parti.includes(parola)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 /**
  * Un bonifico in entrata da una **società**: quasi sempre è un cliente.
@@ -205,7 +158,7 @@ export function categorizza(
     for (const voce of DIZIONARIO) {
       const c = categoriaBuona(voce.categoriaId);
       if (!c) continue;
-      if (combacia(testo, voce.parole, frasi)) {
+      if (contieneVoce(testo, voce.parole, frasi ? "frasi" : "parole")) {
         return { categoriaId: c.id, tipo: c.tipo, origine: "dizionario" };
       }
     }
