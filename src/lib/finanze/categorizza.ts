@@ -63,7 +63,16 @@ export const DIZIONARIO: { parole: string[]; categoriaId: string }[] = [
   { categoriaId: "rate", parole: ["rata", "finanziament", "prestito", "leasing", "findomestic", "agos", "compass"] },
   { categoriaId: "risparmio", parole: ["giroconto risparmio", "accantonament", "salvadanaio"] },
   { categoriaId: "investimenti", parole: ["etf", "fondo comune", "directa", "degiro", "fineco investiment", "piano di accumulo", "pac "] },
-  { categoriaId: "fatture", parole: ["bonifico da", "accredito fattura", "compenso", "saldo fattura", "pagamento fattura"] },
+  /*
+    «per fattura» e «fattura n» sono stretti apposta. Un incasso da cliente
+    arriva scritto in dieci modi — «Bonifico Istantaneo Disposto Da STUDIO
+    ROSSI SRL Per Fattura 12/2025» non contiene «bonifico da» — e questa
+    categoria conta più delle altre: è l'unica marcata «arriva dall'attività»,
+    quindi quello che finisce qui domani diventerà un prelievo dalla cassa
+    dell'attività. La parola «fattura» da sola prenderebbe anche «rimborso
+    fattura», che è un'altra cosa.
+  */
+  { categoriaId: "fatture", parole: ["bonifico da", "accredito fattura", "compenso", "saldo fattura", "pagamento fattura", "per fattura", "fattura n"] },
 ];
 
 export type Proposta = {

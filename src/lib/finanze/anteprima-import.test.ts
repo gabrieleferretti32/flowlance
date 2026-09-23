@@ -346,3 +346,71 @@ describe("**i giroconti già in archivio si riconoscono**", () => {
     expect(righe[0].duplicato).toBe(false);
   });
 });
+
+describe("**la descrizione si ripulisce, l'impronta no**", () => {
+  const riga = (descrizione: string) => ({
+    file: [{ nome: "banca.csv", contoId: "c1", righe: [
+      { indice: 2, data: "2026-01-12", descrizione, importo: -42.9 },
+    ] }],
+    categorie: CATEGORIE,
+    regole: [],
+    esistenti: [] as MovimentoPf[],
+    contiTracciati: ["c1"],
+  });
+  const FORMULA = "Addebito Diretto Disposto A Favore Di ENEL ENERGIA SPA";
+
+  it("in anteprima si legge la controparte, non la formula", () => {
+    const [r] = anteprimaImport(riga(FORMULA));
+    expect(r.descrizione).toBe("ENEL ENERGIA SPA");
+    expect(r.descrizioneOriginale).toBe(FORMULA);
+  });
+
+  it("**e ricaricando lo stesso file la riga è un doppione**", () => {
+    /*
+      È il punto delicato: in archivio c'è la descrizione ripulita, ma
+      l'impronta salvata viene dal testo della banca. Se l'impronta seguisse
+      la descrizione, il file ricaricato il mese dopo entrerebbe due volte.
+    */
+    const [prima] = anteprimaImport(riga(FORMULA));
+    const [salvato] = movimentiDaScrivere([prima], "imp", () => "m1");
+    expect(salvato.descrizione).toBe("ENEL ENERGIA SPA");
+
+    const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [salvato] });
+    expect(dopo.duplicato).toBe(true);
+    expect(dopo.scelta).toBe(false);
+  });
+
+  it("**e i movimenti importati prima di questa pulizia restano riconoscibili**", () => {
+    /*
+      Com'era un movimento importato il mese scorso: descrizione lunga, e
+      l'impronta calcolata su quella stessa descrizione — che allora era il
+      testo della banca. Il file ricaricato oggi produce la descrizione
+      ripulita, ma l'impronta viene ancora dal grezzo: le due combaciano.
+
+      Senza questa compatibilità, la prima cosa che questa pulizia avrebbe
+      fatto sarebbe stata far entrare due volte tutto quello che c'era già.
+    */
+    const vecchio: MovimentoPf = {
+      id: "vecchio",
+      data: "2026-01-12",
+      tipo: "spesa",
+      categoriaId: "bollette",
+      contoId: "c1",
+      importo: 42.9,
+      descrizione: FORMULA,
+      hashDuplicato: firmaMovimento("2026-01-12", -42.9, FORMULA),
+    };
+    const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [vecchio] });
+    expect(dopo.duplicato).toBe(true);
+  });
+
+  it("e lo è anche se in anteprima la descrizione era stata corretta a mano", () => {
+    const [prima] = anteprimaImport(riga(FORMULA));
+    const corretta = { ...prima, descrizione: "Bolletta della luce" };
+    const [salvato] = movimentiDaScrivere([corretta], "imp", () => "m1");
+    expect(salvato.descrizione).toBe("Bolletta della luce");
+
+    const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [salvato] });
+    expect(dopo.duplicato, "l'impronta non segue quello che si scrive a mano").toBe(true);
+  });
+});

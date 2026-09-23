@@ -25,6 +25,7 @@
 import { round2 } from "@/lib/fisco/aritmetica";
 import { abbinaGiroconti, GIORNI_DI_TOLLERANZA } from "./giroconti";
 import { categorizza, testoConfrontabile, type Proposta } from "./categorizza";
+import { descrizioneUtile } from "./descrizione";
 import type { RigaRendiconto } from "./rendiconto";
 import type { CategoriaPf, MovimentoPf, RegolaPf, TipoMovimento } from "./tipi";
 
@@ -41,7 +42,17 @@ export type RigaAnteprima = {
   file: string;
   indice: number;
   data: string;
+  /** Quella che si vede e che finisce in archivio: ripulita dalla formula. */
   descrizione: string;
+  /**
+   * Quella che ha scritto la banca, parola per parola.
+   *
+   * Serve a due cose, e non si mostra: **la firma dei doppioni** e la
+   * categoria. Se la firma si calcolasse sulla descrizione ripulita — o
+   * peggio, su quella corretta a mano in anteprima — ricaricando lo stesso
+   * file le righe non si riconoscerebbero più, e entrerebbero due volte.
+   */
+  descrizioneOriginale: string;
   /** Sempre positivo: il verso lo dice `tipo`, come nel registro. */
   importo: number;
   tipo: TipoMovimento;
@@ -138,6 +149,7 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         ing.regole,
       );
       const tipo = proposta.tipo;
+      /* La firma sul testo della banca: vedi `descrizioneOriginale`. */
       const firma = firmaMovimento(r.data, r.importo, r.descrizione);
       const duplicato =
         gia.has(firma)
@@ -149,7 +161,16 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         file: f.nome,
         indice: r.indice,
         data: r.data,
-        descrizione: r.descrizione,
+        /*
+          Ripulita dalla formula della banca: «Addebito Diretto Disposto A
+          Favore Di ENEL ENERGIA SPA» diventa «ENEL ENERGIA SPA», che è la
+          parte che identifica chi ha preso i soldi — l'unica che serve a chi
+          guarda il registro, e l'unica che finiva oltre il troncamento.
+          La categoria, invece, si legge sul testo grezzo: vedi
+          `descrizione.ts`.
+        */
+        descrizione: descrizioneUtile(r.descrizione),
+        descrizioneOriginale: r.descrizione,
         importo: round2(Math.abs(r.importo)),
         tipo,
         categoriaId: proposta.categoriaId,
@@ -196,6 +217,7 @@ function conGiroconti(righe: RigaAnteprima[], contiTracciati: string[]): RigaAnt
       indice: 0,
       data: m.data,
       descrizione: m.descrizione,
+      descrizioneOriginale: m.descrizione,
       importo: m.importo,
       tipo: m.tipo,
       categoriaId: m.categoriaId,
@@ -238,6 +260,14 @@ export function movimentiDaScrivere(
       importo: round2(Math.abs(r.importo)),
       descrizione: r.descrizione,
       importId,
-      hashDuplicato: firmaMovimento(r.data, r.importo, r.descrizione),
+      /*
+        L'impronta si calcola su quello che ha scritto la banca, non su quello
+        che si legge: la descrizione si ripulisce, e in anteprima si può anche
+        correggere a mano. Con l'impronta presa dal testo mostrato, lo stesso
+        file ricaricato il mese dopo produrrebbe impronte diverse e le righe
+        entrerebbero due volte — proprio quello che l'impronta esiste per
+        impedire.
+      */
+      hashDuplicato: firmaMovimento(r.data, r.importo, r.descrizioneOriginale),
     }));
 }

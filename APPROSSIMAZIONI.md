@@ -847,6 +847,32 @@ Tre cose che restano, e si vedono tutte nell'anteprima:
 - il riconoscimento **si appoggia alle date che sappiamo leggere**: un foglio
   che scrive «12 gen 2026» non offre nessuna candidata, ripiega e lo dice.
 
+**La descrizione che si legge nel registro non è quella che ha scritto la
+banca.** Chiuso il 23 settembre 2026, su un estratto conto di Intesa Sanpaolo:
+«Addebito Diretto Disposto A Favore Di ENEL ENERGIA SPA» si leggeva «Addebito
+Diretto Disposto A Favo…», uguale su tre righe di fila, con il nome di chi
+aveva preso i soldi oltre il troncamento.
+
+Adesso le parole di formula si tolgono **dall'inizio, finché ce ne sono** — un
+elenco di una trentina di parole invece che di frasi intere, perché le frasi
+sono infinite e ricombinate — e resta la controparte. Il tipo di operazione non
+si perde: sta nel tipo del movimento e nella categoria.
+
+Tre cose che questa scelta si porta dietro, tutte volute:
+
+- **la categoria si legge sul testo grezzo**, non sul ripulito: il dizionario
+  conosce «bonifico da» e «rata», e catalogare sul testo accorciato manderebbe
+  in «Non definito» righe che si riconoscevano;
+- **l'impronta dei doppioni pure**: si calcola su quello che ha scritto la
+  banca, non su quello che si legge — altrimenti lo stesso file ricaricato il
+  mese dopo entrerebbe due volte, ed è proprio quello che l'impronta esiste per
+  impedire. Vale anche per i movimenti importati prima di questa pulizia, che
+  hanno l'impronta calcolata sulla descrizione lunga: combacia lo stesso;
+- **una controparte che si chiama come una formula si salva intera**: da
+  «Addebito diretto disposto a favore di BONIFICO SPA» resterebbe «SPA», che
+  non identifica nessuno, quindi sotto le quattro lettere non si taglia e la
+  riga resta lunga. È il verso giusto in cui sbagliare.
+
 **Il dizionario delle parole è italiano, corto e di parte.** Riconosce le
 catene e le parole che compaiono nei rendiconti italiani — «esselunga»,
 «bolletta», «carburante» — e nient'altro. Quello che non riconosce finisce in
@@ -855,6 +881,26 @@ non la controlla nessuno, e il budget di fine mese è sbagliato in silenzio. Si
 corregge in anteprima, e la correzione può diventare una regola — che da lì in
 poi vale più del dizionario. Non c'è nessun modello e nessuna chiamata di rete:
 i movimenti bancari non escono dal browser per essere catalogati.
+
+**Le categorie di partenza non si seminavano da nessuna parte.** Trovato il
+23 settembre 2026 sul secondo file vero: né creando un archivio nuovo, né
+caricando un dataset, né importando un backup — l'unico modo era premere un
+pulsante che compariva in tre schermate. Chi arrivava da un backup fatto prima
+che il modulo esistesse, cioè chiunque usasse già l'app, si trovava il registro
+senza categorie; e l'import di un rendiconto scriveva trentasette movimenti
+**senza categoria**, che nel limite di spesa non entrano in nessun gruppo — né
+fisse, né variabili, né risparmi, né rate. Il saldo del conto scendeva e il
+limite non se ne accorgeva.
+
+Adesso si seminano **aprendo il modulo**, che è il momento in cui qualcuno ha
+chiesto di usarlo: non all'avvio dell'app, perché chi non apre mai le finanze
+personali non deve trovarsi venti righe in archivio che non ha messo. E
+l'import senza categorie è impedito in due punti — il pulsante spento con la
+spiegazione, e l'azione che rifiuta di scrivere righe senza categoria, perché
+la schermata non è l'ultimo posto in cui si può sbagliare.
+
+Il numero delle categorie di partenza adesso si conta: il pulsante diceva «Usa
+le diciannove categorie di partenza» mentre erano venti.
 
 **Un giroconto nuovo di pari importo fra gli stessi conti entro tre giorni da
 uno già in archivio viene segnalato come doppione.** È il prezzo del

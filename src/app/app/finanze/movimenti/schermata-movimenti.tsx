@@ -58,6 +58,7 @@ import {
   totaliRegistro,
   type FiltroRegistro,
 } from "@/lib/finanze/registro";
+import { CATEGORIE_INIZIALI } from "@/lib/finanze/categorie";
 import type { MovimentoPf, TipoMovimento } from "@/lib/finanze/tipi";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -154,7 +155,7 @@ export function SchermataMovimenti() {
                 titolo="Ogni movimento vuole una categoria, e non ce n'è ancora nessuna."
                 azione={
                   <Button scrive variante="contorno" onClick={() => void seminaCategorie()}>
-                    Usa le diciannove categorie di partenza
+                    Usa le {CATEGORIE_INIZIALI.length} categorie di partenza
                   </Button>
                 }
               />

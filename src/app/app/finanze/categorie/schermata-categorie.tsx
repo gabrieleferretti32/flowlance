@@ -45,7 +45,7 @@ import {
   salvaCategoria,
   seminaCategorie,
 } from "@/lib/dati/azioni";
-import { nomeGiaUsato, usoDelleCategorie } from "@/lib/finanze/categorie";
+import { CATEGORIE_INIZIALI, nomeGiaUsato, usoDelleCategorie } from "@/lib/finanze/categorie";
 import type { CategoriaPf, MovimentoPf, TipoCategoria } from "@/lib/finanze/tipi";
 import { cn } from "@/lib/utils";
 
@@ -87,7 +87,7 @@ export function SchermataCategorie() {
               titolo="Nessuna categoria. Si parte da quelle suggerite e poi si cambia tutto."
               azione={
                 <Button scrive variante="contorno" onClick={() => void seminaCategorie()}>
-                  Usa le diciannove categorie di partenza
+                  Usa le {CATEGORIE_INIZIALI.length} categorie di partenza
                 </Button>
               }
             />
@@ -106,7 +106,7 @@ export function SchermataCategorie() {
         {/*
           Le due spiegazioni stanno qui, una volta sola.
 
-          La prima stesura le ripeteva sotto ogni categoria: diciannove volte
+          La prima stesura le ripeteva sotto ogni categoria: venti volte
           le stesse quattro righe, e l'elenco diventava un documento invece di
           una lista da scorrere. Una spiegazione ripetuta venti volte non si
           legge venti volte — non si legge nemmeno una.

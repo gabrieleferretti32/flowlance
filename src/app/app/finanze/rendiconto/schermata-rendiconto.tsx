@@ -559,9 +559,23 @@ export function SchermataRendiconto() {
               </Button>
             )}
             {categorie.length === 0 && (
-              <Button scrive variante="contorno" onClick={() => void seminaCategorie()}>
-                Prima semina le categorie
-              </Button>
+              <>
+                <Button scrive variante="contorno" onClick={() => void seminaCategorie()}>
+                  Prima semina le categorie
+                </Button>
+                {/*
+                  Di norma non si arriva più qui: le categorie si seminano
+                  aprendo il modulo. Resta per il caso in cui la scrittura non
+                  sia possibile — una licenza scaduta mette l'app in sola
+                  lettura — e lì la spiegazione serve più del pulsante.
+                */}
+                <p className="w-full text-micro text-attenzione">
+                  <strong>Senza categorie l&apos;import non si può fare.</strong> Ogni movimento
+                  ne vuole una: senza, le righe entrerebbero in archivio e non comparirebbero in
+                  nessun gruppo del limite di spesa — il saldo scenderebbe e il limite non se ne
+                  accorgerebbe.
+                </p>
+              </>
             )}
             {/*
               Un file che non si è potuto leggere lo dice qui, con il motivo
@@ -586,7 +600,16 @@ export function SchermataRendiconto() {
                       " · i doppioni arrivano senza spunta, ma restano visibili"}
                   </CardSottotitolo>
                 </div>
-                <Button onClick={() => void conferma()} disabled={scelte === 0}>
+                {/*
+                  Senza categorie non si importa. Trentasette movimenti con la
+                  categoria vuota non entrano in nessun gruppo del limite di
+                  spesa: restano in archivio e spariscono dai conti. Meglio un
+                  pulsante spento che lo dice.
+                */}
+                <Button
+                  onClick={() => void conferma()}
+                  disabled={scelte === 0 || categorie.length === 0}
+                >
                   Importa {scelte} {scelte === 1 ? "movimento" : "movimenti"}
                 </Button>
               </div>

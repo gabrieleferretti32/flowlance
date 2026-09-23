@@ -892,15 +892,28 @@ export async function eliminaBene(bene: BenePf) {
  * Le categorie di partenza, scritte in archivio la prima volta che servono.
  *
  * Un registro senza categorie non si compila: ogni movimento ne vuole una. Il
- * modulo ne propone diciannove — `CATEGORIE_INIZIALI` — e questa è l'azione
- * che le mette in archivio. Non si semina da sola all'avvio: scrivere in un
- * archivio che nessuno ha chiesto di riempire è il modo di trovarsi dentro
- * roba che non si è messa.
+ * modulo ne propone una ventina — `CATEGORIE_INIZIALI` — e questa è l'azione
+ * che le mette in archivio.
+ *
+ * Non si semina all'avvio dell'app: scrivere in un archivio che nessuno ha
+ * chiesto di riempire è il modo di trovarsi dentro roba che non si è messa.
+ * Si semina **aprendo il modulo**, che è il momento in cui qualcuno ha chiesto
+ * di usarlo — `CategoriePronte`, nel contorno delle schermate delle finanze
+ * personali — oltre che dai pulsanti che restano dove sono.
  */
-export async function seminaCategorie(): Promise<void> {
+export async function seminaCategorie(
+  { silenziosa = false }: { silenziosa?: boolean } = {},
+): Promise<void> {
   const esistenti = await archivio().pfCategorie.tutti();
   if (esistenti.length > 0) return;
   await archivio().pfCategorie.salvaMolti([...CATEGORIE_INIZIALI]);
+  /*
+    `silenziosa` è per la semina automatica all'apertura del modulo: lì non è
+    un'azione di chi guarda ma la condizione perché la schermata funzioni, e
+    un «annulla» riporterebbe l'archivio in uno stato in cui il modulo non si
+    può usare. Premendo il pulsante, invece, l'avviso e l'annulla ci sono.
+  */
+  if (silenziosa) return;
   toast.conferma("Categorie di partenza aggiunte", async () => {
     await archivio().pfCategorie.eliminaMolti(CATEGORIE_INIZIALI.map((c) => c.id));
   });
@@ -1023,6 +1036,27 @@ export async function eseguiImportRendiconto(
   contoId: string,
 ): Promise<ImportPf | null> {
   if (movimenti.length === 0) return null;
+
+  /*
+    **Nessun movimento senza categoria.**
+
+    Un movimento con `categoriaId` vuoto non entra in nessun gruppo del limite
+    di spesa — né fisse, né variabili, né risparmi, né rate — quindi sparisce
+    dai conti restando in archivio: il saldo scende e il limite non se ne
+    accorge. È successo per davvero, importando un rendiconto in un archivio
+    che le categorie non le aveva mai avute.
+
+    La schermata lo impedisce già, e questa guardia esiste perché la schermata
+    non è l'ultimo posto in cui si può sbagliare. I giroconti sono l'eccezione
+    vera: non hanno categoria per definizione.
+  */
+  const senzaCategoria = movimenti.filter((m) => m.tipo !== "giroconto" && m.categoriaId === "");
+  if (senzaCategoria.length > 0) {
+    toast.errore(
+      `${senzaCategoria.length === 1 ? "Un movimento non ha" : `${senzaCategoria.length} movimenti non hanno`} una categoria: prima aggiungi le categorie, poi importa.`,
+    );
+    return null;
+  }
   const registrazione: ImportPf = {
     id: movimenti[0].importId ?? nuovoId(),
     data: new Date().toISOString(),
