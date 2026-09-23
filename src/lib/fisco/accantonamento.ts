@@ -170,6 +170,49 @@ export function giornoDelSaldo(anno: number): string {
  * mette — su questo mese se la scadenza è passata, spalmato sui mesi che
  * mancano se deve ancora arrivare.
  */
+/**
+ * Quanto resta scoperto su ogni scadenza, coprendole in ordine di data.
+ *
+ * È la regola che `quotaIva` applicava dentro di sé, tirata fuori perché la
+ * usa anche chi cerca le **scadenze spuntate senza un F24**: due regole
+ * diverse per rispondere alla stessa domanda — «questo è stato versato?» —
+ * sono due risposte che prima o poi si contraddicono, e si contraddirebbero
+ * proprio in una schermata che esiste per segnalare una contraddizione.
+ *
+ * Chi ha versato in anticipo copre anche una scadenza futura: lasciare
+ * l'avanzo inutilizzato sarebbe un soldo che esiste in archivio e sparisce
+ * dal conto.
+ */
+export function scopertoInOrdine(
+  dovute: Adempimento[],
+  versato: number,
+): { scadenza: Adempimento; scoperto: number }[] {
+  let residuo = versato;
+  const esito: { scadenza: Adempimento; scoperto: number }[] = [];
+  for (const scadenza of [...dovute].sort((a, b) => a.data.localeCompare(b.data))) {
+    const importo = scadenza.importo ?? 0;
+    const coperto = Math.min(residuo, importo);
+    residuo = round2(residuo - coperto);
+    esito.push({ scadenza, scoperto: round2(importo - coperto) });
+  }
+  return esito;
+}
+
+/** Quanto è uscito per un tipo di F24, nell'anno d'imposta guardato. */
+export function versatoDelTipo(
+  versamenti: VersamentoF24[],
+  tipo: VersamentoF24["tipo"],
+  anno: number,
+): number {
+  return round2(
+    versamenti
+      /* L'anno di competenza si legge come lo legge il motore: `annoImposta`
+         se c'è, altrimenti l'anno della data. */
+      .filter((v) => v.tipo === tipo && (v.annoImposta ?? Number(v.data.slice(0, 4))) === anno)
+      .reduce((tot, v) => tot + v.importo, 0),
+  );
+}
+
 function quotaIva(
   scadenze: Adempimento[],
   liquidazione: LiquidazioneIva,
@@ -198,38 +241,24 @@ function quotaIva(
     .sort((a, b) => a.data.localeCompare(b.data));
 
   /*
-    Quanto è già uscito per l'IVA di quest'anno.
+    Quanto è già uscito per l'IVA di quest'anno, e che cosa resta scoperto.
 
     I versamenti di tipo «iva» ci sono in archivio — è `giaVersato` del motore
     che li esclude, perché il suo perimetro è imposte e contributi. Qui servono,
     e vanno usati: senza, un trimestre scaduto e non versato sparirebbe dalla
     quota, e la persona non saprebbe di doverlo mettere da parte.
 
-    L'anno di competenza si legge come lo legge il motore: `annoImposta` se c'è,
-    altrimenti l'anno della data. È la stessa riga di `giaVersato`, e deve
-    restarlo — due regole diverse per attribuire lo stesso versamento sono due
-    numeri che prima o poi smettono di essere d'accordo.
+    La copertura in ordine di data sta in `scopertoInOrdine` e l'attribuzione
+    all'anno in `versatoDelTipo`: le usa anche `spunteSenzaF24`, perché è la
+    stessa domanda, e due regole diverse per attribuire lo stesso versamento
+    sono due numeri che prima o poi smettono di essere d'accordo.
   */
-  let versato = round2(
-    versamenti
-      .filter((v) => v.tipo === "iva" && (v.annoImposta ?? Number(v.data.slice(0, 4))) === anno)
-      .reduce((tot, v) => tot + v.importo, 0),
-  );
-
   const voci: VoceQuota[] = [];
-  for (const s of dovute) {
-    const importo = s.importo as number;
+  for (const { scadenza: s, scoperto } of scopertoInOrdine(
+    dovute,
+    versatoDelTipo(versamenti, "iva", anno),
+  )) {
     const mesiMancanti = mesiFinoA(s.data, oggi);
-
-    /*
-      I versamenti coprono le scadenze in ordine di data. Vale anche per una
-      scadenza futura: chi ha versato in anticipo non deve accantonare due
-      volte, e lasciare l'avanzo inutilizzato sarebbe un soldo che esiste in
-      archivio e sparisce dal consiglio.
-    */
-    const coperto = Math.min(versato, importo);
-    versato = round2(versato - coperto);
-    const scoperto = round2(importo - coperto);
     if (scoperto === 0) continue;
 
     /*
@@ -390,4 +419,104 @@ export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
     },
     "scadenze",
   );
+}
+
+// ————————————————————————————————————————————————————————————
+// La spunta dello Scadenzario e i versamenti: dove si contraddicono
+// ————————————————————————————————————————————————————————————
+
+/**
+ * Le scadenze spuntate che il calcolo considera ancora da versare.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Due schermate che leggono due cose diverse
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Lo Scadenzario legge **la spunta**: una riga in archivio che dice «questo
+ * l'ho fatto», senza importo e senza data di pagamento. La quota
+ * d'accantonamento legge **i versamenti F24**, che sono denaro con una data.
+ * Sono due cose diverse e va bene che lo siano — una è un promemoria, l'altra
+ * è un fatto contabile — ma chi guarda vede «Versato» in verde su una
+ * scadenza e, nella stessa app, «1.329,67 € già scaduti» che comprendono
+ * quella scadenza. Da fuori è l'app che si contraddice.
+ *
+ * Questa funzione trova esattamente quelle righe, così che tutte e due le
+ * schermate possano dirlo invece di lasciarlo scoprire.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * La copertura è quella della quota, non una nuova
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Un F24 solo copre più scadenze — a giugno si versano insieme saldo e primo
+ * acconto — quindi «questa scadenza ha il suo versamento?» non si può
+ * rispondere guardando una riga alla volta. Si guarda come guarda la quota:
+ * i versamenti di quel tipo, per quell'anno d'imposta, coprono le scadenze di
+ * quella categoria **in ordine di data**, e scoperto è quello che la
+ * copertura non raggiunge. Stessa regola, stessa funzione, un solo numero.
+ *
+ * Le scadenze senza un F24 corrispondente — dichiarazioni, bollo — non
+ * entrano: spuntare «invio della dichiarazione IVA» non ha niente a che fare
+ * con il denaro, e segnalarlo sarebbe un avviso che non si può risolvere.
+ */
+export type ScadenzaSpuntataScoperta = {
+  /** L'id dell'adempimento, quello con cui la spunta è salvata. */
+  id: string;
+  titolo: string;
+  data: string;
+  /** Quanto di quella scadenza la copertura non raggiunge. */
+  scoperto: number;
+  componente: Componente;
+};
+
+/**
+ * Le due metà sono quelle della quota: IVA da una parte, imposte **e**
+ * contributi dall'altra.
+ *
+ * Tenere separati i due tipi di F24 non-IVA sembrava più preciso ed era
+ * sbagliato: la scadenza di giugno si chiama «Saldo di imposte e contributi
+ * più il primo acconto» e si versa con F24 che portano tutti e due i tipi.
+ * Sui numeri di vetrina — 62,12 € di imposte e 3.267,59 € di contributi
+ * contro una scadenza da 3.329,71 € — dividerli faceva risultare scoperti
+ * 3.267,59 €, cioè un avviso costruito sulla nostra classificazione e non
+ * sui fatti. `fabbisognoDaAccantonare` somma le due cose per la stessa
+ * ragione, e qui si fa come fa lui.
+ */
+const POOL: { componente: Componente; categorie: Adempimento["categoria"][]; tipi: VersamentoF24["tipo"][] }[] = [
+  { componente: "iva", categorie: ["iva"], tipi: ["iva"] },
+  { componente: "imposte", categorie: ["imposte", "contributi"], tipi: ["imposte", "contributi"] },
+];
+
+export function spunteSenzaF24(ing: {
+  scadenze: Adempimento[];
+  versamenti: VersamentoF24[];
+  anno: number;
+  /** Gli id degli adempimenti spuntati, già senza il prefisso dell'anno. */
+  spuntati: Set<string>;
+}): { voci: ScadenzaSpuntataScoperta[]; totale: number } {
+  const voci: ScadenzaSpuntataScoperta[] = [];
+
+  for (const pool of POOL) {
+    const dovute = ing.scadenze.filter(
+      (s) => pool.categorie.includes(s.categoria) && s.importo !== null && s.importo > 0,
+    );
+    const versato = round2(
+      pool.tipi.reduce((tot, t) => tot + versatoDelTipo(ing.versamenti, t, ing.anno), 0),
+    );
+    for (const { scadenza, scoperto } of scopertoInOrdine(dovute, versato)) {
+      if (scoperto === 0) continue;
+      if (!ing.spuntati.has(scadenza.id)) continue;
+      voci.push({
+        id: scadenza.id,
+        titolo: scadenza.titolo,
+        data: scadenza.data,
+        scoperto,
+        componente: pool.componente,
+      });
+    }
+  }
+
+  return {
+    voci: voci.sort((a, b) => a.data.localeCompare(b.data)),
+    totale: round2(voci.reduce((tot, v) => tot + v.scoperto, 0)),
+  };
 }

@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Card, CardCorpo, CardSottotitolo, CardTitolo } from "@/components/ui/card";
+import { ROTTE } from "@/lib/rotte";
 import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Chip } from "@/components/ui/chip";
 import { Kpi } from "@/components/ui/kpi";
@@ -12,6 +14,7 @@ import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
+import { spunteSenzaF24 } from "@/lib/fisco/accantonamento";
 import { gestioneNelTesto } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { data as fmtData, euro } from "@/lib/format";
@@ -57,6 +60,28 @@ export function SchermataScadenzario() {
     return insieme;
   }, [dati]);
 
+  /*
+    **Dove la spunta e i versamenti si contraddicono.**
+
+    La spunta dice «l'ho fatto» e non è denaro: non ha importo, non ha data di
+    pagamento, e nessun altro calcolo la legge. La quota d'accantonamento
+    guarda gli F24, che sono denaro. Le due cose restano separate — e va bene
+    così, una è un promemoria — ma una scadenza verde qui e contata fra gli
+    arretrati nel cruscotto è l'app che sembra contraddirsi. Quindi lo dice.
+  */
+  const scoperte = React.useMemo(() => {
+    if (!scadenze || !dati) return new Map<string, number>();
+    const esito = spunteSenzaF24({
+      scadenze,
+      versamenti: dati.versamenti,
+      anno,
+      spuntati: new Set(
+        dati.spunte.filter((sp) => sp.anno === anno).map((sp) => sp.idAdempimento),
+      ),
+    });
+    return new Map(esito.voci.map((v) => [v.id, v.scoperto]));
+  }, [scadenze, dati, anno]);
+
   if (!calcolo || !scadenze || !dati) {
     return (
       <Guscio titolo="Scadenzario">
@@ -68,6 +93,7 @@ export function SchermataScadenzario() {
   }
 
   const eFatto = (s: Adempimento) => spuntate.has(chiaveSpunta(anno, s.id));
+  const scopertoDi = (s: Adempimento) => scoperte.get(s.id) ?? null;
   const daFare = scadenze.filter((s) => !eFatto(s));
   const scadute = daFare.filter((s) => giorniAllaData(s.data, oggi) < 0);
   const imminenti = daFare.filter((s) => {
@@ -106,6 +132,34 @@ export function SchermataScadenzario() {
           />
         </section>
 
+        {/*
+          La contraddizione, riassunta una volta sola e con la strada per
+          chiuderla. Sulle righe c'è la nota corta; qui c'è il totale, che è
+          il numero che compare nel cruscotto fra gli arretrati.
+        */}
+        {scoperte.size > 0 && (
+          <Card>
+            <CardCorpo className="space-y-1.5">
+              <CardTitolo>
+                {scoperte.size === 1
+                  ? "Una scadenza spuntata risulta ancora da versare"
+                  : `${scoperte.size} scadenze spuntate risultano ancora da versare`}
+              </CardTitolo>
+              <CardSottotitolo>
+                In totale {euro([...scoperte.values()].reduce((a, b) => a + b, 0))}. La spunta qui
+                è tua e serve a te: dice «questo l&apos;ho fatto», non quanto è uscito né quando.
+                Il calcolo dell&apos;accantonamento guarda i <strong>versamenti F24</strong>, che
+                sono denaro con una data — quindi continua a considerare da versare queste
+                scadenze, e le conta fra gli arretrati nel cruscotto.{" "}
+                <Link href={ROTTE.cashflow} className="underline underline-offset-2">
+                  Registra gli F24
+                </Link>{" "}
+                e le due schermate tornano d&apos;accordo.
+              </CardSottotitolo>
+            </CardCorpo>
+          </Card>
+        )}
+
         {mesi.map(([mese, voci]) => (
           <section key={mese} aria-label={mese === 13 ? `Inizio ${anno + 1}` : NOMI_MESI[mese - 1]}>
             <h2 className="mb-2 px-1 text-etichetta font-medium text-inchiostro-tenue">
@@ -120,6 +174,7 @@ export function SchermataScadenzario() {
                     anno={anno}
                     oggi={oggi}
                     fatto={eFatto(s)}
+                    scoperto={scopertoDi(s)}
                   />
                 ))}
               </ul>
@@ -159,11 +214,17 @@ function RigaAdempimento({
   anno,
   oggi,
   fatto,
+  scoperto,
 }: {
   scadenza: Adempimento;
   anno: number;
   oggi: string;
   fatto: boolean;
+  /**
+   * Spuntata, ma i versamenti F24 non ci arrivano: quanto resta scoperto.
+   * `null` quando non c'è niente da dire — non spuntata, oppure coperta.
+   */
+  scoperto: number | null;
 }) {
   const giorni = giorniAllaData(scadenza.data, oggi);
   const passata = giorni < 0;
@@ -241,7 +302,25 @@ function RigaAdempimento({
           <Chip tono="neutro">solo dichiarativo</Chip>
         )}
         {fatto ? (
-          <Stato tono="positivo">Versato</Stato>
+          <span className="flex flex-col items-end gap-0.5">
+            <Stato tono="positivo">Versato</Stato>
+            {/*
+              **La spunta dice una cosa, il calcolo ne vede un'altra.**
+
+              «Versato» in verde mentre la quota d'accantonamento conta quella
+              stessa scadenza fra gli arretrati: due schermate della stessa app
+              che si contraddicono, e da fuori sembra un errore dell'app. Qui
+              si dice da dove viene la differenza — la spunta è tua, l'F24 è
+              denaro — invece di lasciarla scoprire nel cruscotto.
+            */}
+            {scoperto !== null && (
+              <span className="max-w-56 text-right text-micro text-attenzione">
+                {scadenza.importo !== null && scoperto < scadenza.importo
+                  ? `F24 registrati solo in parte: per il calcolo restano ${euro(scoperto)} da versare`
+                  : "nessun F24 registrato: per il calcolo è ancora da versare"}
+              </span>
+            )}
+          </span>
         ) : passata ? (
           <Stato tono="negativo">Passata</Stato>
         ) : imminente ? (

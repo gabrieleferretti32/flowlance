@@ -22,7 +22,8 @@ import {
 import { generaAvvisi, type Avviso } from "@/lib/analisi/avvisi";
 import { PromemoriaBackup } from "@/components/dati/promemoria-backup";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
-import { quotaAccantonamento } from "@/lib/fisco/accantonamento";
+import { quotaAccantonamento, spunteSenzaF24 } from "@/lib/fisco/accantonamento";
+import { ROTTE } from "@/lib/rotte";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
@@ -101,6 +102,21 @@ export function Cruscotto() {
       ),
       giorniMedi: giorniMediIncasso(prospetto.fattureCalcolate),
       scadenze,
+      /*
+        Dove lo Scadenzario e questa card si contraddicono: le scadenze
+        spuntate come «Versato» che i versamenti F24 non coprono. Le due
+        schermate leggono due cose diverse — una la spunta, l'altra il denaro
+        — e la contraddizione va detta da tutte e due, se no è l'app che
+        sembra sbagliare.
+      */
+      spuntateScoperte: spunteSenzaF24({
+        scadenze,
+        versamenti: dati.versamenti,
+        anno,
+        spuntati: new Set(
+          dati.spunte.filter((sp) => sp.anno === anno).map((sp) => sp.idAdempimento),
+        ),
+      }),
       prossime: prossimeScadenze(scadenze, oggi, 4),
       // L'elenco continua nell'anno dopo: serve solo alla card del prossimo
       // versamento, che non si ferma al 31 dicembre.
@@ -194,6 +210,25 @@ export function Cruscotto() {
       .filter((v) => v.scaduta)
       .reduce((tot, v) => tot + v.quota, 0),
   );
+  /*
+    Quanto **di quell'arretrato** risulta spuntato nello Scadenzario.
+
+    La prima stesura scriveva «di cui» davanti al totale delle spuntate
+    scoperte, e su questi numeri usciva «1.329,67 € già scaduti · di cui
+    3.635,49 €»: un «di cui» più grande dell'intero, perché fra le spuntate
+    scoperte ci sono anche scadenze future, che arretrati non sono. Si
+    incrociano gli id con quelli che **la quota** chiama scaduti, che è la
+    stessa definizione che produce il numero sopra.
+  */
+  const arretratiSpuntati = (() => {
+    const scadute = new Set(
+      [...analisi.quota.imposte.voci, ...analisi.quota.iva.voci]
+        .filter((v) => v.scaduta)
+        .map((v) => v.id),
+    );
+    const voci = analisi.spuntateScoperte.voci.filter((v) => scadute.has(v.id));
+    return { quante: voci.length, totale: round2(voci.reduce((t, v) => t + v.scoperto, 0)) };
+  })();
   // Quanto del fabbisogno copre la percentuale impostata. `null` quando non
   // c'è niente da coprire: una percentuale su zero non vuol dire niente.
   // Anno contro anno: la percentuale impostata lavora su tutti i ricavi e ha
@@ -370,6 +405,43 @@ export function Cruscotto() {
                     {euro(scadutiInQuota)} già scaduti
                   </p>
                 )}
+                {/*
+                  **La contraddizione, detta da questa parte.**
+
+                  Lo Scadenzario mostra «Versato» in verde su una scadenza e
+                  questa card la conta fra gli arretrati: due schermate della
+                  stessa app che dicono il contrario, e da fuori è l'app che
+                  sbaglia. Sbagliata non è nessuna delle due — la spunta è un
+                  promemoria, la quota guarda il denaro uscito — ma finché
+                  nessuna lo dice, la differenza sembra un difetto.
+                */}
+                {analisi.spuntateScoperte.voci.length > 0 &&
+                  (() => {
+                    /* Quando una parte è già scaduta si parla di quella, ed è
+                       un «di cui» del numero qui sopra; se no si parla di
+                       tutte, e allora non è un «di cui» di niente. */
+                    const arretrato = arretratiSpuntati.quante > 0;
+                    const quante = arretrato
+                      ? arretratiSpuntati.quante
+                      : analisi.spuntateScoperte.voci.length;
+                    const totale = arretrato
+                      ? arretratiSpuntati.totale
+                      : analisi.spuntateScoperte.totale;
+                    const una = quante === 1;
+                    return (
+                      <p className="text-inchiostro-tenue">
+                        {arretrato ? "Di cui " : ""}
+                        {euro(totale)}{" "}
+                        {una ? "di una scadenza spuntata" : `di ${quante} scadenze spuntate`} nello
+                        Scadenzario, senza un F24 registrato che {una ? "la" : "le"} copra: il
+                        calcolo {una ? "la considera" : "le considera"} ancora da versare.{" "}
+                        <Link href={ROTTE.scadenzario} className="underline underline-offset-2">
+                          Guarda quali
+                        </Link>
+                        .
+                      </p>
+                    );
+                  })()}
                 {(analisi.quota.imposte.voci.length > 0 || analisi.quota.iva.voci.length > 0) && (
                   <details className="group">
                     <summary className="cursor-pointer list-none text-inchiostro-tenue [&::-webkit-details-marker]:hidden">

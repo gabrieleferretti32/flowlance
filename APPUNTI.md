@@ -631,3 +631,29 @@ non scrive niente, perché le righe arrivano deselezionate come doppioni — e l
 righe assegnate a mano riga per riga in anteprima. Per distinguerle adesso
 c'è il posto dove guardare: l'esito dell'import e lo storico dicono **quanti
 movimenti su quale conto**, contandoli in archivio, con la data dell'import.
+
+---
+
+**La spunta dello Scadenzario resta un promemoria, e la contraddizione si
+dichiara.** Segnalato il 23 settembre 2026: IVA del primo e del secondo
+trimestre e rate INPS spuntate come «Versato», e nella stessa app «1.329,67 €
+già scaduti» che comprendevano proprio quelle. Le due schermate leggono due
+cose diverse — lo Scadenzario la spunta, la quota i versamenti F24 — e nessuna
+delle due lo diceva.
+
+Adesso lo dicono tutte e due: `spunteSenzaF24` incrocia le spunte con la
+copertura dei versamenti, usando **la stessa regola della quota** (i versamenti
+coprono le scadenze in ordine di data, per componente) invece di una seconda
+regola che prima o poi le farebbe litigare. Misurato sull'archivio vero: quattro
+scadenze spuntate per 3.635,49 € senza F24, di cui 1.329,67 € già scaduti — che
+è esattamente il numero della card.
+
+Resta fuori la strada (a) della proposta: **spuntare una scadenza con importo
+apre la registrazione dell'F24**, con tipo, data e anno d'imposta già messi.
+Quattro cose da decidere prima di scriverla, e sono il motivo per cui non è
+stata fatta insieme a questa: l'importo precompilato con la stima diventerebbe
+un numero sbagliato che nessuno controlla più; l'anno d'imposta andrebbe preso
+dove si sa — oggi `Adempimento` non lo porta, e a giugno si versano insieme il
+saldo dell'anno prima e il primo acconto di quello in corso; la data dell'F24 è
+quella di uscita dal conto e comanda sulla deducibilità dei contributi; e
+togliere la spunta non deve cancellare il versamento, che è un fatto.
