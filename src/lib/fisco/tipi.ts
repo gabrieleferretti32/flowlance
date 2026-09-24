@@ -517,6 +517,30 @@ export type VersamentoF24 = {
    * invece di far finta di saperlo.
    */
   annoImposta?: number;
+  /**
+   * Da quale conto è uscito l'F24.
+   *
+   * Non è un dettaglio contabile: è l'unico modo che l'app ha di sapere se le
+   * tasse le paga il conto dell'attività o quello personale, e i due casi
+   * portano a due numeri diversi sulla stessa schermata.
+   *
+   * Se le paga l'attività, il prelievo che arriva sul conto personale è già
+   * **netto**: il fisco è uscito prima. Il modulo personale, che sulle entrate
+   * rimette da parte la quota di accantonamento, toglierebbe lo stesso carico
+   * una seconda volta — vedi APPROSSIMAZIONI.md, «Il prelievo netto tassato
+   * due volte». Se le paga il conto personale, il prelievo è lordo e la quota
+   * è giusta.
+   *
+   * Qui il campo risolve solo la metà che riguarda la cassa dell'attività:
+   * un F24 pagato dal conto personale non è un'uscita di quel conto, e
+   * `calcolaCashflow` non lo sottrae. Resta versato a tutti gli effetti
+   * fiscali — il prospetto, l'accantonamento e lo scadenzario lo contano come
+   * prima, perché il fisco non guarda da quale conto arriva il bonifico.
+   *
+   * Assente sui versamenti registrati prima che il campo esistesse: valgono
+   * come pagati dall'attività, che è quello che l'app faceva allora.
+   */
+  pagatoDa?: "attivita" | "personale";
 };
 
 /** Fattura con i campi derivati calcolati. Non si salva mai così. */

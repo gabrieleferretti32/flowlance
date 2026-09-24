@@ -75,6 +75,7 @@ const SCHERMATE = {
   fisco: "/schermate/fisco.png",
   scadenziario: "/schermate/scadenziario.png",
   costi: "/schermate/costi.png",
+  spesa: "/schermate/spesa.png",
 } as const;
 
 const DEMO = rottaDemo("vetrina");
@@ -333,8 +334,8 @@ function Apertura() {
         }}
       >
         Flowlance è il conto delle tasse per chi lavora in proprio: ti dice ogni giorno quanto di
-        quello che hai incassato è davvero tuo, quanto mettere da parte e quando esce. Perché dentro
-        ci sono l&apos;IVA dei tuoi clienti, i contributi e le tasse di giugno.
+        quello che hai incassato è davvero tuo — e poi, di quello che è tuo, quanto puoi spendere
+        questo mese.
       </p>
       <p style={{ margin: "16px 0 0", fontSize: 15, color: COLORI.testoDebole, fontStyle: "italic" }}>
         Forfettario e ordinario.
@@ -445,6 +446,13 @@ function CosaFa() {
       alt: "Prospetto di imposte e contributi, riga per riga",
     },
     {
+      titolo: "Il limite del mese: quanto puoi spendere.",
+      testo:
+        "Prima chiede una cosa sola: gli F24 da quale conto li paghi. Poi toglie dalle entrate quello che è già impegnato — tasse, se le paghi tu, affitto, rate — e quello che resta è la cifra spendibile davvero questo mese, non il saldo del conto. Carichi l'estratto conto della banca e ogni riga si categorizza da sola.",
+      src: SCHERMATE.spesa,
+      alt: "Quanto posso spendere: il limite del mese, al netto delle tasse da accantonare",
+    },
+    {
       titolo: "Lo scadenzario: quando esce.",
       testo:
         "Il saldo, gli acconti, l'IVA di ogni trimestre, i contributi. Con le date, gli importi e cosa resta da versare dopo ognuno.",
@@ -468,7 +476,7 @@ function CosaFa() {
           maxWidth: "24ch",
         }}
       >
-        Tre schermate, e sai dove sei.
+        Quattro schermate, e sai dove sei.
       </h2>
 
       <div style={{ display: "flex", flexDirection: "column", gap: "clamp(48px,7vw,96px)" }}>
@@ -523,6 +531,10 @@ function PercheEDiverso() {
       "Ed è il suo mestiere, non il suo difetto: lui chiude l'anno, non ti accompagna durante.",
     ],
     ["Il foglio di calcolo lo hai fatto tu.", "E le formule le hai scritte tu."],
+    [
+      "L'app di budget vede il saldo.",
+      "Non sa che un terzo di quei soldi è dell'Agenzia delle Entrate.",
+    ],
   ];
 
   return (
@@ -852,6 +864,14 @@ function Domande() {
     [
       "Devo cambiare programma di fatturazione?",
       "No. Continui a emettere dove emetti. Esporti il CSV e lo importi qui.",
+    ],
+    [
+      "Che differenza c'è con un'app di budget?",
+      "Quelle guardano il conto e ti dicono quanto hai speso. Flowlance guarda il conto e la partita IVA: sa quanto di quel saldo è IVA dei clienti, imposte e contributi non ancora versati, e li toglie prima di dirti quanto puoi spendere. È la sottrazione che un'app di budget non può fare, perché quei numeri non li ha.",
+    ],
+    [
+      "Devo collegare il conto corrente?",
+      "No, e non si può: Flowlance non chiede le credenziali della banca e non parla con nessuna banca. Scarichi l'estratto conto in CSV o Excel — come fai per il commercialista — e lo carichi qui. Riconosce le colonne da solo, propone una categoria per ogni riga e ti mostra tutto prima di scrivere niente.",
     ],
     [
       "Se cambio computer?",

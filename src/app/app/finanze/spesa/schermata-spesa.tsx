@@ -31,6 +31,8 @@ import { Button } from "@/components/ui/button";
 import { useDati, useSituazioneMese } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { salvaImpostazioniPf } from "@/lib/dati/azioni";
+import type { ChiPagaIlFisco, ImpostazioniPf } from "@/lib/finanze/tipi";
+import type { FiscoDelMese } from "@/lib/finanze/mese";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -79,6 +81,7 @@ export function SchermataSpesa() {
 
   const {
     impostazioni,
+    fisco,
     riga,
     dalMese,
     tetto,
@@ -87,6 +90,8 @@ export function SchermataSpesa() {
     meseSenzaDati,
     meseSenzaEntrate,
   } = conto;
+  /* Le tasse le paga il conto dell'attività: qui non si toglie niente. */
+  const fiscoAltrove = fisco.chiPaga === "attivita";
 
   /*
     Due modi diversi di non avere un limite del mese, con la stessa
@@ -223,6 +228,25 @@ export function SchermataSpesa() {
                 </p>
               </CardCorpo>
             )}
+            {/*
+              La riga del fisco è a zero, e questo è il posto in cui si dice
+              perché. Farla sparire sarebbe un numero cambiato senza
+              spiegazione: chi ha visto la schermata il mese scorso non
+              troverebbe più la voce e non saprebbe cosa è successo.
+            */}
+            {fiscoAltrove && (
+              <CardCorpo className="pt-2">
+                <p className="text-micro text-inchiostro-tenue">
+                  Il fisco è a zero perché gli F24 li paga il conto
+                  dell&apos;attività: quello che arriva qui è già al netto delle tasse, e
+                  toglierle di nuovo le toglierebbe due volte. Il fondo si guarda nella{" "}
+                  <Link href={ROTTE.cashflow} className="underline underline-offset-2">
+                    liquidità netta del Cashflow
+                  </Link>
+                  .
+                </p>
+              </CardCorpo>
+            )}
             {riga.stimate.length > 0 && (
               <CardCorpo className="pt-2">
                 <p className="text-micro text-inchiostro-tenue">
@@ -276,6 +300,13 @@ export function SchermataSpesa() {
               si muove da sola senza spiegazione si legge come un errore.
             */}
             <CardCorpo className="pt-3 pb-0">
+              {fiscoAltrove ? (
+                <p className="text-micro text-inchiostro-tenue">
+                  Anche qui il fisco è a zero: quei soldi da questo conto non passano. Da
+                  versare restano {elencoScadenze} Le paga il conto dell&apos;attività, e sulla
+                  sua cassa si vedono.
+                </p>
+              ) : (
               <p className="text-micro text-inchiostro-tenue">
                 Il fisco da versare comprende {elencoScadenze}
                 {ultimaScadenza !== null && (
@@ -286,6 +317,7 @@ export function SchermataSpesa() {
                   </>
                 )}
               </p>
+              )}
             </CardCorpo>
 
             <CardCorpo className="pt-3">
@@ -293,6 +325,8 @@ export function SchermataSpesa() {
             </CardCorpo>
           </Card>
         </div>
+
+        <DomandaChiPaga fisco={fisco} impostazioni={impostazioni} />
 
         {/* Le due cifre del fisco le spiegano già le loro righe: qui resta solo
             da dire da dove vengono, che è l'unica cosa che manca. */}
@@ -334,11 +368,110 @@ function Voce({
   );
 }
 
-function ImpostazioniSpesa({
+/**
+ * La domanda sola: «gli F24 da quale conto li paghi?».
+ *
+ * Non è una preferenza, è un fatto che chi legge ha davanti agli occhi — ed è
+ * l'unico modo di chiederlo che non si faccia rispondere a caso. «Ti prelevi il
+ * lordo o il netto?» sarebbe la stessa domanda posta in una lingua che nessuno
+ * parla.
+ *
+ * La risposta arriva già proposta da quello che l'app ha misurato, e i motivi
+ * stanno scritti sotto: così è una conferma, non una decisione da prendere al
+ * buio. E se un giorno l'archivio dirà il contrario della risposta salvata, la
+ * schermata lo dice invece di tenersi una dichiarazione vecchia.
+ */
+function DomandaChiPaga({
+  fisco,
   impostazioni,
 }: {
-  impostazioni: { id: "unico"; cuscinetto: number; riportoAttivo: boolean };
+  fisco: FiscoDelMese;
+  impostazioni: ImpostazioniPf;
 }) {
+  const scegli = (fiscoPagatoDa: ChiPagaIlFisco) =>
+    void salvaImpostazioniPf({ ...impostazioni, fiscoPagatoDa });
+  const opzioni: { valore: ChiPagaIlFisco; etichetta: string }[] = [
+    { valore: "attivita", etichetta: "Dal conto dell'attività" },
+    { valore: "personale", etichetta: "Da questo conto" },
+  ];
+  const altro: ChiPagaIlFisco = fisco.chiPaga === "attivita" ? "personale" : "attivita";
+  const parlanti = fisco.lettura.indizi.filter((i) => i.verso !== null);
+
+  return (
+    <Card>
+      <CardCorpo>
+        <CardTitolo>Gli F24 da quale conto li paghi?</CardTitolo>
+        <CardSottotitolo>
+          Da qui dipende se il limite del mese toglie la quota del fisco. Se le tasse le paga
+          il conto dell&apos;attività, quello che arriva sul conto personale è già netto:
+          toglierla di nuovo la toglierebbe due volte, e il limite uscirebbe più basso del vero
+          di tutta la quota.
+        </CardSottotitolo>
+
+        <BloccoScrittura className="mt-4 flex flex-wrap gap-2">
+          {opzioni.map((o) => (
+            <Button
+              scrive
+              key={o.valore}
+              variante={fisco.chiPaga === o.valore ? "scuro" : "contorno"}
+              taglia="sm"
+              aria-pressed={fisco.chiPaga === o.valore}
+              onClick={() => scegli(o.valore)}
+            >
+              {o.etichetta}
+            </Button>
+          ))}
+        </BloccoScrittura>
+
+        {/*
+          La dichiarazione salvata contro quello che l'archivio dice adesso.
+          Un modo di pagare cambia — si apre un conto, si smette di girare
+          l'F24 al commercialista — e una risposta data a gennaio è
+          indistinguibile da una giusta. Nessuno torna qui a ricontrollarla.
+        */}
+        {fisco.contraddetta && (
+          <p className="mt-3 rounded-lg bg-attenzione-tenue px-3 py-2 text-micro text-inchiostro">
+            Hai risposto{" "}
+            <strong>
+              {fisco.chiPaga === "attivita" ? "dal conto dell'attività" : "da questo conto"}
+            </strong>
+            , ma adesso l&apos;archivio dice il contrario:{" "}
+            {parlanti.map((i) => i.testo.replace(/\.$/, "")).join("; ")}.{" "}
+            <button
+              type="button"
+              className="underline underline-offset-2"
+              onClick={() => scegli(altro)}
+            >
+              Cambia la risposta
+            </button>
+            .
+          </p>
+        )}
+
+        <p className="mt-3 text-micro text-inchiostro-tenue">
+          {fisco.fonte === "dichiarato" && !fisco.contraddetta && "L'hai detto tu, e l'archivio non dice niente di diverso."}
+          {fisco.fonte === "misurato" &&
+            "Non l'hai ancora detto: questa è la risposta che l'app misura dall'archivio. Confermala, o cambiala."}
+          {fisco.fonte === "predefinito" &&
+            "Non l'hai ancora detto e i segnali non bastano per dirlo: vale «da questo conto», che è il verso prudente — fa spendere meno del dovuto invece di far spendere i soldi del fisco."}
+        </p>
+
+        <ul className="mt-2 space-y-1 text-micro text-inchiostro-tenue">
+          {fisco.lettura.indizi.map((i) => (
+            <li key={i.id} className="flex gap-2">
+              <span aria-hidden className={i.verso === null ? "text-inchiostro-debole" : undefined}>
+                {i.verso === null ? "·" : "→"}
+              </span>
+              <span>{i.testo}</span>
+            </li>
+          ))}
+        </ul>
+      </CardCorpo>
+    </Card>
+  );
+}
+
+function ImpostazioniSpesa({ impostazioni }: { impostazioni: ImpostazioniPf }) {
   const [cuscinetto, setCuscinetto] = React.useState(
     impostazioni.cuscinetto === 0 ? "" : String(impostazioni.cuscinetto).replace(".", ","),
   );

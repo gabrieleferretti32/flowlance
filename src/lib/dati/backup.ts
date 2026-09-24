@@ -360,6 +360,16 @@ const convalidaVersamento: Convalida<Dati["versamenti"][number]> = (riga, i, err
     tipo: tipo === "iva" || tipo === "imposte" || tipo === "contributi" ? tipo : "imposte",
     importo: numero(riga.importo),
     ...(Number.isFinite(annoImposta) && annoImposta > 1900 ? { annoImposta } : {}),
+    /*
+      Manca nei backup scritti prima che il campo esistesse. Per la cassa
+      l'assenza vale «conto dell'attività», che è quello che l'app faceva
+      allora; ma resta **assente**, perché assente e «attività» non vogliono
+      dire la stessa cosa: la prima è un silenzio, la seconda una risposta, e i
+      segnali che propongono chi paga il fisco contano solo le risposte.
+    */
+    ...(riga.pagatoDa === "personale" || riga.pagatoDa === "attivita"
+      ? { pagatoDa: riga.pagatoDa }
+      : {}),
   };
 };
 
@@ -769,6 +779,16 @@ const convalidaImpostazioniPf: Convalida<Dati["pfImpostazioni"][number]> = (riga
     «spento», e spegnerlo cambierebbe il limite di ogni mese in silenzio.
   */
   riportoAttivo: riga.riportoAttivo === undefined ? true : booleano(riga.riportoAttivo),
+  /*
+    Assente vuol dire **non dichiarato**, e resta `null`. Riempirlo con un
+    valore di comodo vorrebbe dire trasformare un silenzio in una risposta:
+    da quel momento l'app smetterebbe di misurare i segnali e si fiderebbe di
+    una dichiarazione che nessuno ha fatto.
+  */
+  fiscoPagatoDa:
+    riga.fiscoPagatoDa === "attivita" || riga.fiscoPagatoDa === "personale"
+      ? riga.fiscoPagatoDa
+      : null,
 });
 
 const convalidaMovimentoPf: Convalida<Dati["pfMovimenti"][number]> = (riga, i, errori) => {

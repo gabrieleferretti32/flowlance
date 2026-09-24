@@ -441,6 +441,39 @@ export async function assegnaAnnoImposta(versamento: VersamentoF24, annoImposta:
   });
 }
 
+/**
+ * Cambia il conto da cui l'F24 è uscito.
+ *
+ * Non è una preferenza: sposta un'uscita dalla cassa dell'attività al conto
+ * personale, e la tabella del Cashflow cambia di quell'importo. Si fa da dove
+ * il versamento si vede, perché è lì che chi guarda l'estratto conto si
+ * accorge che quel bonifico non c'è.
+ */
+export async function assegnaPagatoDa(
+  versamento: VersamentoF24,
+  pagatoDa: "attivita" | "personale",
+) {
+  const precedente = { ...versamento };
+  /*
+    Anche «attività» si scrive, e non si torna al campo vuoto.
+
+    Assente e «attività» si comportano allo stesso modo per la cassa — è il
+    default di sempre — ma non vogliono dire la stessa cosa: assente vuol dire
+    «nessuno l'ha mai detto», e i segnali che propongono la risposta a «gli F24
+    da quale conto li paghi?» contano solo quello che qualcuno ha detto
+    davvero. Cancellare il campo trasformerebbe una risposta in un silenzio.
+  */
+  await archivio().versamenti.salva({ ...versamento, pagatoDa });
+  toast.conferma(
+    pagatoDa === "personale"
+      ? "F24 pagato dal conto personale"
+      : "F24 pagato dal conto dell'attività",
+    async () => {
+      await archivio().versamenti.salva(precedente);
+    },
+  );
+}
+
 export async function eliminaVersamento(versamento: VersamentoF24) {
   await archivio().versamenti.elimina(versamento.id);
   toast.conferma("Versamento eliminato", async () => {

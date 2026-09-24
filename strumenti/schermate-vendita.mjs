@@ -83,6 +83,19 @@ const SCHERMATE = [
   { file: "fisco.png", rotta: "/app/fisco/", attesa: "Imposte e contributi", apriDettaglio: true },
   { file: "scadenziario.png", rotta: "/app/scadenzario/", attesa: "Scadenzario" },
   { file: "costi.png", rotta: "/app/costi/", attesa: "Costi" },
+  /*
+    La quinta: il modulo personale. La pagina di vendita ne parla, e una
+    schermata che non c'è è l'unico modo perché il racconto e il prodotto
+    divergano. Si scatta dalla vetrina come le altre — che dal 23 settembre
+    2026 ha conti, categorie e registro — e non da un archivio costruito per
+    la foto.
+
+    È «Quanto posso spendere» e non l'elenco dei movimenti perché la voce
+    della landing promette una cifra, e la cifra si vede solo lì. L'elenco si
+    scattava e non lo guardava nessuno: una schermata che nessuna pagina usa è
+    un file che invecchia in silenzio.
+  */
+  { file: "spesa.png", rotta: "/app/finanze/spesa/", attesa: "Quanto posso spendere" },
 ];
 
 try {

@@ -23,6 +23,17 @@ export type MeseCassa = {
   costiPagati: number;
   ivaVersata: number;
   imposteEContributi: number;
+  /**
+   * Gli F24 del mese usciti dal **conto personale**, che qui non sono
+   * un'uscita di cassa.
+   *
+   * Non stanno in `ivaVersata` né in `imposteEContributi` perché questa
+   * tabella deve quadrare con l'estratto conto dell'attività, e quel bonifico
+   * su quell'estratto non c'è. Restano versati per il fisco, e continuano ad
+   * abbassare le tasse accantonate: il fondo è uno solo, e quei soldi sono
+   * usciti comunque — dall'altro conto.
+   */
+  f24DalContoPersonale: number;
   prelieviPersonali: number;
   altreUscite: number;
   totaleUscite: number;
@@ -102,11 +113,24 @@ export function calcolaCashflow(ing: IngressoCashflow): Cashflow {
     const costiPagati = somma(
       ...nelMese(ing.costi, (c) => c.dataPagamento, m).map((c) => c.totale),
     );
+    /*
+      Gli F24 pagati dal conto personale non sono un'uscita di questo conto.
+
+      È il caso di chi tiene un conto per l'attività e uno personale e si
+      preleva lo stipendio **lordo**: l'F24 lo paga lui, non lo studio.
+      Sottrarlo qui vorrebbe dire far uscire lo stesso euro due volte — una
+      come prelievo e una come versamento — e la riga del saldo smetterebbe di
+      quadrare con l'estratto conto, che è l'unica cosa che questa tabella
+      deve fare.
+    */
     const versamentiMese = nelMese(ing.versamenti, (v) => v.data, m);
-    const ivaVersata = somma(...versamentiMese.filter((v) => v.tipo === "iva").map((v) => v.importo));
+    const dalPersonale = versamentiMese.filter((v) => v.pagatoDa === "personale");
+    const dallAttivita = versamentiMese.filter((v) => v.pagatoDa !== "personale");
+    const ivaVersata = somma(...dallAttivita.filter((v) => v.tipo === "iva").map((v) => v.importo));
     const imposteEContributi = somma(
-      ...versamentiMese.filter((v) => v.tipo !== "iva").map((v) => v.importo),
+      ...dallAttivita.filter((v) => v.tipo !== "iva").map((v) => v.importo),
     );
+    const f24DalContoPersonale = somma(...dalPersonale.map((v) => v.importo));
     const prelieviPersonali =
       ing.movimentiPersonali.find((x) => x.anno === anno && x.mese === m)?.prelievi ?? 0;
 
@@ -119,7 +143,16 @@ export function calcolaCashflow(ing: IngressoCashflow): Cashflow {
 
     // L'accantonamento si calcola sugli incassi del mese, non sul fatturato.
     const accantonamentoTasse = round2(incassiClienti * ing.percentualeAccantonamento);
-    accantonato = round2(accantonato + accantonamentoTasse - ivaVersata - imposteEContributi);
+    /*
+      Il fondo scende per **tutti** gli F24 del mese, anche quelli usciti dal
+      conto personale: il fisco è stato pagato, e i soldi che servivano non
+      servono più. Lasciarli dentro farebbe crescere un accantonamento che
+      nessuno userà mai, e la liquidità netta direbbe di meno del vero ogni
+      mese di più.
+    */
+    accantonato = round2(
+      accantonato + accantonamentoTasse - ivaVersata - imposteEContributi - f24DalContoPersonale,
+    );
     if (accantonato < 0) accantonato = 0;
 
     mesi.push({
@@ -131,6 +164,7 @@ export function calcolaCashflow(ing: IngressoCashflow): Cashflow {
       costiPagati,
       ivaVersata,
       imposteEContributi,
+      f24DalContoPersonale,
       prelieviPersonali,
       altreUscite,
       totaleUscite,

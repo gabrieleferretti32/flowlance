@@ -152,14 +152,22 @@ describe("in un anno aperto la derivazione lavora", () => {
     }
   });
 
-  it("**i due dataset com'escono di fabbrica non cambiano di un euro**", () => {
+  it("**la vetrina non cambia di un euro, pur avendo adesso un registro**", () => {
     /*
-      È la misura che vale più di tutte: chi non usa il modulo non vede
-      muoversi niente, perché senza movimenti registrati non c'è niente da
-      derivare. Se un giorno la vetrina avrà un registro, questo test lo dirà
-      fallendo.
+      Era la misura di chi non usa il modulo: senza movimenti registrati non
+      c'è niente da derivare, e il Cashflow non si muove. Il test diceva «se
+      un giorno la vetrina avrà un registro, questo test lo dirà fallendo», e
+      il giorno è arrivato — la vetrina ha i conti e il registro, perché le
+      schermate che li mostrano esistono e la demo le deve far vedere.
+
+      La misura però vale ancora, ed è **più forte di prima**: il registro
+      della vetrina è costruito a partire dal riepilogo scritto a mano, quindi
+      la derivazione deve ritrovare gli stessi numeri e il Cashflow deve
+      restare identico. Prima si misurava un'assenza; adesso si misura che la
+      derivazione, su un dataset vero, ricompone esattamente quello che c'era.
+      Voce per voce lo verifica `vetrina-personale.test.ts`.
     */
-    expect(d.pfMovimenti).toEqual([]);
+    expect(d.pfMovimenti.length).toBeGreaterThan(0);
     const conInnesto = anno(d, 2026).cashflow;
     const senzaInnesto = catenaAnni(
       { ...archivioDa(d), movimentiPersonali: d.movimentiPersonali },
