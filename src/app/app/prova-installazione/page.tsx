@@ -31,6 +31,23 @@
  * che sta diagnosticando è una diagnosi che cambia il risultato.
  *
  * ─────────────────────────────────────────────────────────────────────────
+ * Perché il verdetto non dipende da come il browser si descrive
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * La prima versione di questa pagina decideva da sola in che contesto stava
+ * girando, con `display-mode: standalone`, e ci appendeva il verdetto: il
+ * segno «viene dall'altra parte» solo se le due etichette sono diverse. Su
+ * Chrome/Mac la finestra installata ha dichiarato un'altra modalità, la
+ * pagina si è creduta in una scheda, e il verdetto è rimasto muto **mentre
+ * l'unica prova che serviva era già lì, sotto gli occhi**.
+ *
+ * Il difetto non era la formula sbagliata: era misurare qualcosa che non
+ * serviva. Chi guarda **sa** da dove sta guardando; il browser lo racconta in
+ * sei modi diversi e ogni tanto in nessuno. Quindi adesso il rilevamento
+ * **propone** e non decide: è una riga come le altre, e sotto c'è un
+ * interruttore che la corregge. Il verdetto guarda solo il segno.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
  * Questa pagina è temporanea
  * ─────────────────────────────────────────────────────────────────────────
  *
@@ -49,11 +66,29 @@ const BASE_ARCHIVIO = "freelance-finance-os";
 /** Le chiavi che l'app tiene in localStorage. Si guarda se ci sono, mai cosa contengono. */
 const CHIAVI = ["flowlance-licenza", "flowlance-backup", "ffos-preferenze", "flowlance:consenso-cookie"];
 
-type Segno = { quando: string; dove: string; agente: string };
+const DENTRO = "finestra installata";
+const FUORI = "scheda del browser";
+
+/**
+ * Tutte le modalità che una finestra può dichiarare.
+ *
+ * `standalone` è solo la più comune. Una finestra installata può dichiararsi
+ * `minimal-ui` (con una barra ridotta), `fullscreen`, `window-controls-overlay`
+ * (Chrome sul desktop, quando l'app si prende la barra del titolo) o `tabbed`.
+ * Cercare solo `standalone` vuol dire chiamare «scheda» quattro finestre
+ * installate su cinque.
+ */
+const MODALITA = ["standalone", "minimal-ui", "fullscreen", "window-controls-overlay", "tabbed", "browser"] as const;
+
+type Segno = { quando: string; dove: string; agente: string; id?: string };
 
 type Lettura = {
-  dove: string;
-  installata: boolean;
+  /** Le modalità che la finestra dichiara adesso. Vuoto = non lo dice. */
+  modalita: string[];
+  /** `navigator.standalone`, che è quello che iOS ha sempre avuto. */
+  iOS: boolean;
+  /** Il contesto **proposto** dal rilevamento, o null se non si capisce. */
+  proposto: string | null;
   segno: Segno | null;
   segnoLocale: Segno | null;
   archivio: { deposito: string; quanti: number }[] | null;
@@ -145,19 +180,41 @@ async function contaArchivio(): Promise<{ deposito: string; quanti: number }[] |
   return conti;
 }
 
+/** Le modalità che la finestra dichiara, tutte quante, senza sceglierne una. */
+function modalitaDichiarate(): string[] {
+  if (typeof window.matchMedia !== "function") return [];
+  return MODALITA.filter((m) => {
+    try {
+      return window.matchMedia(`(display-mode: ${m})`).matches;
+    } catch {
+      return false;
+    }
+  });
+}
+
 /*
-  «Finestra installata» si riconosce in due modi perché i due sistemi non
-  usano lo stesso: `display-mode: standalone` è lo standard, `navigator
-  .standalone` è quello che iOS ha sempre avuto e che ancora risponde.
+  La proposta, che è un indizio e non un verdetto.
+
+  Una sola regola: se la finestra dichiara qualcosa e quel qualcosa non è
+  `browser`, è installata. Al contrario di «è standalone?», questa risposta
+  resta giusta anche per le modalità che non abbiamo previsto. Se non dichiara
+  niente — matchMedia assente, o nessuna delle sei — non si inventa: null, e
+  la riga lo dice.
 */
-function dentroUnaFinestraInstallata(): boolean {
-  const standard = window.matchMedia?.("(display-mode: standalone)").matches ?? false;
-  const iOS = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-  return standard || iOS;
+function contestoProposto(modalita: string[], iOS: boolean): string | null {
+  if (iOS) return DENTRO;
+  if (modalita.length === 0) return null;
+  return modalita.includes("browser") ? FUORI : DENTRO;
+}
+
+/** Quattro caratteri da leggere ad alta voce, per riconoscere lo stesso segno. */
+function nuovoId(): string {
+  return Math.random().toString(36).slice(2, 6).toUpperCase();
 }
 
 async function misura(): Promise<Lettura> {
-  const installata = dentroUnaFinestraInstallata();
+  const modalita = modalitaDichiarate();
+  const iOS = (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
   let segnoLocale: Segno | null = null;
   try {
     const grezzo = localStorage.getItem(BASE_SEGNO);
@@ -166,8 +223,9 @@ async function misura(): Promise<Lettura> {
     segnoLocale = null;
   }
   return {
-    dove: installata ? "finestra installata" : "scheda del browser",
-    installata,
+    modalita,
+    iOS,
+    proposto: contestoProposto(modalita, iOS),
     segno: await leggiSegno(),
     segnoLocale,
     archivio: await contaArchivio(),
@@ -184,9 +242,17 @@ async function misura(): Promise<Lettura> {
   };
 }
 
+function descriviSegno(segno: Segno | null): string {
+  if (!segno) return "non c'è";
+  const id = segno.id ? `«${segno.id}», ` : "";
+  return `${id}scritto il ${new Date(segno.quando).toLocaleString("it-IT")} dalla ${segno.dove}`;
+}
+
 export default function ProvaInstallazione() {
   const [lettura, setLettura] = React.useState<Lettura | null>(null);
   const [inCorso, setInCorso] = React.useState(false);
+  /** Quello che dice chi guarda, che batte sempre quello che dice il browser. */
+  const [dichiarato, setDichiarato] = React.useState<string | null>(null);
 
   const aggiorna = React.useCallback(() => {
     void misura().then(setLettura);
@@ -202,14 +268,19 @@ export default function ProvaInstallazione() {
     );
   }
 
+  const contesto = dichiarato ?? lettura.proposto;
   const segno = lettura.segno ?? lettura.segnoLocale;
-  const daAltrove = segno !== null && segno.dove !== lettura.dove;
+  const daAltrove = segno !== null && contesto !== null && segno.dove !== contesto;
 
   /*
-    Il verdetto in chiaro, e con la sola cosa che lo rende non ambiguo: il
-    segno scritto **dall'altra parte**. Un segno scritto qui non dice niente
-    su dove stanno i dati — dice solo che questa pagina sa scrivere.
+    L'archivio vero letto da qui è la prova diretta, e non ha bisogno di
+    nessun segno: se dentro la finestra installata si vedono le fatture che
+    hai caricato dal browser, l'archivio è quello, punto. Il segno serve solo
+    quando l'archivio è vuoto da tutte e due le parti — cioè su un dispositivo
+    nuovo, dove il vuoto non distingue niente.
   */
+  const pieno = (lettura.archivio ?? []).reduce((s, a) => s + Math.max(a.quanti, 0), 0);
+
   const verdetto = daAltrove
     ? {
         titolo: "STESSI DATI",
@@ -222,8 +293,9 @@ export default function ProvaInstallazione() {
       ? {
           titolo: "ANCORA NIENTE DA DIRE",
           testo:
-            `Il segno che vedo l'ho scritto io stesso, dalla ${segno.dove}. `
-            + "Per avere una risposta devi guardarlo dall'altra parte: se sei nel browser, installa l'app e riapri questa pagina da lì.",
+            `Il segno che vedo risulta scritto dalla ${segno.dove}, che è dove dici di essere adesso. `
+            + "Per avere una risposta va guardato dall'altra parte: se sei nel browser, installa l'app e riapri questa pagina da lì. "
+            + "Se invece ci sei già dentro, correggi la riga «Sto guardando dalla» qui sotto.",
           colore: "bg-superficie-alt text-inchiostro",
         }
       : {
@@ -236,12 +308,13 @@ export default function ProvaInstallazione() {
         };
 
   const righe: [string, string][] = [
-    ["Sto girando in", lettura.dove],
     [
-      "Il segno",
-      segno
-        ? `scritto il ${new Date(segno.quando).toLocaleString("it-IT")} dalla ${segno.dove}`
-        : "non c'è",
+      "Il segno in IndexedDB",
+      descriviSegno(lettura.segno),
+    ],
+    [
+      "Il segno in localStorage",
+      descriviSegno(lettura.segnoLocale),
     ],
     [
       "L'archivio di Flowlance",
@@ -254,6 +327,12 @@ export default function ProvaInstallazione() {
     [
       "La chiave di licenza",
       lettura.chiavi.find((c) => c.nome === "flowlance-licenza")?.presente ? "c'è" : "non c'è",
+    ],
+    [
+      "La finestra si dichiara",
+      lettura.modalita.length === 0
+        ? "non lo dice"
+        : `${lettura.modalita.join(", ")}${lettura.iOS ? " · navigator.standalone" : ""}`,
     ],
   ];
 
@@ -268,6 +347,42 @@ export default function ProvaInstallazione() {
       <div className={`mt-6 rounded-campo px-5 py-4 ${verdetto.colore}`}>
         <p className="text-etichetta font-bold tracking-wide">{verdetto.titolo}</p>
         <p className="mt-1.5 text-corpo leading-relaxed">{verdetto.testo}</p>
+        {contesto === DENTRO && pieno > 0 ? (
+          <p className="mt-2 text-corpo leading-relaxed">
+            E senza bisogno del segno: da questa finestra si vedono {pieno} righe dell&apos;archivio
+            vero, che dal browser ci sono arrivate. È lo stesso archivio.
+          </p>
+        ) : null}
+      </div>
+
+      {/*
+        Il contesto: proposto dal browser, deciso da chi guarda. L'interruttore
+        non è una comodità — è la correzione di un rilevamento che su
+        Chrome/Mac aveva già sbagliato una volta.
+      */}
+      <div className="mt-6 rounded-campo border border-bordo px-5 py-4">
+        <p className="text-etichetta text-inchiostro-tenue">Sto guardando dalla</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          {[FUORI, DENTRO].map((quale) => (
+            <button
+              key={quale}
+              type="button"
+              onClick={() => setDichiarato(quale)}
+              className={`rounded-campo border px-3 py-2 text-corpo font-medium ${
+                contesto === quale ? "border-accento bg-accento text-white" : "border-bordo"
+              }`}
+            >
+              {quale}
+            </button>
+          ))}
+        </div>
+        <p className="mt-2 text-micro text-inchiostro-tenue">
+          {lettura.proposto === null
+            ? "Il browser non dichiara la modalità: qui decidi tu."
+            : dichiarato !== null && dichiarato !== lettura.proposto
+              ? `Il browser direbbe «${lettura.proposto}»: vale quello che hai detto tu.`
+              : `Proposto dal browser, che dichiara «${lettura.proposto}». Se sbaglia, cambialo.`}
+        </p>
       </div>
 
       <dl className="mt-6 divide-y divide-bordo border-y border-bordo">
@@ -282,13 +397,15 @@ export default function ProvaInstallazione() {
       <div className="mt-6 flex flex-wrap gap-3">
         <button
           type="button"
-          disabled={inCorso}
+          disabled={inCorso || contesto === null}
           onClick={() => {
+            if (contesto === null) return;
             setInCorso(true);
             void scriviSegno({
               quando: new Date().toISOString(),
-              dove: lettura.dove,
+              dove: contesto,
               agente: navigator.userAgent.slice(0, 120),
+              id: nuovoId(),
             }).then(() => {
               setInCorso(false);
               aggiorna();
@@ -320,7 +437,10 @@ export default function ProvaInstallazione() {
         <ol className="mt-2 list-decimal space-y-1.5 pl-5 text-corpo leading-relaxed">
           <li>Apri questa pagina <strong>nel browser</strong> e premi «Scrivi il segno qui».</li>
           <li>Installa Flowlance.</li>
-          <li>Apri questa pagina <strong>dentro l&apos;app installata</strong> e leggi il verdetto.</li>
+          <li>
+            Apri questa pagina <strong>dentro l&apos;app installata</strong>, controlla che la riga
+            «Sto guardando dalla» dica <em>finestra installata</em>, e leggi il verdetto.
+          </li>
         </ol>
         <p className="mt-3 text-micro text-inchiostro-tenue">
           Il segno vive in una base dati sua e non tocca l&apos;archivio. «Cancella il segno» lo
