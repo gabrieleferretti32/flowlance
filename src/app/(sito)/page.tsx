@@ -533,7 +533,7 @@ function PercheEDiverso() {
     ["Il foglio di calcolo lo hai fatto tu.", "E le formule le hai scritte tu."],
     [
       "L'app di budget vede il saldo.",
-      "Non sa che un terzo di quei soldi è dell'Agenzia delle Entrate.",
+      "Non sa che un terzo di quei soldi è del fisco.",
     ],
   ];
 
