@@ -126,24 +126,36 @@ describe("e il limite del mese della vetrina resta positivo tutto l'anno", () =>
   });
 
   /*
-    Gli F24 del registro personale sono gli stessi che legge il motore fiscale.
-    Due elenchi scritti a mano sarebbero due elenchi diversi il giorno che uno
-    dei due cambia, e la differenza si vedrebbe solo confrontando il saldo del
-    conto con la somma dei bonifici — cioè mai.
+    La vetrina è il caso normale: due conti, e gli F24 li paga l'attività.
+
+    Perché il limite sia quello giusto devono valere tutte e tre le cose
+    insieme — nessun F24 nel registro personale, tutti i versamenti dichiarati
+    sull'attività, e il prelievo pari al netto e non al lordo. Sono anche i tre
+    segnali che l'app legge per proporre la risposta: se qualcuno ne rompe uno,
+    la vetrina smette di raccontare il caso che dice di raccontare, e il numero
+    grande della schermata cambia senza che nessuno l'abbia deciso.
   */
-  it("gli F24 sul conto personale sono quelli che il fisco conosce", () => {
-    const daiVersamenti = d.versamenti
-      .filter((v) => v.pagatoDa === "personale" && v.data <= OGGI_VETRINA)
-      .map((v) => v.importo)
-      .sort((a, b) => a - b);
+  it("gli F24 li paga l'attività, e il registro personale non ne porta nessuno", () => {
     const coperte = new Set(
       d.pfCategorie.filter((c) => c.pagataDallAccantonamento).map((c) => c.id),
     );
-    const dalRegistro = d.pfMovimenti
-      .filter((m) => coperte.has(m.categoriaId))
-      .map((m) => m.importo)
-      .sort((a, b) => a - b);
-    expect(dalRegistro).toEqual(daiVersamenti);
-    expect(dalRegistro.length).toBeGreaterThan(0);
+    expect(d.pfMovimenti.filter((m) => coperte.has(m.categoriaId))).toEqual([]);
+    expect(d.versamenti.filter((v) => v.pagatoDa !== "attivita")).toEqual([]);
+    expect(d.versamenti.length).toBeGreaterThan(0);
+  });
+
+  /*
+    La risposta non è salvata, ed è voluto: la demo deve mostrare la macchina
+    che misura, non una casella già spuntata. Chi apre la vetrina vede i tre
+    motivi e si accorge che quella domanda esiste.
+  */
+  it("la risposta non è dichiarata: la propongono i tre segnali, concordi", () => {
+    expect(d.pfImpostazioni).toEqual([]);
+    expect(situazione.fisco.fonte).toBe("misurato");
+    expect(situazione.fisco.chiPaga).toBe("attivita");
+    expect(situazione.fisco.lettura.indizi.filter((i) => i.verso === null)).toEqual([]);
+    expect(situazione.riga.accantonamento).toBe(0);
+    /* La quota però esiste, e resta quella del cruscotto. */
+    expect(situazione.quota.alMese).toBeGreaterThan(0);
   });
 });

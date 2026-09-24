@@ -49,7 +49,17 @@ const situazione = (extra: {
   budget?: BudgetPf[];
   conti?: ContoPersonale[];
   cuscinetto?: number;
-  fiscoPagatoDa?: "attivita" | "personale";
+  /**
+   * Chi paga il fisco. **Predefinito «personale»**, e non «quello che i
+   * segnali misurano».
+   *
+   * Questi test studiano la sottrazione della quota, e l'archivio su cui
+   * girano è la vetrina — dove gli F24 li paga il conto dell'attività. Senza
+   * questo valore di partenza la quota non si toglierebbe, e mezza dozzina di
+   * test misurerebbe zero contro zero passando lo stesso. `null` per chiedere
+   * il comportamento senza dichiarazione.
+   */
+  fiscoPagatoDa?: "attivita" | "personale" | null;
 }) =>
   situazioneDelMese({
     anno: 2026,
@@ -61,15 +71,12 @@ const situazione = (extra: {
     movimenti: extra.movimenti ?? [],
     categorie: CATEGORIE,
     budget: extra.budget ?? [],
-    impostazioniPf:
-      extra.cuscinetto === undefined && extra.fiscoPagatoDa === undefined
-        ? null
-        : {
-            id: "unico",
-            cuscinetto: extra.cuscinetto ?? 0,
-            riportoAttivo: true,
-            fiscoPagatoDa: extra.fiscoPagatoDa ?? null,
-          },
+    impostazioniPf: {
+      id: "unico",
+      cuscinetto: extra.cuscinetto ?? 0,
+      riportoAttivo: true,
+      fiscoPagatoDa: extra.fiscoPagatoDa === undefined ? "personale" : extra.fiscoPagatoDa,
+    },
   });
 
 const mov = (categoriaId: string, data: string, importo: number, tipo: MovimentoPf["tipo"]): MovimentoPf => ({
@@ -253,7 +260,7 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
   const entrate = [mov("fatture", "2026-09-03", 2_000, "entrata")];
 
   it("se lo paga questo conto, la quota si toglie — come ha sempre fatto", () => {
-    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
+    const s = situazione({ movimenti: entrate });
     expect(s.fisco.chiPaga).toBe("personale");
     expect(s.riga.accantonamento).toBe(s.quota.alMese);
     expect(s.quota.alMese).toBeGreaterThan(0);
@@ -293,10 +300,10 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
     sta in `chi-paga-il-fisco.test.ts`.
   */
   it("senza dichiarazione vale quello che i segnali misurano", () => {
-    const s = situazione({ movimenti: entrate });
+    const s = situazione({ movimenti: entrate, fiscoPagatoDa: null });
     expect(s.fisco.fonte).toBe("misurato");
-    expect(s.fisco.chiPaga).toBe("personale");
-    expect(s.riga.accantonamento).toBe(s.quota.alMese);
+    expect(s.fisco.chiPaga).toBe("attivita");
+    expect(s.riga.accantonamento).toBe(0);
   });
 
   /*
@@ -305,9 +312,9 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
     tenersi una contraddizione muta.
   */
   it("una dichiarazione contraria ai segnali vince, e risulta contraddetta", () => {
-    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
-    expect(s.fisco.chiPaga).toBe("attivita");
-    expect(s.fisco.lettura.misurato).toBe("personale");
+    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
+    expect(s.fisco.chiPaga).toBe("personale");
+    expect(s.fisco.lettura.misurato).toBe("attivita");
     expect(s.fisco.contraddetta).toBe(true);
   });
 });

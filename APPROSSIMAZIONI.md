@@ -676,6 +676,12 @@ prima alla stessa scala: a 44.010 € di compensi il limite di gennaio è
 fretta del margine, quindi più l'attività va bene più il modulo dice che non si
 può spendere.
 
+La vetrina racconta adesso proprio questo caso — due conti, prelievo netto,
+F24 pagati dall'attività — e la risposta alla domanda **non è salvata**: la
+propongono i tre segnali, concordi, e la schermata mostra i motivi. Una demo
+in cui la casella è già spuntata non farebbe accorgere nessuno che quella
+domanda esiste.
+
 **Perché non se ne accorge nessuno.** Un limite negativo non sembra un errore
 dell'app: sembra un rimprovero. Chi lo legge pensa di aver speso troppo, non
 che il numero sia sbagliato — ed è l'unica schermata del prodotto che promette
@@ -688,6 +694,11 @@ Cashflow non sottrae dalla cassa dell'attività quelli usciti dal conto
 personale. Restano versati a tutti gli effetti fiscali — prospetto,
 accantonamento e scadenzario non cambiano di un centesimo — e continuano ad
 abbassare le tasse accantonate, perché quei soldi sono usciti comunque.
+
+Il campo è **una dichiarazione, non un default**: assente vuol dire «nessuno
+l'ha mai detto», e su ogni archivio nato prima del campo sono tutti così. Per
+la cassa assente e «attività» si comportano allo stesso modo, ma il secondo
+segnale qui sotto conta solo quello che qualcuno ha detto davvero.
 
 Il secondo: **il modulo sa da quale conto escono le tasse**, e non lo chiede
 come un modello contabile. Lo misura da tre segnali e lo fa confermare con una

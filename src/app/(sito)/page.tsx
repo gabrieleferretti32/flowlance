@@ -448,7 +448,7 @@ function CosaFa() {
     {
       titolo: "Il limite del mese: quanto puoi spendere.",
       testo:
-        "Le tasse da mettere da parte le sa già. Toglile dalle entrate, togli l'affitto e le rate, e quello che resta è la cifra che puoi spendere davvero questo mese — non il saldo del conto, che contiene anche i soldi del fisco. Carichi l'estratto conto della banca e ogni riga si categorizza da sola.",
+        "Prima chiede una cosa sola: gli F24 da quale conto li paghi. Poi toglie dalle entrate quello che è già impegnato — tasse, se le paghi tu, affitto, rate — e quello che resta è la cifra spendibile davvero questo mese, non il saldo del conto. Carichi l'estratto conto della banca e ogni riga si categorizza da sola.",
       src: SCHERMATE.spesa,
       alt: "Quanto posso spendere: il limite del mese, al netto delle tasse da accantonare",
     },

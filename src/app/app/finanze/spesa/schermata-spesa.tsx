@@ -303,7 +303,7 @@ export function SchermataSpesa() {
               {fiscoAltrove ? (
                 <p className="text-micro text-inchiostro-tenue">
                   Anche qui il fisco è a zero: quei soldi da questo conto non passano. Da
-                  versare restano {elencoScadenze} Li paga il conto dell&apos;attività, e sulla
+                  versare restano {elencoScadenze} Le paga il conto dell&apos;attività, e sulla
                   sua cassa si vedono.
                 </p>
               ) : (

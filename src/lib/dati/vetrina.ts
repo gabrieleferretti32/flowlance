@@ -50,7 +50,6 @@ import type {
   ObiettivoPf,
 } from "@/lib/finanze/tipi";
 import { CATEGORIE_INIZIALI } from "@/lib/finanze/categorie";
-import { round2 } from "@/lib/fisco/aritmetica";
 import { impostazioniPredefinite } from "@/lib/fisco/impostazioni";
 import { PARAMETRI_2025 } from "@/lib/fisco/parametri/2025";
 import { PARAMETRI_2026 } from "@/lib/fisco/parametri/2026";
@@ -572,23 +571,13 @@ const SEMI_COSTI_ANNO_PRIMA: SemeCosto[] = [
 // Cassa e patrimonio
 // ————————————————————————————————————————————————————————————
 
-/**
- * Il riepilogo mensile scritto a mano.
- *
- * `f24PerMese` è la parte che nel 2026 non c'era prima: dal 1° gennaio Elena
- * si preleva lo stipendio **lordo** e gli F24 escono dal suo conto, quindi in
- * quei mesi le spese fisse sono l'affitto più il bonifico all'erario. La
- * categoria `F24` è fra quelle pagate dall'accantonamento e resta fuori dal
- * limite di spesa — ma dentro il riepilogo ci sta, perché dal conto quei soldi
- * sono usciti davvero.
- */
+/** Il riepilogo mensile scritto a mano, quello che il registro deve ritrovare. */
 function movimentiPersonali(
   anno: number,
   prelievi: number,
   speseFisse: number,
   risparmio: number,
   variabili: number[],
-  f24PerMese: Record<number, number> = {},
 ): MovimentoPersonale[] {
   return variabili.map((speseVariabili, i) => ({
     id: `vet-mp-${anno}-${String(i + 1).padStart(2, "0")}`,
@@ -596,7 +585,7 @@ function movimentiPersonali(
     mese: i + 1,
     prelievi,
     altreEntrate: 0,
-    speseFisse: round2(speseFisse + (f24PerMese[i + 1] ?? 0)),
+    speseFisse,
     speseVariabili,
     risparmio,
   }));
@@ -692,16 +681,23 @@ const PF_CONTI: ContoPersonale[] = [
 /** Le venti di partenza, le stesse che il modulo semina da solo. */
 const PF_CATEGORIE: CategoriaPf[] = CATEGORIE_INIZIALI.map((c) => ({ ...c }));
 
-/** Le spese fisse del mese: sommano a 700, come `speseFisse` del riepilogo. */
+/**
+ * Le spese fisse del mese: sommano a 650, come `speseFisse` del riepilogo.
+ *
+ * Insieme alle variabili e al risparmio fanno mille euro tondi al mese, contro
+ * 1.083,08 € di netto: la vita di Elena entra in quello che l'attività lascia,
+ * e ci entra stretta. È il punto del prodotto, e un dataset in cui il conto
+ * torna largo non lo mostrerebbe.
+ */
 const FISSE: [string, number, string, number][] = [
-  ["affitto", 380, "Affitto di casa", 2],
-  ["bollette", 160, "Luce e gas", 8],
-  ["assicurazioni", 105, "Polizza casa e RC", 12],
-  ["abbonamenti", 55, "Telefono e streaming", 16],
+  ["affitto", 360, "Affitto di casa", 2],
+  ["bollette", 150, "Luce e gas", 8],
+  ["assicurazioni", 95, "Polizza casa e RC", 12],
+  ["abbonamenti", 45, "Telefono e streaming", 16],
 ];
 
 /** Quanto mette da parte ogni mese, e a quale categoria di risparmio. */
-const RISPARMIO_MENSILE = 100;
+const RISPARMIO_MENSILE = 50;
 
 /** Come si spartiscono le variabili del mese, in quattro voci su cento. */
 const VARIABILI: [string, number, string, number][] = [
@@ -717,11 +713,7 @@ const VARIABILI: [string, number, string, number][] = [
  * I giorni si accorciano sull'ultimo disponibile: a settembre la vetrina si
  * ferma al 5, e un movimento datato il 26 sarebbe una spesa nel futuro.
  */
-function registroPersonale(
-  prelievi: number,
-  variabili: number[],
-  f24: VersamentoF24[],
-): MovimentoPf[] {
+function registroPersonale(prelievi: number, variabili: number[]): MovimentoPf[] {
   const movimenti: MovimentoPf[] = [];
   const ultimoGiorno = Number(ULTIMO_GIORNO.slice(8, 10));
   const ultimoMese = Number(ULTIMO_GIORNO.slice(5, 7));
@@ -788,43 +780,14 @@ function registroPersonale(
   });
 
   /*
-    Gli F24 dell'anno, presi **dagli stessi versamenti** che legge il motore
-    fiscale e non riscritti qui.
-
-    Due elenchi scritti a mano sarebbero due elenchi diversi il giorno che uno
-    dei due cambia, e la differenza si vedrebbe solo confrontando il saldo del
-    conto con la somma dei bonifici — cioè mai. Le categorie sono le tre che il
-    modulo semina da solo, tutte pagate dall'accantonamento: restano fuori dal
-    limite di spesa, e dentro al saldo del conto.
+    Nessun F24 nel registro: li paga il conto dell'attività, ed è il caso
+    normale di chi tiene due conti. È anche quello che i tre segnali di
+    `chi-paga-il-fisco.ts` leggono per proporre la risposta alla domanda «gli
+    F24 da quale conto li paghi?» — qui la leggono da un'assenza, e l'assenza
+    dev'essere vera.
   */
-  for (const v of f24) {
-    if (v.data < iso(1, 1) || v.data > ULTIMO_GIORNO) continue;
-    movimenti.push({
-      id: `vet-pf-mov-f24-${v.id}`,
-      data: v.data,
-      tipo: "spesa",
-      categoriaId: CATEGORIA_F24[v.tipo],
-      contoId: PF_CONTI[0].id,
-      importo: v.importo,
-      descrizione: `F24 ${DESCRIZIONE_F24[v.tipo]}`,
-    });
-  }
-
   return movimenti.sort((a, b) => a.data.localeCompare(b.data) || a.id.localeCompare(b.id));
 }
-
-/** Dove finisce ogni tipo di F24 nel registro personale. */
-const CATEGORIA_F24: Record<VersamentoF24["tipo"], string> = {
-  iva: "f24",
-  imposte: "tasse",
-  contributi: "inps",
-};
-
-const DESCRIZIONE_F24: Record<VersamentoF24["tipo"], string> = {
-  iva: "— liquidazione IVA",
-  imposte: "— imposte",
-  contributi: "— contributi INPS",
-};
 
 /** Una meta di risparmio, misurata sul libretto. */
 const PF_OBIETTIVI: ObiettivoPf[] = [
@@ -1020,47 +983,51 @@ const F24_SCRITTI: VersamentoF24[] = [
 ];
 
 /**
- * Dal 1° gennaio 2026 gli F24 escono dal **conto personale**.
+ * Gli F24 li paga il conto dell'attività, e qui lo si **dichiara**.
  *
- * È il cambio che rende il dataset coerente con se stesso. Finché li pagava il
- * conto dell'attività, il prelievo che arrivava sul conto personale era già
- * netto del fisco, e il modulo personale — che sulle entrate rimette da parte
- * la quota di accantonamento — toglieva lo stesso carico una seconda volta: il
- * limite del mese usciva negativo di quasi diecimila euro, e più l'attività
- * fatturava più peggiorava. Vedi APPROSSIMAZIONI.md, «Il prelievo netto
- * tassato due volte».
+ * È il caso normale — un conto per l'attività, uno personale, e ogni mese si
+ * gira quello che resta — ed è quello che per mesi il modulo personale ha
+ * calcolato male: il prelievo che arriva è già netto del fisco, e la quota di
+ * accantonamento toglieva una seconda volta lo stesso carico. Il limite di
+ * settembre diceva −9.753,05 €, e 9.238,05 € di quel rosso erano solo la
+ * doppia sottrazione. Vedi APPROSSIMAZIONI.md, «Il prelievo netto tassato due
+ * volte».
  *
- * Adesso Elena si preleva lo stipendio **lordo** e il fisco lo paga lei: il
- * prelievo del 2026 passa da 1.750 a 2.440 € al mese, gli F24 compaiono nel
- * suo registro e la quota di accantonamento è finalmente la cifra giusta da
- * mettere da parte, non la seconda sottrazione della stessa cosa.
+ * Adesso l'app la domanda la fa — «gli F24 da quale conto li paghi?» — e la
+ * vetrina è il caso in cui la risposta è «dall'attività»: la quota non si
+ * toglie, e il limite del mese è quello vero.
  *
- * Gli F24 del 2025 restano dell'attività: quell'anno andava così, ed è la
- * ragione per cui il prelievo del 2025 è più basso di quello del 2026 pur
- * essendo la stessa vita.
+ * Il campo è scritto su **tutti** e tredici, e non lasciato assente. Assente e
+ * «attività» si comportano allo stesso modo per la cassa, ma non vogliono dire
+ * la stessa cosa: la prima è un silenzio, la seconda una risposta, e il
+ * secondo dei tre segnali conta solo le risposte. Su un archivio dove nessuno
+ * ha mai toccato quel campo resterebbe muto, e qui invece deve parlare — è la
+ * vetrina, e la macchina si deve vedere funzionare.
  */
-const VERSAMENTI: VersamentoF24[] = F24_SCRITTI.map((v) =>
-  v.data >= `${ANNO_VETRINA}-01-01` ? { ...v, pagatoDa: "personale" as const } : v,
-);
+const VERSAMENTI: VersamentoF24[] = F24_SCRITTI.map((v) => ({
+  ...v,
+  pagatoDa: "attivita" as const,
+}));
 
-/** Quanto di F24 è uscito dal conto personale, mese per mese, fino a oggi. */
-const F24_PER_MESE: Record<number, number> = {};
-for (const versamento of VERSAMENTI) {
-  if (versamento.pagatoDa !== "personale" || versamento.data > ULTIMO_GIORNO) continue;
-  const mese = Number(versamento.data.slice(5, 7));
-  F24_PER_MESE[mese] = round2((F24_PER_MESE[mese] ?? 0) + versamento.importo);
-}
-
-/** Quanto Elena si preleva ogni mese nel 2026: lordo, fisco compreso. */
-const PRELIEVO = 2_440;
+/**
+ * Quanto Elena si preleva ogni mese nel 2026: **netto**, il fisco è già uscito.
+ *
+ * È il netto disponibile dell'anno diviso dodici — 12.996,96 / 12 = 1.083,08 —
+ * arrotondato in giù. Non è una cifra scelta: è quello che l'attività lascia
+ * davvero dopo costi e imposte, e su un dataset dimostrativo il prelievo non
+ * può essere più generoso di così senza raccontare una bugia.
+ */
+const PRELIEVO = 1_080;
 /**
  * Le spese variabili del 2026: nove mesi, non dodici.
  *
  * Ottobre non c'è perché ottobre non è ancora arrivato: un prelievo registrato
  * nel futuro farebbe scendere la liquidità di oggi per denaro che nessuno ha
  * ancora preso.
+ *
+ * Luglio è il mese alto: le ferie ci sono anche per chi ha la partita IVA.
  */
-const VARIABILI_2026 = [500, 470, 520, 545, 560, 610, 730, 690, 290];
+const VARIABILI_2026 = [270, 255, 285, 300, 315, 345, 420, 390, 160];
 /** Il totale delle spese fisse del mese, che il riepilogo deve ritrovare. */
 const FISSE_TOTALE = FISSE.reduce((totale, [, importo]) => totale + importo, 0);
 
@@ -1070,11 +1037,11 @@ const MOVIMENTI_PERSONALI: MovimentoPersonale[] = [
     [520, 490, 540, 580, 610, 660, 820, 760, 560, 530, 590, 880],
   ),
   ...movimentiPersonali(
-    ANNO_VETRINA, PRELIEVO, FISSE_TOTALE, RISPARMIO_MENSILE, VARIABILI_2026, F24_PER_MESE,
+    ANNO_VETRINA, PRELIEVO, FISSE_TOTALE, RISPARMIO_MENSILE, VARIABILI_2026,
   ),
 ];
 
-const PF_MOVIMENTI = registroPersonale(PRELIEVO, VARIABILI_2026, VERSAMENTI);
+const PF_MOVIMENTI = registroPersonale(PRELIEVO, VARIABILI_2026);
 
 /*
   La chiusura del 2025.
