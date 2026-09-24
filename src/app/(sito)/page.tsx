@@ -710,6 +710,52 @@ function IDati() {
   );
 }
 
+/**
+ * Il prezzo, in una card sola.
+ *
+ * Una card e non un confronto fra piani, perché il piano è uno: il momento in
+ * cui una pagina di vendita mette due colonne affiancate è il momento in cui
+ * chi legge smette di chiedersi se il prodotto gli serve e comincia a
+ * chiedersi quale versione gli serve. Qui la domanda resta la prima, e
+ * l'elenco raggruppato è lì per rispondere a «tutto cosa?».
+ *
+ * I tre gruppi sono i tre pezzi del prodotto nell'ordine in cui uno ci arriva:
+ * prima il fisco, che è il motivo per cui si compra; poi il denaro
+ * dell'attività; poi le finanze personali, che sono l'ultimo arrivato ed è
+ * detto.
+ *
+ * Le cifre arrivano tutte da `PREZZO_SCRITTO`, che è anche la ragione per cui
+ * qui non ne compare nessuna scritta a mano: una tagliola in
+ * `acquisto.test.ts` fallisce se qualcuno ne scrive una.
+ */
+const DENTRO: { titolo: string; nuovo?: boolean; voci: string[] }[] = [
+  {
+    titolo: "Il fisco",
+    voci: [
+      "Prospetto di imposte e contributi",
+      "IVA, trimestre per trimestre",
+      "Scadenzario con gli importi",
+      "Confronto fra i due regimi",
+      "Chiusura d'anno",
+    ],
+  },
+  {
+    titolo: "Il denaro dell'attività",
+    voci: ["Cashflow mese per mese", "Bilancio dell'attività", "Pianificazione"],
+  },
+  {
+    titolo: "Le finanze personali",
+    nuovo: true,
+    voci: [
+      "Quanto posso spendere questo mese",
+      "Conti e patrimonio",
+      "Movimenti dai rendiconti della banca",
+      "Budget per categoria",
+      "Mete di risparmio",
+    ],
+  },
+];
+
 function Prezzo() {
   return (
     <section
@@ -722,78 +768,168 @@ function Prezzo() {
     >
       <div style={{ maxWidth: 820, margin: "0 auto", textAlign: "center" }}>
         <Occhiello testo="Prezzo" colore={COLORI.accentoChiaro} />
-        <h2
-          style={{
-            margin: "18px 0 0",
-            fontSize: "clamp(44px,9vw,92px)",
-            lineHeight: 1,
-            letterSpacing: "-0.04em",
-            fontWeight: 800,
-          }}
-        >
-          {PREZZO_SCRITTO.imponibile} all&apos;anno
-        </h2>
-        {/*
-          Il prezzo arriva da `PREZZO_SCRITTO`, lo stesso da cui lo prende la
-          pagina d'acquisto, e una tagliola verifica che i tre numeri stiano
-          anche nel punto 6 dei Termini. Una landing che dice una cifra e un
-          contratto che ne dice un'altra è il difetto peggiore che questa
-          pagina possa avere.
-        */}
-        <p
-          style={{
-            margin: "14px 0 0",
-            fontSize: "clamp(16px,1.8vw,19px)",
-            fontWeight: 600,
-            color: COLORI.accentoChiaro,
-          }}
-        >
-          + IVA {PREZZO_SCRITTO.aliquota} · {PREZZO_SCRITTO.totale} totali
-        </p>
-        <p
-          style={{
-            margin: "24px auto 0",
-            fontSize: "clamp(16px,1.8vw,19px)",
-            lineHeight: 1.6,
-            color: COLORI.suScuro,
-            maxWidth: "56ch",
-          }}
-        >
-          Non c&apos;è un piano base e uno avanzato: c&apos;è Flowlance, tutto. Forfettario e
-          ordinario, IVA, scadenzario, prospetto stampabile, import dai gestionali.
-        </p>
+
         <div
           style={{
-            margin: "clamp(28px,4vw,40px) auto 0",
-            maxWidth: 600,
+            margin: "clamp(22px,3vw,32px) auto 0",
             background: COLORI.scuroAlt,
-            borderRadius: 18,
-            padding: 24,
+            border: "1px solid rgba(143,157,255,0.22)",
+            borderRadius: 24,
+            padding: "clamp(24px,4vw,44px) clamp(18px,3.4vw,40px)",
+            textAlign: "left",
           }}
         >
-          <p style={{ margin: 0, fontSize: "clamp(17px,2vw,20px)", lineHeight: 1.45, fontWeight: 700 }}>
-            Se entro 30 giorni non fa per te, ti restituiamo i soldi.
-          </p>
-          <p style={{ margin: "10px 0 0", fontSize: 16, lineHeight: 1.55, color: COLORI.suScuro }}>
-            Scrivi una mail, senza spiegare perché.
-          </p>
-        </div>
-        <div style={{ marginTop: "clamp(28px,4vw,40px)" }}>
-          <Link
-            href={SITO.acquisto}
-            className="inline-block rounded-[12px] font-bold text-white transition-colors"
+          {/*
+            Il prezzo arriva da `PREZZO_SCRITTO`, lo stesso da cui lo prende la
+            pagina d'acquisto, e una tagliola verifica che i tre numeri stiano
+            anche nel punto 6 dei Termini. Una landing che dice una cifra e un
+            contratto che ne dice un'altra è il difetto peggiore che questa
+            pagina possa avere.
+          */}
+          <h2
             style={{
-              fontSize: "clamp(17px,2vw,19px)",
-              background: COLORI.accento,
-              padding: "17px 32px",
+              margin: 0,
+              fontSize: "clamp(40px,8vw,80px)",
+              lineHeight: 1,
+              letterSpacing: "-0.04em",
+              fontWeight: 800,
+              textAlign: "center",
             }}
           >
-            Acquista Flowlance — {PREZZO_SCRITTO.imponibile} + IVA
-          </Link>
+            {PREZZO_SCRITTO.imponibile} all&apos;anno
+          </h2>
+          <p
+            style={{
+              margin: "14px 0 0",
+              fontSize: "clamp(16px,1.8vw,19px)",
+              fontWeight: 600,
+              color: COLORI.accentoChiaro,
+              textAlign: "center",
+            }}
+          >
+            + IVA {PREZZO_SCRITTO.aliquota} · {PREZZO_SCRITTO.totale} totali
+          </p>
+          <p
+            style={{
+              margin: "18px auto 0",
+              fontSize: "clamp(16px,1.8vw,19px)",
+              lineHeight: 1.6,
+              color: COLORI.suScuro,
+              /* Larga abbastanza da tenere la frase su una riga sola a 1440. */
+              maxWidth: "58ch",
+              textAlign: "center",
+            }}
+          >
+            Non c&apos;è un piano base e uno avanzato: c&apos;è Flowlance, tutto.
+          </p>
+
+          <div
+            style={{
+              margin: "clamp(26px,4vw,38px) 0 0",
+              paddingTop: "clamp(24px,3.4vw,32px)",
+              borderTop: "1px solid rgba(143,157,255,0.18)",
+              display: "grid",
+              gap: "clamp(22px,3vw,32px)",
+              gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))",
+            }}
+          >
+            {DENTRO.map((gruppo) => (
+              <div key={gruppo.titolo}>
+                <h3
+                  style={{
+                    margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    fontSize: 15,
+                    fontWeight: 700,
+                    letterSpacing: "0.01em",
+                  }}
+                >
+                  {gruppo.titolo}
+                  {gruppo.nuovo && (
+                    <span
+                      style={{
+                        background: COLORI.accento,
+                        color: COLORI.bianco,
+                        borderRadius: 999,
+                        padding: "3px 9px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        letterSpacing: "0.04em",
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Nuovo
+                    </span>
+                  )}
+                </h3>
+                <ul style={{ margin: "12px 0 0", padding: 0, listStyle: "none" }}>
+                  {gruppo.voci.map((voce) => (
+                    <li
+                      key={voce}
+                      style={{
+                        display: "flex",
+                        gap: 9,
+                        alignItems: "baseline",
+                        margin: "7px 0 0",
+                        fontSize: 15,
+                        lineHeight: 1.5,
+                        color: COLORI.suScuro,
+                      }}
+                    >
+                      {/* Il segno di spunta è decorativo: la voce la dice il testo. */}
+                      <span aria-hidden style={{ color: COLORI.accentoChiaro, fontWeight: 700 }}>
+                        ✓
+                      </span>
+                      <span>{voce}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              margin: "clamp(26px,4vw,38px) 0 0",
+              paddingTop: "clamp(24px,3.4vw,32px)",
+              borderTop: "1px solid rgba(143,157,255,0.18)",
+              textAlign: "center",
+            }}
+          >
+            <p style={{ margin: 0, fontSize: "clamp(17px,2vw,20px)", lineHeight: 1.45, fontWeight: 700 }}>
+              Se entro 30 giorni non fa per te, ti restituiamo i soldi.
+            </p>
+            <p style={{ margin: "10px 0 0", fontSize: 16, lineHeight: 1.55, color: COLORI.suScuro }}>
+              Scrivi una mail, senza spiegare perché.
+            </p>
+            <div style={{ marginTop: "clamp(24px,3.4vw,32px)" }}>
+              <Link
+                href={SITO.acquisto}
+                className="inline-block rounded-[12px] font-bold text-white transition-colors"
+                style={{
+                  fontSize: "clamp(17px,2vw,19px)",
+                  background: COLORI.accento,
+                  padding: "17px 32px",
+                }}
+              >
+                Acquista Flowlance — {PREZZO_SCRITTO.imponibile} + IVA
+              </Link>
+            </div>
+          </div>
         </div>
-        <p style={{ margin: "20px 0 0", fontSize: 15, color: "#8b95b0", fontStyle: "italic" }}>
-          Rinnovo alla data di acquisto, non a dicembre. Disdici quando vuoi. Fattura emessa a ogni
-          acquisto.
+
+        {/*
+          «Disdici quando vuoi» stava qui, e contraddiceva l'art. 6 dei Termini:
+          non c'è niente da disdire, perché il rinnovo non è automatico. Una
+          landing che promette una disdetta su un contratto che non si rinnova
+          da solo è una frase che suona rassicurante e descrive un'altra cosa.
+        */}
+        <p style={{ margin: "22px 0 0", fontSize: 15, color: "#8b95b0", fontStyle: "italic" }}>
+          Rinnovo alla data di acquisto, non a dicembre. Il rinnovo non è automatico: alla scadenza
+          decidi tu. Fattura emessa a ogni acquisto.
         </p>
       </div>
     </section>
