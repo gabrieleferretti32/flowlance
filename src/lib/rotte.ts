@@ -55,6 +55,7 @@ export const ROTTE = {
   importa: `${BASE_APP}/importa`,
   licenza: `${BASE_APP}/licenza`,
   scorciatoie: `${BASE_APP}/scorciatoie`,
+  installa: `${BASE_APP}/installa`,
 } as const;
 
 export type NomeRotta = keyof typeof ROTTE;

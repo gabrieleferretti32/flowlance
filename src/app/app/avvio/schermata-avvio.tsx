@@ -35,6 +35,7 @@ import {
   type StatoPercorso,
 } from "@/lib/onboarding/percorso";
 import { usePreferenze } from "@/lib/stato/preferenze";
+import { ROTTE } from "@/lib/rotte";
 import { cn } from "@/lib/utils";
 import {
   ConfrontoDeiRegimi,
@@ -243,6 +244,21 @@ export function SchermataAvvio() {
           completo={stato.completo}
           applicabili={passi.map((p) => p.id)}
         />
+
+        {/*
+          Una riga sola, in fondo, e nessun invito: chi vuole tenere Flowlance
+          come applicazione la trova quando la cerca. Una proposta che compare
+          da sola sarebbe un consiglio dato prima di sapere se su quel sistema
+          l'archivio è lo stesso — ed è la domanda che quella pagina esiste per
+          non dare per scontata.
+        */}
+        <p className="px-1 text-etichetta text-inchiostro-tenue">
+          Flowlance si può anche tenere come applicazione, in una finestra sua con la sua icona:{" "}
+          <Link href={ROTTE.installa} className="underline underline-offset-2">
+            come si fa
+          </Link>{" "}
+          (per ora verificato solo su Chrome per Mac).
+        </p>
       </div>
     </Guscio>
   );
