@@ -441,9 +441,7 @@ let cookieConsenso = null;
       await page.waitForTimeout(6_000);
 
       /*
-        Prima dei cookie, una cosa che si può misurare senza rete: che
-        `window.clarity` sia **una funzione** e che il consenso sia finito
-        nella sua coda.
+        `window.clarity` è **una funzione** e non un nodo del DOM.
 
         Non è pedanteria sul tipo. Ogni elemento con un `id` diventa una
         proprietà omonima di `window`, e finché lo `<Script>` si chiamava
@@ -454,24 +452,54 @@ let cookieConsenso = null;
         prima del suo arrivo finiva su un nodo del DOM e spariva senza un
         errore. Misurato, non dedotto: `typeof window.clarity` rispondeva
         «object».
+
+        Questo controllo vale in tutti e due i mondi qui sotto, ed è l'unico.
       */
-      const coda = await page.evaluate(() => ({
-        tipo: typeof window.clarity,
-        consensi: (window.clarity?.q ?? [])
-          .filter((a) => a[0] === "consentv2")
-          .map((a) => a[1]),
-      }));
-      sostiene(
-        coda.tipo === "function",
-        `window.clarity è una funzione e non un nodo del DOM (${coda.tipo})`,
-      );
-      const ultimo = coda.consensi[coda.consensi.length - 1];
-      sostiene(
-        ultimo?.analytics_Storage === "granted" && ultimo?.ad_Storage === "denied",
-        `col sì alla registrazione il consenso in coda è ${JSON.stringify(ultimo ?? null)}`,
-      );
+      const tipo = await page.evaluate(() => typeof window.clarity);
+      sostiene(tipo === "function", `window.clarity è una funzione e non un nodo del DOM (${tipo})`);
 
       const dopoIlSi = await cookieClarity();
+
+      /*
+        ─────────────────────────────────────────────────────────────────
+        Due mondi, e il controllo giusto in ciascuno
+        ─────────────────────────────────────────────────────────────────
+
+        Qui c'era un controllo che cercava il consenso dentro `window.clarity.q`
+        e pretendeva di trovarcelo. Passava in CI e falliva dalla rete di chi
+        sviluppa, con «il consenso in coda è null» — e il verso era quello
+        sbagliato: **passava solo quando Clarity non funzionava.**
+
+        La coda esiste per i momenti in cui il tag non è ancora sceso: quando
+        scende, si prende il nome `clarity` e la svuota. Su una rete che arriva
+        a clarity.ms il consenso quindi *non* è in coda, ed è giusto così: è
+        già arrivato a destinazione. Su una rete che la blocca resta in coda,
+        perché non c'è nessuno a raccoglierlo.
+
+        Riprodotto il 24 settembre 2026 rispondendo al posto di clarity.ms con
+        uno script che fa quello che fa il vero: con il tag che scende la
+        lettura dà `null`, senza dà il consenso. Stessa pagina, stesso codice.
+
+        Quindi: il tag è arrivato lo dicono **i cookie**, che solo lui sa
+        scrivere. Se ci sono, la prova del consenso sono loro — senza
+        «granted» Clarity va in modalità senza consenso e non ne scrive
+        nessuno. Se non ci sono, il consenso deve essere ancora in coda.
+
+        I **valori** del consenso — `granted` sulle statistiche, `denied` sulla
+        pubblicità — li verifica la sezione 6, che funziona in tutti e due i
+        mondi perché la coda se la pianta da sola prima dello snippet.
+      */
+      if (dopoIlSi.length === 0) {
+        const inCoda = await page.evaluate(() =>
+          (window.clarity?.q ?? []).filter((a) => a[0] === "consentv2").map((a) => a[1]),
+        );
+        const ultimo = inCoda[inCoda.length - 1];
+        sostiene(
+          ultimo?.analytics_Storage === "granted" && ultimo?.ad_Storage === "denied",
+          "senza il tag sceso dalla rete, il consenso resta in coda e aspetta"
+            + ` (${JSON.stringify(ultimo ?? null)})`,
+        );
+      }
 
       if (dopoIlSi.length === 0) {
         const perche = fallite.length
@@ -508,6 +536,123 @@ let cookieConsenso = null;
         );
       }
     }
+  }
+  await ctx.close();
+}
+
+// ————————————————————————————————————————————————————————————
+// 6 · I valori del consenso, comunque vada a finire
+// ————————————————————————————————————————————————————————————
+
+/*
+  Questa sezione verifica **cosa dice** il consenso, e lo fa senza dipendere da
+  chi lo raccoglie.
+
+  La coda se la pianta da sola, prima che la pagina si carichi, e la avvolge in
+  una spia che tiene una copia di ogni chiamata in un array che nessuno svuota.
+  Se il tag vero scende e si prende il nome `clarity`, la spia lo avvolge a sua
+  volta — è una proprietà con un setter, non una variabile — e la copia continua
+  a riempirsi. Funziona con la rete e senza.
+
+  Sta a parte, e non dentro la sezione 5, per una ragione precisa: piantare la
+  coda in anticipo renderebbe banale il controllo `typeof window.clarity ===
+  "function"` di là, che è quello che aveva preso il difetto dell'elemento del
+  DOM col nome `clarity`. Due proprietà diverse, due giri: quello di là guarda
+  **chi** è `window.clarity` senza toccarlo, questo guarda **cosa gli arriva**.
+*/
+{
+  const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, locale: "it-IT" });
+  const page = await ctx.newPage();
+
+  await page.addInitScript(() => {
+    const visti = [];
+    // L'array prima di tutto: la spia ci scrive dentro dalla prima chiamata.
+    Object.defineProperty(window, "__consensiVisti", { value: visti, configurable: true });
+
+    const avvolgi = (f) => {
+      const spia = function (...argomenti) {
+        visti.push(argomenti);
+        return typeof f === "function" ? f.apply(this, argomenti) : undefined;
+      };
+      // La coda resta leggibile: è lo stesso array, non una copia.
+      spia.q = f?.q;
+      return spia;
+    };
+
+    const coda = (...argomenti) => {
+      coda.q = coda.q ?? [];
+      coda.q.push(argomenti);
+    };
+    coda.q = [];
+
+    let attuale = avvolgi(coda);
+    Object.defineProperty(window, "clarity", {
+      configurable: true,
+      get: () => attuale,
+      set: (f) => { attuale = avvolgi(f); },
+    });
+  });
+
+  const consensi = async () =>
+    page.evaluate(() =>
+      (window.__consensiVisti ?? []).filter((a) => a[0] === "consentv2").map((a) => a[1]),
+    );
+
+  await page.goto(`${BASE}/`, { waitUntil: "networkidle" });
+  await page.waitForTimeout(1_000);
+
+  /*
+    Prima di qualunque scelta: se a Clarity è stato detto qualcosa, è «denied».
+
+    Non «niente», ed è una correzione che questo stesso controllo si è preso al
+    primo giro. La coda qui sopra esiste già al caricamento, e il componente del
+    consenso parla a chiunque risponda a `window.clarity`: in questo giro una
+    chiamata a «denied» c'è, e sul sito vero non ci sarebbe, perché lì
+    `window.clarity` prima del sì non esiste. Pretendere il silenzio vorrebbe
+    dire misurare lo strumento invece della pagina — lo stesso errore che
+    questa sezione è nata per riparare.
+
+    Che prima del sì non parta **nessuna richiesta** lo dicono le sezioni 1-4,
+    che guardano la rete e non la pagina.
+  */
+  const primaDiScegliere = await consensi();
+  sostiene(
+    primaDiScegliere.every((c) => c.analytics_Storage === "denied" && c.ad_Storage === "denied"),
+    "prima di qualunque scelta a Clarity non arriva nessun «granted»"
+      + ` (${JSON.stringify(primaDiScegliere)})`,
+  );
+
+  await page.getByRole("button", { name: /Scegli una categoria/i }).click();
+  await page.waitForTimeout(400);
+  const interruttori = page.locator('[role="dialog"] [role="switch"], [role="dialog"] input[type="checkbox"]');
+  if ((await interruttori.count()) < 3) {
+    problemi.push("nel pannello ci sono meno di tre interruttori: non so quale sia la registrazione");
+  } else {
+    await interruttori.nth(2).click();
+    await page.locator('[role="dialog"] button').filter({ hasText: /Salva le scelte/i }).first().click();
+    await page.waitForTimeout(3_000);
+
+    const dopoIlSi = (await consensi()).at(-1);
+    sostiene(
+      dopoIlSi?.analytics_Storage === "granted" && dopoIlSi?.ad_Storage === "denied",
+      `col sì alla registrazione a Clarity arriva ${JSON.stringify(dopoIlSi ?? null)}`,
+    );
+
+    /*
+      E la revoca, che è il caso che conta: «denied» deve arrivare anche a chi
+      non ha ricaricato la pagina. È la ragione per cui il componente del
+      consenso sta fuori dal ramo che carica il tag.
+    */
+    await page.getByRole("button", { name: /Preferenze cookie/i }).click();
+    await page.waitForTimeout(600);
+    await page.locator('[role="dialog"] button').filter({ hasText: /^Rifiuta tutto$/ }).first().click();
+    await page.waitForTimeout(2_000);
+
+    const dopoLaRevoca = (await consensi()).at(-1);
+    sostiene(
+      dopoLaRevoca?.analytics_Storage === "denied" && dopoLaRevoca?.ad_Storage === "denied",
+      `revocando, a Clarity arriva ${JSON.stringify(dopoLaRevoca ?? null)}`,
+    );
   }
   await ctx.close();
 }
