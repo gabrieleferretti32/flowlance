@@ -240,4 +240,19 @@ describe("una dichiarazione vecchia non resta vera per sempre", () => {
   it("nemmeno quando i segnali non sanno dire", () => {
     expect(dichiarazioneContraddetta("attivita", chiPagaIlFisco(ingresso()))).toBe(false);
   });
+
+  /*
+    Una riga di impostazioni salvata prima che il campo esistesse non porta
+    `null`: non porta niente. Trattare `undefined` come una dichiarazione
+    faceva comparire l'avviso in ambra «hai risposto X, ma adesso l'archivio
+    dice il contrario» a chi non aveva mai risposto — e su un archivio vecchio
+    sarebbe comparso al primo aggiornamento, a tutti.
+  */
+  it("e un archivio nato prima del campo non ha dichiarato niente", () => {
+    expect(dichiarazioneContraddetta(undefined, oraDiceAttivita)).toBe(false);
+    expect(rispostaChiPaga(undefined, oraDiceAttivita)).toEqual({
+      chiPaga: "attivita",
+      fonte: "misurato",
+    });
+  });
 });

@@ -275,7 +275,8 @@ export function chiPagaIlFisco(ing: IngressoChiPaga): LetturaChiPaga {
 export type FonteRisposta = "dichiarato" | "misurato" | "predefinito";
 
 export function rispostaChiPaga(
-  dichiarato: ChiPagaIlFisco | null,
+  /** `null` se non l'ha detto, `undefined` se l'archivio è nato prima del campo. */
+  dichiarato: ChiPagaIlFisco | null | undefined,
   lettura: LetturaChiPaga,
 ): { chiPaga: ChiPagaIlFisco; fonte: FonteRisposta } {
   if (dichiarato) return { chiPaga: dichiarato, fonte: "dichiarato" };
@@ -293,8 +294,17 @@ export function rispostaChiPaga(
  * ricontrollarla: tocca all'app accorgersene e dirlo.
  */
 export function dichiarazioneContraddetta(
-  dichiarato: ChiPagaIlFisco | null,
+  dichiarato: ChiPagaIlFisco | null | undefined,
   lettura: LetturaChiPaga,
 ): boolean {
-  return dichiarato !== null && lettura.misurato !== null && lettura.misurato !== dichiarato;
+  /*
+    `!dichiarato` e non `dichiarato !== null`.
+
+    Un archivio salvato prima che il campo esistesse non porta `null`: non
+    porta niente. Con il confronto secco su `null`, `undefined` passava per una
+    dichiarazione, e la prima volta che i segnali dicevano qualcosa compariva
+    l'avviso in ambra «hai risposto X, ma adesso l'archivio dice il contrario»
+    a qualcuno che non aveva mai risposto.
+  */
+  return Boolean(dichiarato) && lettura.misurato !== null && lettura.misurato !== dichiarato;
 }

@@ -222,8 +222,13 @@ export type ImpostazioniPf = {
    * che nessuno ha fatto non si distingue più da una fatta, e su questa
    * risposta si decide se togliere o no la quota di accantonamento dal limite
    * del mese.
+   *
+   * **Assente** su una riga salvata prima che il campo esistesse, ed è la
+   * ragione per cui è facoltativo invece che obbligatorio con un valore di
+   * comodo: da IndexedDB quella riga torna così com'è, e chi la legge deve
+   * vedere che la risposta non c'è.
    */
-  fiscoPagatoDa: ChiPagaIlFisco | null;
+  fiscoPagatoDa?: ChiPagaIlFisco | null;
 };
 
 export const IMPOSTAZIONI_PF_PREDEFINITE: ImpostazioniPf = {
