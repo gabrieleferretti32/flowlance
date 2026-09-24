@@ -1,0 +1,10 @@
+{
+  "sorgente": "src/app/icon.svg",
+  "impronta": "59bc922f021456c796d762543527eae6b8c51b9eb5a68695221c8ab6349fb4ed",
+  "file": [
+    "public/icona-192.png",
+    "public/icona-512.png",
+    "public/icona-maskable-512.png",
+    "src/app/apple-icon.png"
+  ]
+}
