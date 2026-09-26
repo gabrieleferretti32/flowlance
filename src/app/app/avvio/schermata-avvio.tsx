@@ -257,7 +257,8 @@ export function SchermataAvvio() {
           <Link href={ROTTE.installa} className="underline underline-offset-2">
             come si fa
           </Link>{" "}
-          (per ora verificato solo su Chrome per Mac).
+          (per ora verificato solo su Chrome per Mac; sugli altri sistemi non installare finché
+          non l&apos;abbiamo provato).
         </p>
       </div>
     </Guscio>
