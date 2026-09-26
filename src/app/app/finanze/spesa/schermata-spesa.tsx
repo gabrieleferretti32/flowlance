@@ -23,6 +23,7 @@ import { CaricamentoTabella } from "@/components/ui/caricamento";
 import { Cifra, Etichetta } from "@/components/ui/etichetta";
 import { Campo, Input } from "@/components/ui/input";
 import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Vuoto } from "@/components/ui/vuoto";
 import { Guscio } from "@/components/guscio/guscio";
@@ -31,10 +32,14 @@ import { Button } from "@/components/ui/button";
 import { useDati, useSituazioneMese } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { salvaImpostazioniPf } from "@/lib/dati/azioni";
-import type { ChiPagaIlFisco, ImpostazioniPf } from "@/lib/finanze/tipi";
+import type { ContoDelFisco, ContoPersonale, ImpostazioniPf } from "@/lib/finanze/tipi";
+import { idDelConto } from "@/lib/finanze/chi-paga-il-fisco";
 import type { FiscoDelMese } from "@/lib/finanze/mese";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+/** Il segnaposto «li paga un conto che non è qui», come valore della tendina. */
+const FUORI = "fuori";
 
 export function SchermataSpesa() {
   const anno = usePreferenze((s) => s.periodo.anno);
@@ -326,7 +331,7 @@ export function SchermataSpesa() {
           </Card>
         </div>
 
-        <DomandaChiPaga fisco={fisco} impostazioni={impostazioni} />
+        <DomandaChiPaga fisco={fisco} impostazioni={impostazioni} conti={dati.pfConti} />
 
         {/* Le due cifre del fisco le spiegano già le loro righe: qui resta solo
             da dire da dove vengono, che è l'unica cosa che manca. */}
@@ -369,12 +374,25 @@ function Voce({
 }
 
 /**
- * La domanda sola: «gli F24 da quale conto li paghi?».
+ * La domanda sola: «quale conto paga gli F24?».
  *
  * Non è una preferenza, è un fatto che chi legge ha davanti agli occhi — ed è
  * l'unico modo di chiederlo che non si faccia rispondere a caso. «Ti prelevi il
  * lordo o il netto?» sarebbe la stessa domanda posta in una lingua che nessuno
  * parla.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché l'elenco dei conti e non un sì/no
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Al calcolo serve un verso solo: se le tasse usciranno dal mucchio che il
+ * limite guarda, la quota va tolta; se escono da un conto che qui non c'è, no.
+ * Un sì/no basterebbe — e infatti il motore non guarda *quale* conto.
+ *
+ * Ma la risposta è anche la **documentazione della risposta**. Con sei conti,
+ * «sì» non lascia a chi l'ha detto nessun modo di verificare di aver risposto
+ * pensando al conto giusto: un anno dopo, davanti a un limite che non torna,
+ * «sì» non si può rileggere. Il nome del conto sì.
  *
  * La risposta arriva già proposta da quello che l'app ha misurato, e i motivi
  * stanno scritti sotto: così è una conferma, non una decisione da prendere al
@@ -384,44 +402,75 @@ function Voce({
 function DomandaChiPaga({
   fisco,
   impostazioni,
+  conti,
 }: {
   fisco: FiscoDelMese;
   impostazioni: ImpostazioniPf;
+  conti: ContoPersonale[];
 }) {
-  const scegli = (fiscoPagatoDa: ChiPagaIlFisco) =>
-    void salvaImpostazioniPf({ ...impostazioni, fiscoPagatoDa });
-  const opzioni: { valore: ChiPagaIlFisco; etichetta: string }[] = [
-    { valore: "attivita", etichetta: "Dal conto dell'attività" },
-    { valore: "personale", etichetta: "Da questo conto" },
-  ];
-  const altro: ChiPagaIlFisco = fisco.chiPaga === "attivita" ? "personale" : "attivita";
+  /*
+    Rispondendo si cancella la risposta vecchia, quella del sì/no: due
+    risposte nello stesso archivio sono una che vince e una che aspetta di
+    essere letta per sbaglio.
+  */
+  const scegli = (contoDelFisco: ContoDelFisco) =>
+    void salvaImpostazioniPf({ ...impostazioni, contoDelFisco, fiscoPagatoDa: null });
+
+  const scelto = idDelConto(fisco.contoDelFisco) ?? (fisco.contoDelFisco === "fuori" ? FUORI : undefined);
   const parlanti = fisco.lettura.indizi.filter((i) => i.verso !== null);
 
   return (
     <Card>
       <CardCorpo>
-        <CardTitolo>Gli F24 da quale conto li paghi?</CardTitolo>
+        <CardTitolo>Quale conto paga gli F24?</CardTitolo>
         <CardSottotitolo>
-          Da qui dipende se il limite del mese toglie la quota del fisco. Se le tasse le paga
-          il conto dell&apos;attività, quello che arriva sul conto personale è già netto:
-          toglierla di nuovo la toglierebbe due volte, e il limite uscirebbe più basso del vero
-          di tutta la quota.
+          Da qui dipende se il limite del mese toglie la quota del fisco. Se le tasse escono da
+          un conto che qui non c&apos;è, quello che ti arriva è già netto: toglierla di nuovo la
+          toglierebbe due volte, e il limite uscirebbe più basso del vero di tutta la quota.
         </CardSottotitolo>
 
-        <BloccoScrittura className="mt-4 flex flex-wrap gap-2">
-          {opzioni.map((o) => (
-            <Button
-              scrive
-              key={o.valore}
-              variante={fisco.chiPaga === o.valore ? "scuro" : "contorno"}
-              taglia="sm"
-              aria-pressed={fisco.chiPaga === o.valore}
-              onClick={() => scegli(o.valore)}
-            >
-              {o.etichetta}
-            </Button>
-          ))}
+        <BloccoScrittura className="mt-4 max-w-sm">
+          <Campo etichetta="Il conto degli F24" htmlFor="conto-del-fisco">
+            <Select value={scelto} onValueChange={(v) => scegli(v)}>
+              <SelectTrigger id="conto-del-fisco">
+                <SelectValue placeholder="Non l'hai ancora detto" />
+              </SelectTrigger>
+              <SelectContent>
+                {conti.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.nome}
+                  </SelectItem>
+                ))}
+                <SelectItem value={FUORI}>Nessuno di questi: li paga un conto che non è qui</SelectItem>
+              </SelectContent>
+            </Select>
+          </Campo>
         </BloccoScrittura>
+
+        {/*
+          Il conto indicato è stato cancellato. Il numero non si è mosso — un
+          id penzolante vale «esce da qui», come prima — e dirlo è il punto:
+          senza questa riga resterebbe una risposta che nomina un conto che
+          non esiste, e nessuno se ne accorgerebbe.
+        */}
+        {fisco.contoSparito && (
+          <p className="mt-3 rounded-lg bg-attenzione-tenue px-3 py-2 text-micro text-inchiostro">
+            Il conto che avevi indicato non c&apos;è più. Il limite continua a togliere la quota,
+            come prima: nessuna cifra è cambiata. Ma la risposta nomina un conto che non esiste
+            — scegline uno qui sopra.
+          </p>
+        )}
+
+        {/*
+          La risposta vecchia, quella del sì/no: dice il verso ma non il conto.
+          Vale ancora — il calcolo è lo stesso — e si chiede solo di completarla.
+        */}
+        {fisco.contoDelFisco === "dentro" && (
+          <p className="mt-3 text-micro text-inchiostro-tenue">
+            Avevi risposto che escono da un conto tuo, ma non da quale: il limite toglie la quota,
+            come allora. Scegli il conto qui sopra e resta scritto anche quale.
+          </p>
+        )}
 
         {/*
           La dichiarazione salvata contro quello che l'archivio dice adesso.
@@ -433,27 +482,23 @@ function DomandaChiPaga({
           <p className="mt-3 rounded-lg bg-attenzione-tenue px-3 py-2 text-micro text-inchiostro">
             Hai risposto{" "}
             <strong>
-              {fisco.chiPaga === "attivita" ? "dal conto dell'attività" : "da questo conto"}
+              {fisco.conto
+                ? fisco.conto.nome
+                : fisco.chiPaga === "attivita"
+                  ? "che li paga un conto che non è qui"
+                  : "che escono da un conto tuo"}
             </strong>
             , ma adesso l&apos;archivio dice il contrario:{" "}
-            {parlanti.map((i) => i.testo.replace(/\.$/, "")).join("; ")}.{" "}
-            <button
-              type="button"
-              className="underline underline-offset-2"
-              onClick={() => scegli(altro)}
-            >
-              Cambia la risposta
-            </button>
-            .
+            {parlanti.map((i) => i.testo.replace(/\.$/, "")).join("; ")}. Cambiala qui sopra.
           </p>
         )}
 
         <p className="mt-3 text-micro text-inchiostro-tenue">
           {fisco.fonte === "dichiarato" && !fisco.contraddetta && "L'hai detto tu, e l'archivio non dice niente di diverso."}
           {fisco.fonte === "misurato" &&
-            "Non l'hai ancora detto: questa è la risposta che l'app misura dall'archivio. Confermala, o cambiala."}
+            `Non l'hai ancora detto: l'app misura che le tasse ${fisco.chiPaga === "attivita" ? "escono da un conto che qui non c'è" : "escono da un conto tuo"}, e il limite si comporta di conseguenza. Dillo qui sopra, o correggilo.`}
           {fisco.fonte === "predefinito" &&
-            "Non l'hai ancora detto e i segnali non bastano per dirlo: vale «da questo conto», che è il verso prudente — fa spendere meno del dovuto invece di far spendere i soldi del fisco."}
+            "Non l'hai ancora detto e i segnali non bastano per dirlo: vale «esce da un conto tuo», che è il verso prudente — fa spendere meno del dovuto invece di far spendere i soldi del fisco."}
         </p>
 
         <ul className="mt-2 space-y-1 text-micro text-inchiostro-tenue">

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { analizzaBackup, creaBackup, serializzaBackup } from "@/lib/dati/backup";
 import { COLLEZIONI, datiVuoti, type Dati } from "@/lib/dati/tipi";
+import { contoDelFiscoDi } from "./chi-paga-il-fisco";
 import { VERSIONE_SCHEMA } from "@/lib/dati/db";
 
 /**
@@ -96,6 +97,55 @@ describe("**un backup vecchio, senza il modulo, entra senza errori**", () => {
     expect(esito.ok).toBe(true);
     if (!esito.ok) return;
     expect(esito.backup.dati.pfConti).toHaveLength(1);
+  });
+});
+
+/**
+ * La risposta su chi paga gli F24 attraversa il backup, tutte e due le volte.
+ *
+ * Dentro c'è **l'id di un conto**, e un id che non torna indietro non è un
+ * campo perso: è una risposta che sopravvive a metà. Il limite continuerebbe a
+ * togliere la quota — il verso prudente — mentre a schermo la domanda
+ * ricomparirebbe senza risposta, e chi ha appena ripristinato un backup non ha
+ * nessun modo di sapere se è normale.
+ */
+describe("la risposta su chi paga gli F24 sopravvive al backup", () => {
+  it("**l'id del conto torna indietro tale e quale**", () => {
+    const dati = conFinanze();
+    dati.pfImpostazioni = [{ id: "unico", cuscinetto: 0, riportoAttivo: true, contoDelFisco: "c1" }];
+    expect(rilegge(dati).pfImpostazioni[0]?.contoDelFisco).toBe("c1");
+  });
+
+  it("e così il segnaposto «li paga un conto che non è qui»", () => {
+    const dati = conFinanze();
+    dati.pfImpostazioni = [{ id: "unico", cuscinetto: 0, riportoAttivo: true, contoDelFisco: "fuori" }];
+    expect(rilegge(dati).pfImpostazioni[0]?.contoDelFisco).toBe("fuori");
+  });
+
+  /*
+    E la risposta nella forma vecchia, quella del sì/no: sta nei backup
+    esportati fra il 23 e il 26 settembre 2026. Scartarla vorrebbe dire
+    trasformare in «non ha risposto» una risposta che c'è.
+  */
+  it("la risposta vecchia, quella del sì/no, non si perde", () => {
+    const dati = conFinanze();
+    dati.pfImpostazioni = [{ id: "unico", cuscinetto: 0, riportoAttivo: true, fiscoPagatoDa: "attivita" }];
+    const riletta = rilegge(dati).pfImpostazioni[0];
+    expect(riletta?.fiscoPagatoDa).toBe("attivita");
+    expect(contoDelFiscoDi(riletta!)).toBe("fuori");
+  });
+
+  /*
+    Nessuna risposta resta nessuna risposta. Riempire il campo con un valore
+    di comodo — «fuori», per dire — vorrebbe dire far smettere l'app di
+    misurare i segnali sulla parola di nessuno.
+  */
+  it("nessuna risposta resta nessuna risposta", () => {
+    const dati = conFinanze();
+    dati.pfImpostazioni = [{ id: "unico", cuscinetto: 0, riportoAttivo: true }];
+    const riletta = rilegge(dati).pfImpostazioni[0];
+    expect(riletta?.contoDelFisco).toBeNull();
+    expect(contoDelFiscoDi(riletta!)).toBeNull();
   });
 });
 

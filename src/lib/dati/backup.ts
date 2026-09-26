@@ -784,7 +784,21 @@ const convalidaImpostazioniPf: Convalida<Dati["pfImpostazioni"][number]> = (riga
     valore di comodo vorrebbe dire trasformare un silenzio in una risposta:
     da quel momento l'app smetterebbe di misurare i segnali e si fiderebbe di
     una dichiarazione che nessuno ha fatto.
+
+    La risposta è l'id del conto che paga gli F24, o uno dei due segnaposto
+    («fuori», «dentro»). Qui non si controlla che quell'id sia di un conto che
+    esiste: un backup si importa un pezzo alla volta, e un conto può arrivare
+    dopo le impostazioni. Il conto sparito lo gestisce la schermata, che lo
+    dice invece di cambiare il numero.
+
+    `fiscoPagatoDa` è la stessa risposta nella forma che aveva quando la
+    domanda era un sì/no: si legge — `contoDelFiscoDi()` la converte — e non si
+    riscrive, perché una migrazione che riscrive dati è una migrazione che può
+    sbagliarli.
   */
+  contoDelFisco: typeof riga.contoDelFisco === "string" && riga.contoDelFisco !== ""
+    ? riga.contoDelFisco
+    : null,
   fiscoPagatoDa:
     riga.fiscoPagatoDa === "attivita" || riga.fiscoPagatoDa === "personale"
       ? riga.fiscoPagatoDa

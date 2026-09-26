@@ -23,6 +23,68 @@ lasciarla.
 
 ---
 
+## 26 settembre 2026 · Il mucchio è uno solo, e «professionale» è un campo morto
+
+Il limite del mese non filtra per conto: nessuna riga di `limite.ts` guarda
+`contoId`, e il tetto parte da `saldoTotale(conti, …)`, che somma **tutti** i
+conti registrati. Quindi nel modulo non esiste «il conto personale»: esiste un
+mucchio solo, che è la somma di quelli che ci sono dentro.
+
+`ContoPersonale.professionale` esiste dal primo giorno del modulo, attraversa
+il backup, e la schermata dei conti lo scrive `false` senza mai offrire di
+cambiarlo. **Lo legge zero righe di calcolo.** È un campo che descrive una
+distinzione vera — il conto della partita IVA — e non la applica da nessuna
+parte.
+
+La strada, il giorno che si vuole percorrere: il mucchio del limite diventa
+«i conti non professionali», e da lì la domanda «quale conto paga gli F24» in
+molti casi non serve più chiederla — se il conto indicato è professionale, quei
+soldi dal mucchio personale non escono. Ma apre tre questioni, e nessuna è
+cosmetica.
+
+**1 · I giroconti fra i due mucchi.** Oggi un giroconto non è né entrata né
+spesa, e non entra mai nel limite (`limite.ts`, «I giroconti non entrano mai»).
+Se il conto dell'attività uscisse dal mucchio, il prelievo mensile — che è un
+giroconto fra due conti registrati — resterebbe fuori dalle entrate, e il
+limite di chi marca il suo conto professionale andrebbe a zero. Va deciso che
+un giroconto **in arrivo da un conto professionale** è un'entrata del mucchio
+personale: è vero, ed è esattamente il tipo di eccezione che poi nessuno
+ricorda di avere scritto.
+
+**2 · Il tetto, che è una cifra a schermo.** Il tetto dal conto parte dal saldo
+di tutti i conti. Restringendo il mucchio, chi marca un conto professionale
+vede il tetto scendere di quel saldo — giustamente, quei soldi non sono suoi da
+spendere — ma è un numero che cambia da un giorno all'altro per una spunta.
+Cambiarlo senza dirlo in faccia, con la cifra di prima e quella di dopo, è il
+genere di silenzio che questo progetto non si può permettere.
+
+**3 · Il doppio conteggio con la cassa dell'attività.** Il motore fiscale tiene
+la sua liquidità dell'attività. Un conto professionale registrato anche qui è
+la stessa cassa vista due volte: gli stessi euro risultano disponibili in due
+posti, che è il difetto già scritto per `arrivaDallAttivita` sulle fatture
+incassate. Prima di far vivere il flag va deciso quale delle due fonti è la
+buona e cosa mostra il Cashflow, altrimenti si raddoppia un problema invece di
+chiuderne uno.
+
+### L'approssimazione che resta, intanto
+
+Chi registra qui **anche** il conto dell'attività — sei conti, uno dei quali è
+quello della partita IVA — ha un limite del mese costruito su un mucchio che
+contiene i soldi dell'attività. Gli incassi dei clienti ci entrano come
+entrate, i costi dell'attività come spese: il limite di un mese in cui si paga
+il commercialista scende di quella cifra, e chi legge si sente dire che può
+spendere meno *per la spesa di casa* a causa di un costo che con la spesa di
+casa non c'entra.
+
+Il numero non è sbagliato nel senso stretto: quel mucchio è davvero quello, e i
+soldi davvero ci sono entrati e usciti. La quota del fisco viene tolta una
+volta sola — la doppia sottrazione del 23 settembre qui non c'è — ma la domanda
+a cui la schermata risponde smette di essere «quanto posso spendere io» e
+diventa «quanto permette il mucchio». Si chiude con la strada qui sopra, non
+prima.
+
+---
+
 ## 10 settembre 2026 · Un accesso calcolato è invisibile alle tagliole
 
 Le tre tagliole di `struttura.test.ts` leggono il **sorgente**: cercano

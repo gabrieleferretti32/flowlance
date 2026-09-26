@@ -4,7 +4,7 @@ import { datiVetrina } from "@/lib/dati/vetrina";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { situazioneDelMese } from "./mese";
 import { dodiciMesi } from "./budget";
-import type { BudgetPf, CategoriaPf, ContoPersonale, MovimentoPf } from "./tipi";
+import type { BudgetPf, CategoriaPf, ContoDelFisco, ContoPersonale, MovimentoPf } from "./tipi";
 
 /*
   Si passa da `catenaAnni`, la stessa porta da cui passa il cruscotto: un test
@@ -50,15 +50,17 @@ const situazione = (extra: {
   conti?: ContoPersonale[];
   cuscinetto?: number;
   /**
-   * Chi paga il fisco. **Predefinito «personale»**, e non «quello che i
+   * Quale conto paga gli F24. **Predefinito «dentro»**, e non «quello che i
    * segnali misurano».
    *
    * Questi test studiano la sottrazione della quota, e l'archivio su cui
-   * girano è la vetrina — dove gli F24 li paga il conto dell'attività. Senza
-   * questo valore di partenza la quota non si toglierebbe, e mezza dozzina di
-   * test misurerebbe zero contro zero passando lo stesso. `null` per chiedere
-   * il comportamento senza dichiarazione.
+   * girano è la vetrina — dove gli F24 li paga un conto che nel modulo non
+   * c'è. Senza questo valore di partenza la quota non si toglierebbe, e mezza
+   * dozzina di test misurerebbe zero contro zero passando lo stesso. `null`
+   * per chiedere il comportamento senza dichiarazione.
    */
+  contoDelFisco?: ContoDelFisco | null;
+  /** La risposta nella forma vecchia, per i test che provano la conversione. */
   fiscoPagatoDa?: "attivita" | "personale" | null;
 }) =>
   situazioneDelMese({
@@ -75,7 +77,18 @@ const situazione = (extra: {
       id: "unico",
       cuscinetto: extra.cuscinetto ?? 0,
       riportoAttivo: true,
-      fiscoPagatoDa: extra.fiscoPagatoDa === undefined ? "personale" : extra.fiscoPagatoDa,
+      /*
+        Solo una delle due risposte per volta: se si chiede quella vecchia, la
+        nuova resta vuota, altrimenti la conversione non verrebbe mai provata
+        — la nuova vince sempre.
+      */
+      contoDelFisco:
+        extra.contoDelFisco !== undefined
+          ? extra.contoDelFisco
+          : extra.fiscoPagatoDa !== undefined
+            ? null
+            : "dentro",
+      fiscoPagatoDa: extra.fiscoPagatoDa ?? null,
     },
   });
 
@@ -267,7 +280,7 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
   });
 
   it("se lo paga l'attività, il limite non la toglie più", () => {
-    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    const s = situazione({ movimenti: entrate, contoDelFisco: "fuori" });
     expect(s.riga.accantonamento).toBe(0);
     expect(s.fisco.accantonamentoApplicato).toBe(0);
     /* Ma la quota resta quella vera: la card del cruscotto non si muove. */
@@ -275,8 +288,8 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
   });
 
   it("e la differenza fra i due limiti è esattamente la quota", () => {
-    const con = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
-    const senza = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    const con = situazione({ movimenti: entrate, contoDelFisco: CONTO.id });
+    const senza = situazione({ movimenti: entrate, contoDelFisco: "fuori" });
     expect(round2(senza.riga.limite - con.riga.limite)).toBe(round2(con.quota.alMese));
   });
 
@@ -286,7 +299,7 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
     paga l'attività, su questo conto non ci sono mai stati.
   */
   it("e nemmeno il tetto toglie più dal saldo il fisco da versare", () => {
-    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    const s = situazione({ movimenti: entrate, contoDelFisco: "fuori" });
     expect(s.tetto.fiscoNonVersato).toBe(0);
     expect(s.tetto.tetto).toBe(
       round2(s.tetto.saldoConti - s.tetto.cuscinetto - s.tetto.impegniDelMese),
@@ -294,13 +307,19 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
   });
 
   /*
-    Senza dichiarazione decidono i segnali, e su questo archivio — la vetrina,
-    dove gli F24 del 2026 risultano pagati dal conto personale — dicono
-    «questo conto». Il ripiego prudente, quando nemmeno i segnali sanno dire,
-    sta in `chi-paga-il-fisco.test.ts`.
+    Senza dichiarazione decidono i segnali.
+
+    Quattro mesi di prelievi da 1.080 € — il netto della vetrina diviso dodici
+    fa 1.083,08 — e nel registro nessun F24 mentre una scadenza è passata: due
+    segnali su tre dicono «li paga un conto che qui non c'è». Il terzo, quello
+    che legge `pagatoDa` sugli F24, tace per costruzione: vedi
+    `chi-paga-il-fisco.ts`. Il ripiego prudente, quando nemmeno i segnali sanno
+    dire, sta in `chi-paga-il-fisco.test.ts`.
   */
+  const prelieviNetti = [6, 7, 8, 9].map((m) => mov("fatture", `2026-0${m}-03`, 1_080, "entrata"));
+
   it("senza dichiarazione vale quello che i segnali misurano", () => {
-    const s = situazione({ movimenti: entrate, fiscoPagatoDa: null });
+    const s = situazione({ movimenti: prelieviNetti, contoDelFisco: null });
     expect(s.fisco.fonte).toBe("misurato");
     expect(s.fisco.chiPaga).toBe("attivita");
     expect(s.riga.accantonamento).toBe(0);
@@ -312,9 +331,51 @@ describe("chi paga il fisco cambia il limite, non la quota", () => {
     tenersi una contraddizione muta.
   */
   it("una dichiarazione contraria ai segnali vince, e risulta contraddetta", () => {
-    const s = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
+    const s = situazione({ movimenti: prelieviNetti, contoDelFisco: CONTO.id });
     expect(s.fisco.chiPaga).toBe("personale");
     expect(s.fisco.lettura.misurato).toBe("attivita");
     expect(s.fisco.contraddetta).toBe(true);
+  });
+
+  /*
+    Il conto indicato viene cancellato.
+
+    È il caso che l'elenco dei conti porta con sé, e l'unico modo di sbagliarlo
+    che costa davvero: se l'id penzolante valesse «non lo so», il limite
+    salirebbe di tutta la quota — sulla vetrina più di mille euro al mese — per
+    una cancellazione che parlava d'altro, e nessuno collegherebbe le due cose.
+    Il numero non si muove; che il conto non ci sia più lo dice la schermata.
+  */
+  it("un conto cancellato non muove il limite, e resta visibile che manca", () => {
+    const ancora = situazione({ movimenti: entrate, contoDelFisco: CONTO.id });
+    const sparito = situazione({ movimenti: entrate, contoDelFisco: "conto-che-non-c-e-piu" });
+    expect(sparito.riga.limite).toBe(ancora.riga.limite);
+    expect(sparito.riga.accantonamento).toBe(sparito.quota.alMese);
+    expect(sparito.fisco.contoSparito).toBe(true);
+    expect(sparito.fisco.conto).toBeNull();
+    expect(ancora.fisco.contoSparito).toBe(false);
+    expect(ancora.fisco.conto?.nome).toBe(CONTO.nome);
+  });
+
+  /*
+    La risposta data quando la domanda era un sì/no.
+    
+    Sta in archivio con l'altro nome e l'altra forma, e vale ancora: quello che
+    non si può fare è leggerla come «non ha risposto», perché da quel momento
+    deciderebbero i segnali al posto suo.
+  */
+  it("la risposta vecchia, quella del sì/no, vale ancora", () => {
+    const fuori = situazione({ movimenti: entrate, fiscoPagatoDa: "attivita" });
+    expect(fuori.fisco.contoDelFisco).toBe("fuori");
+    expect(fuori.fisco.fonte).toBe("dichiarato");
+    expect(fuori.riga.accantonamento).toBe(0);
+
+    const dentro = situazione({ movimenti: entrate, fiscoPagatoDa: "personale" });
+    expect(dentro.fisco.contoDelFisco).toBe("dentro");
+    expect(dentro.fisco.fonte).toBe("dichiarato");
+    expect(dentro.riga.accantonamento).toBe(dentro.quota.alMese);
+    /* Il conto non si inventa: la risposta vecchia non diceva quale. */
+    expect(dentro.fisco.conto).toBeNull();
+    expect(dentro.fisco.contoSparito).toBe(false);
   });
 });

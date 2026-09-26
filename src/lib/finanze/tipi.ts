@@ -199,6 +199,28 @@ export type RegolaPf = {
  */
 export type ChiPagaIlFisco = "attivita" | "personale";
 
+/**
+ * Quale conto paga gli F24: l'**id di un conto**, o uno dei due casi che un id
+ * non sa dire.
+ *
+ * — `"fuori"`: li paga un conto che in Flowlance non c'è. È l'unico caso in cui
+ *   il limite del mese **non** toglie la quota di accantonamento: quei soldi
+ *   dal mucchio che il limite guarda non usciranno mai, e quello che ci arriva
+ *   è già netto del fisco.
+ * — `"dentro"`: escono da uno di questi conti, ma quale non è stato detto. È la
+ *   forma in cui sopravvive la risposta data quando la domanda era un sì/no, e
+ *   la forma che resta se un giorno chi risponde non sa quale scegliere.
+ *
+ * I due segnaposto non possono essere scambiati per un id: gli id dei conti
+ * escono da `nuovoId()`, che dà un UUID o una stringa che comincia per `id-`.
+ *
+ * Perché un id e non un booleano, visto che il calcolo di oggi guarda solo se
+ * il valore è `"fuori"`: perché la risposta è anche la **documentazione** della
+ * risposta. Con sei conti, «sì» non lascia a chi l'ha detto nessun modo di
+ * verificare di aver risposto pensando al conto giusto.
+ */
+export type ContoDelFisco = string | "fuori" | "dentro";
+
 export type ImpostazioniPf = {
   /** Sempre `unico`: la riga è una sola, e la chiave lo dice. */
   id: "unico";
@@ -214,10 +236,10 @@ export type ImpostazioniPf = {
   /** Quello che avanza in un mese si somma al mese dopo. */
   riportoAttivo: boolean;
   /**
-   * Da quale conto escono gli F24, dichiarato da chi usa l'app.
+   * Quale conto paga gli F24, dichiarato da chi usa l'app.
    *
    * `null` vuol dire che non l'ha ancora detto: allora vale quello che i
-   * segnali misurano, e se non bastano vale «personale». Non è un campo da
+   * segnali misurano, e se non bastano vale «esce da qui». Non è un campo da
    * riempire di default — vedi `rispostaChiPaga` — perché una dichiarazione
    * che nessuno ha fatto non si distingue più da una fatta, e su questa
    * risposta si decide se togliere o no la quota di accantonamento dal limite
@@ -228,6 +250,17 @@ export type ImpostazioniPf = {
    * comodo: da IndexedDB quella riga torna così com'è, e chi la legge deve
    * vedere che la risposta non c'è.
    */
+  contoDelFisco?: ContoDelFisco | null;
+  /**
+   * La stessa risposta, nella forma che aveva quando la domanda era un sì/no.
+   *
+   * Si legge e non si scrive più: `contoDelFiscoDi()` la converte. Resta nel
+   * tipo perché resta negli archivi salvati fra il 23 e il 26 settembre 2026,
+   * e toglierla dal tipo non la toglie da IndexedDB — la renderebbe solo
+   * invisibile a chi legge questo file.
+   *
+   * @deprecated Sostituita da `contoDelFisco`.
+   */
   fiscoPagatoDa?: ChiPagaIlFisco | null;
 };
 
@@ -235,7 +268,7 @@ export const IMPOSTAZIONI_PF_PREDEFINITE: ImpostazioniPf = {
   id: "unico",
   cuscinetto: 0,
   riportoAttivo: true,
-  fiscoPagatoDa: null,
+  contoDelFisco: null,
 };
 
 /**

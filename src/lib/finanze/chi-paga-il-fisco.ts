@@ -37,9 +37,9 @@
  */
 import type { Adempimento } from "@/lib/fisco/scadenze";
 import type { VersamentoF24 } from "@/lib/fisco/tipi";
-import type { CategoriaPf, ChiPagaIlFisco, MovimentoPf } from "./tipi";
+import type { CategoriaPf, ChiPagaIlFisco, ContoDelFisco, MovimentoPf } from "./tipi";
 
-export type { ChiPagaIlFisco };
+export type { ChiPagaIlFisco, ContoDelFisco };
 
 export type Indizio = {
   id: "f24-nel-registro" | "conto-degli-f24" | "entrate-e-carico";
@@ -106,8 +106,8 @@ function f24NelRegistro(ing: IngressoChiPaga): Indizio {
       verso: "personale",
       testo:
         quanti === 1
-          ? "Nel registro personale c'è un pagamento in una categoria del fisco."
-          : `Nel registro personale ci sono ${quanti} pagamenti in categorie del fisco.`,
+          ? "Nel registro c'è un pagamento in una categoria del fisco: è uscito da un conto tuo."
+          : `Nel registro ci sono ${quanti} pagamenti in categorie del fisco: sono usciti da conti tuoi.`,
     };
   }
 
@@ -148,10 +148,21 @@ function f24NelRegistro(ing: IngressoChiPaga): Indizio {
 /**
  * Il secondo segnale: il conto da cui gli F24 registrati sono usciti.
  *
- * Lo dice il campo `pagatoDa` del versamento. Se i due gruppi sono mescolati
- * l'indizio non sceglie: è il caso di chi paga l'IVA dall'attività e i
- * contributi da sé, e una risposta sola lì è una semplificazione da dichiarare,
- * non da indovinare.
+ * Lo dice il campo `pagatoDa` del versamento, e **parla in un verso solo**.
+ *
+ * Quel campo risponde a un'altra domanda: «è uscito dalla cassa
+ * dell'attività?», che è quello che serve al Cashflow per il saldo di cassa.
+ * Le due domande hanno la stessa risposta soltanto se il conto dell'attività
+ * **non** è fra i conti registrati qui. Quando invece c'è — sei conti, uno dei
+ * quali è quello della partita IVA — un F24 marcato «attività» è uscito dalla
+ * cassa dell'attività *e* dal mucchio che il limite guarda: la quota va tolta
+ * lo stesso, e l'indizio che tirasse verso «non toglierla» tirerebbe dalla
+ * parte sbagliata.
+ *
+ * Quindi: `personale` è inequivocabile — è uscito da un conto tracciato, e lo
+ * dice. `attivita` non lo è, e l'indizio tace. Il verso che si perde lo dice
+ * già il primo indizio, che lo misura sulla domanda giusta: l'F24 che nel
+ * registro non c'è.
  */
 function contoDegliF24(ing: IngressoChiPaga): Indizio {
   /*
@@ -177,20 +188,22 @@ function contoDegliF24(ing: IngressoChiPaga): Indizio {
     return {
       id: "conto-degli-f24",
       verso: "personale",
-      testo: `Tutti gli F24 di quest'anno su cui l'hai detto (${dellAnno.length}) escono dal conto personale.`,
+      testo: `Tutti gli F24 di quest'anno su cui l'hai detto (${dellAnno.length}) escono da un conto tuo.`,
     };
   }
   if (personali === 0) {
     return {
       id: "conto-degli-f24",
-      verso: "attivita",
-      testo: `Tutti gli F24 di quest'anno su cui l'hai detto (${dellAnno.length}) escono dal conto dell'attività.`,
+      verso: null,
+      testo:
+        `Gli F24 di quest'anno su cui l'hai detto (${dellAnno.length}) escono dalla cassa dell'attività: `
+        + "da solo non dice niente, perché il conto dell'attività può essere uno di quelli registrati qui.",
     };
   }
   return {
     id: "conto-degli-f24",
     verso: null,
-    testo: `Degli F24 di quest'anno ${personali} su ${dellAnno.length} escono dal conto personale: i due conti sono mescolati.`,
+    testo: `Degli F24 di quest'anno ${personali} su ${dellAnno.length} escono da un conto tuo: i conti sono mescolati.`,
   };
 }
 
@@ -234,18 +247,18 @@ function entrateECarico(ing: IngressoChiPaga): Indizio {
   const vicino = Math.min(distanzaNetto, distanzaLordo);
   const lontano = Math.max(distanzaNetto, distanzaLordo);
   if (lontano === 0 || vicino > lontano / 3) {
-    return zitto("Quello che entra sul conto personale non somiglia né al netto né al lordo.");
+    return zitto("Quello che entra sui tuoi conti non somiglia né al netto né al lordo.");
   }
   return distanzaNetto < distanzaLordo
     ? {
         id: "entrate-e-carico",
         verso: "attivita",
-        testo: "Quello che entra sul conto personale somiglia al netto dell'attività: il fisco è già uscito prima.",
+        testo: "Quello che entra sui tuoi conti somiglia al netto dell'attività: il fisco è già uscito prima.",
       }
     : {
         id: "entrate-e-carico",
         verso: "personale",
-        testo: "Quello che entra sul conto personale somiglia al netto più il carico fiscale: è un prelievo lordo.",
+        testo: "Quello che entra sui tuoi conti somiglia al netto più il carico fiscale: è un prelievo lordo.",
       };
 }
 
@@ -259,6 +272,51 @@ export function chiPagaIlFisco(ing: IngressoChiPaga): LetturaChiPaga {
   const indizi = [f24NelRegistro(ing), contoDegliF24(ing), entrateECarico(ing)];
   const versi = new Set(indizi.map((i) => i.verso).filter((v): v is ChiPagaIlFisco => v !== null));
   return { misurato: versi.size === 1 ? [...versi][0] : null, indizi };
+}
+
+/**
+ * La risposta salvata, letta da un archivio di qualunque età.
+ *
+ * Fra il 23 e il 26 settembre 2026 la domanda era un sì/no e la risposta si
+ * chiamava `fiscoPagatoDa`. Quelle righe esistono, e vanno lette per quello che
+ * dicevano: «dal conto dell'attività» voleva dire *da un conto che qui non c'è*
+ * — `"fuori"` —, «da questo conto» voleva dire *da un conto di questi*, senza
+ * dire quale: `"dentro"`.
+ *
+ * La conversione sta qui e non in un campo riscritto in archivio perché una
+ * migrazione che riscrive dati è una migrazione che può sbagliarli; questa
+ * invece non tocca niente e si può togliere il giorno che nessuna riga vecchia
+ * gira più.
+ */
+export function contoDelFiscoDi(imp: {
+  contoDelFisco?: ContoDelFisco | null;
+  fiscoPagatoDa?: ChiPagaIlFisco | null;
+}): ContoDelFisco | null {
+  if (imp.contoDelFisco) return imp.contoDelFisco;
+  if (imp.fiscoPagatoDa === "attivita") return "fuori";
+  if (imp.fiscoPagatoDa === "personale") return "dentro";
+  return null;
+}
+
+/** L'id del conto indicato, quando la risposta ne indica uno. */
+export function idDelConto(conto: ContoDelFisco | null): string | null {
+  if (conto === null || conto === "fuori" || conto === "dentro") return null;
+  return conto;
+}
+
+/**
+ * Da una risposta col nome del conto al verso che il calcolo usa.
+ *
+ * Un id — qualunque id, **anche di un conto cancellato** — vale «esce da qui»,
+ * e non è una svista: se il conto indicato sparisce, il numero a schermo non
+ * si deve muovere. Trattare l'id penzolante come «non lo so» farebbe salire il
+ * limite di tutta la quota, in silenzio, per una cancellazione che parlava
+ * d'altro. Che il conto non ci sia più lo dice la schermata, e chiede di
+ * ridirlo.
+ */
+export function versoDichiarato(conto: ContoDelFisco | null): ChiPagaIlFisco | null {
+  if (conto === null) return null;
+  return conto === "fuori" ? "attivita" : "personale";
 }
 
 /**

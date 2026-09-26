@@ -23,8 +23,11 @@ import { quotaAccantonamento, type QuotaAccantonamento } from "@/lib/fisco/accan
 import { scadenzeAnno } from "@/lib/fisco/scadenze";
 import {
   chiPagaIlFisco,
+  contoDelFiscoDi,
   dichiarazioneContraddetta,
+  idDelConto,
   rispostaChiPaga,
+  versoDichiarato,
   type ChiPagaIlFisco,
   type FonteRisposta,
   type LetturaChiPaga,
@@ -33,7 +36,7 @@ import { quantoResta, tabellaLimite, type QuantoResta, type RigaLimite } from ".
 import { saldoTotale } from "./saldo";
 import { limiteEffettivo, tettoDalConto, type LimiteEffettivo, type Tetto } from "./tetto";
 import { IMPOSTAZIONI_PF_PREDEFINITE, type ImpostazioniPf } from "./tipi";
-import type { BudgetPf, CategoriaPf, ContoPersonale, MovimentoPf } from "./tipi";
+import type { BudgetPf, CategoriaPf, ContoDelFisco, ContoPersonale, MovimentoPf } from "./tipi";
 
 export type IngressoMese = {
   anno: number;
@@ -70,6 +73,18 @@ export type FiscoDelMese = {
   contraddetta: boolean;
   /** Quanto il limite ha davvero sottratto: `quota.alMese`, oppure zero. */
   accantonamentoApplicato: number;
+  /** La risposta salvata così com'è: un id di conto, «fuori», «dentro», o niente. */
+  contoDelFisco: ContoDelFisco | null;
+  /** Il conto indicato, quando la risposta ne indica uno e quel conto esiste ancora. */
+  conto: ContoPersonale | null;
+  /**
+   * La risposta indica un conto che non c'è più.
+   *
+   * Il calcolo non cambia — un id penzolante vale «esce da qui», come prima
+   * della cancellazione — ma la schermata deve dirlo e chiedere di ridirlo,
+   * altrimenti resta una risposta che nomina qualcosa che non esiste.
+   */
+  contoSparito: boolean;
 };
 
 export type SituazioneMese = {
@@ -159,7 +174,16 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
     nettoDisponibile: ing.calcolo.prospetto.nettoDisponibile,
     caricoTotale: ing.calcolo.prospetto.caricoTotale,
   });
-  const { chiPaga, fonte } = rispostaChiPaga(impostazioni.fiscoPagatoDa, lettura);
+  /*
+    La risposta salvata: un id di conto, oppure «fuori»/«dentro». Al calcolo
+    serve solo il verso — `versoDichiarato` lo ricava — e l'id resta accanto
+    per la schermata, che deve poter dire *quale* conto è stato indicato.
+  */
+  const contoDelFisco = contoDelFiscoDi(impostazioni);
+  const dichiarato = versoDichiarato(contoDelFisco);
+  const { chiPaga, fonte } = rispostaChiPaga(dichiarato, lettura);
+  const idIndicato = idDelConto(contoDelFisco);
+  const conto = idIndicato === null ? null : ing.conti.find((c) => c.id === idIndicato) ?? null;
   const accantonamentoApplicato = chiPaga === "attivita" ? 0 : quota.alMese;
 
   const righe = tabellaLimite({
@@ -202,8 +226,11 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
       chiPaga,
       fonte,
       lettura,
-      contraddetta: dichiarazioneContraddetta(impostazioni.fiscoPagatoDa, lettura),
+      contraddetta: dichiarazioneContraddetta(dichiarato, lettura),
       accantonamentoApplicato,
+      contoDelFisco,
+      conto,
+      contoSparito: idIndicato !== null && conto === null,
     },
     righe,
     riga,

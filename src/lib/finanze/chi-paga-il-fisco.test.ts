@@ -115,9 +115,20 @@ describe("il secondo segnale: il conto da cui gli F24 sono usciti", () => {
     expect(lettura.indizi[1].testo).toContain("nessun F24");
   });
 
-  it("tutti dall'attività: le tasse le paga l'attività", () => {
+  /*
+    E qui l'indizio **tace**, che è la correzione del 26 settembre 2026.
+
+    `pagatoDa` risponde a «è uscito dalla cassa dell'attività?», che serve al
+    Cashflow. Il limite ha bisogno di un'altra risposta: «è uscito dal mucchio
+    di conti che guardo?». Coincidono solo finché il conto dell'attività non è
+    fra i conti registrati — e chi ne registra sei, di solito, ce l'ha dentro.
+    Per quella persona l'indizio tirava verso «non togliere la quota» mentre la
+    quota andava tolta.
+  */
+  it("tutti dalla cassa dell'attività: l'indizio non sceglie, e dice perché", () => {
     const lettura = chiPagaIlFisco(ingresso({ versamenti: [f24("a", "attivita")] }));
-    expect(lettura.indizi[1].verso).toBe("attivita");
+    expect(lettura.indizi[1].verso).toBeNull();
+    expect(lettura.indizi[1].testo).toContain("può essere uno di quelli registrati qui");
   });
 
   it("tutti dal personale: le paga questo conto", () => {
@@ -182,7 +193,8 @@ describe("i tre segnali letti insieme", () => {
       }),
     );
     expect(lettura.misurato).toBeNull();
-    expect(lettura.indizi.filter((i) => i.verso !== null)).toHaveLength(3);
+    /* Due, non tre: il secondo indizio non sceglie più un verso da solo. */
+    expect(lettura.indizi.filter((i) => i.verso !== null)).toHaveLength(2);
   });
 });
 

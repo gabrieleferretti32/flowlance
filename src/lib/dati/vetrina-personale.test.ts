@@ -149,11 +149,18 @@ describe("e il limite del mese della vetrina resta positivo tutto l'anno", () =>
     che misura, non una casella già spuntata. Chi apre la vetrina vede i tre
     motivi e si accorge che quella domanda esiste.
   */
-  it("la risposta non è dichiarata: la propongono i tre segnali, concordi", () => {
+  it("la risposta non è dichiarata: la propongono i segnali che possono parlare", () => {
     expect(d.pfImpostazioni).toEqual([]);
     expect(situazione.fisco.fonte).toBe("misurato");
     expect(situazione.fisco.chiPaga).toBe("attivita");
-    expect(situazione.fisco.lettura.indizi.filter((i) => i.verso === null)).toEqual([]);
+    /*
+      Muto uno solo, e si sa quale: quello che legge `pagatoDa` sugli F24 non
+      sceglie più un verso da solo — risponde a una domanda vicina ma diversa,
+      e qui conta che gli altri due siano d'accordo.
+    */
+    expect(situazione.fisco.lettura.indizi.filter((i) => i.verso === null).map((i) => i.id)).toEqual([
+      "conto-degli-f24",
+    ]);
     expect(situazione.riga.accantonamento).toBe(0);
     /* La quota però esiste, e resta quella del cruscotto. */
     expect(situazione.quota.alMese).toBeGreaterThan(0);
