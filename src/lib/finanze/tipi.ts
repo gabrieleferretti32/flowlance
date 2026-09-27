@@ -49,6 +49,20 @@ export type ContoPersonale = {
   /** Il conto della partita IVA, quando ce n'è uno dedicato. */
   professionale: boolean;
   /**
+   * Le ultime cifre del numero di conto, **facoltative**.
+   *
+   * Servono a una cosa sola: quando un accredito dice «giroconto dal cc n.
+   * 6098032», poterlo chiamare per nome — «è il tuo Fineco» invece di «la
+   * descrizione dice giroconto». Non serve a riconoscere il trasferimento,
+   * che si riconosce comunque, e non serve a importare: chi non le scrive
+   * legge una frase leggermente più povera e basta.
+   *
+   * Non si costruisce mai l'altra metà del giroconto da qui. Sarebbe
+   * l'errore caro: se domani entra anche l'estratto di quel conto, la riga
+   * vera arriva e lo stesso spostamento verrebbe contato due volte.
+   */
+  ultimeCifre?: string;
+  /**
    * Come si leggono i rendiconti **di questo conto**: quale colonna è la data,
    * quale la descrizione, dove sta l'importo.
    *
@@ -85,6 +99,29 @@ export type MovimentoPf = {
   descrizione: string;
   /** A quale import appartiene, per poterlo annullare. */
   importId?: string;
+  /**
+   * Il denaro si è **solo spostato fra conti tuoi**: il saldo lo vede, il
+   * limite no.
+   *
+   * È il terzo stato fra «entrata» e «giroconto», e serve perché il giroconto
+   * a due capi non sa raccontare una metà sola. Un accredito che arriva da un
+   * altro conto tuo — un giroconto di cui l'app non ha l'altra riga, un
+   * bonifico da te a te, un prelievo dal tuo salvadanaio — sul conto **è
+   * arrivato davvero**: il saldo deve contarlo. Ma non è denaro nuovo, e il
+   * limite del mese che lo conta fra le entrate dice che puoi spendere soldi
+   * che avevi già.
+   *
+   * Marcarlo `giroconto` non funziona: quel tipo si legge dal lato di chi
+   * paga, `contoId` viene **addebitato**, e una riga arrivata su un conto
+   * tracciato lì dentro fa uscire i soldi invece di farli entrare. Misurato
+   * su una riga da 394 € su un conto da 1.000: saldo 1.394 come entrata,
+   * 606 come giroconto.
+   *
+   * Assente vuol dire «no», ed è la ragione per cui è facoltativo: da
+   * IndexedDB una riga salvata prima che il campo esistesse torna senza, e
+   * senza è quello che era.
+   */
+  daUnAltroTuoConto?: boolean;
   /**
    * L'impronta con cui si riconosce lo stesso movimento importato due volte.
    *
@@ -181,6 +218,16 @@ export type RegolaPf = {
   testoDaCercare: string;
   categoriaId: string;
   tipo: TipoMovimento;
+  /**
+   * La risposta alla domanda «questi soldi erano già tuoi?», ricordata.
+   *
+   * `true` marca la riga come trasferimento fra conti tuoi, `false` dice che
+   * è denaro nuovo davvero — e serve quanto il `true`: senza, la domanda
+   * tornerebbe a ogni import per un motivo su cui la risposta è già stata
+   * data. Assente vuol dire che la regola parla solo di categoria, come
+   * tutte quelle scritte prima.
+   */
+  daUnAltroTuoConto?: boolean;
 };
 
 /**

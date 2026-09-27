@@ -225,8 +225,18 @@ function entrateECarico(ing: IngressoChiPaga): Indizio {
   const dallAttivita = new Set(
     ing.categorie.filter((c) => c.arrivaDallAttivita).map((c) => c.id),
   );
+  /*
+    Fuori quello che è solo arrivato da un altro conto tuo. Un giroconto
+    finito per sbaglio in «Fatture incassate» non gonfia solo il limite:
+    entra nella media dei prelievi, e quella media è quello che qui si
+    confronta col netto per capire se il fisco è già uscito.
+  */
   const entrate = ing.movimenti.filter(
-    (m) => m.tipo === "entrata" && annoDi(m.data) === ing.anno && dallAttivita.has(m.categoriaId),
+    (m) =>
+      m.tipo === "entrata"
+      && !m.daUnAltroTuoConto
+      && annoDi(m.data) === ing.anno
+      && dallAttivita.has(m.categoriaId),
   );
   const mesi = new Set(entrate.map((m) => meseDi(m.data)));
   if (mesi.size < 3) {

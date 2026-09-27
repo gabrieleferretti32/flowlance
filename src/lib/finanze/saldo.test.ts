@@ -73,6 +73,32 @@ describe("i giroconti", () => {
   });
 });
 
+/**
+ * L'altra metà del marchio «arrivato da un altro tuo conto».
+ *
+ * Il limite non lo conta fra le entrate; il saldo lo conta eccome, perché quei
+ * soldi sul conto ci sono arrivati davvero. È tutta la differenza con il
+ * giroconto — che invece dal conto li fa uscire — ed è la ragione per cui il
+ * marchio esiste invece di riusare quel tipo: misurato su una riga da 394 € su
+ * un conto da 1.000, saldo 1.394 come entrata marcata, 606 come giroconto.
+ */
+describe("**l'accredito marcato resta nel saldo**", () => {
+  const corrente = conto("a", 1_000, "2026-09-01");
+  const accredito = mov({
+    id: "g1", data: "2026-09-10", importo: 394, tipo: "entrata",
+    descrizione: "Giroconto dal cc n. 6098032",
+  });
+
+  it("il marchio non cambia il saldo di un euro", () => {
+    expect(saldoConto(corrente, [accredito])).toBe(1_394);
+    expect(saldoConto(corrente, [{ ...accredito, daUnAltroTuoConto: true }])).toBe(1_394);
+  });
+
+  it("mentre marcarlo giroconto lo farebbe uscire: è il motivo del terzo stato", () => {
+    expect(saldoConto(corrente, [{ ...accredito, tipo: "giroconto" }])).toBe(606);
+  });
+});
+
 describe("la serie storica", () => {
   it("parte dall'ancora più vecchia e ha un punto per giorno con movimenti", () => {
     const a = conto("a", 1_000, "2026-09-01");

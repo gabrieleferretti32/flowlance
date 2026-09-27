@@ -25,9 +25,10 @@
 import { round2 } from "@/lib/fisco/aritmetica";
 import { abbinaGiroconti, GIORNI_DI_TOLLERANZA } from "./giroconti";
 import { categorizza, testoConfrontabile, type Proposta } from "./categorizza";
+import { riconosciTrasferimento, rispostaSalvata, sembraCambioValuta } from "./trasferimenti";
 import { descrizioneUtile } from "./descrizione";
 import type { RigaRendiconto } from "./rendiconto";
-import type { CategoriaPf, MovimentoPf, RegolaPf, TipoMovimento } from "./tipi";
+import type { CategoriaPf, ContoPersonale, MovimentoPf, RegolaPf, TipoMovimento } from "./tipi";
 
 export { GIORNI_DI_TOLLERANZA };
 
@@ -64,6 +65,24 @@ export type RigaAnteprima = {
   duplicato: boolean;
   /** Le due righe che sono diventate un giroconto, quando è successo. */
   daGiroconto?: boolean;
+  /** Denaro già tuo che si sposta: il saldo lo conta, il limite no. */
+  daUnAltroTuoConto?: boolean;
+  /**
+   * Perché la riga è marcata così, in una frase.
+   *
+   * Vive solo in anteprima: quello che va in archivio è il marchio, non la
+   * spiegazione. La frase serve nel momento in cui si decide — «la descrizione
+   * dice giroconto» si controlla a colpo d'occhio, un marchio senza motivo no.
+   */
+  motivoTrasferimento?: string;
+  /**
+   * Un cambio valuta, su cui la risposta non ce l'ha nessuno tranne chi legge.
+   *
+   * La riga arriva **non marcata** e con la domanda accanto: gli euro sono
+   * arrivati davvero, e se quei soldi erano un incasso in un'altra moneta
+   * marcarli li cancellerebbe dal limite per sempre. Vedi `trasferimenti.ts`.
+   */
+  chiedeCambioValuta?: boolean;
   /**
    * Qualcuno ha cambiato qualcosa su questa riga, a mano.
    *
@@ -90,6 +109,15 @@ export type IngressoAnteprima = {
   esistenti: MovimentoPf[];
   /** I conti che il modulo segue: solo fra questi si cercano i giroconti. */
   contiTracciati: string[];
+  /**
+   * I conti interi, quando chi chiama ce li ha.
+   *
+   * Servono a una frase e basta: se una riga dice «giroconto dal cc n.
+   * 6098032» e quelle cifre sono di un conto tuo, l'anteprima lo chiama per
+   * nome. Facoltativi apposta — senza, il trasferimento si riconosce lo
+   * stesso e la frase è solo più povera.
+   */
+  conti?: ContoPersonale[];
 };
 
 /**
@@ -158,6 +186,28 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         ing.regole,
       );
       const tipo = proposta.tipo;
+      /*
+        Denaro già tuo che si sposta.
+
+        Prima quello che è stato detto una volta per sempre — la risposta
+        salvata come regola vince, in tutti e due i versi — e solo dopo quello
+        che la descrizione dichiara da sola. Un cambio valuta su cui nessuno
+        si è ancora espresso non si marca: si chiede.
+      */
+      const verso = r.importo >= 0 ? "entrata" : "uscita";
+      const salvata = rispostaSalvata(r.descrizione, ing.regole);
+      const motivo = salvata === null
+        ? riconosciTrasferimento(r.descrizione, verso, ing.conti ?? [])
+        : null;
+      const daUnAltroTuoConto = salvata ?? motivo !== null;
+      const motivoTrasferimento = salvata === true
+        ? "l'hai già detto per questo movimento"
+        : motivo?.testo;
+      const chiedeCambioValuta =
+        verso === "entrata"
+        && salvata === null
+        && motivo === null
+        && sembraCambioValuta(r.descrizione);
       /* La firma sul testo della banca: vedi `descrizioneOriginale`. */
       const firma = firmaMovimento(r.data, r.importo, r.descrizione);
       const duplicato =
@@ -198,6 +248,9 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         contoId: f.contoId,
         duplicato,
         scelta: !duplicato,
+        ...(daUnAltroTuoConto ? { daUnAltroTuoConto } : {}),
+        ...(motivoTrasferimento ? { motivoTrasferimento } : {}),
+        ...(chiedeCambioValuta ? { chiedeCambioValuta } : {}),
       });
     }
   }
@@ -247,6 +300,17 @@ function conGiroconti(righe: RigaAnteprima[], contiTracciati: string[]): RigaAnt
       scelta: true,
     };
     if (m.tipo !== "giroconto") return { ...base, tipo: m.tipo };
+    /*
+      **La coppia vera vince sul marchio**, e vince da sola.
+
+      Il giroconto si costruisce sulla riga d'**uscita** — l'entrata viene
+      consumata e sparisce — e le uscite non si marcano mai: `riconosci
+      Trasferimento` guarda solo gli accrediti. Quindi qui non resta niente da
+      ripulire, e una riga che porta due risposte alla stessa domanda non può
+      nascere. Se un giorno il riconoscimento coprirà anche le uscite, il test
+      «vince l'abbinamento e il marchio sparisce» fallirà, ed è lì che va
+      rimesso mano.
+    */
     return {
       ...base,
       data: m.data,
@@ -293,11 +357,40 @@ export function riapplicaRegole(
       regole,
     );
     if (proposta.categoriaId === r.categoriaId && proposta.tipo === r.tipo) return r;
+    /* Il marchio non si tocca: parla di dove vengono i soldi, non di che
+       categoria sono, e una regola nuova sulla categoria non lo smentisce. */
     return {
       ...r,
       categoriaId: proposta.categoriaId,
       tipo: proposta.tipo,
       origineCategoria: proposta.origine,
+    };
+  });
+}
+
+/**
+ * Le righe dell'anteprima dopo che è arrivata una risposta sul cambio valuta.
+ *
+ * La risposta è una regola — vale anche il mese prossimo — e qui vale subito
+ * su tutte le righe che facevano la stessa domanda: chiedere due volte la
+ * stessa cosa nella stessa schermata è il modo di far credere che la prima
+ * risposta non sia stata registrata.
+ *
+ * Le righe toccate a mano restano come sono, come dappertutto.
+ */
+export function conRispostaSulCambio(
+  righe: RigaAnteprima[],
+  regole: { testoDaCercare: string; daUnAltroTuoConto?: boolean }[],
+): RigaAnteprima[] {
+  return righe.map((r) => {
+    if (!r.chiedeCambioValuta || r.toccata) return r;
+    const risposta = rispostaSalvata(r.descrizioneOriginale, regole);
+    if (risposta === null) return r;
+    return {
+      ...r,
+      chiedeCambioValuta: undefined,
+      daUnAltroTuoConto: risposta ? true : undefined,
+      motivoTrasferimento: risposta ? "l'hai detto tu: erano già tuoi" : undefined,
     };
   });
 }
@@ -320,6 +413,7 @@ export function movimentiDaScrivere(
       importo: round2(Math.abs(r.importo)),
       descrizione: r.descrizione,
       importId,
+      ...(r.daUnAltroTuoConto && r.tipo !== "giroconto" ? { daUnAltroTuoConto: true } : {}),
       /*
         L'impronta si calcola su quello che ha scritto la banca, non su quello
         che si legge: la descrizione si ripulisce, e in anteprima si può anche

@@ -210,6 +210,30 @@ export function SchermataConti() {
                         className="w-40"
                         onSalva={(v) => void salvaConto({ ...c, tipo: v as TipoConto })}
                       />
+                      {/*
+                        Le ultime cifre servono a una frase sola: quando un
+                        accredito dice «giroconto dal cc n. 6098032»,
+                        l'anteprima dell'import può chiamare quel conto per
+                        nome invece di dire genericamente «la descrizione dice
+                        giroconto». Facoltative: senza, il trasferimento si
+                        riconosce lo stesso, e niente qui dentro le richiede.
+                      */}
+                      <CellaModificabile
+                        tipo="testo"
+                        etichetta={`Ultime cifre del numero di ${c.nome}`}
+                        valore={c.ultimeCifre ?? null}
+                        vuoto="ultime cifre"
+                        suggerimento="Facoltative: le ultime cifre del numero di conto, per riconoscere i giroconti che lo nominano."
+                        className="w-32"
+                        onSalva={(v) => {
+                          const cifre = String(v ?? "").replace(/\D/g, "");
+                          void salvaConto(
+                            cifre === ""
+                              ? { ...c, ultimeCifre: undefined }
+                              : { ...c, ultimeCifre: cifre },
+                          );
+                        }}
+                      />
                     </div>
                     <div className="flex shrink-0 items-center gap-1">
                       {/*

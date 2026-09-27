@@ -294,6 +294,33 @@ export function SchermataMovimenti() {
                       {m.tipo === "giroconto"
                         ? ` · ${nomeConto(m.contoId)} → ${nomeConto(m.contoDestinazioneId)}`
                         : ` · ${nomeCategoria(m.categoriaId)} · ${nomeConto(m.contoId)}`}
+                      {/*
+                        Il marchio si vede anche qui, e si può togliere.
+
+                        Una riga che il limite non conta e che nel registro
+                        sembra un'entrata come le altre è la ragione per cui la
+                        somma delle entrate non torna con quello che si legge —
+                        ed è il genere di scarto che si scopre mesi dopo. Il
+                        verso che si può correggere è questo: togliere un
+                        marchio messo per sbaglio, che tiene nascosta
+                        un'entrata vera. Rimetterlo si fa dall'anteprima
+                        dell'import, dove c'è il motivo scritto accanto.
+                      */}
+                      {m.daUnAltroTuoConto && (
+                        <>
+                          {" · "}
+                          <button
+                            type="button"
+                            className="underline underline-offset-2"
+                            onClick={() =>
+                              void salvaMovimentoPf({ ...m, daUnAltroTuoConto: undefined })
+                            }
+                            title="Non conta fra le entrate del mese. Premi per contarla."
+                          >
+                            trasferimento da un altro tuo conto
+                          </button>
+                        </>
+                      )}
                     </span>
                   </span>
                   <span className="flex shrink-0 items-center gap-1">

@@ -78,12 +78,17 @@ function perMese(movimenti: MovimentoPf[], anno: number): MovimentoPf[][] {
  *
  * I giroconti non entrano mai: non sono né entrate né spese, e contarli
  * gonfierebbe tutte e due le colonne dello stesso importo.
+ *
+ * E non entra nemmeno quello che è **solo arrivato da un altro conto tuo**:
+ * un accredito che il saldo conta — i soldi sono lì — ma che non è reddito.
+ * È la stessa ragione del giroconto, per la metà di giroconto che l'app vede
+ * da sola: vedi `daUnAltroTuoConto` in `tipi.ts`.
  */
 function totale(movimenti: MovimentoPf[], categorie: Set<string>): number {
   return round2(
     somma(
       ...movimenti
-        .filter((m) => m.tipo !== "giroconto" && categorie.has(m.categoriaId))
+        .filter((m) => m.tipo !== "giroconto" && !m.daUnAltroTuoConto && categorie.has(m.categoriaId))
         .map((m) => m.importo),
     ),
   );

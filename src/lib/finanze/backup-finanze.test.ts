@@ -101,6 +101,53 @@ describe("**un backup vecchio, senza il modulo, entra senza errori**", () => {
 });
 
 /**
+ * Il marchio «arrivato da un altro tuo conto» attraversa il backup.
+ *
+ * Se si perde, l'archivio ripristinato ha le stesse righe ma un limite più
+ * alto: le entrate tornano a comprendere i travasi, e nessuno collega la cosa
+ * al ripristino di tre settimane prima. È il difetto silenzioso per
+ * eccellenza — i dati ci sono tutti, e il numero è un altro.
+ */
+describe("il marchio sui trasferimenti sopravvive al backup", () => {
+  it("**torna indietro sul movimento**", () => {
+    const dati = conFinanze();
+    dati.pfMovimenti = [{
+      id: "m9", data: "2026-09-10", tipo: "entrata", categoriaId: "spesa",
+      contoId: "c1", importo: 394, descrizione: "Giroconto dal cc n. 6098032",
+      daUnAltroTuoConto: true,
+    }];
+    expect(rilegge(dati).pfMovimenti[0]?.daUnAltroTuoConto).toBe(true);
+  });
+
+  it("e assente resta assente: un backup vecchio non marca niente", () => {
+    expect(rilegge(conFinanze()).pfMovimenti[0]?.daUnAltroTuoConto).toBeUndefined();
+  });
+
+  /*
+    Sulla regola i valori sono tre, e vanno distinti tutti: `false` è una
+    risposta data — «è denaro nuovo davvero» — e appiattirla su «assente»
+    farebbe tornare la domanda a ogni import.
+  */
+  it("e sulla regola sopravvivono tutti e tre gli stati", () => {
+    const dati = conFinanze();
+    dati.pfRegole = [
+      { id: "r1", testoDaCercare: "conversione", categoriaId: "spesa", tipo: "entrata", daUnAltroTuoConto: true },
+      { id: "r2", testoDaCercare: "stipendio", categoriaId: "spesa", tipo: "entrata", daUnAltroTuoConto: false },
+      { id: "r3", testoDaCercare: "esselunga", categoriaId: "spesa", tipo: "spesa" },
+    ];
+    const lette = rilegge(dati).pfRegole;
+    expect(lette.map((r) => r.daUnAltroTuoConto)).toEqual([true, false, undefined]);
+  });
+
+  it("e le ultime cifre del conto, che sono facoltative", () => {
+    const dati = conFinanze();
+    dati.pfConti = [{ ...dati.pfConti[0], ultimeCifre: "6098032" }];
+    expect(rilegge(dati).pfConti[0]?.ultimeCifre).toBe("6098032");
+    expect(rilegge(conFinanze()).pfConti[0]?.ultimeCifre).toBeUndefined();
+  });
+});
+
+/**
  * La risposta su chi paga gli F24 attraversa il backup, tutte e due le volte.
  *
  * Dentro c'è **l'id di un conto**, e un id che non torna indietro non è un

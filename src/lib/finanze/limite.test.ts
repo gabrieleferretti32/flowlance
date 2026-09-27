@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { round2 } from "@/lib/fisco/aritmetica";
 import { quantoResta, tabellaLimite, type IngressoLimite } from "./limite";
 import type { CategoriaPf, MovimentoPf } from "./tipi";
 
@@ -32,6 +33,60 @@ const base = (p: Partial<IngressoLimite> = {}): IngressoLimite => ({
   accantonamentoMensile: 0,
   riportoAttivo: false,
   ...p,
+});
+
+/**
+ * Il denaro che era già tuo non è reddito del mese.
+ *
+ * Quattro righe su dieci, nel settembre di chi ha scritto questo modulo, erano
+ * spostamenti fra conti suoi entrati come entrate vere: 2.549 € di limite che
+ * non esistevano. Qui si fissa la sola cosa che conta — che il marchio tolga
+ * quell'importo dalle entrate — e `saldo.test.ts` fissa l'altra metà, cioè che
+ * il saldo del conto continui a contarlo, perché i soldi sono arrivati davvero.
+ */
+describe("**un accredito arrivato da un altro tuo conto non conta fra le entrate**", () => {
+  const settembre = (daUnAltroTuoConto?: boolean) =>
+    tabellaLimite(
+      base({
+        meseCorrente: 9,
+        movimenti: [
+          mov({ id: "e1", data: "2026-09-03", importo: 2_000, categoriaId: "stipendio", tipo: "entrata" }),
+          mov({
+            id: "e2", data: "2026-09-10", importo: 394, categoriaId: "stipendio", tipo: "entrata",
+            descrizione: "Giroconto dal cc n. 6098032",
+            ...(daUnAltroTuoConto ? { daUnAltroTuoConto } : {}),
+          }),
+        ],
+      }),
+    )[8];
+
+  it("senza marchio le entrate sono 2.394, con il marchio 2.000", () => {
+    expect(settembre().entrate).toBe(2_394);
+    expect(settembre(true).entrate).toBe(2_000);
+  });
+
+  it("e il limite scende esattamente di quei 394 €", () => {
+    expect(round2(settembre().limite - settembre(true).limite)).toBe(394);
+  });
+
+  /*
+    E vale anche dall'altra parte della tabella: un marchio su una spesa la
+    toglie dallo speso. Non succede negli import — il riconoscimento guarda
+    solo gli accrediti — ma il campo è sul movimento, e una riga marcata a mano
+    dal registro non deve comportarsi in due modi diversi a seconda del verso.
+  */
+  it("e una spesa marcata non conta fra le variabili", () => {
+    const righe = tabellaLimite(
+      base({
+        meseCorrente: 9,
+        movimenti: [
+          mov({ id: "s1", data: "2026-09-04", importo: 120, categoriaId: "spesa" }),
+          mov({ id: "s2", data: "2026-09-05", importo: 500, categoriaId: "spesa", daUnAltroTuoConto: true }),
+        ],
+      }),
+    );
+    expect(righe[8].speso).toBe(120);
+  });
 });
 
 /**

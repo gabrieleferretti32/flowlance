@@ -23,6 +23,36 @@ lasciarla.
 
 ---
 
+## 27 settembre 2026 · I trasferimenti in uscita restano contati come spese
+
+Il marchio «arrivato da un altro tuo conto» copre **solo gli accrediti**. Un
+trasferimento in uscita verso un conto tuo che Flowlance non segue — il
+giroconto di cui manca l'altra metà, il bonifico da te a te in partenza —
+continua a finire fra le spese, e di solito in «Non definito», che è una spesa
+variabile: quindi mangia il limite del mese come se fosse una cena fuori.
+
+Non è stato chiuso insieme all'altro verso per una ragione, ed è la stessa che
+decide tutte le scelte di questo modulo: **sbaglia dal lato prudente**. Un
+accredito contato come reddito fa spendere soldi che non ci sono; un'uscita
+contata come spesa fa spendere meno del dovuto. Il primo si paga, il secondo
+si sopporta.
+
+Resta però un caso in cui dà fastidio davvero: chi ogni mese sposta una cifra
+grossa su un conto di risparmio non tracciato si vede il limite azzerato da
+uno spostamento che non è una spesa. Quando si chiuderà, la domanda da
+rispondere prima è **se un'uscita marcata debba alzare il limite**: togliere
+quei soldi dal conto delle spese lo alza, e alzare un limite è il verso che
+questo modulo non prende mai senza dirlo in faccia.
+
+### E un secondo verso che manca
+
+Dal registro si può **togliere** il marchio a una riga, non metterlo. Anche
+questa è la direzione prudente — togliere fa ricomparire un'entrata, mettere la
+farebbe sparire — ma vuol dire che un trasferimento scoperto due mesi dopo si
+corregge solo rifacendo l'import di quel mese.
+
+---
+
 ## 26 settembre 2026 · Il mucchio è uno solo, e «professionale» è un campo morto
 
 Il limite del mese non filtra per conto: nessuna riga di `limite.ts` guarda

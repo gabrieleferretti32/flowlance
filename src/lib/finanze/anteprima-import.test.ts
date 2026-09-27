@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   anteprimaImport,
+  conRispostaSulCambio,
   firmaMovimento,
   movimentiDaScrivere,
   riapplicaRegole,
@@ -495,5 +496,128 @@ describe("**la regola creata dall'anteprima vale subito, lì dentro**", () => {
     const righe = quattroUguali();
     const dopo = riapplicaRegole(righe, CATEGORIE, [regola]);
     expect(dopo[3]).toBe(righe[3]);
+  });
+});
+
+/**
+ * Denaro già tuo che si sposta, dentro l'import.
+ *
+ * Le descrizioni sono quelle di un rendiconto vero: su quell'archivio quattro
+ * accrediti di settembre su dieci erano spostamenti fra conti della stessa
+ * persona, entrati come entrate vere per 2.549 €. L'anteprima è l'ultimo posto
+ * in cui si possono fermare, ed è l'unico in cui chi guarda ha davanti la
+ * descrizione della banca.
+ */
+describe("gli accrediti che non sono denaro nuovo", () => {
+  const conFile = (righe: ReturnType<typeof riga>[]) =>
+    anteprimaImport({ ...base, file: [{ nome: "fineco.csv", contoId: "conto", righe }] });
+
+  it("**il giroconto dichiarato si marca, e la riga dice perché**", () => {
+    const r = conFile([riga(1, "2026-09-10", "Giroconto Giroconto dal cc n. 6098032 / 01", 394)])[0];
+    expect(r.tipo).toBe("entrata");
+    expect(r.daUnAltroTuoConto).toBe(true);
+    expect(r.motivoTrasferimento).toBe("la descrizione dice «giroconto»");
+  });
+
+  it("il bonifico da sé a sé pure", () => {
+    const r = conFile([
+      riga(1, "2026-09-12", "Ordinante: Gabriele Ferretti Beneficiario: Gabriele Ferretti", 900),
+    ])[0];
+    expect(r.daUnAltroTuoConto).toBe(true);
+    expect(r.motivoTrasferimento).toBe("ordinante e beneficiario sono la stessa persona");
+  });
+
+  it("e un incasso vero resta un incasso", () => {
+    const r = conFile([riga(1, "2026-09-06", "BONIFICO DA STUDIO ROSSI SRL", 2_400)])[0];
+    expect(r.daUnAltroTuoConto).toBeUndefined();
+    expect(r.categoriaId).toBe("fatture");
+  });
+
+  /*
+    **La coppia vera vince.** Se l'altra metà c'è, questo è un giroconto a due
+    capi: si sa da dove parte e dove arriva, e il marchio — che è il ripiego
+    per quando l'altra metà non c'è — diventa falso. Due risposte alla stessa
+    domanda sulla stessa riga sono una di troppo.
+  */
+  it("ma se l'altra metà c'è, vince l'abbinamento e il marchio sparisce", () => {
+    const righe = anteprimaImport({
+      ...base,
+      file: [
+        { nome: "a.csv", contoId: "conto", righe: [riga(1, "2026-09-10", "Giroconto verso libretto", -394)] },
+        { nome: "b.csv", contoId: "libretto", righe: [riga(1, "2026-09-11", "Giroconto dal cc n. 6098032", 394)] },
+      ],
+    });
+    expect(righe).toHaveLength(1);
+    expect(righe[0].tipo).toBe("giroconto");
+    expect(righe[0].daGiroconto).toBe(true);
+    expect(righe[0].daUnAltroTuoConto).toBeUndefined();
+  });
+
+  it("il marchio arriva in archivio, il giroconto no", () => {
+    const righe = conFile([riga(1, "2026-09-10", "Giroconto dal cc n. 6098032", 394)]);
+    const [m] = movimentiDaScrivere(righe, "imp", () => "id1");
+    expect(m.daUnAltroTuoConto).toBe(true);
+    expect(m.tipo).toBe("entrata");
+  });
+
+  /*
+    Una regola nuova sulla categoria non smentisce il marchio: parla di dove
+    vengono i soldi, non di che categoria sono.
+  */
+  it("riapplicare le regole non toglie il marchio", () => {
+    const righe = conFile([riga(1, "2026-09-10", "Giroconto dal cc n. 6098032", 394)]);
+    const dopo = riapplicaRegole(righe, CATEGORIE, [
+      { id: "r", testoDaCercare: "giroconto", categoriaId: "altre-entrate", tipo: "entrata" },
+    ]);
+    expect(dopo[0].daUnAltroTuoConto).toBe(true);
+  });
+});
+
+/**
+ * Il cambio valuta: l'unico caso in cui la riga non contiene la risposta.
+ */
+describe("la domanda sul cambio valuta", () => {
+  const righe = anteprimaImport({
+    ...base,
+    file: [{ nome: "revolut.csv", contoId: "conto", righe: [riga(1, "2026-09-14", "Conversione in EUR", 991.39)] }],
+  });
+
+  it("la riga arriva **non marcata**, con la domanda accanto", () => {
+    expect(righe[0].chiedeCambioValuta).toBe(true);
+    expect(righe[0].daUnAltroTuoConto).toBeUndefined();
+  });
+
+  it("«erano già miei» marca la riga e toglie la domanda", () => {
+    const dopo = conRispostaSulCambio(righe, [
+      { testoDaCercare: "conversione", daUnAltroTuoConto: true },
+    ]);
+    expect(dopo[0].daUnAltroTuoConto).toBe(true);
+    expect(dopo[0].chiedeCambioValuta).toBeUndefined();
+  });
+
+  /*
+    E «è un incasso» **toglie la domanda lo stesso**. È la metà che si
+    dimentica: senza, la stessa riga tornerebbe a chiedere a ogni import, e chi
+    ha già risposto smetterebbe di rispondere.
+  */
+  it("«è un incasso» lascia la riga com'è, e non richiede più", () => {
+    const dopo = conRispostaSulCambio(righe, [
+      { testoDaCercare: "conversione", daUnAltroTuoConto: false },
+    ]);
+    expect(dopo[0].daUnAltroTuoConto).toBeUndefined();
+    expect(dopo[0].chiedeCambioValuta).toBeUndefined();
+  });
+
+  it("e la risposta salvata vale già al prossimo import, senza chiedere", () => {
+    const dopo = anteprimaImport({
+      ...base,
+      regole: [
+        { id: "r", testoDaCercare: "conversione", categoriaId: "altre-entrate", tipo: "entrata", daUnAltroTuoConto: true },
+      ],
+      file: [{ nome: "revolut.csv", contoId: "conto", righe: [riga(1, "2026-10-14", "Conversione in EUR", 500)] }],
+    });
+    expect(dopo[0].chiedeCambioValuta).toBeUndefined();
+    expect(dopo[0].daUnAltroTuoConto).toBe(true);
+    expect(dopo[0].motivoTrasferimento).toBe("l'hai già detto per questo movimento");
   });
 });

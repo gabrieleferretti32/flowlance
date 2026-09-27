@@ -720,6 +720,9 @@ const convalidaConto: Convalida<Dati["pfConti"][number]> = (riga, i, errori) => 
     saldoRiferimento: numero(riga.saldoRiferimento, 0),
     dataRiferimento,
     professionale: booleano(riga.professionale),
+    ...(typeof riga.ultimeCifre === "string" && riga.ultimeCifre !== ""
+      ? { ultimeCifre: riga.ultimeCifre }
+      : {}),
     ...(mappatura ? { mappaturaImport: mappatura } : {}),
   };
 };
@@ -828,6 +831,12 @@ const convalidaMovimentoPf: Convalida<Dati["pfMovimenti"][number]> = (riga, i, e
     descrizione: testo(riga.descrizione),
     ...(typeof riga.importId === "string" ? { importId: riga.importId } : {}),
     ...(typeof riga.hashDuplicato === "string" ? { hashDuplicato: riga.hashDuplicato } : {}),
+    /*
+      Assente vuol dire «no», ed è la lettura prudente: un backup scritto prima
+      che il campo esistesse non può dire che un accredito era denaro già tuo,
+      e darlo per acceso toglierebbe dal limite delle entrate vere.
+    */
+    ...(riga.daUnAltroTuoConto === true ? { daUnAltroTuoConto: true } : {}),
   };
 };
 
@@ -904,6 +913,15 @@ const convalidaRegola: Convalida<Dati["pfRegole"][number]> = (riga, i, errori) =
     testoDaCercare: testo(riga.testoDaCercare),
     categoriaId: testo(riga.categoriaId),
     tipo: unoDi(riga.tipo, ["entrata", "spesa", "risparmio", "rata", "giroconto"] as const, "spesa"),
+    /*
+      Tre stati, e vanno distinti tutti e tre: `true` marca la riga, `false`
+      dice «è denaro nuovo davvero», assente vuol dire che questa regola non
+      parla dell'argomento. Appiattire `false` su assente farebbe tornare la
+      domanda a ogni import su un movimento a cui si è già risposto.
+    */
+    ...(typeof riga.daUnAltroTuoConto === "boolean"
+      ? { daUnAltroTuoConto: riga.daUnAltroTuoConto }
+      : {}),
   };
 };
 

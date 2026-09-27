@@ -56,10 +56,12 @@ import {
 } from "@/lib/dati/azioni";
 import {
   anteprimaImport,
+  conRispostaSulCambio,
   movimentiDaScrivere,
   riapplicaRegole,
   type RigaAnteprima,
 } from "@/lib/finanze/anteprima-import";
+import { parolaCambioValuta } from "@/lib/finanze/trasferimenti";
 import { tipoDiCategoria } from "@/lib/finanze/categorizza";
 import {
   conIntestazioneAllaRiga,
@@ -383,6 +385,28 @@ export function SchermataRendiconto() {
   );
 
 
+  /*
+    La risposta sul cambio valuta diventa una **regola**, come quelle sulle
+    categorie: così vale anche il mese prossimo, su una riga che si ripete
+    ogni volta uguale. Vale in tutti e due i versi — anche «è un incasso» —
+    perché una domanda a cui si è già risposto non si ripropone.
+  */
+  const rispondiSulCambioValuta = React.useCallback(
+    async (riga: RigaAnteprima, eranoGiaTuoi: boolean) => {
+      const parola = parolaCambioValuta(riga.descrizioneOriginale);
+      if (!parola) return;
+      const nuova = await creaRegola({
+        testoDaCercare: parola,
+        categoriaId: riga.categoriaId,
+        tipo: "entrata",
+        daUnAltroTuoConto: eranoGiaTuoi,
+      });
+      if (!nuova) return;
+      setRighe((x) => (x === null ? x : conRispostaSulCambio(x, [nuova])));
+    },
+    [],
+  );
+
   /**
    * La riga d'intestazione scelta a mano.
    *
@@ -451,6 +475,7 @@ export function SchermataRendiconto() {
         regole: dati.pfRegole,
         esistenti: dati.pfMovimenti,
         contiTracciati: conti.map((c) => c.id),
+        conti,
       }),
     );
     setScarti(scartate);
@@ -763,6 +788,7 @@ export function SchermataRendiconto() {
                   categorie={categorie}
                   onCambia={cambiaRiga}
                   onRegola={creaEApplicaRegola}
+                  onCambioValuta={rispondiSulCambioValuta}
                 />
               ))}
             </ul>
@@ -994,6 +1020,7 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
   categorie,
   onCambia,
   onRegola,
+  onCambioValuta,
 }: {
   riga: RigaAnteprima;
   conti: ContoPersonale[];
@@ -1005,6 +1032,7 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
     categoriaId: string;
     tipo: TipoMovimento;
   }) => void;
+  onCambioValuta: (riga: RigaAnteprima, eranoGiaTuoi: boolean) => void;
 }) {
   /*
     **I menu si disegnano solo sulla riga che si tocca.**
@@ -1142,6 +1170,53 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
           {riga.tipo === "entrata" ? "+" : riga.tipo === "giroconto" ? "→" : "−"}
         </span>
       </div>
+
+      {/*
+        Il marchio «non è denaro nuovo», con **il perché** e il modo di
+        toglierlo.
+
+        Il perché non è cortesia: un accredito che sparisce dalle entrate senza
+        dire per quale parola è sparito è un numero che cambia da solo. «La
+        descrizione dice giroconto» si controlla a colpo d'occhio, e se è
+        sbagliato si toglie qui, prima che entri in archivio.
+      */}
+      {riga.daUnAltroTuoConto && (
+        <div className="mt-1 flex flex-wrap items-center gap-2 pl-6 text-micro text-inchiostro-tenue">
+          <Chip>Trasferimento da un altro tuo conto</Chip>
+          <span>{riga.motivoTrasferimento}, quindi non conta come entrata del mese.</span>
+          <button
+            type="button"
+            className="underline underline-offset-2"
+            onClick={() =>
+              cambia({ ...riga, daUnAltroTuoConto: undefined, motivoTrasferimento: undefined })
+            }
+          >
+            No, è un&apos;entrata vera
+          </button>
+        </div>
+      )}
+
+      {/*
+        Il cambio valuta, che è l'unico caso in cui la riga non contiene la
+        risposta. La domanda non chiede una parola del prodotto — «è un
+        travaso?» — ma la cosa che chi legge sa: da dove arrivavano quei soldi.
+      */}
+      {riga.chiedeCambioValuta && (
+        <div className="mt-1 flex flex-wrap items-center gap-2 pl-6 text-micro">
+          <span className="text-inchiostro">
+            Questi soldi erano già tuoi su un altro conto, o è un incasso che arriva adesso?
+          </span>
+          <BloccoScrittura className="flex flex-wrap gap-2">
+            <Button scrive variante="contorno" taglia="sm" onClick={() => onCambioValuta(riga, true)}>
+              Erano già miei
+            </Button>
+            <Button scrive variante="contorno" taglia="sm" onClick={() => onCambioValuta(riga, false)}>
+              È un incasso
+            </Button>
+          </BloccoScrittura>
+          <span className="text-inchiostro-tenue">La risposta vale anche per le prossime volte.</span>
+        </div>
+      )}
 
       {/*
         La proposta di regola nasce dalla correzione, non da un menu: è il
