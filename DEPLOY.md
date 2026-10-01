@@ -134,6 +134,98 @@ giorno in cui qualcuno reimposta il segnaposto senza rimettere il noindex.
 
 ---
 
+## I promemoria delle scadenze (Brevo) — **spenti**
+
+Il simulatore può raccogliere iscrizioni ai promemoria delle scadenze. Oggi la
+cosa è **spenta a due mandate**, e resta spenta finché l'informativa privacy non
+descrive i dati che partono.
+
+| Interruttore | Dove | Cosa decide |
+| --- | --- | --- |
+| `PROMEMORIA_ATTIVI` | `src/lib/sito/impostazioni.ts` | **Cosa si vede.** A `false` la pagina non mostra nessun modulo: al suo posto l'uscita verso la demo, e la barra fissa del telefono porta là. |
+| Le tre variabili qui sotto | Vercel | **Cosa può succedere.** Se ne manca una, `api/promemoria.ts` risponde «non ancora attivi» e non contatta nessuno. |
+
+I due sono indipendenti di proposito: un modulo a schermo che raccoglie
+un'email per poi dire che non è il momento è una promessa presa e non
+mantenuta.
+
+### Che cosa configurare su Brevo
+
+1. Una **lista** per i promemoria delle scadenze. Serve il suo id numerico.
+2. Un **modello di email di doppio opt-in** (*Campaigns → Templates*, tipo
+   «Double opt-in confirmation»). Dentro, il collegamento di conferma si scrive
+   con il segnaposto `{{ params.DOIurl }}`. Serve il suo id numerico.
+3. I **sette attributi di contatto**, in *Contacts → Settings → Contact
+   attributes*, con questi nomi esatti:
+
+   | Attributo | Tipo |
+   | --- | --- |
+   | `REGIME` | testo |
+   | `FATTURATO_STIMATO` | numero |
+   | `ACCANTONAMENTO_MESE` | numero |
+   | `SCAD_1_DATA` | data |
+   | `SCAD_1_IMPORTO` | numero |
+   | `SCAD_2_DATA` | data |
+   | `SCAD_2_IMPORTO` | numero |
+
+   Un attributo che in Brevo non esiste fa fallire la chiamata intera: il
+   contatto non viene creato e chi si iscrive vede l'errore. Vanno creati
+   **prima** di accendere.
+4. Una **chiave API** (*SMTP & API → API Keys*), con i soli permessi sui
+   contatti.
+
+`SCAD_2_*` resta vuoto quando di appuntamenti ce n'è uno solo — primo anno di
+attività, o sotto la soglia degli acconti. Il modello dell'email deve reggere
+quel caso senza stampare una data vuota.
+
+### Che cosa configurare su Vercel
+
+*Project → Settings → Environment Variables*, tutte e tre senza
+`NEXT_PUBLIC_` (non devono entrare in nessun bundle):
+
+```
+BREVO_API_KEY           = xkeysib-…
+BREVO_LISTA_PROMEMORIA  = <id numerico della lista>
+BREVO_TEMPLATE_DOI      = <id numerico del modello>
+```
+
+Niente altro da configurare: `api/promemoria.ts` è una funzione Vercel fuori da
+Next, e Vercel compila `/api/*` senza configurazione anche con `framework: null`
+e l'output statico in `out/`. L'export statico resta quello di prima.
+
+### Provarlo in locale, prima del deploy
+
+`next dev` **non esegue** quella funzione: non è una route di Next, e con
+`output: "export"` un route handler in POST dopo il build non esisterebbe. Ci
+sono due strade, in ordine di fatica:
+
+1. **La griglia, che prova tutto tranne la firma.** La logica sta in
+   `src/lib/sito/promemoria-server.ts` e gira con un `fetch` finto:
+
+   ```sh
+   npx vitest run src/lib/sito/promemoria-server.test.ts
+   npx vitest run src/lib/sito/promemoria.test.ts
+   ```
+
+   Qui si vede che cosa viene mandato a Brevo, che la chiave non finisce nel
+   corpo, che senza configurazione non parte niente, e che un 400 di Brevo
+   diventa un errore leggibile e non un «fatto».
+
+2. **La funzione vera**, con `npx vercel dev` e un `.env.local` con le tre
+   variabili. È l'unico modo di provare la firma `Request → Response` e il
+   percorso `/api/promemoria`, che con `trailingSlash: true` potrebbe
+   rispondere con un rimando: se succede, si fissa il percorso che risponde
+   diretto in `API` dentro `src/lib/rotte.ts`. Meglio ancora, una
+   distribuzione di anteprima: `originiAmmesse` ammette già `VERCEL_URL`.
+
+### Quando accendere
+
+1. L'informativa privacy descrive i sette attributi e la finalità.
+2. Le tre variabili sono su Vercel, e l'iscrizione di prova arriva davvero.
+3. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
+
+---
+
 ## Prima di spingere, sempre
 
 ```sh

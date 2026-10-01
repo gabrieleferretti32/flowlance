@@ -80,7 +80,17 @@ export const METADATI: Record<string, MetadatiPagina> = {
       caratteri tolti alla domanda — dentro un taglio che arriva a sessanta.
       Il nome lo trova nella pagina, dopo il clic.
     */
-    titolo: "Quanto pagherai di tasse con la partita IVA — simulatore",
+    /*
+      Il titolo e l'H1 non sono la stessa frase, e non possono esserlo.
+
+      L'H1 della pagina — «Quanto pagherai di tasse quest'anno, e quanto devi
+      mettere da parte ogni mese» — è 77 caratteri: in un risultato di ricerca
+      finirebbe tagliato dopo «quest'anno», cioè prima della metà che
+      convince. Qui sta la stessa promessa in 60, e le due metà ci stanno
+      entrambe. In pagina resta l'H1 intero, che non ha nessun taglio da
+      rispettare.
+    */
+    titolo: "Quanto pagherai di tasse e quanto mettere da parte ogni mese",
     /*
       Quello che è caduto, e perché.
 
@@ -95,8 +105,8 @@ export const METADATI: Record<string, MetadatiPagina> = {
       esce»: la data si scopre entrando, il numero no.
     */
     descrizione:
-      "Per freelance e partite IVA: scrivi quanto pensi di fatturare e vedi quanto esce fra "
-      + "imposte, contributi e IVA, e quanto mettere da parte ogni mese.",
+      "Tre risposte e hai il conto: imposte, contributi, scadenze e quanto mettere da parte "
+      + "ogni mese. Senza registrarti, con lo stesso motore di Flowlance.",
     indicizzabile: true,
   },
   [SITO.acquisto]: {

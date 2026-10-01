@@ -1,24 +1,28 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { ArrowRight, Lock } from "lucide-react";
-import { SITO, rottaDemo } from "@/lib/rotte";
-import { euro, euroTondo, dataEstesa, percentuale } from "@/lib/format";
+import { ArrowDown, Lock, ShieldCheck, FileText, UserX } from "lucide-react";
+import { euroTondo } from "@/lib/format";
 import { parametriDi } from "@/lib/fisco/parametri";
-import { prospettoDettagliato, type RigaProspetto } from "@/lib/fisco/spiegazioni";
 import { derivato } from "@/lib/fisco/derivati/registro";
 import { GESTIONI } from "@/lib/fisco/tipi";
-import type { Gestione, Regime } from "@/lib/fisco/tipi";
+import type { Gestione } from "@/lib/fisco/tipi";
 import { EVENTO_SIMULATORE, tracciaEvento } from "@/lib/sito/eventi";
+import { PROMEMORIA_ATTIVI } from "@/lib/sito/impostazioni";
+import { appuntamentiFiscali, type Appuntamenti } from "@/lib/sito/appuntamenti";
 import {
   ANNO,
   INGRESSO_INIZIALE,
   RICAVI_MASSIMI,
-  righeMostrate,
   simula,
   type IngressoSimulatore,
 } from "@/lib/sito/simulatore";
+import { Risultato } from "./risultato";
+import { Promemoria, PromemoriaSpenti, ANCORA_PROMEMORIA } from "./promemoria";
+import { Chiusura, Confronto, Domande, Offerta, Ponte } from "./sezioni";
+import { BarraMobile } from "./barra-mobile";
+
+const NASCOSTO_A_CLARITY = { "data-clarity-mask": "True" } as const;
 
 const GESTIONE_DETTA: Record<Gestione, string> = {
   separata: "Gestione Separata INPS — la più comune fra i freelance senza albo",
@@ -27,34 +31,60 @@ const GESTIONE_DETTA: Record<Gestione, string> = {
   cassa: "Cassa professionale — avvocati, ingegneri, commercialisti, giornalisti",
 };
 
-const REGIME_DETTO: Record<Regime, string> = {
-  forfettario: "Forfettario",
-  ordinario: "Ordinario (semplificato)",
-};
+const FIDUCIA = [
+  { icona: UserX, testo: "Nessuna registrazione" },
+  { icona: ShieldCheck, testo: "I numeri restano sul tuo dispositivo" },
+  { icona: FileText, testo: "Calcolo spiegato voce per voce" },
+] as const;
 
 /**
- * L'attributo con cui Clarity non registra il contenuto di un elemento.
+ * Il simulatore pubblico: una pagina che risponde, e poi vende.
  *
- * Il valore è «True» con la maiuscola, come lo vuole Clarity: scritto
- * `"true"` l'attributo c'è, sembra giusto guardandolo, e non maschera
- * niente. È il motivo per cui sta qui e non ripetuto sei volte nel JSX —
- * e per cui `verifica-derivati` lo confronta per intero invece di
- * controllare che l'attributo esista.
+ * ─────────────────────────────────────────────────────────────────────────
+ * Che giorno è oggi, e perché non si sa subito
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il riquadro della prossima scadenza ha bisogno della data vera: a dicembre,
+ * «il 30 novembre» è una data che non esiste più. Ma questo sito è un export
+ * statico, e l'HTML lo scrive il build: un `new Date()` letto durante il
+ * rendering darebbe il giorno della pubblicazione, che resterebbe scritto in
+ * pagina per tutte le settimane fino al build successivo — e sarebbe diverso da
+ * quello che il browser calcola, cioè un'idratazione che non combacia.
+ *
+ * Perciò si parte dal 1° gennaio dell'anno simulato — un valore deterministico,
+ * identico sul server e al primo rendering del client, e vero per il calendario
+ * che il motore ha costruito — e si passa alla data vera in un effetto, subito
+ * dopo il montaggio. Chi guarda vede il numero giusto; nessuno vede una data
+ * passata; e l'idratazione combacia perché il primo rendering dei due lati usa
+ * lo stesso valore.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Lo scorrimento al risultato, una volta e su richiesta
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il conto si rifà a ogni battuta sulla tastiera, com'è sempre stato. Lo
+ * scorrimento no: legato al ricalcolo, trascinare il fatturato porterebbe la
+ * pagina a saltare quaranta volte in dieci secondi. Parte da un pulsante —
+ * «Vedi il tuo conto» — che è un gesto deliberato, mentre i numeri sotto
+ * restano vivi: nessuno aspetta un calcolo, e nessuno viene trascinato.
  */
-const NASCOSTO_A_CLARITY = { "data-clarity-mask": "True" } as const;
-
 export function SchermataSimulatore() {
   const [ing, setIng] = React.useState<IngressoSimulatore>(INGRESSO_INIZIALE);
   const par = parametriDi(ANNO);
 
+  /* Vedi il commento in cima: deterministico al primo rendering, vero dopo. */
+  const [oggi, setOggi] = React.useState(`${ANNO}-01-01`);
+  React.useEffect(() => {
+    setOggi(new Date().toISOString().slice(0, 10));
+  }, []);
+
   const esito = React.useMemo(() => simula(ing), [ing]);
-  const { prospetto, impostazioni, confronto, scadenze, iva } = esito;
+  const { prospetto, impostazioni, scadenze } = esito;
 
   /*
-    L'evento parte una volta sola, non a ogni battuta sulla tastiera: chi
-    trascina il cursore dei ricavi produrrebbe quaranta «risultato calcolato»
-    in dieci secondi, e il numero misurerebbe la nervosità del dito invece
-    dell'uso della pagina.
+    L'evento parte una volta sola, non a ogni battuta: chi trascina il campo
+    dei ricavi produrrebbe quaranta «risultato calcolato» in dieci secondi, e
+    il numero misurerebbe la nervosità del dito invece dell'uso della pagina.
   */
   const contato = React.useRef(false);
   React.useEffect(() => {
@@ -63,417 +93,270 @@ export function SchermataSimulatore() {
     tracciaEvento(EVENTO_SIMULATORE);
   }, []);
 
-  const righe = React.useMemo(() => {
-    const tutte = prospettoDettagliato(prospetto, impostazioni, par)
-      .flatMap((s) => s.righe);
-    return righeMostrate(ing.gestione, ing.regime)
-      .map((id) => tutte.find((r) => r.id === id))
-      .filter(
-      (r): r is RigaProspetto => Boolean(r),
-    );
-  }, [prospetto, impostazioni, par, ing.gestione, ing.regime]);
-
-  const cambia = <K extends keyof IngressoSimulatore>(campo: K, valore: IngressoSimulatore[K]) =>
-    setIng((p) => ({ ...p, [campo]: valore }));
+  const cambia = React.useCallback(
+    <K extends keyof IngressoSimulatore>(campo: K, valore: IngressoSimulatore[K]) =>
+      setIng((p) => ({ ...p, [campo]: valore })),
+    [],
+  );
 
   const coefficiente = derivato("coefficienteRedditivita", impostazioni, par);
-  const limite = derivato("limiteForfettario", impostazioni, par);
-  const oltreIlLimite = limite.valore !== null && ing.ricavi > limite.valore;
+
+  /*
+    Gli appuntamenti si calcolano qui e non in due posti: li usa il riquadro
+    della scadenza, e li usa il modulo dei promemoria per sapere quali date
+    mandare. Due calcoli identici in due componenti sarebbero due date nel
+    giorno in cui uno dei due cambia — e la seconda, quella che finisce in
+    un'email, è quella che nessuno riguarda.
+  */
+  const appuntamenti: Appuntamenti | null = React.useMemo(() => {
+    const giugno = scadenze.find((s) => s.id === "saldo-e-primo-acconto")?.data;
+    const novembre = scadenze.find((s) => s.id === "secondo-acconto")?.data;
+    if (!giugno || !novembre) return null;
+    return appuntamentiFiscali({
+      carico: prospetto.caricoTotale,
+      acconti: prospetto.acconti,
+      dataGiugno: giugno,
+      dataNovembre: novembre,
+      primoAnno: ing.annoAperturaPiva === ANNO,
+      oggi,
+    });
+  }, [scadenze, prospetto.caricoTotale, prospetto.acconti, ing.annoAperturaPiva, oggi]);
+
+  // ——— La barra fissa del telefono ———
+  const ancoraRisultato = React.useRef<HTMLDivElement>(null);
+  const [vistoIlConto, setVistoIlConto] = React.useState(false);
+  const [optInAVista, setOptInAVista] = React.useState(false);
+  const [iscritto, setIscritto] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof IntersectionObserver !== "function") return;
+    const bersagli = [
+      ancoraRisultato.current,
+      document.getElementById(ANCORA_PROMEMORIA),
+    ].filter((n): n is HTMLElement => n !== null);
+    if (bersagli.length === 0) return;
+
+    const osservatore = new IntersectionObserver(
+      (voci) => {
+        for (const v of voci) {
+          if (v.target === ancoraRisultato.current) {
+            if (v.isIntersecting) setVistoIlConto(true);
+          } else {
+            setOptInAVista(v.isIntersecting);
+          }
+        }
+      },
+      { threshold: 0.12 },
+    );
+    for (const b of bersagli) osservatore.observe(b);
+    return () => osservatore.disconnect();
+  }, []);
+
+  function vaiAlRisultato() {
+    const nodo = ancoraRisultato.current;
+    if (!nodo) return;
+    const fermi = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    nodo.scrollIntoView({ behavior: fermi ? "auto" : "smooth", block: "start" });
+    setVistoIlConto(true);
+  }
 
   return (
-    <main className="mx-auto w-full max-w-[52rem] px-5 py-12 sm:px-6 sm:py-16">
-      <h1 className="font-display text-kpi font-semibold tracking-tight">
-        Quanto lascia al fisco un freelance
-      </h1>
-      <p className="mt-3 max-w-[54ch] text-corpo leading-relaxed text-inchiostro-tenue">
-        Tre risposte e il conto è fatto, con lo stesso motore che c&apos;è dentro Flowlance.
-        Parametri {ANNO}.
-      </p>
+    <>
       {/*
-        La promessa sta in alto e non nel piede, perché è la cosa che decide se
-        una persona scrive il proprio fatturato in un campo di un sito che non
-        conosce. Ed è vera: il conto gira qui, e `verifica-import-simulatore`
-        controlla che da questa pagina non si arrivi nemmeno all'archivio.
+        Il margine in fondo lascia il posto alla barra fissa del telefono: senza,
+        l'ultima riga resta sotto e non si legge. Solo fino a `sm`, dove la barra
+        non c'è.
       */}
-      <p className="mt-4 inline-flex items-center gap-2 rounded-campo border border-bordo bg-superficie-alt/60 px-3 py-2 text-etichetta text-inchiostro-tenue">
-        <Lock className="size-4 shrink-0" aria-hidden />
-        I numeri che scrivi restano in questa pagina: non partono, non si salvano, non li vede
-        nessuno.
-      </p>
+      <main className="mx-auto w-full max-w-[64rem] px-5 pt-10 pb-28 sm:px-6 sm:pt-14 sm:pb-20">
+        {/* ——— 1 · L'eroe, con il simulatore dentro ——— */}
+        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-start lg:gap-12">
+          <div>
+            <p className="text-micro font-semibold uppercase tracking-[0.14em] text-accento">
+              {/* L'anno non è scritto a mano: è quello su cui il motore simula. */}
+              Per freelance e partite IVA · Parametri {ANNO}
+            </p>
+            <h1 className="mt-3 max-w-[26ch] font-display text-kpi font-semibold leading-[1.1] tracking-tight sm:text-semaforo lg:text-[2.75rem]">
+              Quanto pagherai di tasse quest&apos;anno, e quanto devi mettere da parte ogni mese
+            </h1>
+            <p className="mt-4 max-w-[52ch] text-corpo leading-relaxed text-inchiostro-tenue">
+              Tre risposte e hai il conto: imposte, contributi e scadenze, con lo stesso motore di
+              Flowlance.
+            </p>
 
-      {/* ——— Le tre domande ——— */}
-      <section aria-labelledby="domande" className="mt-10">
-        <h2 id="domande" className="sr-only">
-          I tuoi dati
-        </h2>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-etichetta font-medium">Quanto pensi di fatturare in un anno</span>
-            <span className="mt-1 flex items-center gap-2 rounded-campo border border-bordo px-3 py-2">
-              <input
-                {...NASCOSTO_A_CLARITY}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                max={RICAVI_MASSIMI}
-                step={1000}
-                value={ing.ricavi}
-                onChange={(e) =>
-                  cambia("ricavi", Math.max(0, Math.min(RICAVI_MASSIMI, Number(e.target.value) || 0)))
-                }
-                className="cifre w-full bg-transparent text-corpo outline-none"
-              />
-              <span aria-hidden className="text-inchiostro-tenue">€</span>
-            </span>
-            <span className="mt-1 block text-etichetta text-inchiostro-tenue">
-              Imponibile, IVA esclusa.
-            </span>
-          </label>
-
-          <label className="block">
-            <span className="text-etichetta font-medium">Che lavoro fai</span>
-            <select
-              value={ing.gruppoAteco}
-              onChange={(e) => cambia("gruppoAteco", e.target.value)}
-              className="mt-1 w-full rounded-campo border border-bordo bg-superficie px-3 py-2 text-corpo"
-            >
-              {par.gruppiAteco.map((g) => (
-                <option key={g.codice} value={g.codice}>
-                  {g.descrizione}
-                </option>
+            <ul className="mt-6 flex flex-wrap gap-2">
+              {FIDUCIA.map(({ icona: Icona, testo }) => (
+                <li
+                  key={testo}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-bordo bg-superficie px-3 py-1.5 text-etichetta text-inchiostro-tenue"
+                >
+                  <Icona className="size-3.5 shrink-0 text-positivo" aria-hidden />
+                  {testo}
+                </li>
               ))}
-            </select>
+            </ul>
+
             {/*
-              Il coefficiente si chiede al registro, non si legge dal campo:
-              `derivato` restituisce il valore **insieme al motivo**, e il motivo
-              è esattamente la nota «da dove viene il numero» che questa pagina
-              deve dare. Leggere il campo grezzo avrebbe dato lo stesso numero e
-              nessuna spiegazione — e un test di struttura del progetto lo
-              rifiuta, perché è così che un'aliquota agevolata è rimasta accesa
-              per anni.
+              La riga sulla riservatezza sta in alto e non nel piede, perché è
+              la cosa che decide se una persona scrive il proprio fatturato in
+              un campo di un sito che non conosce. Ed è vera alla lettera: il
+              conto gira qui, `verifica-import-simulatore` controlla che da
+              questa pagina non si arrivi nemmeno all'archivio, e l'unica cosa
+              che esce sono i sette attributi del promemoria — al submit, e solo
+              se l'hai chiesto.
             */}
-            <span
-              {...NASCOSTO_A_CLARITY}
-              className="mt-1 block text-etichetta leading-relaxed text-inchiostro-tenue"
-            >
-              {coefficiente.motivo}
-            </span>
-          </label>
-
-          <label className="block sm:col-span-2">
-            <span className="text-etichetta font-medium">Dove versi i contributi</span>
-            <select
-              value={ing.gestione}
-              onChange={(e) => cambia("gestione", e.target.value as Gestione)}
-              className="mt-1 w-full rounded-campo border border-bordo bg-superficie px-3 py-2 text-corpo"
-            >
-              {GESTIONI.map((g) => (
-                <option key={g} value={g}>
-                  {GESTIONE_DETTA[g]}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      </section>
-
-      {/* ——— Il risultato, nella forma onesta ——— */}
-      <section
-        {...NASCOSTO_A_CLARITY}
-        aria-labelledby="risultato"
-        className="mt-10 rounded-campo border border-accento/30 bg-accento-tenue px-5 py-6"
-      >
-        <h2 id="risultato" className="text-etichetta font-semibold uppercase tracking-wide text-inchiostro-tenue">
-          Il conto
-        </h2>
-        {/*
-          Due frasi e non una percentuale sola. «Pressione fiscale 38 %» è il
-          numero che si cita e quello che non si sa spendere: quello che serve a
-          chi lavora è quanto costa l'anno e quanto togliere da ogni bonifico
-          perché a giugno i soldi ci siano. Le date esatte stanno sotto, dietro
-          «affina il calcolo»: qui direbbero a una persona che non ha ancora
-          aperto la partita IVA che ha una scadenza il 30 giugno.
-        */}
-        <p className="mt-3 text-corpo leading-relaxed">
-          Su <strong className="font-semibold">{euroTondo(ing.ricavi)}</strong> fatturati in un anno,
-          fra imposte e contributi lasci{" "}
-          <strong className="font-semibold cifre">{euro(prospetto.caricoTotale)}</strong> — il{" "}
-          {percentuale(prospetto.pressione, 1)} di quello che incassi.
-        </p>
-        <p className="mt-2 text-corpo leading-relaxed">
-          Per arrivarci senza sorprese metti da parte{" "}
-          <strong className="font-semibold cifre">{euro(prospetto.accantonamentoMensile)}</strong> al
-          mese.
-        </p>
-        <p className="mt-3 text-etichetta text-inchiostro-tenue">
-          Ti restano {euro(prospetto.nettoDisponibile)} all&apos;anno, al netto dei costi che hai
-          dichiarato.
-        </p>
-        {/*
-          L'IVA, detta anche quando non c'è.
-
-          Nel forfettario è zero, e uno zero taciuto è la risposta peggiore
-          delle due: chi arriva qui dalla ricerca «quanto pago di tasse» quasi
-          sempre ha in testa anche l'IVA, e non trovarla nominata da nessuna
-          parte lascia il dubbio che il conto la stia dimenticando. Dirlo
-          costa una riga e toglie la domanda.
-
-          È anche la riga che rende vera la descrizione con cui questa pagina
-          si presenta nei risultati di ricerca, che nomina l'IVA fra le cose
-          che escono: una pagina che promette tre voci e ne mostra due è la
-          stessa famiglia di difetti di un numero sotto l'etichetta sbagliata.
-        */}
-        <p className="mt-1 text-etichetta text-inchiostro-tenue">
-          {iva.applicabile ? (
-            <>
-              Più {euro(iva.totaleDaVersare)} di IVA da versare nell&apos;anno. Non è un tuo costo
-              — l&apos;hai incassata dai clienti — ma esce dal tuo conto, e ai fini
-              dell&apos;accantonamento è denaro che non è mai stato tuo.
-            </>
-          ) : (
-            <>
-              Nel forfettario non addebiti l&apos;IVA: non la incassi e non la versi. Sulle fatture
-              va la marca da bollo da 2 € sopra i 77,47 €.
-            </>
-          )}
-        </p>
-
-        {oltreIlLimite && impostazioni.regime === "forfettario" && (
-          <p className="mt-4 rounded-campo border border-attenzione/40 bg-attenzione-tenue px-4 py-3 text-etichetta leading-relaxed">
-            Con {euroTondo(ing.ricavi)} sei oltre il limite del forfettario
-            ({euroTondo(limite.valore)}): questo conto è quello che pagheresti se
-            potessi restarci, e non ci puoi restare. Guarda l&apos;ordinario qui sotto.
-          </p>
-        )}
-      </section>
-
-      {/* ——— Da dove vengono i numeri ——— */}
-      <section {...NASCOSTO_A_CLARITY} aria-labelledby="righe" className="mt-10">
-        <h2 id="righe" className="font-display text-titolo font-semibold tracking-tight">
-          Da dove viene
-        </h2>
-        <dl className="mt-4 divide-y divide-bordo border-y border-bordo">
-          {righe.map((r) => (
-            <div key={r.id} className="py-4">
-              <div className="flex items-baseline justify-between gap-4">
-                <dt className="text-corpo">{r.etichetta}</dt>
-                <dd className="cifre shrink-0 text-corpo font-medium">
-                  {typeof r.valore === "number" ? euro(r.valore) : r.valore}
-                </dd>
-              </div>
-              {(r.formula ?? r.nota) && (
-                <p className="mt-1 max-w-[62ch] text-etichetta leading-relaxed text-inchiostro-tenue">
-                  {r.formula ?? r.nota}
-                </p>
-              )}
-            </div>
-          ))}
-          <div className="py-4">
-            <div className="flex items-baseline justify-between gap-4">
-              <dt className="text-corpo font-semibold">Imposte e contributi</dt>
-              <dd className="cifre shrink-0 text-corpo font-semibold">
-                {euro(prospetto.caricoTotale)}
-              </dd>
-            </div>
-            <p className="mt-1 text-etichetta text-inchiostro-tenue">
-              {euro(prospetto.totaleImposte)} di imposte più {euro(prospetto.totaleContributi)} di
-              contributi.
+            <p className="mt-6 flex max-w-[58ch] gap-2 rounded-campo border border-bordo bg-superficie-alt px-3 py-2.5 text-etichetta leading-relaxed text-inchiostro-tenue">
+              <Lock className="mt-0.5 size-4 shrink-0" aria-hidden />
+              <span>
+                I numeri che scrivi restano in questa pagina: non si salvano e non li vede nessuno.
+                Partono solo se chiedi i promemoria delle scadenze, e solo quelli che servono a
+                mandarteli.
+              </span>
             </p>
           </div>
-        </dl>
-      </section>
 
-      {/* ——— Affina il calcolo ——— */}
-      <details className="mt-8 rounded-campo border border-bordo px-5 py-4">
-        <summary className="cursor-pointer text-corpo font-medium">Affina il calcolo</summary>
-        <div className="mt-5 grid gap-5 sm:grid-cols-2">
-          <label className="block">
-            <span className="text-etichetta font-medium">Regime</span>
-            <select
-              value={ing.regime}
-              onChange={(e) => cambia("regime", e.target.value as Regime)}
-              className="mt-1 w-full rounded-campo border border-bordo bg-superficie px-3 py-2 text-corpo"
-            >
-              {(["forfettario", "ordinario"] as Regime[]).map((r) => (
-                <option key={r} value={r}>
-                  {REGIME_DETTO[r]}
-                </option>
-              ))}
-            </select>
-          </label>
+          {/* ——— La card del simulatore ——— */}
+          <section
+            aria-labelledby="domande"
+            className="rounded-card border border-bordo bg-superficie px-5 py-6 shadow-sollevato sm:px-6"
+          >
+            <h2 id="domande" className="text-corpo font-semibold">
+              Tre domande
+            </h2>
 
-          <label className="block">
-            <span className="text-etichetta font-medium">Costi documentati in un anno</span>
-            <span className="mt-1 flex items-center gap-2 rounded-campo border border-bordo px-3 py-2">
-              <input
-                {...NASCOSTO_A_CLARITY}
-                type="number"
-                inputMode="numeric"
-                min={0}
-                step={500}
-                value={ing.costiAnnui}
-                onChange={(e) => cambia("costiAnnui", Math.max(0, Number(e.target.value) || 0))}
-                className="cifre w-full bg-transparent text-corpo outline-none"
-              />
-              <span aria-hidden className="text-inchiostro-tenue">€</span>
-            </span>
-            <span className="mt-1 block text-etichetta text-inchiostro-tenue">
-              Nel forfettario non cambiano le imposte: il reddito è forfettizzato.
-            </span>
-          </label>
-
-          <label className="block">
-            <span className="text-etichetta font-medium">Anno di apertura della partita IVA</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1970}
-              max={ANNO}
-              placeholder="non lo dico"
-              value={ing.annoAperturaPiva ?? ""}
-              onChange={(e) =>
-                cambia("annoAperturaPiva", e.target.value === "" ? null : Number(e.target.value))
-              }
-              className="cifre mt-1 w-full rounded-campo border border-bordo bg-superficie px-3 py-2 text-corpo"
-            />
-            <span className="mt-1 block text-etichetta text-inchiostro-tenue">
-              I cinque anni dell&apos;aliquota agevolata si contano da qui.
-            </span>
-          </label>
-
-          <label className="flex items-start gap-3 sm:mt-6">
-            <input
-              type="checkbox"
-              checked={ing.requisitiNuovaAttivita}
-              onChange={(e) => cambia("requisitiNuovaAttivita", e.target.checked)}
-              className="mt-0.5 size-5 shrink-0 accent-accento"
-            />
-            <span className="text-etichetta leading-relaxed">
-              Ho i requisiti di novità: non ho svolto la stessa attività nei tre anni precedenti e
-              non ne proseguo una di altri.
-            </span>
-          </label>
-        </div>
-
-        {/* Le date, che stanno qui e non in cima. */}
-        <h3 className="mt-8 text-etichetta font-semibold">Quando esce dal conto</h3>
-        <ul {...NASCOSTO_A_CLARITY} className="mt-2 space-y-1">
-          {scadenze
-            .filter((s) => s.importo !== null && s.importo > 0)
-            .map((s) => (
-              <li key={s.id} className="flex items-baseline justify-between gap-4 text-etichetta">
-                <span className="text-inchiostro-tenue">
-                  {dataEstesa(s.data)} — {s.titolo}
+            <div className="mt-5 space-y-5">
+              <label className="block">
+                <span className="text-etichetta font-medium">
+                  Quanto pensi di fatturare in un anno
                 </span>
-                <span className="cifre shrink-0">{euro(s.importo)}</span>
-              </li>
-            ))}
-        </ul>
-        <p className="mt-3 max-w-[62ch] text-etichetta leading-relaxed text-inchiostro-tenue">
-          Sono le date del primo anno pieno. Chi apre adesso non le ha tutte: gli acconti nascono
-          dall&apos;anno prima, e un anno prima non c&apos;è.
-        </p>
-      </details>
+                <span className="mt-1.5 flex items-center gap-2 rounded-campo border border-bordo px-3 py-2.5 focus-within:border-accento">
+                  <input
+                    {...NASCOSTO_A_CLARITY}
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    max={RICAVI_MASSIMI}
+                    step={1000}
+                    value={ing.ricavi}
+                    onChange={(e) =>
+                      cambia(
+                        "ricavi",
+                        Math.max(0, Math.min(RICAVI_MASSIMI, Number(e.target.value) || 0)),
+                      )
+                    }
+                    className="cifre w-full bg-transparent text-campo outline-none"
+                  />
+                  <span aria-hidden className="text-inchiostro-tenue">
+                    €
+                  </span>
+                </span>
+                <span className="mt-1.5 block text-etichetta text-inchiostro-tenue">
+                  Imponibile, IVA esclusa. Fino a {euroTondo(RICAVI_MASSIMI)}.
+                </span>
+              </label>
 
-      {/* ——— Il confronto fra i regimi, dopo ——— */}
-      <section {...NASCOSTO_A_CLARITY} aria-labelledby="confronto" className="mt-12">
-        <h2 id="confronto" className="font-display text-titolo font-semibold tracking-tight">
-          Forfettario o ordinario
-        </h2>
-        <p className="mt-2 max-w-[60ch] text-corpo leading-relaxed text-inchiostro-tenue">
-          Stessi ricavi, stessi costi, le due strade a confronto.
-        </p>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {(
-            [
-              ["Forfettario", confronto.forfettario, confronto.forfettarioApplicabile],
-              ["Ordinario", confronto.ordinario, true],
-            ] as const
-          ).map(([nome, s, applicabile]) => (
-            <div
-              key={nome}
-              className={
-                confronto.convenienza.toLowerCase() === nome.toLowerCase() && applicabile
-                  ? "rounded-campo border border-accento/40 bg-accento-tenue px-4 py-4"
-                  : "rounded-campo border border-bordo px-4 py-4"
-              }
-            >
-              <p className="text-etichetta font-semibold">{nome}</p>
-              <p className="cifre mt-2 text-titolo font-semibold">{euro(s.nettoInTasca)}</p>
-              <p className="text-etichetta text-inchiostro-tenue">ti restano in un anno</p>
-              <p className="mt-3 text-etichetta text-inchiostro-tenue">
-                {euro(s.caricoTotale)} fra imposte e contributi — il {percentuale(s.pressione, 1)}.
-              </p>
-              {!applicabile && (
-                <p className="mt-2 text-etichetta text-attenzione">
-                  Non applicabile a questi ricavi.
-                </p>
-              )}
+              <label className="block">
+                <span className="text-etichetta font-medium">Che lavoro fai</span>
+                <select
+                  value={ing.gruppoAteco}
+                  onChange={(e) => cambia("gruppoAteco", e.target.value)}
+                  className="mt-1.5 w-full rounded-campo border border-bordo bg-superficie px-3 py-2.5 text-campo"
+                >
+                  {par.gruppiAteco.map((g) => (
+                    <option key={g.codice} value={g.codice}>
+                      {g.descrizione}
+                    </option>
+                  ))}
+                </select>
+                {/*
+                  Il coefficiente si chiede al registro, non si legge dal campo:
+                  `derivato` restituisce il valore **insieme al motivo**, e il
+                  motivo è esattamente la nota «da dove viene il numero» che
+                  questa pagina deve dare. Leggere il campo grezzo avrebbe dato
+                  lo stesso numero e nessuna spiegazione — e un test di struttura
+                  del progetto lo rifiuta, perché è così che un'aliquota
+                  agevolata è rimasta accesa per anni.
+                */}
+                <span
+                  {...NASCOSTO_A_CLARITY}
+                  className="mt-1.5 block text-etichetta leading-relaxed text-inchiostro-tenue"
+                >
+                  {coefficiente.motivo}
+                </span>
+              </label>
+
+              <label className="block">
+                <span className="text-etichetta font-medium">Dove versi i contributi</span>
+                <select
+                  value={ing.gestione}
+                  onChange={(e) => cambia("gestione", e.target.value as Gestione)}
+                  className="mt-1.5 w-full rounded-campo border border-bordo bg-superficie px-3 py-2.5 text-campo"
+                >
+                  {GESTIONI.map((g) => (
+                    <option key={g} value={g}>
+                      {GESTIONE_DETTA[g]}
+                    </option>
+                  ))}
+                </select>
+              </label>
             </div>
-          ))}
+
+            <button
+              type="button"
+              onClick={vaiAlRisultato}
+              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-campo bg-accento px-6 py-3.5 text-campo font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              Vedi il tuo conto
+              <ArrowDown className="size-4" aria-hidden />
+            </button>
+          </section>
+        </section>
+
+        {/* ——— 2 · Il risultato ——— */}
+        <div className="mt-12 sm:mt-16">
+          <Risultato
+            esito={esito}
+            ing={ing}
+            oggi={oggi}
+            cambia={cambia}
+            ancora={ancoraRisultato}
+          />
         </div>
-        <p className="mt-4 max-w-[62ch] text-corpo leading-relaxed">{confronto.verdetto}</p>
-        <p className="mt-3 max-w-[62ch] text-etichetta leading-relaxed text-inchiostro-tenue">
-          Il confronto non è solo fiscale: nel forfettario non addebiti l&apos;IVA — un vantaggio
-          verso i privati, niente verso le imprese — non detrai l&apos;IVA sugli acquisti, non usi
-          le detrazioni personali e non deduci il fondo pensione.
-        </p>
-      </section>
 
-      {/*
-        ——— Il posto del prospetto in PDF ———
+        {/* ——— 3 · I due regimi ——— */}
+        <Confronto esito={esito} />
 
-        Qui andrà «scarica il prospetto», ed è l'unica cosa di questa pagina
-        che starà dietro un indirizzo email. Il posto è segnato e vuoto di
-        proposito: un pulsante che non scarica niente, o un «presto
-        disponibile», è una promessa presa in cambio di un'attesa — e chi la
-        legge oggi non tornerà a controllare domani.
-
-        Quando si farà, va fatto con `prospettoDettagliato` e il disegnatore
-        che stampa già i Termini (`src/lib/contenuti/marchio-pdf.ts`), non con
-        una seconda impaginazione.
-      */}
-
-      {/* ——— Le due uscite ——— */}
-      <section aria-labelledby="dopo" className="mt-14 border-t border-bordo pt-8">
-        <h2 id="dopo" className="font-display text-titolo font-semibold tracking-tight">
-          E adesso
-        </h2>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Link
-            href={rottaDemo("vetrina")}
-            className="group rounded-campo border border-bordo px-5 py-5 transition-colors hover:border-accento/50"
-          >
-            <p className="text-corpo font-medium">
-              Prova Flowlance con dati veri{" "}
-              <ArrowRight className="inline size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-            </p>
-            <p className="mt-1 text-etichetta leading-relaxed text-inchiostro-tenue">
-              La demo è l&apos;applicazione intera, con un anno di fatture già dentro. Non chiede
-              niente.
-            </p>
-          </Link>
-          <Link
-            href={SITO.acquisto}
-            className="group rounded-campo border border-accento/40 bg-accento-tenue px-5 py-5 transition-colors hover:border-accento"
-          >
-            <p className="text-corpo font-medium">
-              Acquista Flowlance{" "}
-              <ArrowRight className="inline size-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-            </p>
-            <p className="mt-1 text-etichetta leading-relaxed text-inchiostro-tenue">
-              I tuoi numeri veri, non una simulazione: scadenze, IVA, accantonamento.
-            </p>
-          </Link>
+        {/* ——— 4 · I promemoria, o il loro posto ——— */}
+        <div className="mt-16">
+          {PROMEMORIA_ATTIVI ? (
+            <Promemoria
+              ing={ing}
+              appuntamenti={appuntamenti}
+              accantonamentoMensile={prospetto.accantonamentoMensile}
+              onIscritto={() => setIscritto(true)}
+            />
+          ) : (
+            <PromemoriaSpenti />
+          )}
         </div>
-        <p className="mt-6 max-w-[62ch] text-etichetta leading-relaxed text-inchiostro-tenue">
-          Questo simulatore è una stima su un anno pieno e regolare.{" "}
-          <Link href={SITO.approssimazioni} className="underline underline-offset-2">
-            Cosa Flowlance non calcola
-          </Link>{" "}
-          vale anche qui, e conviene leggerlo adesso.
-        </p>
-      </section>
-    </main>
+
+        {/* ——— 5, 6, 7, 8 ——— */}
+        <Ponte />
+        <Offerta />
+        <Domande />
+        {/*
+          La riga sulle approssimazioni sta **dentro** `Chiusura` e non anche
+          qui: erano due paragrafi di seguito che dicevano la stessa cosa con
+          parole diverse — «stima su un anno pieno e regolare» due volte, a
+          quattro righe di distanza. Si vede solo guardando il fondo della
+          pagina su un telefono, che è il posto in cui si guarda meno.
+        */}
+        <Chiusura />
+      </main>
+
+      <BarraMobile
+        visibile={vistoIlConto && !optInAVista && !iscritto}
+        attiva={PROMEMORIA_ATTIVI}
+      />
+    </>
   );
 }

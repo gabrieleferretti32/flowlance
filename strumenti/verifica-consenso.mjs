@@ -141,14 +141,21 @@ const versoMisurazione = (elenco) =>
 {
   const { ctx, fuori } = await conRete();
   const page = await ctx.newPage();
-  for (const rotta of ["/", "/acquista/", "/termini/", "/privacy/", "/cookie/"]) {
+  /*
+    Il simulatore sta in elenco, e da quando è la pagina su cui arrivano gli
+    annunci è la più importante delle sei: è l'unica che porta un modulo e
+    l'indirizzo di una funzione nel suo bundle, e l'unica in cima a cui c'è
+    scritto che prima di chiedere non parte niente. Quella frase va misurata
+    qui, non argomentata altrove.
+  */
+  for (const rotta of ["/", "/simulatore/", "/acquista/", "/termini/", "/privacy/", "/cookie/"]) {
     await page.goto(`${BASE}${rotta}`, { waitUntil: "networkidle" });
     await page.waitForTimeout(1_200);
   }
   const spie = versoMisurazione(fuori);
   sostiene(
     spie.length === 0,
-    `senza risposta al banner, cinque pagine del sito non contattano nessuno${spie.length ? `: ${spie.join(", ")}` : ""}`,
+    `senza risposta al banner, sei pagine del sito non contattano nessuno${spie.length ? `: ${spie.join(", ")}` : ""}`,
   );
   // E niente verso l'esterno in generale: il carattere, le icone, tutto locale.
   sostiene(

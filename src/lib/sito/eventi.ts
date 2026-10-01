@@ -41,3 +41,45 @@ export function tracciaEvento(nome: string): void {
  * serve a qualcosa, che è l'unica domanda per cui questo evento esiste.
  */
 export const EVENTO_SIMULATORE = "simulatore_calcolato";
+
+/**
+ * Qualcuno ha chiesto i promemoria delle scadenze.
+ *
+ * Vuoto come l'altro, e per la stessa ragione: il valore di questo evento è
+ * **quante volte**, non chi. Allegarci il fatturato per sapere «quanto
+ * fattura chi si iscrive» manderebbe a Google il profilo economico di una
+ * persona che ha appena letto, in cima alla pagina, che i suoi numeri
+ * partono solo verso la posta che ha chiesto. Quei sette attributi hanno una
+ * destinazione sola, ed è Brevo, con il consenso spuntato accanto.
+ *
+ * Parte **dopo** una risposta positiva della funzione, non al clic: un evento
+ * al clic conterebbe i tentativi e li chiamerebbe iscrizioni, e sarebbe un
+ * numero che cresce proprio quando qualcosa è rotto.
+ */
+export const EVENTO_LEAD = "promemoria_richiesti";
+
+/**
+ * Lo stesso evento, a Clarity.
+ *
+ * Due strumenti e due chiamate, perché sono due consensi diversi: chi accende
+ * le statistiche e non le registrazioni ha GA4 e non Clarity, e un'unica
+ * funzione che mandasse a entrambi scriverebbe in uno dei due senza il suo sì.
+ * Qui vale la stessa regola di `tracciaEvento`: non si controlla il consenso,
+ * si controlla se lo strumento **è nella pagina** — e nella pagina lo mette
+ * solo il ramo condizionale di `statistiche.tsx`.
+ *
+ * `window.clarity` esiste già dopo lo snippet — è la funzione che accumula in
+ * coda — quindi l'evento non si perde nemmeno se il tag non è ancora sceso
+ * dalla rete. Se non c'è, non si fa niente: un evento di misurazione non deve
+ * poter rompere una pagina che sta raccogliendo un'iscrizione.
+ */
+export function tracciaClarity(nome: string): void {
+  const clarity = (globalThis as { clarity?: (...argomenti: unknown[]) => void }).clarity;
+  if (typeof clarity !== "function") return;
+  try {
+    clarity("event", nome);
+  } catch {
+    // Clarity caricato a metà, o bloccato da un'estensione: non è un problema
+    // di questa pagina.
+  }
+}

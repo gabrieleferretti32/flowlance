@@ -27,6 +27,33 @@ export const CHIUSO_AI_MOTORI = false;
 export const DOMINIO = "https://flowlance.it";
 
 /**
+ * Il modulo dei promemoria delle scadenze è acceso?
+ *
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │  SI ACCENDE QUANDO L'INFORMATIVA PRIVACY DESCRIVE QUESTI DATI.       │
+ * └──────────────────────────────────────────────────────────────────────┘
+ *
+ * Spento, il simulatore non mostra nessun modulo e nessun campo email: al
+ * posto della sezione dell'iscrizione mette l'uscita verso la demo, e la barra
+ * fissa del telefono porta là. La pagina resta intera e vendibile — il
+ * simulatore vale da solo — e non c'è un campo che prometta un'iscrizione che
+ * non può avvenire.
+ *
+ * Perché una costante e non soltanto le variabili d'ambiente della funzione:
+ * sono due decisioni diverse e vanno potute prendere separatamente. Questa
+ * decide **cosa si vede**, quelle decidono **cosa può succedere**. Senza la
+ * chiave la funzione risponde «non attivi» a chiunque, ma un modulo a schermo
+ * che raccoglie un'email per poi dire che non è il momento è una promessa
+ * presa e non mantenuta: la raccolta non deve nemmeno essere offerta.
+ *
+ * I sette attributi che partono — regime, fatturato stimato, accantonamento
+ * mensile, date e importi delle due scadenze — sono dati economici di una
+ * persona identificata dalla sua email. Il punto (d) dell'informativa parla di
+ * «indirizzo email e nome», e non li copre.
+ */
+export const PROMEMORIA_ATTIVI = false;
+
+/**
  * Il Payment Link di Stripe.
  *
  * Sta qui e non accanto al resto dell'acquisto perché **lo legge

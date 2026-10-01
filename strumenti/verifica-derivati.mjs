@@ -882,11 +882,30 @@ const demo = await righeDelProspetto();
     prospetto fuori dai contenitori giusti la vede fallire, che è l'unico modo
     perché una regola sopravviva a chi non l'ha scritta.
 
-    L'unica eccezione è il testo di un `<option>`: «più lo 0,48 %» sta scritto
-    uguale nella tendina di chiunque e non dice niente di chi legge. Mascherare
-    anche le tendine renderebbe illeggibile la parte della pagina che serve
-    capire — quale mestiere e quale gestione sceglie la gente — che è
-    esattamente quello che Clarity è lì per dire.
+    Le eccezioni sono due, e sono dichiarate.
+
+    La prima è il testo di un `<option>`: «più lo 0,48 %» sta scritto uguale
+    nella tendina di chiunque e non dice niente di chi legge. Mascherare anche
+    le tendine renderebbe illeggibile la parte della pagina che serve capire —
+    quale mestiere e quale gestione sceglie la gente — che è esattamente quello
+    che Clarity è lì per dire.
+
+    La seconda sono le **cifre del sito**: il prezzo, il tetto che il
+    simulatore accetta, la soglia della marca da bollo. Stanno scritte uguali
+    per chiunque apra la pagina, e sono proprio quelle che serve vedere — se
+    la gente arriva al prezzo, se si ferma prima. Mascherarle per uniformità
+    costerebbe l'unica misura che dice se questa pagina vende.
+
+    L'eccezione è un elenco di valori, non di punti della pagina: un elemento
+    passa solo se **tutte** le cifre che contiene sono in elenco. Una riga
+    nuova che mostrasse il fatturato di chi guarda non ci passerebbe nemmeno
+    se gli stesse accanto un prezzo.
+
+    E si guardano due stati, non uno. La pagina appena aperta non mostra
+    l'avviso «sei oltre il limite del forfettario», che porta dentro i ricavi
+    digitati: con un solo stato quel paragrafo è rimasto scoperto senza che
+    niente lo dicesse. Il secondo passaggio scrive un fatturato alto e
+    rimisura.
 
     E si verifica anche il verso opposto: che `<main>` **non** sia mascherato.
     Un `data-clarity-mask` messo in cima alla pagina passerebbe ogni controllo
@@ -903,41 +922,66 @@ const demo = await righeDelProspetto();
     await p.waitForTimeout(500);
   }
 
-  const esito = await p.evaluate(() => {
-    const CIFRA = /\d[\d.,]*\s*(?:\u20ac|%)/;
-    const main = document.querySelector("main");
-    if (!main) return null;
-    const mascherato = (el) => el.closest('[data-clarity-mask="True"]') !== null;
-    /*
-      Solo le foglie: se si contassero anche i contenitori, ogni antenato di
-      una cifra risulterebbe «un elemento con una cifra» e il conto direbbe
-      dieci volte la stessa cosa.
-    */
-    const conCifre = [...main.querySelectorAll("*")].filter(
-      (el) =>
-        CIFRA.test(el.textContent ?? "")
-        && ![...el.children].some((c) => CIFRA.test(c.textContent ?? "")),
-    );
-    const risultato = main.querySelector("section[aria-labelledby='risultato']");
-    return {
-      mainMascherato: mascherato(main),
-      risultatoMascherato: risultato?.getAttribute("data-clarity-mask") ?? null,
-      dentro: conCifre.filter(mascherato).length,
-      fuori: conCifre
-        .filter((el) => !mascherato(el) && el.tagName !== "OPTION")
-        .map((el) => `<${el.tagName.toLowerCase()}> ${(el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60)}`),
-      campiScoperti: [...main.querySelectorAll("input")]
-        .filter((i) => i.type === "number" && i.value !== "" && !mascherato(i))
-        .map((i) => i.name || i.getAttribute("aria-label") || "campo numerico"),
-    };
-  });
+  /*
+    Le cifre del sito, quelle che possono restare leggibili. Vedi il commento
+    in cima: sono valori, non punti della pagina, e un elemento passa solo se
+    tutte le cifre che contiene sono qui dentro.
+
+      300.000 € — il tetto di fatturato che il simulatore accetta
+      97 € · 118,34 € — il prezzo, imponibile e totale
+      77,47 € — la soglia oltre cui sulla fattura va la marca da bollo
+      2 € — la marca da bollo
+      0,40 % · 0,48 % — maggiorazione del rinvio e aliquota commercianti
+  */
+  const COSTANTI_DEL_SITO = ["300.000 €", "97 €", "118,34 €", "77,47 €", "2 €", "0,40 %", "0,48 %"];
+
+  const misura = () =>
+    p.evaluate((costanti) => {
+      const CIFRA = /\d[\d.,]*\s*(?:\u20ac|%)/;
+      const TUTTE = /\d[\d.,]*\s*(?:\u20ac|%)/g;
+      const main = document.querySelector("main");
+      if (!main) return null;
+      const mascherato = (el) => el.closest('[data-clarity-mask="True"]') !== null;
+      /*
+        Solo le foglie: se si contassero anche i contenitori, ogni antenato di
+        una cifra risulterebbe «un elemento con una cifra» e il conto direbbe
+        dieci volte la stessa cosa.
+      */
+      const conCifre = [...main.querySelectorAll("*")].filter(
+        (el) =>
+          CIFRA.test(el.textContent ?? "")
+          && ![...el.children].some((c) => CIFRA.test(c.textContent ?? "")),
+      );
+      /** Tutte le cifre di questo elemento sono costanti del sito? */
+      const soloCostanti = (el) => {
+        const trovate = (el.textContent ?? "").match(TUTTE) ?? [];
+        return (
+          trovate.length > 0
+          && trovate.every((c) => costanti.includes(c.replace(/\s+/g, " ").trim()))
+        );
+      };
+      const scadenza = main.querySelector("section[aria-labelledby='prossima-scadenza']");
+      return {
+        mainMascherato: mascherato(main),
+        scadenzaMascherata: scadenza?.getAttribute("data-clarity-mask") ?? null,
+        dentro: conCifre.filter(mascherato).length,
+        fuori: conCifre
+          .filter((el) => !mascherato(el) && el.tagName !== "OPTION" && !soloCostanti(el))
+          .map((el) => `<${el.tagName.toLowerCase()}> ${(el.textContent ?? "").replace(/\s+/g, " ").trim().slice(0, 60)}`),
+        campiScoperti: [...main.querySelectorAll("input")]
+          .filter((i) => i.value !== "" && !mascherato(i) && i.type !== "checkbox")
+          .map((i) => i.name || i.getAttribute("aria-label") || i.type || "campo"),
+      };
+    }, COSTANTI_DEL_SITO);
+
+  const esito = await misura();
 
   if (esito === null) {
     problemi.push("/simulatore/: non c'è nessun <main>, la misura non prova niente");
   } else {
     sostiene(
-      esito.risultatoMascherato === "True",
-      `/simulatore/: il contenitore dei risultati porta data-clarity-mask="${esito.risultatoMascherato}"`,
+      esito.scadenzaMascherata === "True",
+      `/simulatore/: il riquadro della scadenza porta data-clarity-mask="${esito.scadenzaMascherata}"`,
     );
     sostiene(
       esito.dentro > 0,
@@ -956,6 +1000,40 @@ const demo = await righeDelProspetto();
       "/simulatore/: il resto della pagina resta leggibile — la maschera non è sulla pagina intera",
     );
   }
+
+  /*
+    Il secondo stato. Sopra il limite del forfettario compare un avviso che
+    porta dentro i ricavi digitati, e appena aperta la pagina quell'avviso non
+    c'è: con un solo passaggio è rimasto scoperto senza che niente lo dicesse.
+    Qui si scrive un fatturato alto e si rimisura — se un giorno nascesse un
+    altro paragrafo condizionale con dentro un numero di chi guarda, lo
+    troverebbe questo.
+  */
+  const campoRicavi = p.locator('input[type="number"]').first();
+  if (await campoRicavi.count()) {
+    await campoRicavi.fill("150000");
+    await p.waitForTimeout(600);
+    const sopra = await misura();
+    if (sopra === null) {
+      problemi.push("/simulatore/: con il fatturato alto non c'è nessun <main>");
+    } else {
+      sostiene(
+        sopra.fuori.length === 0,
+        `/simulatore/: sopra il limite del forfettario, nessuna cifra fuori dalla maschera${
+          sopra.fuori.length ? `: ${sopra.fuori.join(" · ")}` : ""
+        }`,
+      );
+      sostiene(
+        sopra.campiScoperti.length === 0,
+        `/simulatore/: sopra il limite, nessun campo compilato resta scoperto${
+          sopra.campiScoperti.length ? `: ${sopra.campiScoperti.join(", ")}` : ""
+        }`,
+      );
+    }
+  } else {
+    problemi.push("/simulatore/: non trovo il campo del fatturato, il secondo stato non si prova");
+  }
+
   await ctx.close();
 }
 

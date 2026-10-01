@@ -110,6 +110,24 @@ export const SITO = {
 } as const;
 
 /**
+ * Gli indirizzi che non sono pagine: le funzioni serverless.
+ *
+ * Una sola, e sta qui per la stessa ragione di tutte le altre — la regola
+ * `no-restricted-syntax` rifiuta i percorsi scritti a mano, e questo è un
+ * percorso. Non è una rotta di `ROTTE` né una pagina di `SITO`: non ha un
+ * file in `out/`, quindi `verifica-link.mjs` non deve cercarglielo, e nessun
+ * `<Link>` ci punta.
+ *
+ * Senza la barra finale, di proposito: `trailingSlash: true` riguarda le
+ * pagine statiche, e una funzione invocata con la barra prende un rimando in
+ * mezzo a una `POST`. Il rimando conserva metodo e corpo, quindi funziona —
+ * ma è un salto in più su un invio che chi guarda sta aspettando.
+ */
+export const API = {
+  promemoria: "/api/promemoria",
+} as const;
+
+/**
  * L'indirizzo corrente è questa rotta?
  *
  * `trailingSlash: true` fa sì che `usePathname()` restituisca `/app/fatture/`,

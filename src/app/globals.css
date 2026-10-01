@@ -52,6 +52,20 @@
   --text-kpi-sm: 1.25rem;         /* 20px — KPI secondari */
   --text-kpi-sm--line-height: 1.2;
   --text-kpi-sm--letter-spacing: -0.015em;
+  /*
+    22px — i titoli di sezione.
+
+    Esisteva come classe prima che come token: `text-titolo` era scritto in
+    `/acquista` e in `/simulatore`, e Tailwind per una utility non definita non
+    produce **niente** — nessuna regola, nessun errore. Quei due titoli
+    uscivano alla dimensione del testo corrente, cioè 15px, e la pagina
+    sembrava a posto a chi non la confrontava con il disegno. È la forma più
+    silenziosa di questo difetto: una classe che non c'è non si distingue da
+    una classe che non fa niente.
+  */
+  --text-titolo: 1.375rem;
+  --text-titolo--line-height: 1.25;
+  --text-titolo--letter-spacing: -0.015em;
   --text-corpo: 0.9375rem;        /* 15px — testo */
   --text-corpo--line-height: 1.5;
   --text-etichetta: 0.8125rem;    /* 13px — etichette */

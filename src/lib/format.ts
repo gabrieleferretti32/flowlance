@@ -124,6 +124,22 @@ export function dataEstesa(valore: Date | string | null | undefined): string {
   return formatDate(d, "d MMMM yyyy", { locale: it });
 }
 
+/**
+ * 30 novembre — giorno e mese, senza anno.
+ *
+ * Serve dove l'anno si dice a parte: «Il 30 novembre verserai…» con l'anno
+ * attaccato suona come una scadenza di un altro tempo, e nel caso che conta —
+ * la rata di quest'anno — l'anno è quello che il lettore ha già in testa.
+ * Quando invece è un anno diverso dal suo, chi scrive la frase lo aggiunge:
+ * questa funzione non lo decide, e non deve.
+ */
+export function giornoEMese(valore: Date | string | null | undefined): string {
+  if (!valore) return "—";
+  const d = typeof valore === "string" ? parseISO(valore) : valore;
+  if (Number.isNaN(d.getTime())) return "—";
+  return formatDate(d, "d MMMM", { locale: it });
+}
+
 /** gennaio, febbraio, … — indice 1-12. */
 export function nomeMese(indice: number): string {
   return formatDate(new Date(2026, indice - 1, 1), "MMMM", { locale: it });
