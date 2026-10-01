@@ -736,8 +736,16 @@ export function SchermataRendiconto() {
                     {scelte === righe.length
                       ? `${righe.length} righe, tutte scelte`
                       : `${scelte} righe scelte su ${righe.length}`}
-                    {righe.some((r) => r.duplicato) &&
+                    {righe.some((r) => r.duplicato !== null) &&
                       " · i doppioni arrivano senza spunta, ma restano visibili"}
+                    {righe.some((r) => r.duplicato === "forse") && (
+                      <span className="block text-micro text-inchiostro-tenue">
+                        {`${righe.filter((r) => r.duplicato === "forse").length} righe hanno la stessa data, `}
+                        lo stesso importo e lo stesso verso di movimenti già in archivio, ma sono
+                        scritte con altre parole: succede riesportando lo stesso mese da un&apos;altra
+                        pagina della banca. Guardale prima di rimettere la spunta.
+                      </span>
+                    )}
                   </CardSottotitolo>
                   {/* Con più conti il nome non sta nel titolo: sta qui, e sono
                       quelli veri delle righe scelte, non quelli dei file. */}
@@ -1068,9 +1076,16 @@ const RigaAnteprimaVista = React.memo(function RigaAnteprimaVista({
         <span className="w-24 shrink-0 text-micro text-inchiostro-tenue">{fmtData(riga.data)}</span>
         <span className="min-w-40 flex-1 truncate" title={riga.descrizione}>
           {riga.descrizione}
-          {riga.duplicato && (
+          {/*
+            «Forse» non è «già presente» scritto più piano: è un'altra cosa.
+            In archivio c'è un movimento con la stessa data, lo stesso importo
+            e lo stesso verso, scritto con altre parole — quasi sempre lo
+            stesso movimento riesportato da un'altra pagina della banca, ma non
+            sempre. La riga arriva senza spunta e lo dice com'è.
+          */}
+          {riga.duplicato !== null && (
             <Chip tono="attenzione" className="ml-2">
-              già presente
+              {riga.duplicato === "certo" ? "già presente" : "forse già presente"}
             </Chip>
           )}
           {riga.daGiroconto && <Chip className="ml-2">giroconto</Chip>}

@@ -84,6 +84,26 @@ function nomeDopo(testo: string, etichetta: string, altra: string): string | nul
 }
 
 /**
+ * Le etichette rimesse insieme quando la banca le ha spezzate.
+ *
+ * Sul rendiconto vero la riga diceva «Ordinante: Gabriele Ferretti
+ * **Beneficiari o**: Gabriele Fe…»: la parola è andata a capo dentro una
+ * colonna a larghezza fissa e si è portata dietro uno spazio. Cercando
+ * «beneficiario» intero, quei 900 € non venivano riconosciuti — misurato su un
+ * archivio vero, ed era l'unico dei quattro trasferimenti di settembre a
+ * sfuggire.
+ *
+ * Uno spazio al massimo fra una lettera e l'altra: abbastanza per una parola
+ * spezzata da un'esportazione, troppo poco perché la sequenza possa comparire
+ * per caso dentro un nome.
+ */
+function conEtichetteIntere(testo: string): string {
+  return testo
+    .replace(/o\s?r\s?d\s?i\s?n\s?a\s?n\s?t\s?e/g, ORDINANTE)
+    .replace(/b\s?e\s?n\s?e\s?f\s?i\s?c\s?i\s?a\s?r\s?i\s?o/g, BENEFICIARIO);
+}
+
+/**
  * Ordinante e beneficiario sono la stessa persona.
  *
  * Non serve sapere come si chiama chi usa l'app — e infatti l'app non lo sa,
@@ -91,7 +111,8 @@ function nomeDopo(testo: string, etichetta: string, altra: string): string | nul
  * stessa riga: chi ha disposto il bonifico e chi l'ha ricevuto sono lo stesso
  * nome, quindi il denaro non ha cambiato proprietario.
  */
-export function ordinanteUgualeBeneficiario(testo: string): boolean {
+export function ordinanteUgualeBeneficiario(grezzo: string): boolean {
+  const testo = conEtichetteIntere(grezzo);
   const da = nomeDopo(testo, ORDINANTE, BENEFICIARIO);
   const a = nomeDopo(testo, BENEFICIARIO, ORDINANTE);
   if (!da || !a) return false;

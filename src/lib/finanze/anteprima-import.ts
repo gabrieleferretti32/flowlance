@@ -37,6 +37,9 @@ export function firmaMovimento(data: string, importo: number, descrizione: strin
   return `${data}|${round2(Math.abs(importo)).toFixed(2)}|${testoConfrontabile(descrizione)}`;
 }
 
+/** Quanto si è sicuri che la riga sia già in archivio. */
+export type Duplicato = "certo" | "forse";
+
 export type RigaAnteprima = {
   id: string;
   /** Da quale file e da quale riga: per ritrovarla nel file, se serve. */
@@ -61,8 +64,18 @@ export type RigaAnteprima = {
   origineCategoria: Proposta["origine"];
   contoId: string;
   contoDestinazioneId?: string;
-  /** Già presente in archivio, o due volte nei file di questo import. */
-  duplicato: boolean;
+  /**
+   * Perché la riga arriva senza spunta. `null` quando non c'è niente da dire.
+   *
+   * — `"certo"`: la stessa riga c'è già. Stessa data, stesso importo, **stessa
+   *   descrizione**: è lo stesso movimento, caricato due volte.
+   * — `"forse"`: in archivio c'è già un movimento con la stessa data, lo stesso
+   *   importo e lo stesso verso, ma scritto con altre parole. Non è una
+   *   certezza — due caffè uguali nello stesso giorno esistono — ma non è
+   *   nemmeno un caso raro: è quello che succede riesportando lo stesso mese
+   *   da una sezione diversa del sito della banca.
+   */
+  duplicato: Duplicato | null;
   /** Le due righe che sono diventate un giroconto, quando è successo. */
   daGiroconto?: boolean;
   /** Denaro già tuo che si sposta: il saldo lo conta, il limite no. */
@@ -148,6 +161,33 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
   const visteInQuestoImport = new Set<string>();
 
   /*
+    L'indice largo: data, importo e **verso**, senza la descrizione.
+
+    La stessa banca esporta lo stesso movimento con parole diverse a seconda di
+    dove lo si scarica — misurato su un archivio vero: diciannove righe su
+    cinquanta di un file di settembre erano già dentro, scritte in un altro
+    modo, e il controllo stretto non ne ha vista nessuna. Fra quelle, un
+    incasso da 1.953 € contato due volte.
+
+    Il verso e non il tipo: «spesa», «rata» o «risparmio» li decide il
+    dizionario dalla descrizione, e due descrizioni diverse dello stesso
+    addebito possono finire in due tipi diversi. Il verso invece lo dice il
+    segno nel file, che è un fatto.
+
+    Solo contro quello che è **già in archivio**, non fra le righe dello stesso
+    import: due righe dello stesso export con lo stesso importo nello stesso
+    giorno sono due movimenti veri — due caffè, due ricariche — e lì la
+    descrizione uguale basta già a riconoscere il doppione.
+  */
+  const larga = (data: string, importo: number, entrata: boolean) =>
+    `${data}|${round2(Math.abs(importo)).toFixed(2)}|${entrata ? "+" : "-"}`;
+  const giaInArchivio = new Set(
+    ing.esistenti
+      .filter((m) => m.tipo !== "giroconto")
+      .map((m) => larga(m.data, m.importo, m.tipo === "entrata")),
+  );
+
+  /*
     L'altra metà di un giroconto già in archivio.
 
     Quando la coppia si è unita, in archivio resta **una** riga con la
@@ -210,10 +250,15 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         && sembraCambioValuta(r.descrizione);
       /* La firma sul testo della banca: vedi `descrizioneOriginale`. */
       const firma = firmaMovimento(r.data, r.importo, r.descrizione);
-      const duplicato =
+      const certo =
         gia.has(firma)
         || visteInQuestoImport.has(firma)
         || somigliaAUnGiroconto(r.data, r.importo, f.contoId);
+      const duplicato: Duplicato | null = certo
+        ? "certo"
+        : giaInArchivio.has(larga(r.data, r.importo, verso === "entrata"))
+          ? "forse"
+          : null;
       visteInQuestoImport.add(firma);
       righe.push({
         /*
@@ -247,7 +292,7 @@ export function anteprimaImport(ing: IngressoAnteprima): RigaAnteprima[] {
         origineCategoria: proposta.origine,
         contoId: f.contoId,
         duplicato,
-        scelta: !duplicato,
+        scelta: duplicato === null,
         ...(daUnAltroTuoConto ? { daUnAltroTuoConto } : {}),
         ...(motivoTrasferimento ? { motivoTrasferimento } : {}),
         ...(chiedeCambioValuta ? { chiedeCambioValuta } : {}),
@@ -296,7 +341,7 @@ function conGiroconti(righe: RigaAnteprima[], contiTracciati: string[]): RigaAnt
       categoriaId: m.categoriaId,
       origineCategoria: "nessuna",
       contoId: m.contoId,
-      duplicato: false,
+      duplicato: null,
       scelta: true,
     };
     if (m.tipo !== "giroconto") return { ...base, tipo: m.tipo };

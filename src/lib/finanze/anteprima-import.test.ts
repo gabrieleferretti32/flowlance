@@ -115,7 +115,7 @@ describe("i doppioni", () => {
       file: [{ nome: "c.csv", contoId: "conto", righe: [riga(1, "2026-09-05", "PAGAMENTO POS ESSELUNGA", -63.4)] }],
     });
     expect(righe).toHaveLength(1);
-    expect(righe[0].duplicato).toBe(true);
+    expect(righe[0].duplicato).toBe("certo");
     expect(righe[0].scelta).toBe(false);
   });
 
@@ -133,7 +133,7 @@ describe("i doppioni", () => {
         righe: [riga(1, "2026-09-05", "CAFFE", -1.2), riga(2, "2026-09-05", "CAFFE", -1.2)],
       }],
     });
-    expect(righe.map((r) => r.duplicato)).toEqual([false, true]);
+    expect(righe.map((r) => r.duplicato)).toEqual([null, "certo"]);
   });
 
   it("una data diversa non è un doppione", () => {
@@ -142,7 +142,7 @@ describe("i doppioni", () => {
       esistenti: [esistente],
       file: [{ nome: "c.csv", contoId: "conto", righe: [riga(1, "2026-09-06", "PAGAMENTO POS ESSELUNGA", -63.4)] }],
     });
-    expect(righe[0].duplicato).toBe(false);
+    expect(righe[0].duplicato).toBeNull();
   });
 });
 
@@ -233,7 +233,7 @@ describe("quello che si scrive in archivio", () => {
       esistenti: scritti,
       file: [{ nome: "c.csv", contoId: "conto", righe: [riga(1, "2026-09-05", "esselunga", -63.4)] }],
     });
-    expect(dopo[0].duplicato).toBe(true);
+    expect(dopo[0].duplicato).toBe("certo");
   });
 });
 
@@ -318,7 +318,7 @@ describe("**i giroconti già in archivio si riconoscono**", () => {
       esistenti: primoImport(),
       file: [{ nome: "conto.csv", contoId: "conto", righe: [riga(1, "2026-09-10", "GIROCONTO A LIBRETTO", -500)] }],
     });
-    expect(righe[0].duplicato).toBe(true);
+    expect(righe[0].duplicato).toBe("certo");
     expect(righe[0].scelta).toBe(false);
   });
 
@@ -328,7 +328,7 @@ describe("**i giroconti già in archivio si riconoscono**", () => {
       esistenti: primoImport(),
       file: [{ nome: "libretto.csv", contoId: "libretto", righe: [riga(1, "2026-09-11", "GIROCONTO DA CONTO", 500)] }],
     });
-    expect(righe[0].duplicato).toBe(true);
+    expect(righe[0].duplicato).toBe("certo");
   });
 
   /* La misura al contrario: un movimento che non c'entra niente con quel
@@ -339,7 +339,7 @@ describe("**i giroconti già in archivio si riconoscono**", () => {
       esistenti: primoImport(),
       file: [{ nome: "conto.csv", contoId: "conto", righe: [riga(1, "2026-09-10", "GIROCONTO A LIBRETTO", -480)] }],
     });
-    expect(righe[0].duplicato).toBe(false);
+    expect(righe[0].duplicato).toBeNull();
   });
 
   it("e un conto che non è nessuno dei due nemmeno", () => {
@@ -349,7 +349,7 @@ describe("**i giroconti già in archivio si riconoscono**", () => {
       esistenti: primoImport(),
       file: [{ nome: "terzo.csv", contoId: "terzo", righe: [riga(1, "2026-09-10", "GIROCONTO", -500)] }],
     });
-    expect(righe[0].duplicato).toBe(false);
+    expect(righe[0].duplicato).toBeNull();
   });
 });
 
@@ -382,7 +382,7 @@ describe("**la descrizione si ripulisce, l'impronta no**", () => {
     expect(salvato.descrizione).toBe("ENEL ENERGIA SPA");
 
     const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [salvato] });
-    expect(dopo.duplicato).toBe(true);
+    expect(dopo.duplicato).toBe("certo");
     expect(dopo.scelta).toBe(false);
   });
 
@@ -407,7 +407,7 @@ describe("**la descrizione si ripulisce, l'impronta no**", () => {
       hashDuplicato: firmaMovimento("2026-01-12", -42.9, FORMULA),
     };
     const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [vecchio] });
-    expect(dopo.duplicato).toBe(true);
+    expect(dopo.duplicato).toBe("certo");
   });
 
   it("e lo è anche se in anteprima la descrizione era stata corretta a mano", () => {
@@ -417,7 +417,7 @@ describe("**la descrizione si ripulisce, l'impronta no**", () => {
     expect(salvato.descrizione).toBe("Bolletta della luce");
 
     const [dopo] = anteprimaImport({ ...riga(FORMULA), esistenti: [salvato] });
-    expect(dopo.duplicato, "l'impronta non segue quello che si scrive a mano").toBe(true);
+    expect(dopo.duplicato, "l'impronta non segue quello che si scrive a mano").toBe("certo");
   });
 });
 
@@ -619,5 +619,61 @@ describe("la domanda sul cambio valuta", () => {
     expect(dopo[0].chiedeCambioValuta).toBeUndefined();
     expect(dopo[0].daUnAltroTuoConto).toBe(true);
     expect(dopo[0].motivoTrasferimento).toBe("l'hai già detto per questo movimento");
+  });
+});
+
+/**
+ * Lo stesso movimento riesportato con altre parole.
+ *
+ * Misurato su un archivio vero: un file di settembre caricato sopra un
+ * archivio che settembre ce l'aveva già — diciannove righe su cinquanta erano
+ * le stesse, scritte in un altro modo, e il controllo stretto non ne ha vista
+ * nessuna. Fra quelle, un incasso da 1.953,00 € contato due volte.
+ */
+describe("il doppione che la banca scrive con altre parole", () => {
+  const esistente: MovimentoPf = {
+    id: "vecchio", data: "2026-09-01", tipo: "entrata", categoriaId: "altre-entrate",
+    contoId: "conto", importo: 1_953, descrizione: "ACCREDITO BONIFICO ISTANTANEO",
+  };
+  const conFile = (righe: ReturnType<typeof riga>[], esistenti: MovimentoPf[] = [esistente]) =>
+    anteprimaImport({ ...base, esistenti, file: [{ nome: "nuovo.csv", contoId: "conto", righe }] });
+
+  it("**arriva senza spunta, e dice che è un forse**", () => {
+    const r = conFile([riga(1, "2026-09-01", "Bonifico istantaneo da ONSPORTS SRL", 1_953)])[0];
+    expect(r.duplicato).toBe("forse");
+    expect(r.scelta).toBe(false);
+  });
+
+  it("se anche la descrizione è la stessa, resta un «certo»", () => {
+    const r = conFile([riga(1, "2026-09-01", "ACCREDITO BONIFICO ISTANTANEO", 1_953)])[0];
+    expect(r.duplicato).toBe("certo");
+  });
+
+  /* Il verso conta: un addebito da 1.953 € lo stesso giorno non è quell'incasso. */
+  it("verso diverso, nessun sospetto", () => {
+    const r = conFile([riga(1, "2026-09-01", "Bonifico a ONSPORTS SRL", -1_953)])[0];
+    expect(r.duplicato).toBeNull();
+  });
+
+  it("data o importo diversi, nessun sospetto", () => {
+    expect(conFile([riga(1, "2026-09-02", "Bonifico istantaneo da ONSPORTS SRL", 1_953)])[0].duplicato).toBeNull();
+    expect(conFile([riga(1, "2026-09-01", "Bonifico istantaneo da ONSPORTS SRL", 1_952)])[0].duplicato).toBeNull();
+  });
+
+  /*
+    E **non** fra le righe dello stesso file: due movimenti dello stesso export
+    con lo stesso importo nello stesso giorno sono due movimenti veri — due
+    caffè, due ricariche — e lì a riconoscere il doppione basta la descrizione
+    uguale, che è il controllo stretto.
+  */
+  it("non sospetta fra righe dello stesso import", () => {
+    const righe = conFile(
+      [
+        riga(1, "2026-09-05", "PAGAMENTO POS BAR", -3.5),
+        riga(2, "2026-09-05", "PAGAMENTO POS EDICOLA", -3.5),
+      ],
+      [],
+    );
+    expect(righe.map((r) => r.duplicato)).toEqual([null, null]);
   });
 });

@@ -73,6 +73,42 @@ describe("ordinante e beneficiario", () => {
     ).toBe(true);
   });
 
+  /*
+    **La riga vera, come l'ha scritta la banca.**
+
+    «Beneficiari o»: la parola è andata a capo dentro una colonna a larghezza
+    fissa. Cercando «beneficiario» intero, questi 900 € non venivano
+    riconosciuti — ed erano l'unico dei quattro trasferimenti di settembre a
+    sfuggire, su un archivio vero.
+  */
+  it("anche quando la banca spezza la parola in due", () => {
+    expect(
+      ordinanteUgualeBeneficiario(
+        testoConfrontabile("Ordinante: Gabriele Ferretti Beneficiari o: Gabriele Ferretti"),
+      ),
+    ).toBe(true);
+    expect(
+      ordinanteUgualeBeneficiario(
+        testoConfrontabile("Ordinant e: Gabriele Ferretti Beneficiario: Gabriele Ferretti"),
+      ),
+    ).toBe(true);
+  });
+
+  /*
+    Uno spazio per ogni buco, e basta: più di uno non serve, perché
+    `testoConfrontabile` riduce già ogni sequenza di spazi a uno solo. Quindi
+    la regola copre anche il caso estremo — una banca che scrive spaziato — e
+    non c'è un confine da fissare più stretto: una sequenza del genere dentro
+    un nome non capita.
+  */
+  it("e regge anche l'estremo: una parola scritta tutta spaziata", () => {
+    expect(
+      ordinanteUgualeBeneficiario(
+        testoConfrontabile("Ordinante: Gabriele Ferretti B e n e f i c i a r i o: Gabriele Ferretti"),
+      ),
+    ).toBe(true);
+  });
+
   it("due persone diverse no", () => {
     expect(
       ordinanteUgualeBeneficiario(
