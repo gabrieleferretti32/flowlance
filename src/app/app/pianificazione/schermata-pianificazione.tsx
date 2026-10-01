@@ -18,6 +18,8 @@ import { parametriDi } from "@/lib/fisco/parametri";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { analizzaNumero, analizzaPercentuale, euro, num, perCampo, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { avanzamentoAnno, type Avanzamento } from "@/lib/analisi/avanzamento";
+import { GraficoRitmo } from "@/components/grafici/ritmo";
 import { ROTTE } from "@/lib/rotte";
 
 export function SchermataPianificazione() {
@@ -154,6 +156,31 @@ export function SchermataPianificazione() {
               </p>
             </CardCorpo>
           </Card>
+        )}
+
+        {piano && (
+          <AChePuntoSei
+            avanzamento={avanzamentoAnno({
+              anno,
+              oggi,
+              fatture: calcolo.prospetto.fattureCalcolate,
+              note: calcolo.prospetto.noteCalcolate,
+              obiettivoFatturato: piano.fatturatoNecessario,
+              obiettivoClienti: piano.clientiNecessari,
+            })}
+            ritmoDiOggi={
+              anno > Number(oggi.slice(0, 4))
+                ? avanzamentoAnno({
+                    anno: Number(oggi.slice(0, 4)),
+                    oggi,
+                    fatture: calcolo.prospetto.fattureCalcolate,
+                    note: calcolo.prospetto.noteCalcolate,
+                    obiettivoFatturato: 0,
+                    obiettivoClienti: 0,
+                  }).ritmo
+                : null
+            }
+          />
         )}
 
         <Card>
@@ -484,5 +511,132 @@ function CampoPercentuale({
         onBlur={() => setBozza(null)}
       />
     </Campo>
+  );
+}
+
+
+/**
+ * A che punto è l'anno, sotto il numero grande.
+ *
+ * Quattro righe e un grafico, e nessuna barra che si riempie: la percentuale da
+ * sola non dice se l'obiettivo è raggiungibile — il 37 % a ottobre e il 37 % a
+ * maggio sono due notizie diverse — mentre il ritmo lo dice in due secondi.
+ *
+ * Gli stati sono cinque, e ognuno esiste perché il testo normale lì sarebbe
+ * falso: l'anno futuro non ha niente da confrontare, l'anno chiuso non ha mesi
+ * davanti, il primo mese non ha ancora un ritmo, l'obiettivo superato non ha un
+ * «quanto manca», e il divario fuori scala ha una divisione che non è un
+ * consiglio.
+ */
+function AChePuntoSei({
+  avanzamento: a,
+  ritmoDiOggi,
+}: {
+  avanzamento: Avanzamento;
+  /** Il ritmo dell'anno in corso: serve solo quando si pianifica un anno futuro. */
+  ritmoDiOggi: number | null;
+}) {
+  if (a.obiettivo <= 0) return null;
+
+  return (
+    <Card>
+      <CardCorpo>
+        <CardTitolo>A che punto sei</CardTitolo>
+        <CardSottotitolo>
+          {a.stato === "inCorso"
+            ? `Il ${a.anno} è in corso: ${a.mesiChiusi} mesi chiusi, ${a.mesiRestanti} davanti.`
+            : a.stato === "futuro"
+              ? `Il ${a.anno} non è ancora cominciato.`
+              : `Il ${a.anno} è chiuso.`}
+        </CardSottotitolo>
+
+        <div className="mt-3 space-y-1.5 text-corpo">
+          {a.stato === "futuro" ? (
+            /*
+              Niente da confrontare, e il confronto con l'anno in corso si fa
+              nominando tutti e due gli anni: mescolarli in silenzio sarebbe il
+              modo più elegante di mentire.
+            */
+            <p>
+              Di questo anno non c&apos;è ancora niente da confrontare. Ti servirebbero{" "}
+              <strong>{euro(a.ritmoNecessario)} al mese</strong>
+              {ritmoDiOggi !== null
+                ? `; nel ${a.anno - 1}, nei mesi chiusi, ne hai fatturati ${euro(ritmoDiOggi)}.`
+                : "."}
+            </p>
+          ) : (
+            <>
+              <p>
+                Nel {a.anno} hai fatturato <strong>{euro(a.fatturato)}</strong>
+                {a.quota !== null && `, il ${percentuale(a.quota, 0)} dell'obiettivo`}.
+              </p>
+
+              {a.superato ? (
+                <p>
+                  <strong>Obiettivo superato</strong>
+                  {a.mesiRestanti > 0
+                    && `, con ${a.mesiRestanti === 1 ? "un mese" : `${a.mesiRestanti} mesi`} davanti`}
+                  .{" "}
+                  {a.proiezione !== null
+                    && `Al ritmo dei mesi chiusi chiudi l'anno a ${euro(a.proiezione)}.`}
+                </p>
+              ) : a.mesiRestanti === 0 ? (
+                <p>
+                  Sono mancati <strong>{euro(a.manca)}</strong>: l&apos;anno è finito, e questo è
+                  il consuntivo.
+                </p>
+              ) : a.fuoriScala && a.proiezione !== null ? (
+                /*
+                  La divisione smette di essere un consiglio. «Ti servono
+                  21.263 € al mese» detto a chi ne fa 3.766 è un numero che fa
+                  chiudere la schermata: al suo posto, dove si arriva davvero.
+                */
+                <p>
+                  A questo ritmo il {a.anno} chiude a <strong>{euro(a.proiezione)}</strong>
+                  {a.obiettivo > 0
+                    && `, il ${percentuale(a.proiezione / a.obiettivo, 0)} dell'obiettivo`}
+                  . Non è un divario che si recupera in{" "}
+                  {a.mesiRestanti === 1 ? "un mese" : `${a.mesiRestanti} mesi`}: l&apos;obiettivo
+                  vale come riferimento per il {a.anno + 1}.
+                </p>
+              ) : (
+                <p>
+                  Mancano <strong>{euro(a.manca)}</strong> in{" "}
+                  {a.mesiRestanti === 1 ? "un mese" : `${a.mesiRestanti} mesi`}
+                  {a.ritmoDaAdesso !== null && `: ${euro(a.ritmoDaAdesso)} al mese`}.
+                </p>
+              )}
+
+              <p>
+                {a.ritmo !== null
+                  ? `Finora hai fatturato ${euro(a.ritmo)} al mese nei ${a.mesiChiusi} mesi chiusi; te ne servirebbero ${euro(a.ritmoNecessario)}.`
+                  : `Il ${a.anno} è appena cominciato: un ritmo non c'è ancora. Ne servirebbero ${euro(a.ritmoNecessario)} al mese.`}
+                {a.fuoriScala
+                  && a.ritmoDaAdesso !== null
+                  && ` Da adesso servirebbero ${euro(a.ritmoDaAdesso)} al mese.`}
+              </p>
+
+              <p>
+                Clienti:{" "}
+                <strong>
+                  {num(a.clienti.fatti)} su {num(a.clienti.necessari)}
+                </strong>
+                {a.clienti.fatti >= a.clienti.necessari && a.clienti.necessari > 0 && " — raggiunto"}
+                .
+              </p>
+            </>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <GraficoRitmo
+            mensili={a.mensili}
+            necessario={a.ritmoNecessario}
+            mesiChiusi={a.mesiChiusi}
+            fuoriScala={a.fuoriScala}
+          />
+        </div>
+      </CardCorpo>
+    </Card>
   );
 }
