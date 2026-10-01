@@ -80,6 +80,8 @@ export interface StorageAdapter {
   /** Una riga sola, chiave `unico`: vedi `ImpostazioniPf`. */
   readonly pfImpostazioni: Deposito<Dati["pfImpostazioni"][number]>;
   readonly pfObiettivi: Deposito<Dati["pfObiettivi"][number]>;
+  /** Il fatturato previsto, una riga per anno: la chiave è l'anno. */
+  readonly previsioniFatturato: Deposito<Dati["previsioniFatturato"][number], number>;
 
   /** Legge tutto, in una sola transazione dove la tecnologia lo consente. */
   leggiTutto(): Promise<Dati>;
@@ -143,6 +145,7 @@ export function depositiDi(
     pfImport: adapter.pfImport,
     pfImpostazioni: adapter.pfImpostazioni,
     pfObiettivi: adapter.pfObiettivi,
+    previsioniFatturato: adapter.previsioniFatturato,
   };
   return mappa as Record<NomeCollezione, Deposito<never, never>>;
 }

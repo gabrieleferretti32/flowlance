@@ -81,6 +81,10 @@ export class MemoriaAdapter implements StorageAdapter {
   readonly pfImport = new DepositoMemoria<Dati["pfImport"][number], string>((v) => v.id);
   readonly pfImpostazioni = new DepositoMemoria<Dati["pfImpostazioni"][number], string>((v) => v.id);
   readonly pfObiettivi = new DepositoMemoria<Dati["pfObiettivi"][number], string>((v) => v.id);
+  /* La chiave è l'anno, non un id: di previsioni per un anno ce n'è una sola. */
+  readonly previsioniFatturato = new DepositoMemoria<Dati["previsioniFatturato"][number], number>(
+    (v) => v.anno,
+  );
 
   private deposito(collezione: NomeCollezione) {
     return this[collezione] as DepositoMemoria<unknown, string | number>;

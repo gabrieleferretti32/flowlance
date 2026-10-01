@@ -11,21 +11,25 @@ import { Guscio } from "@/components/guscio/guscio";
 import { calcolaPareggio, calcolaPianificazione, costiRegistrati } from "@/lib/analisi/pianificazione";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { campiDaDichiarare } from "@/lib/fisco/parametri-utente";
-import { useCalcoloAnno } from "@/lib/dati/hooks";
+import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { oreFatturabiliAnno } from "@/lib/fisco/impostazioni";
 import { derivato } from "@/lib/fisco/derivati/registro";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { usePreferenze } from "@/lib/stato/preferenze";
-import { analizzaNumero, analizzaPercentuale, euro, num, perCampo, percentuale } from "@/lib/format";
+import { analizzaNumero, analizzaPercentuale, data as fmtData, euro, num, perCampo, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { avanzamentoAnno, type Avanzamento } from "@/lib/analisi/avanzamento";
 import { GraficoRitmo } from "@/components/grafici/ritmo";
+import { BloccoScrittura } from "@/components/ui/blocco-scrittura";
+import { salvaPrevisioneFatturato } from "@/lib/dati/azioni";
+import type { PrevisioneFatturato } from "@/lib/dati/tipi";
 import { ROTTE } from "@/lib/rotte";
 
 export function SchermataPianificazione() {
   const anno = usePreferenze((s) => s.periodo.anno);
   const [oggi] = React.useState(() => new Date().toISOString().slice(0, 10));
   const calcolo = useCalcoloAnno(anno, oggi);
+  const dati = useDati();
 
   const [campi, setCampi] = React.useState<{
     netto: number | null; costi: number | null; pressione: number; ticket: number;
@@ -60,7 +64,7 @@ export function SchermataPianificazione() {
     });
   }, [calcolo, campi, anno]);
 
-  if (!calcolo || !campi) {
+  if (!calcolo || !campi || !dati) {
     return (
       <Guscio titolo="Pianificazione">
         <Card>
@@ -167,7 +171,11 @@ export function SchermataPianificazione() {
               note: calcolo.prospetto.noteCalcolate,
               obiettivoFatturato: piano.fatturatoNecessario,
               obiettivoClienti: piano.clientiNecessari,
+              previsioni: dati.previsioniFatturato.find((p) => p.anno === anno)?.importi ?? null,
             })}
+            previsione={dati.previsioniFatturato.find((p) => p.anno === anno) ?? null}
+            anno={anno}
+            oggi={oggi}
             ritmoDiOggi={
               anno > Number(oggi.slice(0, 4))
                 ? avanzamentoAnno({
@@ -530,9 +538,16 @@ function CampoPercentuale({
  */
 function AChePuntoSei({
   avanzamento: a,
+  previsione,
+  anno,
+  oggi,
   ritmoDiOggi,
 }: {
   avanzamento: Avanzamento;
+  /** La riga salvata del fatturato previsto, se c'è. */
+  previsione: PrevisioneFatturato | null;
+  anno: number;
+  oggi: string;
   /** Il ritmo dell'anno in corso: serve solo quando si pianifica un anno futuro. */
   ritmoDiOggi: number | null;
 }) {
@@ -590,14 +605,32 @@ function AChePuntoSei({
                   La divisione smette di essere un consiglio. «Ti servono
                   21.263 € al mese» detto a chi ne fa 3.766 è un numero che fa
                   chiudere la schermata: al suo posto, dove si arriva davvero.
+
+                  Con una previsione la proiezione è fatti più promesse, e le
+                  due parti si dicono sempre tutte e due: una proiezione che le
+                  somma in silenzio è il numero di cui ci si fida troppo.
                 */
                 <p>
-                  A questo ritmo il {a.anno} chiude a <strong>{euro(a.proiezione)}</strong>
+                  {a.proiezioneDa === "previsione" ? "Chiuderesti a " : `A questo ritmo il ${a.anno} chiude a `}
+                  <strong>{euro(a.proiezione)}</strong>
+                  {a.proiezioneDa === "previsione"
+                    && `: ${euro(a.fatturato)} già fatturati più ${euro(a.previsto)} già concordati`}
                   {a.obiettivo > 0
                     && `, il ${percentuale(a.proiezione / a.obiettivo, 0)} dell'obiettivo`}
                   . Non è un divario che si recupera in{" "}
                   {a.mesiRestanti === 1 ? "un mese" : `${a.mesiRestanti} mesi`}: l&apos;obiettivo
                   vale come riferimento per il {a.anno + 1}.
+                </p>
+              ) : a.proiezioneDa === "previsione" && a.proiezione !== null ? (
+                <p>
+                  Chiuderesti a <strong>{euro(a.proiezione)}</strong>: {euro(a.fatturato)} già
+                  fatturati più {euro(a.previsto)} già concordati
+                  {a.obiettivo > 0
+                    && `, il ${percentuale(a.proiezione / a.obiettivo, 0)} dell'obiettivo`}
+                  .{" "}
+                  {a.oltreLaPrevisione
+                    ? `Oltre i canoni mancherebbero ${euro(a.oltreLaPrevisione.manca)}, cioè ${euro(a.oltreLaPrevisione.alMese)} al mese.`
+                    : "I canoni già concordati coprono quello che manca."}
                 </p>
               ) : (
                 <p>
@@ -612,6 +645,7 @@ function AChePuntoSei({
                   ? `Finora hai fatturato ${euro(a.ritmo)} al mese nei ${a.mesiChiusi} mesi chiusi; te ne servirebbero ${euro(a.ritmoNecessario)}.`
                   : `Il ${a.anno} è appena cominciato: un ritmo non c'è ancora. Ne servirebbero ${euro(a.ritmoNecessario)} al mese.`}
                 {a.fuoriScala
+                  && a.oltreLaPrevisione === null
                   && a.ritmoDaAdesso !== null
                   && ` Da adesso servirebbero ${euro(a.ritmoDaAdesso)} al mese.`}
               </p>
@@ -631,12 +665,118 @@ function AChePuntoSei({
         <div className="mt-4">
           <GraficoRitmo
             mensili={a.mensili}
+            previsti={a.previsti}
             necessario={a.ritmoNecessario}
             mesiChiusi={a.mesiChiusi}
             fuoriScala={a.fuoriScala}
           />
         </div>
+
+        {/*
+          Le previsioni dei mesi ormai chiusi, accanto a quello che è successo.
+
+          Nessun giudizio e nessun avviso: la domanda «le mie previsioni valgono
+          qualcosa» è di chi le ha scritte, e due cifre una accanto all'altra
+          sono la risposta più onesta che una schermata possa dare. Spariscono
+          da sole quando l'anno gira.
+        */}
+        {a.verificate.length > 0 && (
+          <p className="mt-3 text-micro text-inchiostro-tenue">
+            Previsto e poi emesso:{" "}
+            {a.verificate
+              .map((v) => `${MESI_CORTI[v.mese - 1]} ${euro(v.previsto)} → ${euro(v.emesso)}`)
+              .join(" · ")}
+          </p>
+        )}
+
+        <EditorPrevisione
+          previsione={previsione}
+          anno={anno}
+          oggi={oggi}
+          mesiChiusi={a.mesiChiusi}
+        />
       </CardCorpo>
     </Card>
+  );
+}
+
+const MESI_CORTI = ["gen", "feb", "mar", "apr", "mag", "giu", "lug", "ago", "set", "ott", "nov", "dic"];
+
+/**
+ * I dodici importi del fatturato previsto.
+ *
+ * Dodici celle e nient'altro: è la forma del dato, ed è anche il modo in cui
+ * chi tiene questi numeri li tiene già — un foglio con una riga per mese.
+ *
+ * I mesi chiusi restano scrivibili ma dichiarati tali: la previsione di un mese
+ * passato non entra in nessun conto — lì vale l'emesso — e serve solo a
+ * ricordare cosa ci si aspettava. Spegnerli nasconderebbe quello che si è
+ * scritto; lasciarli uguali agli altri lascerebbe credere che contino.
+ */
+function EditorPrevisione({
+  previsione,
+  anno,
+  oggi,
+  mesiChiusi,
+}: {
+  previsione: PrevisioneFatturato | null;
+  anno: number;
+  oggi: string;
+  mesiChiusi: number;
+}) {
+  const importi = previsione?.importi ?? Array.from({ length: 12 }, () => 0);
+  const [bozze, setBozze] = React.useState<Record<number, string>>({});
+
+  const scrivi = (mese: number, testo: string) => {
+    const nuovi = importi.map((v: number, m: number) =>
+      m === mese ? Math.max(0, analizzaNumero(testo) ?? 0) : v,
+    );
+    void salvaPrevisioneFatturato(anno, nuovi, oggi);
+  };
+
+  return (
+    <div className="mt-5 border-t border-bordo pt-4">
+      <p className="text-etichetta font-medium">Fatturato previsto, mese per mese</p>
+      <p className="mt-0.5 text-micro text-inchiostro-tenue">
+        Quello che hai già concordato e non hai ancora fatturato. Non entra in nessun calcolo
+        fiscale — né prospetto, né IVA, né scadenze — e per i mesi già chiusi vale sempre quello
+        che hai emesso.
+        {previsione?.aggiornatoIl ? ` Scritto il ${fmtData(previsione.aggiornatoIl)}.` : ""}
+      </p>
+      <BloccoScrittura className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-6">
+        {importi.map((valore: number, m: number) => (
+          <Campo
+            key={m}
+            etichetta={MESI_CORTI[m]}
+            htmlFor={`previsto-${m}`}
+            className={cn(m < mesiChiusi && "opacity-60")}
+          >
+            <Input
+              id={`previsto-${m}`}
+              numerico
+              inputMode="decimal"
+              placeholder="0"
+              value={bozze[m] ?? (valore === 0 ? "" : String(valore).replace(".", ","))}
+              onChange={(e) => setBozze((b) => ({ ...b, [m]: e.target.value }))}
+              onBlur={() => {
+                const testo = bozze[m];
+                if (testo === undefined) return;
+                setBozze((b) => {
+                  const resto = { ...b };
+                  delete resto[m];
+                  return resto;
+                });
+                scrivi(m, testo);
+              }}
+            />
+          </Campo>
+        ))}
+      </BloccoScrittura>
+      {mesiChiusi > 0 && mesiChiusi < 12 && (
+        <p className="mt-2 text-micro text-inchiostro-tenue">
+          I primi {mesiChiusi} mesi sono chiusi: quello che ci scrivi non cambia nessun numero.
+        </p>
+      )}
+    </div>
   );
 }

@@ -955,6 +955,29 @@ const convalidaRegola: Convalida<Dati["pfRegole"][number]> = (riga, i, errori) =
  * `nessuna`, che nella schermata si legge «non stai misurando niente» — una
  * frase scomoda e vera, al posto di una barra che si riempie per sbaglio.
  */
+/**
+ * Il fatturato previsto di un anno: dodici numeri e una data.
+ *
+ * Dodici esatti, e non «almeno uno»: un vettore corto finirebbe nei mesi
+ * sbagliati — il terzo importo di un vettore di cinque non è marzo di nessuno
+ * — e il grafico mostrerebbe promesse datate a caso. Mancanti o in più si
+ * normalizzano qui, dove si può ancora dire che il file era storto.
+ */
+const convalidaPrevisione: Convalida<Dati["previsioniFatturato"][number]> = (riga, i, errori) => {
+  const anno = Number(riga.anno);
+  if (!Number.isInteger(anno) || anno < 1900 || anno > 2200) {
+    errori.push(`previsioniFatturato, riga ${i + 1}: anno mancante o non plausibile.`);
+    return null;
+  }
+  const grezzi = Array.isArray(riga.importi) ? riga.importi : [];
+  const importi = Array.from({ length: 12 }, (_, m) => round2(Math.max(0, numero(grezzi[m], 0))));
+  return {
+    anno,
+    importi,
+    aggiornatoIl: dataOpzionale(riga.aggiornatoIl) ?? "",
+  };
+};
+
 const convalidaObiettivo: Convalida<Dati["pfObiettivi"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "pfObiettivi", i, errori);
   if (!id) return null;
@@ -1078,6 +1101,12 @@ export function analizzaBackup(testoGrezzo: string): RisultatoAnalisi {
     contenuto.pfObiettivi,
     "pfObiettivi",
     convalidaObiettivo,
+    errori,
+  );
+  dati.previsioniFatturato = convalidaElenco(
+    contenuto.previsioniFatturato,
+    "previsioniFatturato",
+    convalidaPrevisione,
     errori,
   );
 

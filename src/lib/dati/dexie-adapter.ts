@@ -94,6 +94,7 @@ export class DexieAdapter implements StorageAdapter {
   readonly pfImport: StorageAdapter["pfImport"];
   readonly pfImpostazioni: StorageAdapter["pfImpostazioni"];
   readonly pfObiettivi: StorageAdapter["pfObiettivi"];
+  readonly previsioniFatturato: StorageAdapter["previsioniFatturato"];
 
   constructor(database: DatabaseFinanze = dbCondiviso()) {
     this.database = database;
@@ -140,6 +141,9 @@ export class DexieAdapter implements StorageAdapter {
     );
     this.pfObiettivi = deposito(
       database.pfObiettivi as unknown as Table<Dati["pfObiettivi"][number], string>,
+    );
+    this.previsioniFatturato = deposito(
+      database.previsioniFatturato as unknown as Table<Dati["previsioniFatturato"][number], number>,
     );
   }
 

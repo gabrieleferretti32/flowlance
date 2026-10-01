@@ -49,11 +49,21 @@ const NOMI = [
 
 export function GraficoRitmo({
   mensili,
+  previsti,
   necessario,
   mesiChiusi,
   fuoriScala = false,
 }: {
   mensili: number[];
+  /**
+   * Il fatturato previsto dei mesi non ancora chiusi.
+   *
+   * Si disegna **col contorno e senza riempimento**, e la differenza con una
+   * colonna assente è il punto: una colonna vuota vuol dire «non so», una col
+   * contorno vuol dire «ho promesso». Due stati che a occhio devono restare
+   * diversi, altrimenti il grafico mette insieme l'ignoranza e l'impegno.
+   */
+  previsti: number[];
   /** Il ritmo che l'obiettivo chiede su dodici mesi: la riga orizzontale. */
   necessario: number;
   /** Quanti mesi sono chiusi: gli altri sono mesi che non sono ancora successi. */
@@ -71,8 +81,14 @@ export function GraficoRitmo({
   fuoriScala?: boolean;
 }) {
   const [attivo, setAttivo] = React.useState<number | null>(null);
-  const dati = mensili.map((valore, i) => ({ etichetta: INIZIALI[i], valore, mese: i + 1 }));
+  const dati = mensili.map((valore, i) => ({
+    etichetta: INIZIALI[i],
+    valore,
+    previsto: previsti[i] ?? 0,
+    mese: i + 1,
+  }));
   const mese = attivo !== null ? dati[attivo] : null;
+  const conPrevisioni = previsti.some((v) => v > 0);
 
   return (
     <div>
@@ -82,11 +98,34 @@ export function GraficoRitmo({
         </p>
         <p className="cifre text-corpo font-medium tabular-nums">
           {mese
-            ? euro(mese.valore)
+            ? mese.previsto > 0
+              ? `${euro(mese.previsto)} previsti`
+              : euro(mese.valore)
             : /* Senza cursore si legge la riga: è il termine di paragone. */
               `${euro(necessario)} al mese è il ritmo necessario`}
         </p>
       </div>
+      {/*
+        Con due serie la legenda c'è sempre, e non è una formalità: la
+        differenza fra pieno e contorno è l'unica cosa che distingue un fatto
+        da una promessa, e una differenza del genere non si lascia al colore.
+      */}
+      {conPrevisioni && (
+        <div className="mt-1 flex flex-wrap gap-4 px-1 text-micro text-inchiostro-tenue">
+          <span className="flex items-center gap-1.5">
+            <span className="size-2.5 rounded-sm" style={{ backgroundColor: COLORE }} aria-hidden />
+            emesso
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span
+              className="size-2.5 rounded-sm border-2"
+              style={{ borderColor: COLORE }}
+              aria-hidden
+            />
+            previsto
+          </span>
+        </div>
+      )}
       <div className="mt-2 h-52">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -127,7 +166,30 @@ export function GraficoRitmo({
               strokeWidth={2}
               ifOverflow={fuoriScala ? "hidden" : "extendDomain"}
             />
-            <Bar dataKey="valore" name="Fatturato" fill={COLORE} radius={[4, 4, 0, 0]} maxBarSize={18} />
+            {/*
+              Due serie impilate sulla stessa colonna, e non affiancate: un
+              mese o è chiuso o deve ancora succedere, quindi una delle due è
+              sempre zero — impilarle tiene la colonna intera invece di
+              dimezzarla per una metà che non c'è.
+            */}
+            <Bar
+              dataKey="valore"
+              name="Emesso"
+              stackId="mese"
+              fill={COLORE}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={18}
+            />
+            <Bar
+              dataKey="previsto"
+              name="Previsto"
+              stackId="mese"
+              fill="#FFFFFF"
+              stroke={COLORE}
+              strokeWidth={2}
+              radius={[4, 4, 0, 0]}
+              maxBarSize={18}
+            />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -135,9 +197,11 @@ export function GraficoRitmo({
         {fuoriScala
           ? `Il ritmo necessario — ${euro(necessario)} al mese — resta fuori dal disegno: tenerlo dentro schiaccerebbe le dodici colonne in fondo. `
           : "La riga tratteggiata è il ritmo che l'obiettivo chiede su dodici mesi. "}
-        {mesiChiusi < 12
-          ? `Le colonne vuote sono i mesi che devono ancora succedere: ne restano ${12 - mesiChiusi}.`
-          : "L'anno è chiuso: sono tutti e dodici."}
+        {mesiChiusi >= 12
+          ? "L'anno è chiuso: sono tutti e dodici."
+          : conPrevisioni
+            ? `Le colonne col contorno sono quello che hai previsto; quelle vuote sono i mesi che devono ancora succedere e su cui non hai detto niente. Ne restano ${12 - mesiChiusi} in tutto.`
+            : `Le colonne vuote sono i mesi che devono ancora succedere: ne restano ${12 - mesiChiusi}.`}
       </p>
     </div>
   );

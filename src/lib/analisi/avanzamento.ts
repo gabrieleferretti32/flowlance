@@ -56,6 +56,15 @@ export type IngressoAvanzamento = {
   note: readonly { dataDocumento: string; imponibile: number }[];
   obiettivoFatturato: number;
   obiettivoClienti: number;
+  /**
+   * Il fatturato previsto dell'anno, dodici importi.
+   *
+   * Si legge **solo per i mesi che devono ancora succedere**: per i mesi
+   * chiusi vale sempre quello che hai emesso. Così una previsione non può mai
+   * contraddire un fatto, e invecchia da sola — a dicembre l'ottobre previsto
+   * non lo guarda più nessuno.
+   */
+  previsioni?: readonly number[] | null;
 };
 
 export type Avanzamento = {
@@ -78,8 +87,28 @@ export type Avanzamento = {
   manca: number;
   /** Il ritmo che servirebbe **da adesso**. `null` quando non resta tempo. */
   ritmoDaAdesso: number | null;
-  /** Dove arrivi tenendo il ritmo dei mesi chiusi. `null` senza ritmo. */
+  /**
+   * Dove arrivi: con una previsione sono fatti più promesse, senza è il ritmo
+   * dei mesi chiusi steso su dodici. `null` quando non c'è né l'una né l'altro.
+   */
   proiezione: number | null;
+  /** Da dove viene la proiezione. Le due cose non si sommano in silenzio. */
+  proiezioneDa: "ritmo" | "previsione" | null;
+  /** Le previsioni dei mesi non ancora chiusi, mese per mese. Zero altrove. */
+  previsti: number[];
+  /** La loro somma: la parte «già concordata» della proiezione. */
+  previsto: number;
+  /**
+   * Quanto mancherebbe **oltre** quello che è già previsto, e a che ritmo.
+   * `null` quando una previsione non c'è o l'obiettivo è già coperto.
+   */
+  oltreLaPrevisione: { manca: number; alMese: number } | null;
+  /**
+   * I mesi chiusi che avevano una previsione: le due cifre, una accanto
+   * all'altra, senza nessun giudizio. Servono a sapere se le previsioni
+   * valgono qualcosa, ed è una domanda a cui risponde chi le ha scritte.
+   */
+  verificate: { mese: number; previsto: number; emesso: number }[];
   superato: boolean;
   /**
    * Il ritmo che servirebbe da adesso è oltre il doppio di quello vero.
@@ -128,12 +157,49 @@ export function avanzamentoAnno(ing: IngressoAvanzamento): Avanzamento {
     più prudente delle due: dice dove arrivi se continui così, senza contare
     due volte un mese che deve ancora finire.
   */
-  const proiezione = ritmo === null ? null : round2(ritmo * 12);
+  const proiezioneDalRitmo = ritmo === null ? null : round2(ritmo * 12);
 
+  /*
+    Le previsioni valgono solo dai mesi non chiusi in poi. Quelle dei mesi
+    passati non si sommano a niente: lì c'è l'emesso, che è un fatto.
+  */
+  const dichiarate = ing.previsioni ?? [];
+  const previsti = Array.from({ length: 12 }, (_, m) =>
+    m >= mesiChiusi ? round2(Math.max(0, dichiarate[m] ?? 0)) : 0,
+  );
+  const previsto = round2(somma(...previsti));
+  const verificate = Array.from({ length: mesiChiusi }, (_, m) => m)
+    .filter((m) => (dichiarate[m] ?? 0) > 0)
+    .map((m) => ({ mese: m + 1, previsto: round2(dichiarate[m] ?? 0), emesso: mensili[m] }));
+
+  /*
+    Con una previsione la proiezione smette di essere un'estrapolazione: è
+    quello che hai emesso più quello che è già concordato. Le due parti restano
+    separate — `fatturato` e `previsto` — perché una proiezione che somma fatti
+    e promesse senza dirlo è il numero di cui ci si fida troppo.
+  */
+  const proiezione = previsto > 0 ? round2(fatturato + previsto) : proiezioneDalRitmo;
+  const proiezioneDa = previsto > 0 ? "previsione" : proiezioneDalRitmo === null ? null : "ritmo";
+
+  const mancaOltre = previsto > 0 && obiettivo > 0
+    ? round2(Math.max(0, obiettivo - fatturato - previsto))
+    : 0;
+  const oltreLaPrevisione =
+    previsto > 0 && mancaOltre > 0 && mesiRestanti > 0
+      ? { manca: mancaOltre, alMese: round2(mancaOltre / mesiRestanti) }
+      : null;
+
+  /*
+    Fuori scala si misura su quello che resta **dopo** la previsione: se i
+    canoni già concordati coprono il divario, dire «non è un divario che si
+    recupera» sarebbe smentito dalla riga sopra.
+  */
+  const daRecuperare = previsto > 0 ? oltreLaPrevisione?.alMese ?? 0 : ritmoDaAdesso;
   const fuoriScala =
     ritmo !== null
-    && ritmoDaAdesso !== null
-    && (ritmo <= 0 ? ritmoDaAdesso > 0 : ritmoDaAdesso > 2 * ritmo);
+    && daRecuperare !== null
+    && daRecuperare > 0
+    && (ritmo <= 0 ? true : daRecuperare > 2 * ritmo);
 
   return {
     anno: ing.anno,
@@ -149,6 +215,11 @@ export function avanzamentoAnno(ing: IngressoAvanzamento): Avanzamento {
     manca,
     ritmoDaAdesso,
     proiezione,
+    proiezioneDa,
+    previsti,
+    previsto,
+    oltreLaPrevisione,
+    verificate,
     superato,
     fuoriScala,
     clienti: {

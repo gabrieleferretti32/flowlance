@@ -1207,6 +1207,7 @@ export function datiVetrina(): Dati {
     pfImport: [],
     pfImpostazioni: [],
     pfObiettivi: PF_OBIETTIVI,
+    previsioniFatturato: [],
   };
 }
 

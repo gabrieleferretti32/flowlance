@@ -335,6 +335,13 @@ describe("vetrina · le sezioni hanno tutte qualcosa dentro", () => {
     "pfRegole",
     "pfImport",
     "pfImpostazioni",
+    /*
+      E il fatturato previsto, per la stessa ragione del budget: nella vetrina
+      sarebbero promesse inventate accanto a fatture vere, e la proiezione
+      della Pianificazione — il numero che quella schermata esiste per dire —
+      verrebbe metà da un fatto e metà da una cifra scritta da noi.
+    */
+    "previsioniFatturato",
   ];
 
   it("nessuna collezione è vuota, tolte quelle dichiarate", () => {

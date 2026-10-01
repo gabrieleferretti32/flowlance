@@ -14,6 +14,7 @@ import type {
   Importazione,
   IstantaneaArchivio,
   NotaCredito,
+  PrevisioneFatturato,
 } from "./tipi";
 import type {
   BenePf,
@@ -40,8 +41,14 @@ import type {
  * sbagliato. Lo tiene `convalidaElenco`, che su una chiave assente restituisce
  * un elenco vuoto, e un test in `backup.test.ts` che importa un file senza il
  * modulo.
+ *
+ * 12 con il fatturato previsto: una collezione in più, che nel backup entra —
+ * e quindi il formato del file è cambiato, non solo quello del database. I due
+ * numeri si muovono insieme da sempre: lasciare il formato a 11 vorrebbe dire
+ * che un'app vecchia legge un file nuovo senza accorgersene e la previsione
+ * dentro non la vede nessuno, che è il modo più silenzioso di perderla.
  */
-export const VERSIONE_SCHEMA = 11;
+export const VERSIONE_SCHEMA = 12;
 
 /**
  * Lo schema IndexedDB.
@@ -77,6 +84,7 @@ export class DatabaseFinanze extends Dexie {
   pfImport!: EntityTable<ImportPf, "id">;
   pfImpostazioni!: EntityTable<ImpostazioniPf, "id">;
   pfObiettivi!: EntityTable<ObiettivoPf, "id">;
+  previsioniFatturato!: EntityTable<PrevisioneFatturato, "anno">;
 
   // Il nome del database resta quello originale anche dopo il rename del
   // progetto in Flowlance: in IndexedDB il nome È la chiave dell'archivio,
@@ -188,6 +196,18 @@ export class DatabaseFinanze extends Dexie {
     */
     this.version(11).stores({
       pfObiettivi: "id",
+    });
+    /*
+      Versione 12: il fatturato previsto, una riga per anno. Tabella nuova e
+      nessuna migrazione: chi apre l'app dopo l'aggiornamento non ha nessuna
+      previsione, e «nessuna previsione» è esattamente lo stato di prima — la
+      Pianificazione proietta sul ritmo dei mesi chiusi, come ha sempre fatto.
+
+      La chiave è l'anno, che è la sua chiave naturale: di previsioni per il
+      2027 ce n'è una sola.
+    */
+    this.version(12).stores({
+      previsioniFatturato: "anno",
     });
   }
 }

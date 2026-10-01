@@ -31,6 +31,7 @@ const ETICHETTE: Record<NomeCollezione, string> = {
   pfImport: "Import dei movimenti",
   pfImpostazioni: "Impostazioni delle finanze personali",
   pfObiettivi: "Mete di risparmio",
+  previsioniFatturato: "Fatturato previsto",
 };
 
 /**

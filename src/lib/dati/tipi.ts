@@ -146,6 +146,46 @@ export type VocePatrimonio = {
 export type { ChiusuraAnno, Costo, Fattura, Impostazioni, NotaCredito, StatoPercorso, VersamentoF24 };
 
 /** Le collezioni persistite. Il nome è anche la chiave nel file di backup. */
+/**
+ * Il fatturato che prevedi di fare, mese per mese, in un anno.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché non è una fattura
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Una previsione non è un documento: non ha IVA, non ha una scadenza, non
+ * concorre a nessun reddito. Metterla fra le fatture con uno stato «prevista»
+ * vorrebbe dire che venti file che leggono `fattureCalcolate` e quindici che
+ * leggono `dati.fatture` devono ricordarsi di filtrarla — e il giorno che uno
+ * se ne dimentica il risultato non è un errore visibile, è un prospetto
+ * plausibile con dentro un incasso che non esiste. Il posto peggiore in cui
+ * finirebbe è il più silenzioso: la liquidazione IVA, che da quel numero tira
+ * fuori l'importo di un F24.
+ *
+ * Quindi vive qui, in una collezione sua, e il motore fiscale **non ha un
+ * parametro in cui riceverla**: per sbagliare bisognerebbe cambiargli la
+ * firma, cioè accorgersene. Due tagliole lo tengono fermo — vedi
+ * `src/lib/analisi/previsione-fuori-dal-fisco.test.ts`.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Si legge solo per i mesi che devono ancora succedere
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Per i mesi chiusi vale sempre quello che hai emesso. Così una previsione non
+ * può mai contraddire un fatto, e invecchia da sola: a dicembre, l'ottobre
+ * previsto non lo guarda più nessuno. Quello che resta è il confronto fra le
+ * due cifre sui mesi già passati, che si mostra senza giudicarlo — serve a
+ * sapere se le tue previsioni valgono qualcosa.
+ */
+export type PrevisioneFatturato = {
+  /** La chiave: una riga per anno. */
+  anno: number;
+  /** Dodici importi, gennaio-dicembre. Zero vuol dire «non previsto». */
+  importi: number[];
+  /** Quando l'hai scritta: una previsione senza età non si sa quanto vale. */
+  aggiornatoIl: string;
+};
+
 export const COLLEZIONI = [
   "impostazioni",
   "clienti",
@@ -177,6 +217,11 @@ export const COLLEZIONI = [
   "pfImport",
   "pfImpostazioni",
   "pfObiettivi",
+  /*
+    Il fatturato previsto: fuori dalle fatture, e fuori dalla portata del
+    motore fiscale. Vedi `PrevisioneFatturato`.
+  */
+  "previsioniFatturato",
 ] as const;
 
 export type NomeCollezione = (typeof COLLEZIONI)[number];
@@ -211,6 +256,7 @@ export type Dati = {
   pfImport: ImportPf[];
   pfImpostazioni: ImpostazioniPf[];
   pfObiettivi: ObiettivoPf[];
+  previsioniFatturato: PrevisioneFatturato[];
 };
 
 export function datiVuoti(): Dati {
@@ -236,6 +282,7 @@ export function datiVuoti(): Dati {
     pfImport: [],
     pfImpostazioni: [],
     pfObiettivi: [],
+    previsioniFatturato: [],
   };
 }
 

@@ -139,3 +139,84 @@ describe("i casi che non devono rompere niente", () => {
     expect(a.proiezione).toBe(0);
   });
 });
+
+/**
+ * Il fatturato previsto: 24.999 € di canoni già concordati per ottobre,
+ * novembre e dicembre, 8.333 al mese.
+ */
+describe("**la previsione cambia la proiezione, non i fatti**", () => {
+  const CANONI = [0, 0, 0, 0, 0, 0, 0, 0, 0, 8_333, 8_333, 8_333];
+  const a = avanzamentoAnno({ ...BASE, previsioni: CANONI });
+
+  it("la proiezione è fatti più promesse, e le due parti restano separate", () => {
+    expect(a.fatturato).toBe(37_621.54);
+    expect(a.previsto).toBe(24_999);
+    expect(a.proiezione).toBe(62_620.54);
+    expect(a.proiezioneDa).toBe("previsione");
+  });
+
+  it("e quello che manca oltre i canoni ha il suo numero", () => {
+    expect(a.oltreLaPrevisione).toEqual({ manca: 38_790.39, alMese: 12_930.13 });
+  });
+
+  /*
+    Resta fuori scala — 12.930 contro 3.766 — ma adesso la soglia si misura su
+    quello che manca **dopo** i canoni: se la previsione coprisse il divario,
+    dire «non è un divario che si recupera» sarebbe smentito dalla riga sopra.
+  */
+  it("fuori scala si misura su quello che resta dopo la previsione", () => {
+    expect(a.fuoriScala).toBe(true);
+    const copre = avanzamentoAnno({
+      ...BASE,
+      previsioni: [0, 0, 0, 0, 0, 0, 0, 0, 0, 25_000, 25_000, 25_000],
+    });
+    expect(copre.oltreLaPrevisione).toBeNull();
+    expect(copre.fuoriScala).toBe(false);
+    expect(copre.proiezione).toBe(112_621.54);
+  });
+
+  /*
+    **I mesi chiusi non la guardano.** Una previsione su un mese già passato
+    non si somma a niente: lì c'è l'emesso, che è un fatto. Senza questa regola
+    la stessa riga verrebbe contata due volte — una come promessa e una come
+    fattura.
+  */
+  it("le previsioni dei mesi chiusi non entrano nella proiezione", () => {
+    const vecchie = avanzamentoAnno({
+      ...BASE,
+      previsioni: [5_000, 5_000, 5_000, 0, 0, 0, 0, 0, 0, 8_333, 8_333, 8_333],
+    });
+    expect(vecchie.previsto).toBe(24_999);
+    expect(vecchie.previsti.slice(0, 9).every((v) => v === 0)).toBe(true);
+  });
+
+  it("ma restano visibili, accanto all'emesso, senza nessun giudizio", () => {
+    const vecchie = avanzamentoAnno({
+      ...BASE,
+      previsioni: [5_000, 0, 0, 0, 0, 0, 0, 0, 4_000, 8_333, 8_333, 8_333],
+    });
+    expect(vecchie.verificate).toEqual([
+      { mese: 1, previsto: 5_000, emesso: 4_466.64 },
+      { mese: 9, previsto: 4_000, emesso: 6_191.39 },
+    ]);
+  });
+
+  it("senza previsioni la proiezione resta quella del ritmo", () => {
+    expect(avanzamentoAnno(BASE).proiezioneDa).toBe("ritmo");
+    expect(avanzamentoAnno(BASE).previsto).toBe(0);
+    expect(avanzamentoAnno(BASE).oltreLaPrevisione).toBeNull();
+    expect(avanzamentoAnno(BASE).verificate).toEqual([]);
+  });
+
+  /* Un anno futuro ha dodici mesi aperti: la previsione vale tutta. */
+  it("su un anno che non è cominciato valgono tutti e dodici i mesi", () => {
+    const prossimo = avanzamentoAnno({
+      ...BASE,
+      anno: 2027,
+      previsioni: Array.from({ length: 12 }, () => 5_000),
+    });
+    expect(prossimo.previsto).toBe(60_000);
+    expect(prossimo.proiezione).toBe(60_000);
+    expect(prossimo.verificate).toEqual([]);
+  });
+});

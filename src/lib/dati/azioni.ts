@@ -1240,6 +1240,37 @@ export async function creaRegola(regola: Omit<RegolaPf, "id">): Promise<RegolaPf
   return nuova;
 }
 
+/**
+ * Il fatturato previsto di un anno: dodici importi e la data di oggi.
+ *
+ * La data si riscrive a ogni modifica, ed è il punto: una previsione senza età
+ * non si sa quanto vale, e quella vecchia di otto mesi va guardata con altri
+ * occhi. Dodici zeri cancellano la riga invece di lasciare un oggetto vuoto
+ * che dice «previsto zero» — che è un'altra cosa da «non ho previsto niente».
+ */
+export async function salvaPrevisioneFatturato(
+  anno: number,
+  importi: number[],
+  oggi: string,
+): Promise<void> {
+  const puliti = Array.from({ length: 12 }, (_, m) => Math.max(0, round2(importi[m] ?? 0)));
+  if (puliti.every((v) => v === 0)) {
+    await archivio().previsioniFatturato.elimina(anno);
+    return;
+  }
+  /*
+    L'annullamento a mano, e non con `conAnnullamento`: quello vuole righe con
+    un `id` stringa, e qui la chiave è l'anno. Generalizzarlo per una riga sola
+    vorrebbe dire toccare le trenta scritture che lo usano già.
+  */
+  const precedente = await archivio().previsioniFatturato.leggi(anno);
+  await archivio().previsioniFatturato.salva({ anno, importi: puliti, aggiornatoIl: oggi });
+  toast.conferma("Fatturato previsto aggiornato", async () => {
+    if (precedente) await archivio().previsioniFatturato.salva(precedente);
+    else await archivio().previsioniFatturato.elimina(anno);
+  });
+}
+
 /** Le impostazioni del modulo: una riga sola, creata la prima volta che serve. */
 export async function salvaImpostazioniPf(impostazioni: ImpostazioniPf) {
   await conAnnullamento(archivio().pfImpostazioni, impostazioni.id, "Impostazione aggiornata", async () => {

@@ -563,6 +563,7 @@ export function datiDemo(): Dati {
     pfImport: [],
     pfImpostazioni: [],
     pfObiettivi: [],
+    previsioniFatturato: [],
   };
 }
 
