@@ -183,6 +183,18 @@ export function SchermataMovimenti() {
                   {totali.quanti === 0
                     ? "nessun movimento con questi filtri"
                     : `${totali.quanti === 1 ? "un movimento" : `${totali.quanti} movimenti`} · ${euro(totali.entrate)} in entrata · ${euro(totali.uscite)} in uscita`}
+                  {/*
+                    Quanto di quelle entrate era già tuo. Senza questa riga il
+                    registro dice una cifra e il limite del mese ne usa
+                    un'altra, e la differenza non ha nessuna spiegazione a
+                    portata d'occhio.
+                  */}
+                  {totali.trasferimenti > 0 && (
+                    <span className="block text-micro text-inchiostro-tenue">
+                      di cui {euro(totali.trasferimenti)} arrivati da altri tuoi conti: il limite del
+                      mese non li conta fra le entrate.
+                    </span>
+                  )}
                   {totali.effettoSulConto !== null && totali.quanti > 0 && (
                     <>
                       {" · "}
@@ -295,30 +307,48 @@ export function SchermataMovimenti() {
                         ? ` · ${nomeConto(m.contoId)} → ${nomeConto(m.contoDestinazioneId)}`
                         : ` · ${nomeCategoria(m.categoriaId)} · ${nomeConto(m.contoId)}`}
                       {/*
-                        Il marchio si vede anche qui, e si può togliere.
+                        Il marchio si vede qui, e da qui si mette e si toglie.
 
                         Una riga che il limite non conta e che nel registro
                         sembra un'entrata come le altre è la ragione per cui la
                         somma delle entrate non torna con quello che si legge —
-                        ed è il genere di scarto che si scopre mesi dopo. Il
-                        verso che si può correggere è questo: togliere un
-                        marchio messo per sbaglio, che tiene nascosta
-                        un'entrata vera. Rimetterlo si fa dall'anteprima
-                        dell'import, dove c'è il motivo scritto accanto.
+                        ed è il genere di scarto che si scopre mesi dopo.
+
+                        **Solo sulle entrate**, come il riconoscimento
+                        automatico. Su un'uscita il marchio toglierebbe quei
+                        soldi dal conto delle spese e quindi **alzerebbe** il
+                        limite: è l'unico verso che questo modulo non prende
+                        senza una decisione dichiarata, e la decisione non è
+                        stata presa — sta in APPUNTI.
+
+                        Sempre visibile, non solo al passaggio del mouse: un
+                        comando che compare in hover su un telefono non esiste,
+                        e le entrate sono una minoranza delle righe.
                       */}
-                      {m.daUnAltroTuoConto && (
+                      {(m.tipo === "entrata" || m.daUnAltroTuoConto) && (
                         <>
                           {" · "}
-                          <button
-                            type="button"
-                            className="underline underline-offset-2"
+                          <Button
+                            scrive
+                            variante="quieto"
+                            taglia="sm"
+                            className="h-auto px-0 py-0 text-micro font-normal underline underline-offset-2 hover:bg-transparent"
                             onClick={() =>
-                              void salvaMovimentoPf({ ...m, daUnAltroTuoConto: undefined })
+                              void salvaMovimentoPf({
+                                ...m,
+                                daUnAltroTuoConto: m.daUnAltroTuoConto ? undefined : true,
+                              })
                             }
-                            title="Non conta fra le entrate del mese. Premi per contarla."
+                            title={
+                              m.daUnAltroTuoConto
+                                ? "Non conta fra le entrate del mese. Premi per contarla di nuovo."
+                                : "I soldi arrivavano da un altro tuo conto: premi e non conterà fra le entrate del mese."
+                            }
                           >
-                            trasferimento da un altro tuo conto
-                          </button>
+                            {m.daUnAltroTuoConto
+                              ? "trasferimento da un altro tuo conto"
+                              : "segna come trasferimento"}
+                          </Button>
                         </>
                       )}
                     </span>

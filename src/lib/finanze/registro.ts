@@ -66,6 +66,16 @@ export type TotaliRegistro = {
   quanti: number;
   entrate: number;
   uscite: number;
+  /**
+   * Quanto, delle entrate, è denaro che era già tuo.
+   *
+   * Il totale delle entrate resta intero — su quel conto quei soldi sono
+   * arrivati davvero, ed è quello che il registro racconta — ma senza questa
+   * cifra la riga del registro e il limite del mese direbbero due numeri
+   * diversi senza che niente spieghi la differenza. È lo scarto che si scopre
+   * mesi dopo, contando a mano.
+   */
+  trasferimenti: number;
   /** Entrate meno uscite. I giroconti non ci sono: non entra né esce niente. */
   netto: number;
   /**
@@ -85,10 +95,18 @@ export function totaliRegistro(
   const uscite = round2(
     somma(...movimenti.filter((m) => USCITE.includes(m.tipo)).map((m) => m.importo)),
   );
+  const trasferimenti = round2(
+    somma(
+      ...movimenti
+        .filter((m) => m.tipo === "entrata" && m.daUnAltroTuoConto)
+        .map((m) => m.importo),
+    ),
+  );
   return {
     quanti: movimenti.length,
     entrate,
     uscite,
+    trasferimenti,
     netto: round2(entrate - uscite),
     effettoSulConto:
       contoId === null

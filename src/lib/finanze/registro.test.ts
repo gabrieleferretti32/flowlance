@@ -89,6 +89,23 @@ describe("i totali del registro", () => {
     expect(t.netto).toBe(1_050);
   });
 
+  /*
+    E le entrate restano intere anche quando una di loro era già tua: sul conto
+    quei soldi sono arrivati davvero, e il registro racconta il conto. Quello
+    che cambia è che la cifra si dichiara a parte — senza, il registro direbbe
+    un numero e il limite del mese ne userebbe un altro, e la differenza non
+    avrebbe nessuna spiegazione a portata d'occhio.
+  */
+  it("un'entrata arrivata da un altro tuo conto resta nelle entrate, ma si dichiara", () => {
+    const marcate = dellAnno.map((m) =>
+      m.tipo === "entrata" ? { ...m, daUnAltroTuoConto: true } : m,
+    );
+    const t = totaliRegistro(marcate, null);
+    expect(t.entrate).toBe(2_000);
+    expect(t.trasferimenti).toBe(2_000);
+    expect(totaliRegistro(dellAnno, null).trasferimenti).toBe(0);
+  });
+
   it("**il giroconto non entra nei totali: non entra né esce niente**", () => {
     const soloGiro = filtraRegistro(REGISTRO, { ...FILTRO_VUOTO(2026), tipo: "giroconto" });
     const t = totaliRegistro(soloGiro, null);
