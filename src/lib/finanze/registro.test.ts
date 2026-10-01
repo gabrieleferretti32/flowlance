@@ -78,6 +78,57 @@ describe("il filtro del registro", () => {
   });
 });
 
+/**
+ * La ricerca per testo: trovare una riga che si ricorda a memoria.
+ *
+ * Con qualche centinaio di movimenti, filtrare per mese e tipo e scorrere a
+ * occhio non basta. Il confronto passa dallo stesso normalizzatore del
+ * dizionario, quindi quello che si trova scrivendo è quello che si vede
+ * scritto — accenti e punteggiatura compresi.
+ */
+describe("la ricerca nella descrizione", () => {
+  const CON_TESTO: MovimentoPf[] = [
+    mov({ id: "t1", data: "2026-01-10", tipo: "entrata", importo: 394, descrizione: "Giroconto dal cc n. 6098032" }),
+    mov({ id: "t2", data: "2026-01-11", importo: 12, descrizione: "CAFFE' CENTRALE" }),
+    mov({ id: "t3", data: "2026-02-11", importo: 30, descrizione: "Supermercato" }),
+  ];
+  const cerca = (testo: string, extra = {}) =>
+    filtraRegistro(CON_TESTO, { ...FILTRO_VUOTO(2026), testo, ...extra }).map((m) => m.id);
+
+  it("**trova senza accenti e senza maiuscole**", () => {
+    expect(cerca("caffè")).toEqual(["t2"]);
+    expect(cerca("CAFFE")).toEqual(["t2"]);
+    expect(cerca("caffe centrale")).toEqual(["t2"]);
+  });
+
+  /* La punteggiatura sparisce da tutte e due le parti: «n. 6098032» si trova
+     scrivendo il numero, che è come uno se lo ricorda. */
+  it("e il numero di conto dentro la formula della banca", () => {
+    expect(cerca("6098032")).toEqual(["t1"]);
+    expect(cerca("giroconto")).toEqual(["t1"]);
+  });
+
+  it("vuoto non filtra niente", () => {
+    expect(cerca("")).toEqual(["t3", "t2", "t1"]);
+    expect(cerca("   ")).toEqual(["t3", "t2", "t1"]);
+  });
+
+  it("quello che non c'è non si trova, e non si inventa", () => {
+    expect(cerca("esselunga")).toEqual([]);
+  });
+
+  /*
+    E si combina **in e** con gli altri filtri: una ricerca che scavalcasse il
+    mese mostrerebbe righe fuori dal periodo che si sta guardando, cioè
+    risponderebbe a una domanda diversa da quella sullo schermo.
+  */
+  it("vale insieme agli altri filtri, non al loro posto", () => {
+    expect(cerca("o", { mese: 2 })).toEqual(["t3"]);
+    expect(cerca("giroconto", { mese: 2 })).toEqual([]);
+    expect(cerca("giroconto", { tipo: "spesa" })).toEqual([]);
+  });
+});
+
 describe("i totali del registro", () => {
   const dellAnno = filtraRegistro(REGISTRO, FILTRO_VUOTO(2026));
 

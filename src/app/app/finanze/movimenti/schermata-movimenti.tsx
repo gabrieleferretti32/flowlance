@@ -98,6 +98,17 @@ export function SchermataMovimenti() {
     () => totaliRegistro(righe, filtro.contoId),
     [righe, filtro.contoId],
   );
+  /*
+    Quante sarebbero senza la ricerca: la stessa funzione, con il testo vuoto.
+    Ricontarle è un passaggio in più sulle righe dell'anno — niente, al
+    confronto con il disegno della lista — e vale più di un numero dedotto,
+    perché passa dagli stessi filtri e non può discordare.
+  */
+  const cercando = filtro.testo.trim() !== "";
+  const senzaTesto = React.useMemo(
+    () => (dati && cercando ? filtraRegistro(dati.pfMovimenti, { ...filtro, testo: "" }).length : 0),
+    [dati, filtro, cercando],
+  );
 
   if (!dati) {
     return (
@@ -195,6 +206,22 @@ export function SchermataMovimenti() {
                       mese non li conta fra le entrate.
                     </span>
                   )}
+                  {/*
+                    Quante righe su quante.
+
+                    Una ricerca attiva nasconde righe, e una somma calcolata su
+                    una fetta si legge identica a una calcolata su tutto: senza
+                    questa riga, «9.720 € in entrata» con la ricerca accesa
+                    sarebbe una cifra giusta che risponde a un'altra domanda.
+                  */}
+                  {cercando && (
+                    <span className="block text-micro text-inchiostro-tenue">
+                      {righe.length === 0
+                        ? `Nessuna riga su ${senzaTesto} contiene «${filtro.testo.trim()}».`
+                        : `${righe.length === 1 ? "Una riga" : `${righe.length} righe`} su ${senzaTesto}: `
+                          + `le altre le nasconde la ricerca, e i totali qui sopra sono solo di queste.`}
+                    </span>
+                  )}
                   {totali.effettoSulConto !== null && totali.quanti > 0 && (
                     <>
                       {" · "}
@@ -213,6 +240,19 @@ export function SchermataMovimenti() {
                 </CardSottotitolo>
               </div>
               <div className="flex flex-wrap items-end gap-2">
+                {/*
+                  La ricerca sta prima dei tre menu perché è il modo in cui si
+                  cerca una riga che si ricorda a memoria: con qualche centinaio
+                  di movimenti, mese più tipo più occhio non bastano.
+                */}
+                <Campo etichetta="Cerca nella descrizione" htmlFor="f-testo" className="w-56">
+                  <Input
+                    id="f-testo"
+                    value={filtro.testo}
+                    onChange={(e) => setFiltro((f) => ({ ...f, testo: e.target.value }))}
+                    placeholder="Es. giroconto"
+                  />
+                </Campo>
                 <Campo etichetta="Mese" htmlFor="f-mese" className="w-36">
                   <Select
                     value={filtro.mese === null ? TUTTI : String(filtro.mese)}

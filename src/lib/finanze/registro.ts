@@ -23,6 +23,7 @@
  * suo numero invece di un totale che prova a rispondere a tutte.
  */
 import { round2, somma } from "@/lib/fisco/aritmetica";
+import { testoConfrontabile } from "./parole";
 import { effettoSulConto } from "./saldo";
 import type { ContoPersonale, MovimentoPf, TipoMovimento } from "./tipi";
 
@@ -32,6 +33,21 @@ export type FiltroRegistro = {
   mese: number | null;
   tipo: TipoMovimento | null;
   contoId: string | null;
+  /**
+   * Un pezzo di descrizione da cercare. Vuoto vuol dire «tutte».
+   *
+   * Solo la descrizione, non la categoria e non il conto: quelli hanno già il
+   * loro menu, e cercando «bollette» uscirebbero anche le righe che quella
+   * parola non la contengono — «trovato» smetterebbe di voler dire una cosa
+   * sola.
+   *
+   * Il confronto passa da `testoConfrontabile` — minuscole, senza
+   * punteggiatura, spazi ridotti — **più gli accenti tolti**: «n.6098032» si
+   * trova scrivendo «6098032», e «caffè» trova «CAFFE' CENTRALE». Chi cerca
+   * una riga che ricorda a memoria non ricorda come la banca ha scritto gli
+   * accenti.
+   */
+  testo: string;
 };
 
 export const FILTRO_VUOTO = (anno: number): FiltroRegistro => ({
@@ -39,6 +55,7 @@ export const FILTRO_VUOTO = (anno: number): FiltroRegistro => ({
   mese: null,
   tipo: null,
   contoId: null,
+  testo: "",
 });
 
 const anno = (d: string) => Number(d.slice(0, 4));
@@ -47,6 +64,21 @@ const mese = (d: string) => Number(d.slice(5, 7));
 /** Le uscite vere: quello che lascia il perimetro personale. */
 const USCITE: TipoMovimento[] = ["spesa", "risparmio", "rata"];
 
+/**
+ * Il testo come lo si cerca: quello del dizionario, più gli accenti tolti.
+ *
+ * Gli accenti si tolgono **qui e non in `testoConfrontabile`**, che sembrerebbe
+ * il posto giusto. Quella funzione calcola anche l'impronta con cui si
+ * riconosce un movimento già importato (`firmaMovimento`): cambiandola, le
+ * impronte scritte in archivio e quelle calcolate domani non coinciderebbero
+ * più, e lo stesso rendiconto ricaricato rientrerebbe tutto come nuovo. Una
+ * comodità di ricerca non vale un archivio raddoppiato.
+ */
+const perCercare = (testo: string) =>
+  testoConfrontabile(testo)
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+
 /** Il movimento riguarda questo conto, da qualunque dei due capi. */
 export function riguardaIlConto(m: MovimentoPf, contoId: string): boolean {
   return m.contoId === contoId || m.contoDestinazioneId === contoId;
@@ -54,11 +86,15 @@ export function riguardaIlConto(m: MovimentoPf, contoId: string): boolean {
 
 /** Dal più recente al più vecchio: il registro si guarda dalla fine. */
 export function filtraRegistro(movimenti: MovimentoPf[], f: FiltroRegistro): MovimentoPf[] {
+  /* Normalizzato una volta sola, non a ogni riga: con qualche migliaio di
+     movimenti sarebbero qualche migliaio di normalizzazioni per ogni tasto. */
+  const cercato = perCercare(f.testo);
   return movimenti
     .filter((m) => anno(m.data) === f.anno)
     .filter((m) => f.mese === null || mese(m.data) === f.mese)
     .filter((m) => f.tipo === null || m.tipo === f.tipo)
     .filter((m) => f.contoId === null || riguardaIlConto(m, f.contoId))
+    .filter((m) => cercato === "" || perCercare(m.descrizione).includes(cercato))
     .sort((a, b) => b.data.localeCompare(a.data) || b.id.localeCompare(a.id));
 }
 
