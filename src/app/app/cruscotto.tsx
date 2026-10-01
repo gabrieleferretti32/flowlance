@@ -85,6 +85,9 @@ export function Cruscotto() {
         iva,
         versamenti: dati.versamenti,
         precedente: precedente?.prospetto ?? null,
+        /* Quello che hai già da parte, se l'hai dichiarato: cambia la quota del
+           mese, non quello che devi. Vedi `conFondo`. */
+        fondo: dati.pfImpostazioni[0]?.fondoTasse ?? null,
         oggi,
       }),
       mesi: andamentoMensile(

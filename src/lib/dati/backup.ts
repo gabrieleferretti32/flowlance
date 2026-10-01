@@ -9,6 +9,7 @@
  * scartati. Nel database non deve finire nulla che si possa ricalcolare.
  */
 import { aliquota } from "@/lib/format";
+import { round2 } from "@/lib/fisco/aritmetica";
 import { VERSIONE_SCHEMA } from "./db";
 import { parametriDi, parametriSonoDellAnno } from "@/lib/fisco/parametri";
 import { GESTIONI, type Gestione, type ScaglioneIrpef } from "@/lib/fisco/tipi";
@@ -806,7 +807,27 @@ const convalidaImpostazioniPf: Convalida<Dati["pfImpostazioni"][number]> = (riga
     riga.fiscoPagatoDa === "attivita" || riga.fiscoPagatoDa === "personale"
       ? riga.fiscoPagatoDa
       : null,
+  /*
+    Il fondo già messo da parte, **con la sua data**: tutto o niente.
+
+    Un importo senza la data sarebbe una cifra senza età, e l'età è metà di
+    quello che serve per fidarsene: la schermata la mostra, e sui giorni dopo
+    quella data l'app va a cercare gli F24 che il fondo l'hanno consumato.
+    Meglio nessun fondo — la quota resta quella intera, che è il verso
+    prudente — di un fondo che non si sa di quando.
+  */
+  fondoTasse: convalidaFondoTasse(riga.fondoTasse),
 });
+
+function convalidaFondoTasse(grezzo: unknown): { importo: number; dichiaratoIl: string } | null {
+  if (typeof grezzo !== "object" || grezzo === null) return null;
+  const f = grezzo as Record<string, unknown>;
+  const dichiaratoIl = dataOpzionale(f.dichiaratoIl);
+  if (!dichiaratoIl) return null;
+  const importo = numero(f.importo, -1);
+  if (importo < 0) return null;
+  return { importo: round2(importo), dichiaratoIl };
+}
 
 const convalidaMovimentoPf: Convalida<Dati["pfMovimenti"][number]> = (riga, i, errori) => {
   const id = richiedeId(riga, "pfMovimenti", i, errori);

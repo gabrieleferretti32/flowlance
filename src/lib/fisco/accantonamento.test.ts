@@ -36,7 +36,12 @@ const annoDi = (oggi: string, versamenti: VersamentoF24[] = d.versamenti) =>
 
 const impDi = (a: number) => d.impostazioni.find((i) => i.anno === a)!;
 
-const quotaCon = (oggi: string, versamenti: VersamentoF24[], conAnnoPrima = true) => {
+const quotaCon = (
+  oggi: string,
+  versamenti: VersamentoF24[],
+  conAnnoPrima = true,
+  fondo: { importo: number; dichiaratoIl: string } | null = null,
+) => {
   const catena = annoDi(oggi, versamenti);
   const a = catena.get(2026)!;
   return quotaAccantonamento({
@@ -46,6 +51,7 @@ const quotaCon = (oggi: string, versamenti: VersamentoF24[], conAnnoPrima = true
     iva: a.iva,
     versamenti,
     precedente: conAnnoPrima ? catena.get(2025)!.prospetto : null,
+    fondo,
     oggi,
   });
 };
@@ -452,5 +458,68 @@ describe("**stesso mese, ordinario contro forfettario**", () => {
   it("la parte di imposte esiste in tutti e due i regimi", () => {
     expect(ordinario.imposte.alMese).toBeGreaterThan(0);
     expect(forfettario.imposte.alMese).toBeGreaterThan(0);
+  });
+});
+
+/**
+ * Il fondo già messo da parte.
+ *
+ * L'app sapeva quanto devi e quanto hai versato, non quanto avevi già
+ * accantonato: chiedeva la quota piena a chi era in pari. Su un archivio vero,
+ * 1.562,29 € al mese con 10.981,18 € fermi sul conto delle tasse.
+ */
+describe("**il fondo dichiarato abbassa la quota, non quello che devi**", () => {
+  const oggi = "2026-09-20";
+  const senza = quota(oggi);
+  const conFondo = (importo: number) =>
+    quotaCon(oggi, d.versamenti, true, { importo, dichiaratoIl: oggi });
+
+  it("un fondo che copre una parte toglie quella parte, in ordine di data", () => {
+    const q = conFondo(500);
+    expect(q.fondo?.usato).toBe(500);
+    expect(q.fondo?.avanzo).toBe(0);
+    expect(q.fondo?.quotaSenzaFondo).toBe(senza.alMese);
+    /* La prima scadenza in ordine di data si alleggerisce per prima. */
+    const prima = [...q.imposte.voci, ...q.iva.voci].sort((a, b) => a.data.localeCompare(b.data))[0];
+    const primaSenza = [...senza.imposte.voci, ...senza.iva.voci].sort((a, b) => a.data.localeCompare(b.data))[0];
+    expect(round2(primaSenza.quota - prima.quota)).toBe(500);
+  });
+
+  it("**un fondo che copre tutto porta la quota a zero, e dice quanto avanza**", () => {
+    const residuo = round2(
+      [...senza.imposte.voci, ...senza.iva.voci].reduce((tot, v) => tot + v.quota, 0),
+    );
+    const q = conFondo(residuo + 1_000);
+    expect(q.alMese).toBe(0);
+    expect(q.fondo?.usato).toBe(residuo);
+    expect(q.fondo?.avanzo).toBe(1_000);
+  });
+
+  /*
+    **E il tetto dal conto non si muove.** `daAccantonare` è la cifra che il
+    tetto toglie dal saldo — i soldi del fisco che sono in banca e non sono
+    tuoi — e averli messi da parte non li rende tuoi. Se il fondo la riducesse,
+    lo stesso denaro risulterebbe spendibile due volte.
+  */
+  it("ma quello che devi resta quello che devi", () => {
+    const q = conFondo(99_999);
+    expect(q.imposte.daAccantonare).toBe(senza.imposte.daAccantonare);
+    expect(q.iva.daAccantonare).toBe(senza.iva.daAccantonare);
+  });
+
+  it("il fondo copre le due componenti insieme, non una per volta", () => {
+    /* Abbastanza per tutte le imposte e un pezzo di IVA, o viceversa: quello
+       che conta è che la seconda componente si alleggerisca solo dopo che la
+       prima scadenza in ordine di data è stata coperta. */
+    const residuoImposte = round2(senza.imposte.voci.reduce((t, v) => t + v.quota, 0));
+    const q = conFondo(residuoImposte + 1);
+    const restaIva = round2(q.iva.voci.reduce((t, v) => t + v.quota, 0));
+    const ivaSenza = round2(senza.iva.voci.reduce((t, v) => t + v.quota, 0));
+    expect(round2(ivaSenza - restaIva)).toBeGreaterThan(0);
+  });
+
+  it("niente dichiarato, niente cambia", () => {
+    expect(quota(oggi).fondo).toBeNull();
+    expect(conFondo(0).fondo).toBeNull();
   });
 });

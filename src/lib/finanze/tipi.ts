@@ -26,6 +26,7 @@
  * hanno già in `NotaCredito`.
  */
 
+import type { FondoTasse } from "@/lib/fisco/accantonamento";
 import type { MappaturaColonne } from "./rendiconto";
 
 /** Dove stanno i soldi. */
@@ -282,6 +283,21 @@ export type ImpostazioniPf = {
   cuscinetto: number;
   /** Quello che avanza in un mese si somma al mese dopo. */
   riportoAttivo: boolean;
+  /**
+   * Quanto hai **già messo da parte** per le tasse, dichiarato da te, con il
+   * giorno in cui l'hai scritto.
+   *
+   * Senza questa riga l'app sa quanto devi e quanto hai versato, ma non quanto
+   * hai accantonato: chiede la quota piena a chi è già in pari. Non si deduce
+   * dal saldo di un conto — un conto contiene anche altro — e non scade da
+   * sola: invecchia con le prove, cioè con gli F24 registrati dopo e con il
+   * saldo del conto dichiarato che si muove.
+   *
+   * Assente vuol dire «non l'hai detto», e la quota resta quella intera: il
+   * verso prudente, perché un fondo dato per esistente fa mettere via meno del
+   * dovuto.
+   */
+  fondoTasse?: FondoTasse | null;
   /**
    * Quale conto paga gli F24, dichiarato da chi usa l'app.
    *

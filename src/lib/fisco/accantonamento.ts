@@ -92,6 +92,33 @@ export type ParteQuota = {
   voci: VoceQuota[];
 };
 
+/**
+ * Quello che hai già da parte per le tasse, **dichiarato da te**.
+ *
+ * Non si deduce dal saldo di un conto: un conto contiene anche altro, e un
+ * fondo dedotto è vero per caso. Misurato su un archivio vero, sul conto
+ * dichiarato per gli F24 erano arrivati 394 € con scritto «Alleanza
+ * Assicurazioni»: il saldo di quel conto non è il fondo. L'app può proporre il
+ * saldo con un clic, ma la cifra resta una dichiarazione, con la sua data.
+ */
+export type FondoTasse = {
+  importo: number;
+  /** Il giorno in cui l'hai scritta. Senza, è una cifra senza età. */
+  dichiaratoIl: string;
+};
+
+/** Cosa ha fatto il fondo dichiarato alla quota di questo mese. */
+export type FondoApplicato = {
+  dichiarato: number;
+  dichiaratoIl: string;
+  /** Quanto del fondo serve a coprire quello che resta: al massimo il residuo. */
+  usato: number;
+  /** Quello che avanza oltre il residuo di quest'anno. **Non è spendibile.** */
+  avanzo: number;
+  /** La quota che ci sarebbe senza il fondo: la dipendenza non va nascosta. */
+  quotaSenzaFondo: number;
+};
+
 export type QuotaAccantonamento = {
   /** Quanto mettere da parte questo mese, tutto compreso. È il numero grande. */
   alMese: number;
@@ -100,6 +127,8 @@ export type QuotaAccantonamento = {
   metodo: MetodoQuota;
   /** Frasi da mostrare accanto al numero. Vuoto quando non c'è niente da dire. */
   avvisi: string[];
+  /** `null` quando non hai dichiarato niente: allora la quota è quella intera. */
+  fondo: FondoApplicato | null;
 };
 
 const VUOTA: ParteQuota = { alMese: 0, daAccantonare: 0, voci: [] };
@@ -145,6 +174,16 @@ export type IngressoQuota = {
    * servono — `fabbisognoDaAccantonare` è già al netto dei versamenti.
    */
   versamenti: VersamentoF24[];
+  /**
+   * Quello che hai già messo da parte, se l'hai dichiarato.
+   *
+   * Entra **qui** e non nel motore fiscale: il carico, il prospetto e gli F24
+   * non si muovono di un euro, perché un fondo non è un versamento e un
+   * prospetto che tiene conto dei risparmi di chi lo stampa non è più un
+   * documento. Quello che cambia è una cosa sola: quanto resta da mettere via
+   * questo mese.
+   */
+  fondo?: FondoTasse | null;
   oggi: string;
 };
 
@@ -285,6 +324,80 @@ function quotaIva(
   };
 }
 
+/**
+ * Il fondo già messo da parte, applicato alla quota del mese.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * In ordine di data, e le due componenti insieme
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il fondo è un mucchio solo: non si divide a metà fra imposte e IVA, perché
+ * dividerlo vorrebbe dire scegliere una proporzione che nessuno ha deciso.
+ * Copre le scadenze in ordine di data, attraversando le due componenti —
+ * quello che hai da parte paga prima quello che scade prima — e quello che
+ * avanza non copre niente.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Cosa **non** tocca
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `daAccantonare` resta quello di prima, su tutte e due le parti. È la cifra
+ * che il tetto dal conto toglie dal saldo — «i soldi del fisco che sono in
+ * banca e non sono tuoi» — e averli messi da parte non li rende tuoi: se il
+ * fondo la riducesse, lo stesso denaro risulterebbe spendibile due volte.
+ * Il fondo cambia la **quota del mese**, non quello che devi.
+ */
+function conFondo(q: QuotaAccantonamento, fondo: FondoTasse | null): QuotaAccantonamento {
+  if (!fondo || fondo.importo <= 0) return q;
+
+  const quotaSenzaFondo = q.alMese;
+  let resto = round2(fondo.importo);
+  const coperte = new Map<string, number>();
+  const inOrdine = [...q.imposte.voci, ...q.iva.voci].sort(
+    (a, b) => a.data.localeCompare(b.data) || a.componente.localeCompare(b.componente) || a.id.localeCompare(b.id),
+  );
+  for (const v of inOrdine) {
+    if (resto <= 0) break;
+    const presa = round2(Math.min(resto, v.quota));
+    coperte.set(`${v.componente}|${v.id}`, presa);
+    resto = round2(resto - presa);
+  }
+
+  const alleggerita = (parte: ParteQuota): ParteQuota => {
+    const voci = parte.voci.map((v) => {
+      const presa = coperte.get(`${v.componente}|${v.id}`) ?? 0;
+      const quota = round2(v.quota - presa);
+      return {
+        ...v,
+        quota,
+        alMese: v.mesiMancanti === 0 ? quota : round2(quota / v.mesiMancanti),
+      };
+    });
+    return {
+      ...parte,
+      /* `daAccantonare` non si tocca: vedi sopra. */
+      alMese: round2(voci.reduce((tot, v) => tot + v.alMese, 0)),
+      voci,
+    };
+  };
+
+  const imposte = alleggerita(q.imposte);
+  const iva = alleggerita(q.iva);
+  return {
+    ...q,
+    alMese: round2(imposte.alMese + iva.alMese),
+    imposte,
+    iva,
+    fondo: {
+      dichiarato: round2(fondo.importo),
+      dichiaratoIl: fondo.dichiaratoIl,
+      usato: round2(fondo.importo - resto),
+      avanzo: resto,
+      quotaSenzaFondo,
+    },
+  };
+}
+
 export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
   const daAccantonare = round2(nonNegativo(ing.prospetto.fabbisognoDaAccantonare));
   const avvisi: string[] = [];
@@ -309,13 +422,18 @@ export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
     );
   }
 
-  const chiudi = (imposte: ParteQuota, metodo: MetodoQuota): QuotaAccantonamento => ({
-    alMese: round2(imposte.alMese + iva.alMese),
-    imposte,
-    iva,
-    metodo,
-    avvisi,
-  });
+  const chiudi = (imposte: ParteQuota, metodo: MetodoQuota): QuotaAccantonamento =>
+    conFondo(
+      {
+        alMese: round2(imposte.alMese + iva.alMese),
+        imposte,
+        iva,
+        metodo,
+        avvisi,
+        fondo: null,
+      },
+      ing.fondo ?? null,
+    );
 
   if (daAccantonare === 0) return chiudi(VUOTA, "scadenze");
 

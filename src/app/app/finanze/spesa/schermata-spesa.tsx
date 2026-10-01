@@ -34,6 +34,10 @@ import { usePreferenze } from "@/lib/stato/preferenze";
 import { salvaImpostazioniPf } from "@/lib/dati/azioni";
 import type { ContoDelFisco, ContoPersonale, ImpostazioniPf } from "@/lib/finanze/tipi";
 import { idDelConto } from "@/lib/finanze/chi-paga-il-fisco";
+import { saldoConto } from "@/lib/finanze/saldo";
+import { round2 } from "@/lib/fisco/aritmetica";
+import type { QuotaAccantonamento } from "@/lib/fisco/accantonamento";
+import type { VersamentoF24 } from "@/lib/fisco/tipi";
 import type { FiscoDelMese } from "@/lib/finanze/mese";
 import { analizzaNumero, data as fmtData, euro, nomeMese } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -214,6 +218,22 @@ export function SchermataSpesa() {
               <Voce etichetta="Resta" valore={dalMese.resta} forte />
             </dl>
             {/*
+              Il fondo dichiarato, dove si vede il suo effetto: la riga del
+              fisco. Uno zero senza il motivo si legge come un guasto, e la
+              quota piena senza dire che il fondo l'ha abbassata nasconde la
+              dipendenza — quindi la frase c'è in tutti e due i casi.
+            */}
+            {conto.quota.fondo && (
+              <CardCorpo className="pt-2">
+                <p className="text-micro text-inchiostro-tenue">
+                  {conto.quota.alMese === 0
+                    ? `Zero perché quello che hai già da parte — ${euro(conto.quota.fondo.dichiarato)}, dichiarati il ${fmtData(conto.quota.fondo.dichiaratoIl)} — copre tutto quello che resta. Senza il fondo questo mese chiederebbe ${euro(conto.quota.fondo.quotaSenzaFondo)}.`
+                    : `Senza il fondo dichiarato — ${euro(conto.quota.fondo.dichiarato)} il ${fmtData(conto.quota.fondo.dichiaratoIl)} — questo mese chiederebbe ${euro(conto.quota.fondo.quotaSenzaFondo)}.`}
+                </p>
+              </CardCorpo>
+            )}
+
+            {/*
               Un riporto negativo che arriva da un mese importato a metà è la
               ragione per cui un mese con i suoi incassi può avere un limite
               basso o negativo. Il calcolo non lo può distinguere da un mese in
@@ -332,6 +352,17 @@ export function SchermataSpesa() {
         </div>
 
         <DomandaChiPaga fisco={fisco} impostazioni={impostazioni} conti={dati.pfConti} />
+
+        <FondoDaParte
+          impostazioni={impostazioni}
+          quota={conto.quota}
+          conto={fisco.conto}
+          saldoDelConto={
+            fisco.conto ? saldoConto(fisco.conto, dati.pfMovimenti, oggi) : null
+          }
+          versamenti={dati.versamenti}
+          oggi={oggi}
+        />
 
         {/* Le due cifre del fisco le spiegano già le loro righe: qui resta solo
             da dire da dove vengono, che è l'unica cosa che manca. */}
@@ -511,6 +542,165 @@ function DomandaChiPaga({
             </li>
           ))}
         </ul>
+      </CardCorpo>
+    </Card>
+  );
+}
+
+/**
+ * Quanto hai già messo da parte per le tasse.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Dichiarato, non dedotto
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il saldo di un conto non è un fondo: un conto contiene anche altro, e un
+ * fondo dedotto è vero per caso. Misurato su un archivio vero, sul conto
+ * dichiarato per gli F24 erano arrivati 394 € con scritto «Alleanza
+ * Assicurazioni». Quindi la cifra la scrive chi la sa; l'app al massimo
+ * **propone** il saldo, con un clic, e la data dice di quando è la risposta.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Invecchia con le prove, non con il calendario
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Non scade. Una scadenza farebbe risalire la quota di colpo in un giorno in
+ * cui non è successo niente, ed è il numero che si muove da solo — il difetto
+ * che questo prodotto insegue. Invecchia invece su due fatti che l'app
+ * conosce: gli F24 registrati **dopo** la dichiarazione, che il fondo
+ * l'hanno consumato, e il saldo del conto dichiarato che si è mosso. Tutti e
+ * due propongono; nessuno dei due riscrive.
+ */
+function FondoDaParte({
+  impostazioni,
+  quota,
+  conto,
+  saldoDelConto,
+  versamenti,
+  oggi,
+}: {
+  impostazioni: ImpostazioniPf;
+  quota: QuotaAccantonamento;
+  conto: ContoPersonale | null;
+  saldoDelConto: number | null;
+  versamenti: VersamentoF24[];
+  oggi: string;
+}) {
+  const fondo = impostazioni.fondoTasse ?? null;
+  const [bozza, setBozza] = React.useState<string | null>(null);
+  const scrivi = (importo: number) =>
+    void salvaImpostazioniPf({
+      ...impostazioni,
+      fondoTasse: importo > 0 ? { importo, dichiaratoIl: oggi } : null,
+    });
+
+  /* Gli F24 registrati dopo la dichiarazione: quelli il fondo l'hanno speso. */
+  const dopo = fondo
+    ? versamenti.filter((v) => v.data > fondo.dichiaratoIl && v.data <= oggi)
+    : [];
+  const versatiDopo = round2(dopo.reduce((tot, v) => tot + v.importo, 0));
+  /* Il saldo del conto dichiarato che si è mosso: si dice, non si applica. */
+  const scostamento =
+    fondo && saldoDelConto !== null ? round2(saldoDelConto - fondo.importo) : 0;
+
+  return (
+    <Card>
+      <CardCorpo>
+        <CardTitolo>Quanto hai già messo da parte per le tasse</CardTitolo>
+        <CardSottotitolo>
+          Cambia quanto ti chiede di accantonare questo mese, non quello che devi: il carico
+          dell&apos;anno e il prospetto restano quelli. Se non lo dici, la quota resta intera — è
+          il verso prudente.
+        </CardSottotitolo>
+
+        <BloccoScrittura className="mt-4 flex flex-wrap items-end gap-3">
+          <Campo etichetta="Fondo dichiarato" htmlFor="fondo-tasse" className="w-44">
+            <Input
+              id="fondo-tasse"
+              numerico
+              inputMode="decimal"
+              placeholder="0,00"
+              value={
+                bozza
+                ?? (fondo ? String(fondo.importo).replace(".", ",") : "")
+              }
+              onChange={(e) => setBozza(e.target.value)}
+              onBlur={() => {
+                if (bozza === null) return;
+                scrivi(Math.max(0, analizzaNumero(bozza) ?? 0));
+                setBozza(null);
+              }}
+            />
+          </Campo>
+          {conto && saldoDelConto !== null && (
+            <Button
+              scrive
+              variante="contorno"
+              taglia="sm"
+              onClick={() => {
+                setBozza(null);
+                scrivi(Math.max(0, saldoDelConto));
+              }}
+            >
+              Prendi il saldo di {conto.nome} ({euro(saldoDelConto)})
+            </Button>
+          )}
+        </BloccoScrittura>
+
+        {fondo === null ? (
+          <p className="mt-3 text-micro text-inchiostro-tenue">
+            Non l&apos;hai dichiarato: questo mese la quota è intera, {euro(quota.alMese)}.
+          </p>
+        ) : (
+          <>
+            <p className="mt-3 text-micro text-inchiostro-tenue">
+              Dichiarato il {fmtData(fondo.dichiaratoIl)}.{" "}
+              {quota.fondo && quota.alMese === 0
+                ? `Sei in pari: copre tutto quello che resta da versare (${euro(quota.fondo.usato)}) e avanzano ${euro(quota.fondo.avanzo)}. L'avanzo non è denaro libero: gli acconti del ${new Date(oggi).getFullYear() + 1} non sono ancora in questo conto, e cominceranno a chiedere il loro.`
+                : quota.fondo
+                  ? `Copre ${euro(quota.fondo.usato)} delle prossime scadenze: questo mese restano ${euro(quota.alMese)} invece di ${euro(quota.fondo.quotaSenzaFondo)}.`
+                  : ""}
+            </p>
+
+            {/*
+              Gli F24 pagati dopo. Il fondo non si aggiorna da solo: si propone
+              la sottrazione, perché quegli F24 potrebbero essere usciti da
+              un'altra parte — e un fondo riscritto dall'app è una
+              dichiarazione che non è più di nessuno.
+            */}
+            {versatiDopo > 0 && (
+              <p className="mt-2 rounded-lg bg-attenzione-tenue px-3 py-2 text-micro text-inchiostro">
+                Dal {fmtData(fondo.dichiaratoIl)} hai registrato{" "}
+                {dopo.length === 1 ? "un F24" : `${dopo.length} F24`} per {euro(versatiDopo)}. Se
+                sono usciti da lì, adesso il fondo è {euro(Math.max(0, round2(fondo.importo - versatiDopo)))}.{" "}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => scrivi(Math.max(0, round2(fondo.importo - versatiDopo)))}
+                >
+                  Aggiornalo
+                </button>
+                .
+              </p>
+            )}
+
+            {conto && Math.abs(scostamento) >= 1 && (
+              <p className="mt-2 text-micro text-inchiostro-tenue">
+                Oggi {conto.nome} dice {euro(saldoDelConto as number)}, cioè{" "}
+                {euro(Math.abs(scostamento))} {scostamento > 0 ? "in più" : "in meno"} del fondo
+                che hai dichiarato. Se il fondo è tutto lì,{" "}
+                <button
+                  type="button"
+                  className="underline underline-offset-2"
+                  onClick={() => scrivi(Math.max(0, saldoDelConto as number))}
+                >
+                  prendi il saldo
+                </button>
+                ; se quel conto contiene anche altro, va bene così.
+              </p>
+            )}
+          </>
+        )}
       </CardCorpo>
     </Card>
   );

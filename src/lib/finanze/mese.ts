@@ -150,6 +150,7 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
     iva: ing.calcolo.iva,
     versamenti: ing.versamenti,
     precedente: ing.precedente?.prospetto ?? null,
+    fondo: impostazioni.fondoTasse ?? null,
     oggi: ing.oggi,
   });
 
