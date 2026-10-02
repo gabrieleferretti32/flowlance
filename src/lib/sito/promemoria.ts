@@ -27,7 +27,33 @@
  * corpo della richiesta non arriva a Brevo nemmeno per sbaglio.
  */
 
-/** I sette attributi, con i nomi che hanno in Brevo. Nessun altro parte. */
+/**
+ * I cinque attributi, con i nomi che hanno in Brevo. Nessun altro parte.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Erano sei, e perché il fatturato non c'è più
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `FATTURATO_STIMATO` non entrava in nessuna email e non decideva niente: era
+ * il dato di partenza da cui gli altri sono calcolati, mandato perché era lì.
+ * L'unico uso che avrebbe avuto è la segmentazione commerciale — scrivere agli
+ * over 85.000 parlando di ordinario — che **non è la finalità per cui il
+ * consenso viene raccolto**. Toglierlo non è solo minimizzazione: è
+ * limitazione di finalità, e si perde una cosa che non si doveva fare.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Quello che resta è comunque un dato economico, e va detto
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Da un secondo acconto di 5.329,48 € in forfettario si risale a circa 40.000 €
+ * di fatturato, e `ACCANTONAMENTO_MESE × 12 ÷ pressione` lo ricostruisce
+ * meglio ancora. **Togliere il fatturato riduce la superficie, non cambia la
+ * natura del trattamento**: questi restano dati da cui il reddito di una
+ * persona identificata si ricava, e l'informativa deve dirlo lo stesso.
+ *
+ * Chi un giorno volesse aggiungere un attributo qui dentro guardi prima a
+ * quale email lo userà. Se la risposta è «a nessuna», la risposta è no.
+ */
 export const ATTRIBUTI = [
   "REGIME",
   "SCAD_1_DATA",
@@ -35,13 +61,16 @@ export const ATTRIBUTI = [
   "SCAD_2_DATA",
   "SCAD_2_IMPORTO",
   "ACCANTONAMENTO_MESE",
-  "FATTURATO_STIMATO",
 ] as const;
 
 export type NomeAttributo = (typeof ATTRIBUTI)[number];
 
 /**
- * Il tetto sugli importi.
+ * Il fatturato massimo che il simulatore accetta.
+ *
+ * Non è più un attributo che parte — vedi `ATTRIBUTI` — ma resta la base da
+ * cui si ricava il tetto sugli importi: la rata più grande che questa pagina
+ * può produrre nasce dai ricavi più grandi che accetta.
  *
  * È lo stesso di `RICAVI_MASSIMI` nel simulatore, e **non** si importa da lì:
  * `simulatore.ts` tira dentro il motore fiscale intero, e questa costante la
@@ -83,12 +112,40 @@ export const ATTESA_MINIMA_MS = 3_000;
 export type RichiestaPromemoria = {
   email: string;
   attributi: Partial<Record<NomeAttributo, string | number>>;
+  /**
+   * Il secondo consenso: le comunicazioni sul prodotto.
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * Perché sono due e non uno
+   * ─────────────────────────────────────────────────────────────────────
+   *
+   * La prima stesura aveva una casella sola, con dentro: «voglio ricevere i
+   * promemoria **e** le email di Flowlance». Sono due cose diverse — un
+   * servizio che la persona ha chiesto, e comunicazioni commerciali che non
+   * ha chiesto — tenute insieme da una congiunzione. Chi vuole solo le date
+   * delle scadenze doveva prendersi anche il resto, o rinunciare a entrambe:
+   * un consenso che non si può dare separatamente non è libero.
+   *
+   * Qui è un campo a sé perché la decisione viaggia fino in fondo: decide in
+   * quale lista il contatto entra, e da quale lista può uscire senza uscire
+   * dall'altra.
+   *
+   * `false` quando la casella non è spuntata, che è lo stato di partenza e
+   * deve restarlo: una casella preselezionata non raccoglie un consenso.
+   */
+  marketing: boolean;
   /** Millisecondi fra l'apertura del modulo e il clic. Vedi `ATTESA_MINIMA_MS`. */
   compilatoIn: number;
 };
 
 export type EsitoConvalida =
-  | { ok: true; email: string; attributi: Record<string, string | number> }
+  | {
+      ok: true;
+      email: string;
+      attributi: Record<string, string | number>;
+      /** Ha acconsentito anche alle comunicazioni sul prodotto. */
+      marketing: boolean;
+    }
   | { ok: false; errore: string; motivo: string };
 
 /*
@@ -169,10 +226,6 @@ export function convalidaPromemoria(corpo: unknown, oggi: string): EsitoConvalid
   }
   attributi.REGIME = regime;
 
-  const fatturato = numeroNelLimite(a.FATTURATO_STIMATO, TETTO_RICAVI);
-  if (fatturato === null) return scarta("Il fatturato non è un numero valido.", "FATTURATO_STIMATO fuori limite");
-  attributi.FATTURATO_STIMATO = fatturato;
-
   const mensile = numeroNelLimite(a.ACCANTONAMENTO_MESE, TETTO_IMPORTI);
   if (mensile === null) return scarta("L'accantonamento non è un numero valido.", "ACCANTONAMENTO_MESE fuori limite");
   attributi.ACCANTONAMENTO_MESE = mensile;
@@ -217,7 +270,16 @@ export function convalidaPromemoria(corpo: unknown, oggi: string): EsitoConvalid
     attributi.SCAD_2_IMPORTO = importo2;
   }
 
-  return { ok: true, email, attributi };
+  /*
+    Il secondo consenso si legge **stretto**: solo `true` vale sì. Un valore
+    assente, una stringa, uno zero — qualunque cosa che non sia esattamente
+    `true` — vale no. È il verso in cui si può sbagliare senza fare danno:
+    il peggio è non mandare a qualcuno un'email che avrebbe gradito, invece
+    di mandarla a chi non l'ha chiesta.
+  */
+  const marketing = r.marketing === true;
+
+  return { ok: true, email, attributi, marketing };
 }
 
 /**

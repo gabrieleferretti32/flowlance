@@ -49,7 +49,7 @@ export const EVENTO_SIMULATORE = "simulatore_calcolato";
  * **quante volte**, non chi. Allegarci il fatturato per sapere «quanto
  * fattura chi si iscrive» manderebbe a Google il profilo economico di una
  * persona che ha appena letto, in cima alla pagina, che i suoi numeri
- * partono solo verso la posta che ha chiesto. Quei sette attributi hanno una
+ * partono solo verso la posta che ha chiesto. Quei sei attributi hanno una
  * destinazione sola, ed è Brevo, con il consenso spuntato accanto.
  *
  * Parte **dopo** una risposta positiva della funzione, non al clic: un evento

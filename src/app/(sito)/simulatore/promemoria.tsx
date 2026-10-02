@@ -35,7 +35,7 @@ export type ProprietaPromemoria = {
  *
  * In cima alla pagina c'è scritto che i numeri restano lì, e che partono solo
  * se chiedi i promemoria, e solo quelli che servono a mandarteli. Questo
- * componente è quel «solo»: costruisce i sette attributi uno per uno — niente
+ * componente è quel «solo»: costruisce i sei attributi uno per uno — niente
  * gestione, niente gruppo ATECO, niente di quanto hai già da parte — e li
  * manda al **submit**, mai prima. Non c'è nessun effetto che parta digitando,
  * nessun `preconnect`, nessuno script di terzi in pagina: `verifica-consenso`
@@ -64,7 +64,16 @@ export function Promemoria({
   onIscritto,
 }: ProprietaPromemoria) {
   const [email, setEmail] = React.useState("");
-  const [consenso, setConsenso] = React.useState(false);
+  /*
+    Due consensi, due stati, e nessuno dei due parte spuntato.
+
+    Il primo è necessario: senza, l'iscrizione non ha oggetto. Il secondo è
+    facoltativo davvero — il pulsante si accende lo stesso — perché un
+    consenso che blocca il servizio quando lo si nega non è facoltativo, è
+    obbligatorio scritto in piccolo.
+  */
+  const [consensoPromemoria, setConsensoPromemoria] = React.useState(false);
+  const [consensoMarketing, setConsensoMarketing] = React.useState(false);
   const [stato, setStato] = React.useState<Stato>("fermo");
   const [errore, setErrore] = React.useState("");
 
@@ -85,15 +94,18 @@ export function Promemoria({
     setErrore("");
 
     /*
-      I sette attributi, costruiti qui e nominati uno per uno. Non si parte da
+      I sei attributi, costruiti qui e nominati uno per uno. Non si parte da
       un oggetto con dentro la simulazione per poi togliere: si parte da niente
       e si aggiunge, perché una proprietà in più aggiunta un giorno al modello
       non deve potersi presentare a Brevo senza che qualcuno l'abbia scritta
       qui.
+
+      Il fatturato digitato **non c'è**, e non è una dimenticanza: non entra in
+      nessuna email e non decide niente. Vedi `ATTRIBUTI` in
+      `src/lib/sito/promemoria.ts`.
     */
     const attributi: Partial<Record<NomeAttributo, string | number>> = {
       REGIME: ing.regime,
-      FATTURATO_STIMATO: ing.ricavi,
       ACCANTONAMENTO_MESE: accantonamentoMensile,
       SCAD_1_DATA: prossimo.data,
       SCAD_1_IMPORTO: prossimo.importo,
@@ -110,6 +122,7 @@ export function Promemoria({
         body: JSON.stringify({
           email,
           attributi,
+          marketing: consensoMarketing,
           compilatoIn: Date.now() - apertoA.current,
         }),
       });
@@ -141,7 +154,12 @@ export function Promemoria({
     }
   }
 
-  const pronto = email.trim() !== "" && consenso && Boolean(prossimo);
+  /*
+    Il pulsante guarda **solo** il consenso necessario: quello facoltativo è
+    facoltativo, e se lo tenesse spento sarebbe obbligatorio con un'altra
+    etichetta.
+  */
+  const pronto = email.trim() !== "" && consensoPromemoria && Boolean(prossimo);
 
   return (
     <AlComparire>
@@ -190,25 +208,58 @@ export function Promemoria({
                   />
                 </label>
 
-                <label className="mt-4 flex items-start gap-3">
+                {/*
+                  Due caselle, e la prima non copre la seconda.
+
+                  C'era una casella sola: «voglio ricevere i promemoria **e**
+                  le email di Flowlance». Due cose diverse tenute insieme da
+                  una congiunzione — un servizio chiesto e una pubblicità non
+                  chiesta — con il risultato che chi voleva solo le date delle
+                  scadenze doveva prendersi anche il resto. Un consenso che non
+                  si può dare separatamente non è libero.
+
+                  La seconda è facoltativa sul serio: il pulsante si accende
+                  anche lasciandola vuota, e si vede.
+                */}
+                <label className="mt-5 flex items-start gap-3">
                   <input
                     type="checkbox"
-                    name="consenso"
+                    name="consenso-promemoria"
                     required
-                    checked={consenso}
-                    onChange={(e) => setConsenso(e.target.checked)}
+                    checked={consensoPromemoria}
+                    onChange={(e) => setConsensoPromemoria(e.target.checked)}
                     disabled={stato === "invio"}
                     className="mt-0.5 size-5 shrink-0 accent-accento"
                   />
                   <span className="text-etichetta leading-relaxed">
+                    <strong className="font-semibold">Voglio i promemoria delle scadenze.</strong>{" "}
                     Ho letto l&apos;
                     <Link href={SITO.privacy} className="underline underline-offset-2">
                       informativa privacy
-                    </Link>{" "}
-                    e voglio ricevere i promemoria e le email di Flowlance. Puoi cancellarti con un
-                    clic da ogni email.
+                    </Link>
+                    .
                   </span>
                 </label>
+
+                <label className="mt-3 flex items-start gap-3">
+                  <input
+                    type="checkbox"
+                    name="consenso-marketing"
+                    checked={consensoMarketing}
+                    onChange={(e) => setConsensoMarketing(e.target.checked)}
+                    disabled={stato === "invio"}
+                    className="mt-0.5 size-5 shrink-0 accent-accento"
+                  />
+                  <span className="text-etichetta leading-relaxed">
+                    Voglio anche le email di Flowlance: novità, cambi di regole fiscali, offerte.{" "}
+                    <span className="text-inchiostro-tenue">Facoltativo.</span>
+                  </span>
+                </label>
+
+                <p className="mt-3 text-etichetta leading-relaxed text-inchiostro-tenue">
+                  Sono due iscrizioni separate: puoi cancellarti dall&apos;una senza perdere
+                  l&apos;altra, con un clic da ogni email.
+                </p>
 
                 <button
                   type="submit"
@@ -230,8 +281,9 @@ export function Promemoria({
 
                 <p className="mt-4 text-etichetta leading-relaxed text-inchiostro-tenue">
                   Partono il tuo indirizzo e i numeri che servono a scrivere il promemoria: regime,
-                  fatturato stimato, accantonamento mensile, date e importi delle due scadenze.
-                  Niente altro, e solo adesso che l&apos;hai chiesto.
+                  accantonamento mensile, date e importi delle due scadenze. Il fatturato che hai
+                  digitato no: non serve a mandarti niente. Niente altro, e solo adesso che
+                  l&apos;hai chiesto.
                 </p>
               </form>
             )}

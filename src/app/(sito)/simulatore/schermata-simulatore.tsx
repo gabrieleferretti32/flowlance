@@ -201,7 +201,7 @@ export function SchermataSimulatore() {
               un campo di un sito che non conosce. Ed è vera alla lettera: il
               conto gira qui, `verifica-import-simulatore` controlla che da
               questa pagina non si arrivi nemmeno all'archivio, e l'unica cosa
-              che esce sono i sette attributi del promemoria — al submit, e solo
+              che esce sono i sei attributi del promemoria — al submit, e solo
               se l'hai chiesto.
             */}
             <p className="mt-6 flex max-w-[58ch] gap-2 rounded-campo border border-bordo bg-superficie-alt px-3 py-2.5 text-etichetta leading-relaxed text-inchiostro-tenue">

@@ -14,6 +14,7 @@ const ADESSO = 1_767_225_600_000;
 const CONF: Configurazione = {
   chiave: "xkeysib-finta",
   lista: "7",
+  listaMarketing: "9",
   modello: "3",
   ritorno: "https://flowlance.it/simulatore/",
   origini: ["https://flowlance.it"],
@@ -22,9 +23,9 @@ const CONF: Configurazione = {
 const CORPO = {
   email: "mario@example.com",
   compilatoIn: 9_000,
+  marketing: false,
   attributi: {
     REGIME: "forfettario",
-    FATTURATO_STIMATO: 40_000,
     ACCANTONAMENTO_MESE: 966.15,
     SCAD_1_DATA: "2026-11-30",
     SCAD_1_IMPORTO: 5_329.48,
@@ -77,7 +78,7 @@ describe("la strada buona", () => {
     expect(String(body)).not.toContain("xkeysib");
   });
 
-  it("manda i sette attributi, la lista, il modello e il ritorno", async () => {
+  it("manda i sei attributi, la lista, il modello e il ritorno", async () => {
     const s = spia();
     await gestisciPromemoria(posta(), CONF, dip(s.finto));
     const inviato = JSON.parse(String(s.chiamate[0].opzioni.body));
@@ -85,11 +86,28 @@ describe("la strada buona", () => {
     expect(inviato.includeListIds).toEqual([7]);
     expect(inviato.templateId).toBe(3);
     expect(inviato.redirectionUrl).toBe("https://flowlance.it/simulatore/");
-    expect(Object.keys(inviato.attributes)).toHaveLength(7);
+    expect(Object.keys(inviato.attributes)).toHaveLength(6);
     expect(inviato.attributes.SCAD_1_IMPORTO).toBe(5_329.48);
   });
 
-  it("niente oltre i sette attributi arriva a Brevo", async () => {
+  /*
+    Il fatturato digitato non arriva a Brevo nemmeno se il browser lo manda.
+    La convalida ricostruisce invece di filtrare, e qui si guarda il corpo
+    vero della richiesta HTTP — non il valore di ritorno di una funzione.
+  */
+  it("il fatturato stimato non esce da questa funzione", async () => {
+    const s = spia();
+    await gestisciPromemoria(
+      posta({ ...CORPO, attributi: { ...CORPO.attributi, FATTURATO_STIMATO: 40_000 } }),
+      CONF,
+      dip(s.finto),
+    );
+    const corpo = String(s.chiamate[0].opzioni.body);
+    expect(corpo).not.toContain("FATTURATO_STIMATO");
+    expect(corpo).not.toContain("40000");
+  });
+
+  it("niente oltre i sei attributi arriva a Brevo", async () => {
     const s = spia();
     await gestisciPromemoria(
       posta({ ...CORPO, attributi: { ...CORPO.attributi, GESTIONE: "separata" } }),
@@ -101,8 +119,53 @@ describe("la strada buona", () => {
   });
 });
 
+describe("i due consensi, due liste", () => {
+  it("senza marketing entra solo nella lista dei promemoria", async () => {
+    const s = spia();
+    await gestisciPromemoria(posta({ ...CORPO, marketing: false }), CONF, dip(s.finto));
+    expect(JSON.parse(String(s.chiamate[0].opzioni.body)).includeListIds).toEqual([7]);
+  });
+
+  it("con il marketing entra in tutte e due", async () => {
+    const s = spia();
+    await gestisciPromemoria(posta({ ...CORPO, marketing: true }), CONF, dip(s.finto));
+    expect(JSON.parse(String(s.chiamate[0].opzioni.body)).includeListIds).toEqual([7, 9]);
+  });
+
+  /*
+    Il verso che conta: rifiutare le comunicazioni commerciali **non** impedisce
+    di ricevere i promemoria. È la ragione per cui le caselle sono due, ed è la
+    cosa che si romperebbe per prima se un giorno qualcuno «semplificasse»
+    tornando a un consenso solo.
+  */
+  it("chi rifiuta il marketing resta iscritto ai promemoria", async () => {
+    const s = spia();
+    const r = await gestisciPromemoria(posta({ ...CORPO, marketing: false }), CONF, dip(s.finto));
+    expect(r.stato).toBe(200);
+    expect(JSON.parse(String(s.chiamate[0].opzioni.body)).includeListIds).toContain(7);
+  });
+
+  /*
+    E il contrario di una lista separata: se la lista del marketing non è
+    configurata, la funzione **non** iscrive ai soli promemoria chi aveva
+    spuntato tutte e due. Accettare un consenso e non registrarlo è peggio
+    che non raccoglierlo — e l'alternativa silenziosa sarebbe invisibile sia a
+    chi si iscrive sia a chi guarda i numeri.
+  */
+  it("senza la lista del marketing la funzione è spenta, non a metà", async () => {
+    const s = spia();
+    const r = await gestisciPromemoria(
+      posta({ ...CORPO, marketing: true }),
+      { ...CONF, listaMarketing: undefined },
+      dip(s.finto),
+    );
+    expect(r.stato).toBe(503);
+    expect(s.chiamate).toHaveLength(0);
+  });
+});
+
 describe("spenta finché non è configurata", () => {
-  for (const mancante of ["chiave", "lista", "modello"] as const) {
+  for (const mancante of ["chiave", "lista", "listaMarketing", "modello"] as const) {
     it(`senza ${mancante} risponde 503 e non contatta nessuno`, async () => {
       const s = spia();
       const r = await gestisciPromemoria(posta(), { ...CONF, [mancante]: undefined }, dip(s.finto));
@@ -121,7 +184,7 @@ describe("spenta finché non è configurata", () => {
     const s = spia();
     const r = await gestisciPromemoria(
       posta(),
-      { ...CONF, chiave: undefined, lista: undefined, modello: undefined },
+      { ...CONF, chiave: undefined, lista: undefined, listaMarketing: undefined, modello: undefined },
       dip(s.finto),
     );
     expect(r.stato).toBe(503);

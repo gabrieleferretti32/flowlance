@@ -25,7 +25,7 @@
  *
  * Senza le tre configurazioni — chiave, lista, modello di conferma — la
  * funzione risponde «non attiva» e non contatta nessuno. Non è un ripiego:
- * è l'interruttore. Questi sette attributi sono dati economici di una persona
+ * è l'interruttore. Questi sei attributi sono dati economici di una persona
  * identificata, e finché l'informativa non li descrive non si raccolgono. La
  * pagina ha il suo interruttore separato, che decide che cosa si vede; questo
  * decide che cosa può succedere, e nessuno dei due dipende dall'altro.
@@ -54,7 +54,25 @@ export const FRENO = { tentativi: 5, finestraMs: 10 * 60 * 1_000 } as const;
 
 export type Configurazione = {
   chiave: string | undefined;
+  /** La lista dei promemoria: ci entra chiunque confermi. */
   lista: string | undefined;
+  /**
+   * La lista delle comunicazioni sul prodotto: ci entra solo chi ha spuntato
+   * la seconda casella.
+   *
+   * Due liste e non un attributo «marketing: sì/no», perché la disiscrizione
+   * deve poter essere separata: dal centro preferenze di Brevo si esce da una
+   * e si resta nell'altra. Con un attributo solo, il collegamento di
+   * disiscrizione in fondo a un'email commerciale avrebbe tolto anche i
+   * promemoria — cioè avrebbe spento un servizio chiesto per rifiutare una
+   * pubblicità.
+   *
+   * È configurazione obbligatoria come le altre: se manca, la funzione
+   * risponde «non attivi» invece di iscrivere ai soli promemoria qualcuno che
+   * aveva spuntato tutte e due. Accettare un consenso e non registrarlo è
+   * peggio che non raccoglierlo.
+   */
+  listaMarketing: string | undefined;
   modello: string | undefined;
   /** Dove Brevo rimanda dopo il clic nella mail di conferma. */
   ritorno: string;
@@ -129,7 +147,7 @@ export async function gestisciPromemoria(
     return no(405, "Metodo non ammesso.", `metodo ${richiesta.method}`);
   }
 
-  if (!conf.chiave || !conf.lista || !conf.modello) {
+  if (!conf.chiave || !conf.lista || !conf.listaMarketing || !conf.modello) {
     /*
       503 e non 500: non è un guasto, è una funzione non ancora accesa. La
       frase è quella che la pagina può mostrare senza mentire — e la pagina,
@@ -184,7 +202,15 @@ export async function gestisciPromemoria(
       body: JSON.stringify({
         email: convalida.email,
         attributes: convalida.attributi,
-        includeListIds: [Number(conf.lista)],
+        /*
+          I promemoria sempre, le comunicazioni sul prodotto solo se
+          spuntate. Una conferma sola vale per tutte e due le liste: chi
+          clicca nella posta conferma l'indirizzo, non la singola lista — ed
+          è giusto così, perché l'indirizzo è uno.
+        */
+        includeListIds: convalida.marketing
+          ? [Number(conf.lista), Number(conf.listaMarketing)]
+          : [Number(conf.lista)],
         templateId: Number(conf.modello),
         redirectionUrl: conf.ritorno,
       }),

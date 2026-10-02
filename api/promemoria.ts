@@ -28,11 +28,15 @@
  *   nessun bundle: la legge soltanto questo processo.
  * - `BREVO_LISTA_PROMEMORIA` — l'id della lista a cui il contatto si aggiunge
  *   **dopo** aver confermato.
+ * - `BREVO_LISTA_MARKETING` — l'id della lista delle comunicazioni sul
+ *   prodotto. Ci entra solo chi ha spuntato la seconda casella, ed è una
+ *   lista separata perché la disiscrizione sia separata: da un'email
+ *   commerciale si esce senza perdere i promemoria.
  * - `BREVO_TEMPLATE_DOI` — l'id del modello dell'email di conferma.
  *
- * Manca una delle tre e la funzione risponde «non ancora attivi» senza
+ * Manca una delle quattro e la funzione risponde «non ancora attivi» senza
  * contattare nessuno. È l'interruttore: finché l'informativa privacy non
- * descrive questi sette attributi non si raccolgono, e non raccoglierli non
+ * descrive questi sei attributi non si raccolgono, e non raccoglierli non
  * dipende dal fatto che qualcuno si ricordi di non accendere il modulo.
  */
 import { DOMINIO } from "../src/lib/sito/impostazioni";
@@ -45,6 +49,7 @@ export default async function promemoria(richiesta: Request): Promise<Response> 
     {
       chiave: process.env.BREVO_API_KEY,
       lista: process.env.BREVO_LISTA_PROMEMORIA,
+      listaMarketing: process.env.BREVO_LISTA_MARKETING,
       modello: process.env.BREVO_TEMPLATE_DOI,
       /*
         Dove Brevo rimanda dopo il clic di conferma: il simulatore stesso. Non

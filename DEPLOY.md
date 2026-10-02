@@ -151,17 +151,29 @@ mantenuta.
 
 ### Che cosa configurare su Brevo
 
-1. Una **lista** per i promemoria delle scadenze. Serve il suo id numerico.
-2. Un **modello di email di doppio opt-in** (*Campaigns → Templates*, tipo
+1. **Due liste**, non una. Servono i loro id numerici.
+   - *Promemoria scadenze* — ci entra chiunque confermi l'indirizzo.
+   - *Comunicazioni Flowlance* — ci entra solo chi ha spuntato anche la
+     seconda casella.
+
+   Sono due e non un attributo «marketing: sì/no» perché **la disiscrizione
+   deve poter essere separata**: da un'email commerciale si esce senza
+   perdere i promemoria. Con una lista sola, il collegamento di disiscrizione
+   in fondo a una promozione avrebbe spento anche un servizio che la persona
+   aveva chiesto.
+2. Il **centro preferenze** di Brevo (*Contacts → Forms → Preference centre*),
+   con le due liste visibili e spuntabili, impostato come destinazione del
+   collegamento di disiscrizione. È la parte della disiscrizione granulare che
+   **non è codice nostro**: senza, il collegamento toglie il contatto da tutto.
+3. Un **modello di email di doppio opt-in** (*Campaigns → Templates*, tipo
    «Double opt-in confirmation»). Dentro, il collegamento di conferma si scrive
    con il segnaposto `{{ params.DOIurl }}`. Serve il suo id numerico.
-3. I **sette attributi di contatto**, in *Contacts → Settings → Contact
+4. I **sei attributi di contatto**, in *Contacts → Settings → Contact
    attributes*, con questi nomi esatti:
 
    | Attributo | Tipo |
    | --- | --- |
    | `REGIME` | testo |
-   | `FATTURATO_STIMATO` | numero |
    | `ACCANTONAMENTO_MESE` | numero |
    | `SCAD_1_DATA` | data |
    | `SCAD_1_IMPORTO` | numero |
@@ -171,12 +183,25 @@ mantenuta.
    Un attributo che in Brevo non esiste fa fallire la chiamata intera: il
    contatto non viene creato e chi si iscrive vede l'errore. Vanno creati
    **prima** di accendere.
-4. Una **chiave API** (*SMTP & API → API Keys*), con i soli permessi sui
+
+   **`FATTURATO_STIMATO` non c'è più**, e non va creato: non entrava in
+   nessuna email e non decideva niente. Quello che resta permette comunque di
+   risalire al reddito — da un acconto di 5.329,48 € in forfettario si arriva
+   a circa 40.000 € di fatturato — quindi l'informativa deve descriverlo lo
+   stesso.
+5. Una **chiave API** (*SMTP & API → API Keys*), con i soli permessi sui
    contatti.
 
 `SCAD_2_*` resta vuoto quando di appuntamenti ce n'è uno solo — primo anno di
 attività, o sotto la soglia degli acconti. Il modello dell'email deve reggere
 quel caso senza stampare una data vuota.
+
+**Nessun termine di scadenza per i non confermati, per ora.** Brevo non
+cancella da solo i contatti che non hanno confermato, e qui non c'è niente che
+giri ogni notte: la funzione risponde a una richiesta e muore. Finché non si
+decide fra pulizia manuale e cron esterno, l'informativa **non deve promettere
+un termine** — una promessa di cancellazione che nessuno esegue è peggio di
+nessuna promessa.
 
 ### Che cosa configurare su Vercel
 
@@ -185,9 +210,16 @@ quel caso senza stampare una data vuota.
 
 ```
 BREVO_API_KEY           = xkeysib-…
-BREVO_LISTA_PROMEMORIA  = <id numerico della lista>
+BREVO_LISTA_PROMEMORIA  = <id numerico della lista dei promemoria>
+BREVO_LISTA_MARKETING   = <id numerico della lista delle comunicazioni>
 BREVO_TEMPLATE_DOI      = <id numerico del modello>
 ```
+
+Tutte e quattro sono obbligatorie. Se manca quella del marketing la funzione
+risponde «non attivi» **anche** a chi aveva spuntato solo i promemoria: è
+voluto. L'alternativa sarebbe iscrivere alla sola lista dei promemoria chi
+aveva spuntato tutte e due, cioè accettare un consenso e non registrarlo — un
+errore che non si vedrebbe né da chi si iscrive né dai numeri.
 
 Niente altro da configurare: `api/promemoria.ts` è una funzione Vercel fuori da
 Next, e Vercel compila `/api/*` senza configurazione anche con `framework: null`
@@ -220,7 +252,7 @@ sono due strade, in ordine di fatica:
 
 ### Quando accendere
 
-1. L'informativa privacy descrive i sette attributi e la finalità.
+1. L'informativa privacy descrive i sei attributi e le due finalità separate.
 2. Le tre variabili sono su Vercel, e l'iscrizione di prova arriva davvero.
 3. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
 

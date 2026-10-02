@@ -46,10 +46,15 @@ export const DOMINIO = "https://flowlance.it";
  * che raccoglie un'email per poi dire che non è il momento è una promessa
  * presa e non mantenuta: la raccolta non deve nemmeno essere offerta.
  *
- * I sette attributi che partono — regime, fatturato stimato, accantonamento
- * mensile, date e importi delle due scadenze — sono dati economici di una
- * persona identificata dalla sua email. Il punto (d) dell'informativa parla di
- * «indirizzo email e nome», e non li copre.
+ * I sei attributi che partono — regime, accantonamento mensile, date e importi
+ * delle due scadenze — sono dati economici di una persona identificata dalla
+ * sua email. Il punto (d) dell'informativa parla di «indirizzo email e nome»,
+ * e non li copre.
+ *
+ * Il fatturato digitato è stato tolto perché non serviva a mandare niente, ma
+ * non è questo a rendere il trattamento innocuo: da un acconto di 5.329,48 €
+ * in forfettario si risale a circa 40.000 € di fatturato. La minimizzazione
+ * riduce la superficie, non cambia la natura di quello che si tratta.
  */
 export const PROMEMORIA_ATTIVI = false;
 

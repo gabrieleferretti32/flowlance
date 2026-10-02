@@ -84,6 +84,41 @@ Ogni emissione viene annotata in `chiavi/emesse.jsonl`, una riga per licenza:
 serve a ritrovare una chiave quando un cliente la perde, e a sapere quando
 scade.
 
+### Chi è già cliente, e da quanto
+
+```sh
+node strumenti/licenza/genera-licenza.mjs cliente@esempio.it --storico
+```
+
+```
+È la 3ª licenza per questo indirizzo — 2 rinnovi dopo il primo acquisto.
+Precedenti:
+  1. emessa il 2026-09-12, valida fino al 2027-09-12
+  2. emessa il 2027-09-14, valida fino al 2028-09-14
+```
+
+Non emette niente e non tocca il registro: si legge soltanto. È il comando da
+usare **prima** di rispondere a un'email di rinnovo, quando serve sapere che
+prezzo fare. Le stesse righe compaiono comunque sopra ogni emissione vera, così
+il conto si vede anche quando non lo si è chiesto.
+
+Tre cose che fa, e che sembrano dettagli finché non costano:
+
+- **Confronta gli indirizzi senza guardare le maiuscole.** `Mario@Example.com`
+  e `mario@example.com` sono la stessa casella per qualunque server di posta, e
+  trattarli come due clienti vorrebbe dire far pagare il prezzo pieno a chi ha
+  diritto al rinnovo — senza che niente lo segnali, perché nel registro le due
+  righe ci sono entrambe. Quando capita, lo dice.
+- **Dice due numeri, non uno.** «Rinnovo n. 3» da solo è ambiguo: fra la terza
+  licenza e il terzo rinnovo c'è una licenza di differenza, cioè il prezzo
+  sbagliato. Si stampano tutti e due, con le date, e chi legge non deve contare.
+- **Non si ferma su una riga rotta.** Un file accumulato per anni può averne
+  una troncata; saltarla in silenzio farebbe risultare nuovo un cliente che non
+  lo è, quindi le conta e lo dice.
+
+La logica sta in `storico.mjs`, separata dallo script perché si possa provare
+senza emettere licenze vere: `npx vitest run strumenti/licenza/storico.test.mjs`.
+
 ### L'ordine dei passi, per un acquisto vero
 
 Il punto 3 dei Termini dice che il contratto si conclude alla consegna della

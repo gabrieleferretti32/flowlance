@@ -19,6 +19,12 @@
  *   node genera-licenza.mjs cliente@esempio.it --mesi 12
  *   node genera-licenza.mjs cliente@esempio.it --anni 1
  *       Emette una licenza e stampa la chiave da mandare all'acquirente.
+ *       Prima di emetterla dice se quell'indirizzo ne ha già ricevute.
+ *
+ *   node genera-licenza.mjs cliente@esempio.it --storico
+ *       Dice soltanto quello, senza emettere niente e senza toccare il
+ *       registro. È il comando da usare **prima** di rispondere a un'email di
+ *       rinnovo, quando serve sapere che prezzo fare.
  *
  * Opzioni: `--privata <percorso>` per usare un'altra chiave privata,
  * `--registro <percorso>` per il file in cui si annotano le emissioni
@@ -28,6 +34,7 @@ import { createPrivateKey, generateKeyPairSync, sign } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { leggiRegistro, raccontaStorico, storicoDi } from "./storico.mjs";
 
 const QUI = dirname(fileURLToPath(import.meta.url));
 const CARTELLA_CHIAVI = resolve(QUI, "chiavi");
@@ -114,6 +121,35 @@ if (!email || !email.includes("@")) {
   );
 }
 
+/*
+  Lo storico **prima** di qualunque altra cosa, e prima della chiave privata.
+
+  Serve a sapere che prezzo fare, e lo si vuole sapere anche quando la chiave
+  privata non è a portata — da un altro computer, rispondendo a un'email. Per
+  questo `--storico` si ferma qui e non chiede niente al disco oltre al
+  registro.
+*/
+const registro = opzione("registro") ?? REGISTRO;
+const { righe: emesse, illeggibili } = existsSync(registro)
+  ? leggiRegistro(readFileSync(registro, "utf8"))
+  : { righe: [], illeggibili: 0 };
+const precedenti = storicoDi(emesse, email);
+const storia = raccontaStorico(precedenti);
+
+console.log(`\n  ${storia.righe.join("\n  ")}`);
+if (illeggibili > 0) {
+  console.log(
+    `\n  Attenzione: ${illeggibili} ${illeggibili === 1 ? "riga" : "righe"} del registro `
+      + `non si ${illeggibili === 1 ? "legge" : "leggono"}.\n  `
+      + "  Il conto qui sopra potrebbe essere più basso del vero.",
+  );
+}
+
+if (argomenti.includes("--storico")) {
+  console.log("");
+  process.exit(0);
+}
+
 const oggi = new Date();
 const emessaIl = oggi.toISOString().slice(0, 10);
 
@@ -148,12 +184,12 @@ const carico = inBase64Url(
 const firma = sign(null, Buffer.from(`${PREFISSO}.${carico}`, "utf8"), privata);
 const chiave = `${PREFISSO}.${carico}.${inBase64Url(firma)}`;
 
-const registro = opzione("registro") ?? REGISTRO;
 mkdirSync(dirname(registro), { recursive: true });
 appendFileSync(registro, `${JSON.stringify({ email, scadenza, emessaIl, chiave })}\n`);
 
 console.log(`
   Licenza per ${email}
+  ${storia.nuovo ? "Primo acquisto" : `${storia.numeroLicenza}ª licenza · ${storia.rinnovi} ${storia.rinnovi === 1 ? "rinnovo" : "rinnovi"}`}
   Valida fino al ${scadenza} compreso · emessa il ${emessaIl}
   Annotata in ${registro}
 

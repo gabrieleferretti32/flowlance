@@ -15,9 +15,9 @@ function richiesta(parziale: Record<string, unknown> = {}) {
   return {
     email: "mario@example.com",
     compilatoIn: 9_000,
+    marketing: false,
     attributi: {
       REGIME: "forfettario",
-      FATTURATO_STIMATO: 40_000,
       ACCANTONAMENTO_MESE: 966.15,
       SCAD_1_DATA: "2026-11-30",
       SCAD_1_IMPORTO: 5_329.48,
@@ -44,7 +44,7 @@ describe("i due tetti restano lo stesso numero", () => {
 });
 
 describe("convalidaPromemoria", () => {
-  it("accetta una richiesta della pagina e restituisce i sette attributi", () => {
+  it("accetta una richiesta della pagina e restituisce i sei attributi", () => {
     const e = convalidaPromemoria(richiesta(), OGGI);
     expect(e.ok).toBe(true);
     if (!e.ok) return;
@@ -74,13 +74,51 @@ describe("convalidaPromemoria", () => {
     if (!e.ok) return;
     expect(e.attributi.GRUPPO_ATECO).toBeUndefined();
     expect(e.attributi.NOTE).toBeUndefined();
-    expect(Object.keys(e.attributi)).toHaveLength(7);
+    expect(Object.keys(e.attributi)).toHaveLength(6);
+  });
+
+  /*
+    La tagliola della minimizzazione.
+
+    `FATTURATO_STIMATO` non entrava in nessuna email: era il dato di partenza,
+    mandato perché era lì. Il verso che conta è questo — non che il campo sia
+    stato tolto dall'elenco, ma che **non arrivi a Brevo nemmeno se la pagina
+    lo rimettesse nel corpo**. La convalida ricostruisce invece di filtrare, e
+    questo test è la prova che la ricostruzione tiene anche contro un
+    mittente che insiste.
+  */
+  it("il fatturato non passa nemmeno se qualcuno lo rimette nel corpo", () => {
+    const e = convalidaPromemoria(
+      richiesta({ attributi: { ...richiesta().attributi, FATTURATO_STIMATO: 40_000 } }),
+      OGGI,
+    );
+    expect(e.ok).toBe(true);
+    if (!e.ok) return;
+    expect(e.attributi.FATTURATO_STIMATO).toBeUndefined();
+    expect(ATTRIBUTI).not.toContain("FATTURATO_STIMATO");
   });
 
   it("niente gestione e niente gruppo ATECO fra gli attributi ammessi", () => {
-    // Insieme al fatturato sarebbero il profilo economico di una persona.
+    // Insieme agli importi sarebbero il profilo economico di una persona.
     expect(ATTRIBUTI).not.toContain("GESTIONE");
     expect(ATTRIBUTI).not.toContain("GRUPPO_ATECO");
+  });
+
+  /*
+    Quello che resta **è comunque** un dato economico, e il test lo dice a
+    chi legge il file. Non è una verifica di comportamento: è il promemoria,
+    accanto al codice, che la minimizzazione ha ridotto la superficie e non
+    cambiato la natura del trattamento. Da un acconto di 5.329,48 € in
+    forfettario si risale a circa 40.000 € di fatturato.
+  */
+  it("ma quello che resta permette comunque di risalire al reddito", () => {
+    const e = convalidaPromemoria(richiesta(), OGGI);
+    expect(e.ok).toBe(true);
+    if (!e.ok) return;
+    const mensile = Number(e.attributi.ACCANTONAMENTO_MESE);
+    // 966,15 × 12 ÷ 0,29 di pressione ≈ 40.000.
+    expect((mensile * 12) / 0.29).toBeGreaterThan(35_000);
+    expect((mensile * 12) / 0.29).toBeLessThan(45_000);
   });
 
   for (const sbagliata of ["", "mario", "mario@", "@example.com", "mario@example", "ma rio@e.com"]) {
@@ -111,11 +149,11 @@ describe("convalidaPromemoria", () => {
     expect(convalidaPromemoria(richiesta({ attributi: { ...richiesta().attributi, REGIME: "minimi" } }), OGGI).ok).toBe(false);
   });
 
-  it("il fatturato non supera il tetto", () => {
+  it("l'accantonamento non supera il tetto, e non è negativo", () => {
     const a = richiesta().attributi;
-    expect(convalidaPromemoria(richiesta({ attributi: { ...a, FATTURATO_STIMATO: TETTO_RICAVI } }), OGGI).ok).toBe(true);
-    expect(convalidaPromemoria(richiesta({ attributi: { ...a, FATTURATO_STIMATO: TETTO_RICAVI + 1 } }), OGGI).ok).toBe(false);
-    expect(convalidaPromemoria(richiesta({ attributi: { ...a, FATTURATO_STIMATO: -1 } }), OGGI).ok).toBe(false);
+    expect(convalidaPromemoria(richiesta({ attributi: { ...a, ACCANTONAMENTO_MESE: TETTO_IMPORTI } }), OGGI).ok).toBe(true);
+    expect(convalidaPromemoria(richiesta({ attributi: { ...a, ACCANTONAMENTO_MESE: TETTO_IMPORTI + 1 } }), OGGI).ok).toBe(false);
+    expect(convalidaPromemoria(richiesta({ attributi: { ...a, ACCANTONAMENTO_MESE: -1 } }), OGGI).ok).toBe(false);
   });
 
   it("gli importi delle scadenze hanno il loro tetto, più alto", () => {
@@ -138,7 +176,7 @@ describe("convalidaPromemoria", () => {
     const e = convalidaPromemoria(richiesta({ attributi: a }), OGGI);
     expect(e.ok).toBe(true);
     if (!e.ok) return;
-    expect(Object.keys(e.attributi)).toHaveLength(5);
+    expect(Object.keys(e.attributi)).toHaveLength(4);
     expect(e.attributi.SCAD_2_DATA).toBeUndefined();
   });
 
@@ -161,6 +199,44 @@ describe("convalidaPromemoria", () => {
   it("e non è a zero: zero non è un appuntamento", () => {
     const a = richiesta().attributi;
     expect(convalidaPromemoria(richiesta({ attributi: { ...a, SCAD_2_IMPORTO: 0 } }), OGGI).ok).toBe(false);
+  });
+
+  it("il secondo consenso viaggia, e di norma è spento", () => {
+    const spento = convalidaPromemoria(richiesta(), OGGI);
+    expect(spento.ok && spento.marketing).toBe(false);
+    const acceso = convalidaPromemoria(richiesta({ marketing: true }), OGGI);
+    expect(acceso.ok && acceso.marketing).toBe(true);
+  });
+
+  /*
+    Solo `true` vale sì. È il verso in cui si può sbagliare senza fare danno:
+    il peggio è non mandare un'email che sarebbe stata gradita, invece di
+    mandarla a chi non l'ha chiesta. Un `"true"` di stringa, un `1`, un
+    oggetto — tutto quello che non è il booleano — vale no.
+  */
+  for (const finto of ["true", 1, "si", {}, [], "on"]) {
+    it(`«${JSON.stringify(finto)}» non è un consenso`, () => {
+      const e = convalidaPromemoria(richiesta({ marketing: finto }), OGGI);
+      expect(e.ok && e.marketing).toBe(false);
+    });
+  }
+
+  it("senza il campo, il secondo consenso è no", () => {
+    const senza = richiesta();
+    delete (senza as { marketing?: boolean }).marketing;
+    const e = convalidaPromemoria(senza, OGGI);
+    expect(e.ok).toBe(true);
+    expect(e.ok && e.marketing).toBe(false);
+  });
+
+  /*
+    E il secondo consenso non è una condizione per il primo: una richiesta
+    senza marketing resta valida. Se un giorno qualcuno lo rendesse
+    obbligatorio nella convalida, il servizio chiesto smetterebbe di essere
+    ottenibile da solo — che è la cosa per cui le caselle sono due.
+  */
+  it("rifiutare il marketing non impedisce l'iscrizione ai promemoria", () => {
+    expect(convalidaPromemoria(richiesta({ marketing: false }), OGGI).ok).toBe(true);
   });
 
   it("un corpo che non è un oggetto non manda in pezzi niente", () => {
