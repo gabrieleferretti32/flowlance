@@ -20,6 +20,20 @@ pubblica. **Incolla la pubblica in `src/lib/licenza/chiave-pubblica.ts`,
 sostituendo la stringa di `CHIAVE_PUBBLICA`** — quel file esporta quella sola
 costante, ed è l'unica cosa da toccare.
 
+`--privata <percorso>` vale anche qui, e scrive davvero lì: serve per una
+coppia di prova, che non deve finire accanto a quella di produzione.
+
+```
+node strumenti/licenza/genera-licenza.mjs --nuove-chiavi --privata /tmp/prova/privata.pem
+```
+
+**Il comando si rifiuta di scrivere se quel file esiste già**, e non c'è nessun
+`--force`. Sovrascrivere una chiave privata invalida ogni licenza emessa finora,
+e non è un errore che si vede subito: si vede dai clienti che scrivono che la
+chiave non funziona più. Se la sostituzione è davvero quello che si vuole, il
+file vecchio si sposta a mano — un gesto in più, nel punto in cui conviene
+averlo.
+
 Se qualcosa non torna — l'app dice di non avere una chiave e il file sembra a
 posto — `npm run licenza:stato` mostra cosa legge davvero l'app: il valore, la
 lunghezza in byte, il verdetto e le righe di codice del file.

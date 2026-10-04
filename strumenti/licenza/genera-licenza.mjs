@@ -76,17 +76,48 @@ function opzione(nome) {
 // Generazione della coppia
 // ————————————————————————————————————————————————————————————
 
+/**
+ * Dove sta la chiave privata, per ogni comando.
+ *
+ * Una riga sola, letta prima di qualunque ramo, perché `--privata` deve voler
+ * dire la stessa cosa sempre. Prima era così solo per l'emissione: il ramo
+ * `--nuove-chiavi` ignorava l'opzione e scriveva nel percorso fisso. Chi
+ * generava una coppia di prova chiedendola altrove se la ritrovava **nella
+ * cartella vera**, accanto a quella di produzione, senza che niente glielo
+ * dicesse — e il comando stampava comunque il percorso giusto, cioè quello
+ * fisso, che però non era quello chiesto.
+ *
+ * L'intestazione di questo file documentava `--privata` come opzione generale
+ * da sempre. Qui il codice la raggiunge.
+ */
+const percorsoPrivata = opzione("privata") ?? PRIVATA;
+
 if (argomenti.includes("--nuove-chiavi")) {
-  if (existsSync(PRIVATA)) {
+  /*
+    Il rifiuto guarda **il file che si sta per scrivere**, non il percorso
+    predefinito: con `--privata` altrove, controllare il predefinito vorrebbe
+    dire rifiutare quando non serve e sovrascrivere quando non si deve.
+
+    E non esiste un `--force`, di proposito. Sovrascrivere una chiave privata
+    invalida ogni licenza emessa finora: non è un'operazione che si fa in
+    fretta rispondendo di sì a un avviso, è una che si fa spostando un file a
+    mano, dopo averci pensato. Un flag che la rende possibile in un colpo solo
+    è un flag che prima o poi qualcuno usa per sbaglio — e di quel genere di
+    errore non ci si accorge subito: ci si accorge dai clienti che scrivono
+    che la chiave non funziona più.
+  */
+  if (existsSync(percorsoPrivata)) {
     errore(
-      `Esiste già una chiave privata in ${PRIVATA}.\n  ` +
+      `Esiste già una chiave privata in ${percorsoPrivata}.\n  ` +
         "Sovrascriverla invaliderebbe tutte le licenze emesse finora.\n  " +
         "Se è davvero quello che vuoi, spostala altrove a mano e riprova.",
     );
   }
   const { privateKey, publicKey } = generateKeyPairSync("ed25519");
-  mkdirSync(CARTELLA_CHIAVI, { recursive: true });
-  writeFileSync(PRIVATA, privateKey.export({ type: "pkcs8", format: "pem" }), { mode: 0o600 });
+  mkdirSync(dirname(percorsoPrivata), { recursive: true });
+  writeFileSync(percorsoPrivata, privateKey.export({ type: "pkcs8", format: "pem" }), {
+    mode: 0o600,
+  });
 
   // I 32 byte grezzi stanno in coda al DER SPKI, che per Ed25519 ha un
   // prefisso fisso di 12 byte.
@@ -94,7 +125,7 @@ if (argomenti.includes("--nuove-chiavi")) {
   console.log(`
   Coppia creata.
 
-  Chiave privata:  ${PRIVATA}
+  Chiave privata:  ${percorsoPrivata}
                    Non finisca mai in un repository, in un backup condiviso
                    o in un'email.
 
@@ -169,7 +200,6 @@ if (scadenza < emessaIl) {
   errore(`La scadenza ${scadenza} è già passata: la licenza nascerebbe scaduta.`);
 }
 
-const percorsoPrivata = opzione("privata") ?? PRIVATA;
 if (!existsSync(percorsoPrivata)) {
   errore(
     `Nessuna chiave privata in ${percorsoPrivata}.\n  ` +

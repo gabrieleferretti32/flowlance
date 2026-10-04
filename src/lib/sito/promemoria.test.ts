@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   ATTESA_MINIMA_MS,
   ATTRIBUTI,
@@ -255,6 +256,59 @@ describe("convalidaPromemoria", () => {
     if (e.ok) return;
     expect(e.motivo).toContain("veloce");
     expect(e.errore).not.toContain("veloce");
+  });
+});
+
+/*
+  Il copy della pagina e i dati che lo sostengono.
+
+  «Un'email 7 giorni prima delle prossime due scadenze» è una promessa
+  verificabile: le scadenze che partono verso Brevo sono esattamente due coppie
+  — `SCAD_1_*` e `SCAD_2_*` — e non ce n'è una terza. Il giorno in cui qualcuno
+  ne aggiungesse una, o ne togliesse una, la frase in pagina direbbe un numero
+  e il sistema ne manderebbe un altro: una promessa che diventa falsa senza che
+  nessuno tocchi il testo.
+
+  Si legge il sorgente del componente perché è lì che la frase vive, e perché
+  il verso che conta è proprio quello che un test sui tipi non vede: il
+  **numero scritto a parole**.
+*/
+describe("la pagina promette quello che il contratto manda", () => {
+  const componente = readFileSync(
+    new URL("../../app/(sito)/simulatore/promemoria.tsx", import.meta.url),
+    "utf8",
+  );
+
+  it("le scadenze che partono sono due coppie, non una né tre", () => {
+    const date = ATTRIBUTI.filter((a) => /^SCAD_\d+_DATA$/.test(a));
+    const importi = ATTRIBUTI.filter((a) => /^SCAD_\d+_IMPORTO$/.test(a));
+    expect(date).toHaveLength(2);
+    expect(importi).toHaveLength(2);
+  });
+
+  it("e la frase in pagina dice «due», non «ogni»", () => {
+    expect(componente).toContain("prossime due scadenze");
+    /*
+      «Ogni scadenza» prometteva più di quello che parte: le scadenze dell'anno
+      sono di più — l'IVA trimestrale, il bollo — e di quelle il promemoria non
+      sa niente.
+    */
+    expect(componente).not.toContain("prima di ogni scadenza");
+  });
+
+  it("la disiscrizione nomina il collegamento, non un gesto", () => {
+    expect(componente).toContain("dal collegamento in fondo a ogni email");
+    expect(componente).not.toContain("con un clic da ogni email");
+  });
+
+  /*
+    Le due caselle restano due, e la facoltativa resta facoltativa: il
+    pulsante non deve guardarla. È la cosa che si romperebbe per prima se un
+    giorno qualcuno «semplificasse» il modulo.
+  */
+  it("il pulsante guarda solo il consenso necessario", () => {
+    expect(componente).toContain("consensoPromemoria && Boolean(prossimo)");
+    expect(componente).not.toContain("consensoMarketing &&");
   });
 });
 

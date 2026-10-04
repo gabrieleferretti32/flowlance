@@ -178,8 +178,9 @@ export function Promemoria({
               Non segnarti le date. Te le ricordo io.
             </h2>
             <p className="mt-3 max-w-[56ch] text-corpo leading-relaxed">
-              Ricevi un&apos;email 7 giorni prima di ogni scadenza, con l&apos;importo da versare
-              calcolato su questi numeri. In più ti arriva subito il riepilogo del tuo calcolo.
+              Ricevi un&apos;email 7 giorni prima delle prossime due scadenze, con
+              l&apos;importo da versare calcolato su questi numeri. In più ti arriva subito il
+              riepilogo del tuo calcolo.
             </p>
 
             {stato === "fatto" ? (
@@ -258,13 +259,32 @@ export function Promemoria({
 
                 <p className="mt-3 text-etichetta leading-relaxed text-inchiostro-tenue">
                   Sono due iscrizioni separate: puoi cancellarti dall&apos;una senza perdere
-                  l&apos;altra, con un clic da ogni email.
+                  l&apos;altra, dal collegamento in fondo a ogni email.
                 </p>
 
+                {/*
+                  Lo stato spento è **grigio**, non un accento sbiadito.
+
+                  Era `opacity-50` sull'accento, che su una sezione già tinta
+                  dello stesso colore produceva un azzurro più chiaro — e un
+                  azzurro più chiaro si legge come «un bottone azzurro», non
+                  come «un bottone spento». Misurato: fra acceso e spento
+                  correvano 2,25:1, e il testo bianco sbiadito stava a 2,14:1,
+                  cioè illeggibile.
+
+                  Col grigio del bordo i due stati distano 4,15:1 e il testo
+                  spento sale a 3,81:1. Resta sotto il 4,5 di AA, e si può:
+                  la norma esclude espressamente i comandi inattivi dal
+                  requisito di contrasto. Quello che non si poteva lasciare è
+                  che lo stato spento somigliasse a quello acceso.
+
+                  Lo stato acceso non si tocca: bianco su `#4C5BF5` misura
+                  5,09:1, sopra il 4,5 richiesto.
+                */}
                 <button
                   type="submit"
                   disabled={!pronto || stato === "invio"}
-                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-campo bg-accento px-6 py-3.5 text-campo font-semibold text-white transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
+                  className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-campo border border-transparent bg-accento px-6 py-3.5 text-campo font-semibold text-white transition-colors enabled:hover:bg-accento/90 disabled:cursor-not-allowed disabled:border-bordo disabled:bg-bordo disabled:text-inchiostro-tenue sm:w-auto"
                 >
                   {stato === "invio" ? "Ti sto iscrivendo…" : "Avvisami prima delle scadenze"}
                   {stato !== "invio" && <ArrowRight className="size-4" aria-hidden />}

@@ -250,6 +250,80 @@ sono due strade, in ordine di fatica:
    diretto in `API` dentro `src/lib/rotte.ts`. Meglio ancora, una
    distribuzione di anteprima: `originiAmmesse` ammette già `VERCEL_URL`.
 
+### Conservazione — **tre termini da decidere**
+
+I termini li decide il legale. Qui sta il resto: che cosa va cancellato, e come
+si eseguirebbe. **Niente di tutto questo è costruito**, e nessun termine va
+scritto nell'informativa finché non si sa come rispettarlo — una cancellazione
+promessa e non eseguita è peggio di nessuna promessa.
+
+| | Che cosa | Termine | Cosa andrebbe fatto |
+| --- | --- | --- | --- |
+| 1 | I dati del calcolo, dopo l'ultima scadenza | *da decidere* | svuotare i sei attributi; il contatto resta iscritto |
+| 2 | Indirizzi confermati e inattivi | *da decidere* | cancellare il contatto |
+| 3 | Indirizzi mai confermati | *da decidere* | cancellare il contatto |
+
+Il primo è diverso dagli altri due e conviene non confonderlo: **non è una
+disiscrizione**. Passato il 30 giugno a cui si riferiscono, `SCAD_2_DATA` e il
+suo importo non servono più a niente — il promemoria è già partito — e tenerli
+vuol dire tenere un dato economico oltre la sua utilità. Svuotarli non toglie
+nessuno dalla lista: chi tornasse sul simulatore e si reiscrivesse li
+riscriverebbe aggiornati.
+
+#### Cosa sa fare Brevo da solo
+
+Verificato sul centro assistenza di Brevo — **con un limite dichiarato: da
+questo ambiente `help.brevo.com` e `developers.brevo.com` sono bloccati dal
+proxy di rete, quindi quanto segue viene dagli estratti di ricerca di quelle
+stesse pagine e non da una lettura diretta.** Va riletto sul pannello prima di
+costruirci sopra.
+
+- **Svuotare un attributo: sì.** L'azione *Update contact attribute* di
+  un'automazione «allows you to update **or delete** the value of a specific
+  contact attribute for a contact».
+- **Togliere da una lista: sì.** L'azione *Remove contact from a list*.
+- **Cancellare un contatto: sì.** L'azione *Delete a contact*, descritta per il
+  caso di chi «has not interacted with you in a long time».
+
+#### Cosa **non** è verificato, ed è il punto che decide tutto
+
+**«Dopo l'ultimo invio» non si sa se si può esprimere.** Il trigger a data
+(*Anniversary*) fa entrare un contatto in un'automazione un tot di giorni prima
+o dopo una data contenuta in un attributo — che sarebbe esattamente
+`SCAD_2_DATA` — ma la documentazione dice che **ignora l'anno**: i contatti
+«can enter the automation every year on the same date». Un trigger che si
+ripete ogni anno non esprime «una volta sola, trenta giorni dopo». Se esista un
+altro modo di dirlo, da qui non l'ho potuto verificare.
+
+Non è verificato nemmeno il caso 3. Per il doppio opt-in costruito **come
+workflow di Brevo** — quello per i moduli esterni — esiste un «Wait time» dopo
+il quale il contatto non confermato viene *blocklisted*. Noi però non usiamo
+quel workflow: usiamo l'endpoint API `doubleOptinConfirmation`, che il doppio
+opt-in se lo gestisce da sé. Che quell'impostazione valga anche per questa
+strada **non risulta**, e comunque *blocklisted* non vuol dire cancellato: il
+contatto resta in archivio.
+
+#### Le due strade, per ciascuno dei tre
+
+**Pulizia manuale periodica.** Un promemoria in calendario — trimestrale,
+semestrale — e due filtri sul pannello di Brevo. Costo: zero da costruire,
+qualche minuto a giro. Rischio: dipende da una persona che si ricorda, e
+l'informativa invece promette. Regge se il termine è generoso (mesi, non
+giorni) e se il numero di contatti resta piccolo.
+
+**Job esterno.** Uno script che chiama l'API di Brevo e fa il giro: cerca i
+contatti oltre il termine, svuota o cancella. Da far partire da qualcosa che
+gira da solo — un Vercel Cron o una GitHub Action pianificata — perché qui non
+c'è niente che giri ogni notte: `api/promemoria.ts` risponde a una richiesta e
+muore. Costo: mezza giornata più la chiave API con i permessi di scrittura in
+un secondo posto. Vantaggio: fa quello che l'informativa dice, ogni giorno,
+senza che nessuno se ne ricordi.
+
+**Il caso 1 potrebbe non aver bisogno di nessuna delle due**, se il trigger a
+data si rivelasse utilizzabile: sarebbe un'automazione dentro Brevo, senza
+codice nostro. È la prima cosa da guardare sul pannello, perché se funziona
+toglie di mezzo il termine più delicato dei tre.
+
 ### Quando accendere
 
 1. L'informativa privacy descrive i sei attributi e le due finalità separate.
