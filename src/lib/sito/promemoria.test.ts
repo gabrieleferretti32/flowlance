@@ -274,10 +274,47 @@ describe("convalidaPromemoria", () => {
   **numero scritto a parole**.
 */
 describe("la pagina promette quello che il contratto manda", () => {
-  const componente = readFileSync(
+  const sorgente = readFileSync(
     new URL("../../app/(sito)/simulatore/promemoria.tsx", import.meta.url),
     "utf8",
   );
+
+  /*
+    ─────────────────────────────────────────────────────────────────────
+    Il testo senza i commenti, e perché è la differenza fra misurare e no
+    ─────────────────────────────────────────────────────────────────────
+
+    La prima stesura di questi test leggeva il sorgente intero. Sembrava
+    ragionevole, e non misurava niente: i commenti di questo progetto
+    **raccontano** quello che la pagina dice, e quindi contengono le stesse
+    frasi. La regola «se la pagina dice che il fatturato non parte, deve dire
+    anche che si può stimare» risultava sempre soddisfatta — perché «si
+    risale a circa 40.000 €» stava nel commento sopra il paragrafo, non nel
+    paragrafo.
+
+    Se n'è accorta una prova di mutazione, non la lettura: accorciata la frase
+    a schermo, il test della regola continuava a passare con la faccia di uno
+    che ha controllato. È esattamente il difetto che questo progetto insegue —
+    una misura che conferma invece di una che rompe — comparso dentro la misura
+    stessa.
+
+    E gli spazi si normalizzano, per la stessa ragione misurata due volte: nel
+    sorgente una frase va a capo dove serve al JSX, non dove finisce la
+    proposizione. Cercando «il fatturato che hai digitato non lo mandiamo» su
+    un testo che contiene «il fatturato che hai\n    digitato non lo
+    mandiamo» non si trova niente — e «non si trova» voleva dire «la pagina
+    non lo dice», cioè la regola soddisfatta a vuoto. Anche questo l'ha trovato
+    una mutazione: accorciata la frase, il test continuava a passare.
+
+    Da qui in poi le asserzioni sul copy leggono `copy`, che è il sorgente
+    senza commenti e con gli spazi appianati. Quelle sul **codice** continuano
+    a leggere `sorgente`.
+  */
+  const copy = sorgente
+    .replace(/\/\*[\s\S]*?\*\//g, " ")
+    .replace(/^\s*\/\/.*$/gm, " ")
+    .replace(/\{\s*\}/g, " ")
+    .replace(/\s+/g, " ");
 
   it("le scadenze che partono sono due coppie, non una né tre", () => {
     const date = ATTRIBUTI.filter((a) => /^SCAD_\d+_DATA$/.test(a));
@@ -287,18 +324,77 @@ describe("la pagina promette quello che il contratto manda", () => {
   });
 
   it("e la frase in pagina dice «due», non «ogni»", () => {
-    expect(componente).toContain("prossime due scadenze");
+    expect(copy).toContain("prossime due scadenze");
     /*
       «Ogni scadenza» prometteva più di quello che parte: le scadenze dell'anno
       sono di più — l'IVA trimestrale, il bollo — e di quelle il promemoria non
       sa niente.
     */
-    expect(componente).not.toContain("prima di ogni scadenza");
+    expect(copy).not.toContain("prima di ogni scadenza");
   });
 
   it("la disiscrizione nomina il collegamento, non un gesto", () => {
-    expect(componente).toContain("dal collegamento in fondo a ogni email");
-    expect(componente).not.toContain("con un clic da ogni email");
+    expect(copy).toContain("dal collegamento in fondo a ogni email");
+    expect(copy).not.toContain("con un clic da ogni email");
+  });
+
+  /*
+    ─────────────────────────────────────────────────────────────────────
+    La mezza verità che questa frase non deve poter diventare
+    ─────────────────────────────────────────────────────────────────────
+
+    Sotto il pulsante c'è scritto che il fatturato digitato non viene mandato.
+    È vero, e da solo è la rassicurazione sbagliata: da un acconto di 5.329,48 €
+    in forfettario si risale a circa 40.000 €, e `ACCANTONAMENTO_MESE × 12 ÷
+    pressione` lo ricostruisce meglio ancora. Chi legge solo la prima metà
+    capisce il contrario di quello che succede.
+
+    Il modo in cui questa frase si romperebbe non è la cancellazione — quella
+    si vede — è l'**accorciamento**: qualcuno taglia la subordinata per far
+    stare la riga, e resta la parte che tranquillizza. Perciò il test non
+    confronta la frase di oggi: dice la regola. Se da qualche parte il
+    componente afferma che il fatturato non parte, **deve** anche dire che si
+    può stimare.
+  */
+  describe("il fatturato non parte, e questo non basta dirlo", () => {
+    /** I modi in cui si può scrivere «il fatturato non lo mandiamo». */
+    const RASSICURAZIONE = [
+      /il fatturato che hai digitato non lo mandiamo/i,
+      /il fatturato[^.]{0,40}non parte/i,
+      /il fatturato[^.]{0,40}non serve a mandarti/i,
+      /il fatturato che hai digitato no:/i,
+      /il fatturato[^.]{0,40}non esce/i,
+    ];
+    /** I modi in cui si può scrivere «ma lo si ricava lo stesso». */
+    const STIMA = [/si può stimare/i, /si risale/i, /si ricava/i, /si pu[òo] ricavare/i];
+
+    const rassicura = RASSICURAZIONE.some((r) => r.test(copy));
+    const avverte = STIMA.some((r) => r.test(copy));
+
+    it("la rassicurazione non viaggia mai da sola", () => {
+      if (rassicura) {
+        expect(
+          avverte,
+          "La pagina dice che il fatturato non parte senza dire che si può stimare "
+            + "dagli importi. Le due metà vanno insieme: la prima da sola è una "
+            + "mezza verità che tranquillizza nel verso sbagliato.",
+        ).toBe(true);
+      }
+    });
+
+    it("e oggi dice tutte e due le cose, con la conseguenza", () => {
+      expect(copy).toContain("non lo mandiamo");
+      expect(copy).toContain("da questi importi si può stimare");
+      expect(copy).toContain("dati economici");
+    });
+
+    /*
+      La stesura precedente si fermava alla prima metà. Resta nominata qui
+      perché non ci si torni per sbaglio riscrivendo la riga «come era prima».
+    */
+    it("la vecchia stesura, che si fermava a metà, non torna", () => {
+      expect(copy).not.toContain("non serve a mandarti niente");
+    });
   });
 
   /*
@@ -307,8 +403,8 @@ describe("la pagina promette quello che il contratto manda", () => {
     giorno qualcuno «semplificasse» il modulo.
   */
   it("il pulsante guarda solo il consenso necessario", () => {
-    expect(componente).toContain("consensoPromemoria && Boolean(prossimo)");
-    expect(componente).not.toContain("consensoMarketing &&");
+    expect(sorgente).toContain("consensoPromemoria && Boolean(prossimo)");
+    expect(sorgente).not.toContain("consensoMarketing &&");
   });
 });
 

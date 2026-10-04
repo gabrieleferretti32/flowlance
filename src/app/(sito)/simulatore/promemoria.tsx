@@ -299,11 +299,26 @@ export function Promemoria({
                   </p>
                 )}
 
+                {/*
+                  La frase dice due cose, e la seconda è quella che costa.
+
+                  Dire che il fatturato non parte è vero e suona rassicurante.
+                  Fermarsi lì sarebbe però la mezza verità peggiore: da un
+                  acconto di 5.329,48 € in forfettario si risale a circa
+                  40.000 € di fatturato, e `ACCANTONAMENTO_MESE × 12 ÷ pressione`
+                  lo ricostruisce meglio. Una persona che legge «il fatturato
+                  non lo mandiamo» e si tranquillizza avrebbe capito il
+                  contrario di quello che succede.
+
+                  Perciò le due metà viaggiano insieme, e un test impedisce che
+                  la prima sopravviva senza la seconda — che è il modo in cui
+                  questa frase si romperebbe: non cancellandola, accorciandola.
+                */}
                 <p className="mt-4 text-etichetta leading-relaxed text-inchiostro-tenue">
                   Partono il tuo indirizzo e i numeri che servono a scrivere il promemoria: regime,
                   accantonamento mensile, date e importi delle due scadenze. Il fatturato che hai
-                  digitato no: non serve a mandarti niente. Niente altro, e solo adesso che
-                  l&apos;hai chiesto.
+                  digitato non lo mandiamo, ma da questi importi si può stimare: per questo li
+                  trattiamo come dati economici. Niente altro, e solo adesso che l&apos;hai chiesto.
                 </p>
               </form>
             )}

@@ -303,6 +303,78 @@ opt-in se lo gestisce da sé. Che quell'impostazione valga anche per questa
 strada **non risulta**, e comunque *blocklisted* non vuol dire cancellato: il
 contatto resta in archivio.
 
+#### Il rischio della ricorrenza — **NON VERIFICATO**
+
+> Tutto questo riquadro è ipotesi e non misura. Niente di quanto segue è stato
+> provato sul pannello di Brevo, e non c'è codice che lo implementi.
+
+**Come sono costruiti oggi i promemoria: non lo sono.** Cercato in tutto il
+repository — `SCAD_1_DATA` e `SCAD_2_DATA` compaiono solo dove vengono
+*scritti* (la pagina del simulatore) e *convalidati* (il contratto in
+`src/lib/sito/promemoria.ts`). **Niente li legge per mandare qualcosa.**
+`api/promemoria.ts` crea il contatto e si ferma lì. Le parole «trigger» e
+«Anniversary» compaiono in un solo file, questo, e solo nel riquadro qui sopra
+che racconta cosa Brevo *potrebbe* fare: mai come descrizione di qualcosa di
+configurato.
+
+Non è nemmeno il caso «sta solo sul pannello»: sul pannello non c'è, perché le
+liste e il modello non sono ancora creati e le variabili d'ambiente non sono
+impostate. **L'invio dei promemoria è da costruire per intero**, e quando lo
+sarà vivrà su Brevo — non qui. Da controllare lì, e da annotare qui sotto
+quando esisterà: quale trigger, su quale attributo.
+
+**Il rischio, per quando si costruirà.** La strada più ovvia è il trigger a
+data (*Anniversary*) su `SCAD_1_DATA` e `SCAD_2_DATA`, sette giorni prima. Ma
+quel trigger **ignora l'anno** — è la riga di documentazione riportata qui
+sopra — e un attributo che resta scritto resta scritto: un contatto che non
+rifà mai il calcolo riceverebbe **ogni anno, per sempre, lo stesso promemoria
+con l'importo di quel giorno**. Non è un'email in più: è un'email che afferma
+un numero, a una persona che su quel numero decide quanto mettere da parte, e
+che a ogni anno che passa è più sbagliato.
+
+#### L'ipotesi che chiuderebbe due problemi con una cosa sola — **NON VERIFICATA**
+
+Un'azione *Update contact attribute* che **svuota** `SCAD_1_*` e `SCAD_2_*`
+dopo l'ultima scadenza chiuderebbe insieme la conservazione (caso 1 della
+tabella) e la ricorrenza: senza una data, il trigger non ha niente su cui
+scattare. Il contatto resta iscritto, e se torna sul simulatore le date si
+riscrivono aggiornate.
+
+Tre cose da verificare prima di crederci, nessuna delle quali ho potuto
+provare:
+
+1. **Che un attributo data vuoto davvero non faccia scattare il trigger.** È
+   quello che ci si aspetta, e non è quello che si è visto: è un'inferenza.
+2. **Quale sia «l'ultima scadenza».** Non è sempre `SCAD_2_DATA`: quando di
+   appuntamenti ce n'è uno solo — primo anno di attività, o sotto la soglia
+   degli acconti — `SCAD_2_*` **è vuoto fin dall'inizio** e l'ultima scadenza è
+   `SCAD_1_DATA`. Un'automazione ancorata solo a `SCAD_2_DATA` non scatterebbe
+   mai per quei contatti, e sarebbero proprio quelli con una sola data a
+   restare scritta per sempre. Serve una condizione che prenda `SCAD_2_DATA` se
+   c'è, `SCAD_1_DATA` altrimenti.
+3. **Che l'automazione che svuota non soffra dello stesso difetto.** Se la si
+   ancora al trigger a data, anche lei ignora l'anno — ma si spegne da sola
+   alla prima esecuzione, perché dopo aver svuotato l'attributo non ha più una
+   data su cui ripartire. Ragionamento, non prova: va guardato che Brevo si
+   comporti così e non, per dire, tenga in coda i contatti già entrati.
+
+Se l'ipotesi regge, il caso 1 della tabella non ha bisogno né di pulizia
+manuale né di job esterno: è un'automazione dentro Brevo, senza codice nostro.
+Resta la domanda a monte, quella del riquadro precedente — se «N giorni dopo
+una data, **una volta sola**» si possa esprimere.
+
+**Ma lo chiude solo per metà, e conviene saperlo.** La riga 1 della tabella
+dice «svuotare i sei attributi»; l'ipotesi ne svuota **quattro** — le due date
+e i due importi — perché sono quelli che il trigger legge. Restano `REGIME` e
+`ACCANTONAMENTO_MESE`, e il secondo è il numero da cui il reddito si ricava
+meglio di tutti: `× 12 ÷ pressione` dà il fatturato con due passaggi. Un
+contatto ripulito dalle date resterebbe con addosso la stima del suo reddito.
+
+Quindi o l'azione svuota anche quei due — e allora va verificato che
+un'automazione possa toccare più attributi in un colpo, o che se ne possano
+mettere in fila — oppure il caso 1 resta da chiudere con una delle due strade
+qui sotto, e l'ipotesi serve soltanto contro la ricorrenza.
+
 #### Le due strade, per ciascuno dei tre
 
 **Pulizia manuale periodica.** Un promemoria in calendario — trimestrale,
@@ -319,10 +391,9 @@ muore. Costo: mezza giornata più la chiave API con i permessi di scrittura in
 un secondo posto. Vantaggio: fa quello che l'informativa dice, ogni giorno,
 senza che nessuno se ne ricordi.
 
-**Il caso 1 potrebbe non aver bisogno di nessuna delle due**, se il trigger a
-data si rivelasse utilizzabile: sarebbe un'automazione dentro Brevo, senza
-codice nostro. È la prima cosa da guardare sul pannello, perché se funziona
-toglie di mezzo il termine più delicato dei tre.
+**Il caso 1 potrebbe non aver bisogno di nessuna delle due** — vedi l'ipotesi
+qui sopra. È la prima cosa da guardare sul pannello, perché se funziona toglie
+di mezzo il termine più delicato dei tre **e** il rischio della ricorrenza.
 
 ### Quando accendere
 
