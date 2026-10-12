@@ -324,8 +324,8 @@ const DOMANDE: { d: string; r: React.ReactNode }[] = [
     d: "Cosa succede dopo l'acquisto?",
     r: (
       <>
-        Dopo il pagamento ti mando per email i Termini da approvare; appena li rimandi ricevi la
-        chiave di attivazione, di solito entro 24 ore lavorative.
+        Il contratto si conclude con il pagamento. Ricevi per email la chiave di attivazione e i
+        Termini in PDF, di solito entro 24 ore lavorative: non devi rispondere a niente.
       </>
     ),
   },

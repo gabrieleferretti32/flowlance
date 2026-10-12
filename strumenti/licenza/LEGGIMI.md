@@ -135,31 +135,31 @@ senza emettere licenze vere: `npx vitest run strumenti/licenza/storico.test.mjs`
 
 ### L'ordine dei passi, per un acquisto vero
 
-Il punto 3 dei Termini dice che il contratto si conclude alla consegna della
-chiave, non al pagamento. Quindi la chiave è **l'ultimo** passo, non il primo:
+Dalla versione 3 dei Termini il contratto si conclude **con il pagamento**
+(punto 3). Non c'è più niente da far approvare prima: l'email è una sola, ed è
+una consegna.
 
 1. arriva la notifica di pagamento da Stripe;
-2. mandi all'acquirente, allo stesso indirizzo, i Termini in PDF — quello con
-   l'impronta SHA-256 stampata accanto al link su `/termini/` — e chiedi tre
-   cose nella stessa email. **Il testo da incollare sta in
-   [`docs/legale/approvazione-specifica.md`](../../docs/legale/approvazione-specifica.md)**,
-   scritto una volta sola: riscritto a mano a ogni ordine, prima o poi elenca
-   una clausola in meno, e una clausola non elencata è una clausola non
-   approvata. Le tre cose sono:
-   - la dichiarazione di acquisto professionale;
-   - l'approvazione delle clausole del punto 13, elencate per numero;
-   - **i dati che Stripe non raccoglie**: codice destinatario (o PEC) e codice
-     fiscale. Ragione sociale, indirizzo e partita IVA arrivano già da Stripe.
-     Se non risponde con un codice destinatario, la fattura si trasmette al
-     convenzionale `0000000`, che lo SdI recapita nel cassetto fiscale: è la
-     rete di sicurezza, non la scelta normale;
-3. quando risponde, generi la chiave con la riga qui sopra e gliela mandi;
+2. generi la chiave con la riga qui sopra;
+3. mandi una sola email all'indirizzo dell'acquisto, **entro 24 ore
+   lavorative**, con dentro:
+   - la chiave di licenza;
+   - il PDF dei Termini **nella versione che ha accettato**, con la sua
+     impronta SHA-256 — quella stampata accanto al link su `/termini/`. È la
+     copia su supporto durevole, ed è la prova di cosa è stato concluso;
+   - in coda, la **richiesta** dei dati che Stripe non raccoglie: codice
+     destinatario (o PEC) e codice fiscale. Ragione sociale, indirizzo e
+     partita IVA arrivano già da Stripe. È una richiesta e non una condizione:
+     la chiave è in quella stessa email e non aspetta nessuna risposta. Senza
+     codice destinatario la fattura si trasmette al convenzionale `0000000`,
+     che lo SdI recapita nel cassetto fiscale — rete di sicurezza, non scelta
+     normale;
 4. nel fascicolo dell'ordine finiscono: la ricevuta Stripe, il PDF dei Termini
-   con la sua impronta, l'email di risposta, e la riga di `emesse.jsonl`.
+   con la sua impronta, l'email di consegna e la riga di `emesse.jsonl`.
 
-Se non risponde entro 14 giorni il contratto non si conclude e l'importo va
-rimborsato per intero: lo dice il punto 3, ed è l'unica scadenza da tenere
-d'occhio.
+Non ci sono scadenze da tenere d'occhio dopo il pagamento, e non c'è nessun
+contratto che possa non concludersi: l'unica data che resta è quella della
+garanzia di rimborso, 30 giorni dal pagamento (punto 7).
 
 ## Rinnovi
 

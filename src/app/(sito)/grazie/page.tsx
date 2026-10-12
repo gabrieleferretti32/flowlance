@@ -20,6 +20,12 @@ export const metadata = metadatiDi(SITO.grazie);
  * nascondere: le licenze si firmano a mano con una chiave privata che non sta
  * in nessun server, ed è la ragione per cui i dati di chi compra non possono
  * essere rubati da qui.
+ *
+ * Qui c'era anche una fascia che diceva «c'è una cosa da fare»: la
+ * dichiarazione da rispedire perché il contratto si perfezionasse. Dalla
+ * versione 3 dei Termini non c'è più niente da rispedire — il contratto si è
+ * concluso con il pagamento — e lasciare quella fascia avrebbe messo in attesa
+ * di un proprio gesto chi non ne ha nessuno da fare.
  */
 export default function Grazie() {
   return (
@@ -33,18 +39,14 @@ export default function Grazie() {
         <strong className="font-semibold">entro 24 ore lavorative</strong>.
       </p>
       {/*
-        La cosa da fare, subito dopo la prima riga.
-
-        Senza, chi ha appena pagato aspetta — e se non ha capito che c'è una
-        risposta da mandare, aspetta per sempre. È l'unica parte del flusso in
-        cui la palla passa a lui, e la pagina che legge con la carta appena
-        addebitata è l'unico posto in cui può scoprirlo.
+        Che non ci sia niente da fare va **detto**: chi ha appena pagato lo sta
+        chiedendo, e il silenzio su questo punto si legge come «forse c'è un
+        passaggio che mi sono perso».
       */}
       <p className="mt-4 rounded-campo border border-accento/30 bg-accento-tenue px-4 py-3 text-corpo leading-relaxed">
-        <strong className="font-semibold">C&apos;è una cosa da fare.</strong> Nella prima email
-        trovi i Termini in PDF e una dichiarazione da rispedire compilata: serve perché il
-        contratto si perfezioni. Appena rispondi — dallo stesso indirizzo con cui hai comprato —
-        ti mando la chiave.
+        <strong className="font-semibold">Non devi fare niente.</strong> Il contratto si è
+        concluso con il pagamento. Nella stessa email trovi i Termini in PDF, nella versione che
+        hai accettato, con la loro impronta: è la tua copia da conservare.
       </p>
       <p className="mt-4 text-corpo leading-relaxed text-inchiostro-tenue">
         Non è un invio automatico ed è voluto: ogni licenza è firmata a mano con una chiave

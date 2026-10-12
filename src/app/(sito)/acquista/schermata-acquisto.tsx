@@ -8,6 +8,8 @@ import {
   DICHIARAZIONE_PROFESSIONALE,
   PAYMENT_LINK,
   PREZZO_SCRITTO,
+  PRIMA_DI_PAGARE,
+  accettazioneTermini,
   pagamentoConfigurato,
 } from "@/lib/sito/acquisto";
 import { SITO } from "@/lib/rotte";
@@ -20,10 +22,9 @@ import { CONTENUTO, VALORE, tracciaMeta } from "@/lib/sito/pixel";
  * Perché il contratto sta in fondo e non in mezzo
  * ─────────────────────────────────────────────────────────────────────────
  *
- * I Termini erano fra il prezzo e il pulsante: tredici articoli scritti per
- * necessità — esclusioni, limitazioni di responsabilità, foro competente — da
- * attraversare prima di poter comprare. Chi arriva da un annuncio non li
- * attraversa: chiude.
+ * I Termini erano fra il prezzo e il pulsante: tutti gli articoli, uno dopo
+ * l'altro, da attraversare prima di poter comprare. Chi arriva da un annuncio
+ * non li attraversa: chiude.
  *
  * Il testo non si accorcia e non si sposta altrove, perché è il contratto e
  * deve stare dove si conclude. Cambia solo **l'ordine**: prima il modo di
@@ -34,25 +35,31 @@ import { CONTENUTO, VALORE, tracciaMeta } from "@/lib/sito/pixel";
  * con dentro un pezzo chiuso non è il contratto.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * Cosa **non** è cambiato, e non poteva
+ * Le due caselle, e perché stanno prima del pulsante
  * ─────────────────────────────────────────────────────────────────────────
  *
- * La casella della dichiarazione resta obbligatoria e resta prima del
- * pagamento: è l'art. 1 dei Termini, ed è una condizione dell'acquisto. Le
- * clausole degli artt. 1341-1342 continuano a **non** approvarsi qui. Il PDF e
- * la sua impronta restano dove si vedono senza aprire niente: è il documento
- * opponibile, e un'impronta da cercare dietro un clic non verifica più niente.
+ * Dalla versione 3 il contratto si conclude **con il pagamento**: non c'è più
+ * un'email da aspettare, una risposta da mandare, un contratto che si conclude
+ * giorni dopo. Ne segue che tutto quello che l'acquirente deve avere davanti
+ * deve stare **prima** del pulsante, perché dopo non c'è più niente da
+ * leggere: i Termini per intero e in PDF, la loro accettazione, la
+ * dichiarazione professionale del punto 1, e in chiaro cosa succede premendo.
  *
- * ─────────────────────────────────────────────────────────────────────────
- * Le due righe sotto il pulsante
- * ─────────────────────────────────────────────────────────────────────────
- *
- * Rimborso entro 30 giorni e chiave entro 24 ore lavorative erano scritti —
- * tutti e due — ma nei posti in cui non si leggono: il rimborso nell'art. 7,
- * in fondo a un contratto, e la chiave nel quarto punto di un elenco. Sono le
- * due cose che una persona vuole sapere **mentre decide**, ed è l'unico
- * momento in cui servono.
+ * Il PDF e la sua impronta restano dove si vedono senza aprire niente: è il
+ * documento che parte per email subito dopo, ed è quello su cui si verifica
+ * che il file nel fascicolo sia questo. Un'impronta dietro un clic non
+ * verifica più niente.
  */
+/**
+ * L'ancora della sezione del contratto, scritta una volta sola.
+ *
+ * La usano il titolo che la porta e il rimando che ci manda, accanto alle
+ * caselle. Scritte a mano sarebbero due stringhe uguali per combinazione, e il
+ * giorno in cui una cambia il rimando continua a non essere rotto — porta in
+ * testa alla pagina, cioè a un metro dal contratto che dice di aprire.
+ */
+const ANCORA_TERMINI = "termini";
+
 export function SchermataAcquisto({
   termini,
   versione,
@@ -64,6 +71,7 @@ export function SchermataAcquisto({
   pdf: string;
   impronta: string;
 }) {
+  const [accetta, setAccetta] = React.useState(false);
   const [dichiara, setDichiara] = React.useState(false);
 
   return (
@@ -85,7 +93,13 @@ export function SchermataAcquisto({
         automatico.
       </p>
 
-      <PagaConStripe dichiara={dichiara} onDichiara={setDichiara} />
+      <PagaConStripe
+        versione={versione}
+        accetta={accetta}
+        onAccetta={setAccetta}
+        dichiara={dichiara}
+        onDichiara={setDichiara}
+      />
 
       {/* ——— 2 · Come arriva la chiave ——— */}
       <section
@@ -96,44 +110,39 @@ export function SchermataAcquisto({
           Come arriva la chiave
         </h2>
         {/*
-          I quattro passi restano identici, e restano prima del pagamento: il
-          punto 3 dei Termini dice che il contratto si conclude alla consegna
-          della chiave, non al pagamento, e chi paga senza saperlo si aspetta un
-          download immediato e trova un'attesa — il modo più veloce di far
-          sembrare rotto un prodotto che funziona.
-
-          Quello che cambia è che adesso si leggono **dopo** aver visto che si
-          può comprare, non come pedaggio per arrivarci.
+          Tre passi, e nessuno dei tre chiede di fare qualcosa dopo aver pagato.
+          Prima erano quattro, e il secondo e il terzo erano un'email da leggere
+          e una risposta da mandare: servivano a raccogliere l'approvazione
+          delle clausole ex artt. 1341-1342, che la versione 3 non ha più. Senza
+          quelle, far aspettare la chiave non proteggeva più niente.
         */}
         <ol className="mt-3 space-y-2 text-etichetta text-inchiostro-tenue">
           <li>
             <strong className="font-medium text-inchiostro">1.</strong> Paghi con Stripe, che
-            raccoglie i tuoi dati di fatturazione.
+            raccoglie i tuoi dati di fatturazione. Il contratto si conclude in quel momento.
           </li>
           <li>
-            <strong className="font-medium text-inchiostro">2.</strong> Ricevi per email questi
-            Termini in PDF, versione {versione}, e la richiesta di approvare le clausole indicate
-            al punto 13.
+            <strong className="font-medium text-inchiostro">2.</strong> Ricevi per email la chiave
+            di licenza e questi Termini in PDF, versione {versione}, con la loro impronta: di
+            norma entro 24 ore lavorative.
           </li>
           <li>
-            <strong className="font-medium text-inchiostro">3.</strong> Rispondi dallo stesso
-            indirizzo.
-          </li>
-          <li>
-            <strong className="font-medium text-inchiostro">4.</strong> Ricevi la chiave, di norma
-            entro 24 ore lavorative. Il contratto si conclude in quel momento.
+            <strong className="font-medium text-inchiostro">3.</strong> Incolli la chiave
+            nell&apos;applicazione, e basta.
           </li>
         </ol>
         <p className="mt-3 text-etichetta text-inchiostro-tenue">
-          Se non rispondi entro 14 giorni il contratto non si conclude e l&apos;importo ti viene
-          rimborsato per intero.
+          Non devi rispondere a niente: non c&apos;è nessuna firma da rimandare indietro.
         </p>
       </section>
 
       {/* ——— 4 · Il contratto, per intero, in fondo ——— */}
-      <section aria-labelledby="termini" className="mt-12 border-t border-bordo pt-8">
+      <section aria-labelledby={ANCORA_TERMINI} className="mt-12 border-t border-bordo pt-8">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 id="termini" className="font-display text-titolo font-semibold tracking-tight">
+          <h2
+            id={ANCORA_TERMINI}
+            className="scroll-mt-6 font-display text-titolo font-semibold tracking-tight"
+          >
             {termini.titolo}
           </h2>
           <p className="text-etichetta text-inchiostro-tenue">
@@ -164,7 +173,7 @@ export function SchermataAcquisto({
         </div>
 
         {/*
-          I tredici articoli, chiusi.
+          Il contratto per intero, chiuso.
 
           `<details>` e non un pannello fatto a mano con `useState`: il
           contenuto resta nel documento anche da chiuso — lo trova ⌘F, lo trova
@@ -194,11 +203,18 @@ export function SchermataAcquisto({
 }
 
 /**
- * La dichiarazione e il pagamento, in un blocco solo.
+ * Le due caselle e il pagamento, in un blocco solo.
  *
- * Stanno insieme in un componente perché sono una cosa sola: la casella è la
- * condizione del pulsante, non un passo che viene prima. Separarli in due
+ * Stanno insieme in un componente perché sono una cosa sola: le caselle sono
+ * la condizione del pulsante, non un passo che viene prima. Separarle in due
  * sezioni faceva perdere il legame — e faceva scorrere.
+ *
+ * Sono due e non una perché dicono due cose diverse. L'accettazione dei
+ * Termini riguarda **cosa** si sta concludendo, e porta il numero di versione
+ * perché il punto 12 lega la licenza alla versione accettata. La dichiarazione
+ * professionale riguarda **chi** sta comprando, ed è la condizione d'acquisto
+ * del punto 1. Una casella sola che dicesse tutte e due le cose sarebbe più
+ * corta e direbbe di meno.
  *
  * La nota sull'IVA resta attaccata al pulsante e non alla pagina, perché parla
  * di quello che succede **dopo aver premuto lì**: Stripe non può calcolare
@@ -210,13 +226,27 @@ export function SchermataAcquisto({
  * prezzo, e nessuno sta per pagare.
  */
 function PagaConStripe({
+  versione,
+  accetta,
+  onAccetta,
   dichiara,
   onDichiara,
 }: {
+  versione: number;
+  accetta: boolean;
+  onAccetta: (v: boolean) => void;
   dichiara: boolean;
   onDichiara: (v: boolean) => void;
 }) {
   const pronto = pagamentoConfigurato();
+  /*
+    Il pulsante si accende solo con tutte e due. Un'unica variabile, usata in
+    tutti i punti che la guardano — l'`href`, l'evento, le classi, il
+    messaggio: tre condizioni scritte tre volte sono tre occasioni di
+    scriverne una diversa, e quella diversa sarebbe un pulsante che si apre
+    senza una delle due dichiarazioni.
+  */
+  const puoPagare = accetta && dichiara;
 
   /*
     Chi è arrivato fin qui sta leggendo la scheda del prodotto: è `ViewContent`.
@@ -234,20 +264,53 @@ function PagaConStripe({
         Dichiarazione e pagamento
       </h2>
 
-      <label className="flex cursor-pointer items-start gap-3 rounded-campo border border-bordo px-4 py-4">
-        <input
-          type="checkbox"
-          checked={dichiara}
-          onChange={(e) => onDichiara(e.target.checked)}
-          className="mt-0.5 size-5 shrink-0 accent-accento"
-        />
-        <span className="text-corpo leading-relaxed">{DICHIARAZIONE_PROFESSIONALE}</span>
-      </label>
+      {/*
+        Nessun collegamento **dentro** l'etichetta: un `<a>` in un `<label>` si
+        porta dietro il clic della casella, e chi tocca «Termini di servizio»
+        su un telefono si ritrova il contratto aperto e la spunta messa senza
+        averla voluta. Il rimando sta fuori, subito sotto.
+      */}
+      <div className="space-y-3">
+        <label className="flex cursor-pointer items-start gap-3 rounded-campo border border-bordo px-4 py-4">
+          <input
+            type="checkbox"
+            checked={accetta}
+            onChange={(e) => onAccetta(e.target.checked)}
+            className="mt-0.5 size-5 shrink-0 accent-accento"
+          />
+          <span className="text-corpo leading-relaxed">{accettazioneTermini(versione)}</span>
+        </label>
+
+        <label className="flex cursor-pointer items-start gap-3 rounded-campo border border-bordo px-4 py-4">
+          <input
+            type="checkbox"
+            checked={dichiara}
+            onChange={(e) => onDichiara(e.target.checked)}
+            className="mt-0.5 size-5 shrink-0 accent-accento"
+          />
+          <span className="text-corpo leading-relaxed">{DICHIARAZIONE_PROFESSIONALE}</span>
+        </label>
+      </div>
+
+      <p className="mt-3 text-etichetta text-inchiostro-tenue">
+        <a href={`#${ANCORA_TERMINI}`} className="underline underline-offset-2">
+          Leggi i Termini e scarica il PDF
+        </a>{" "}
+        — sono in fondo a questa pagina, con l&apos;impronta del file.
+      </p>
+
+      {/*
+        Cosa succede premendo, prima di premere. Il testo sta in `acquisto.ts`
+        perché lo guardi anche la tagliola: una pagina che promettesse una cosa
+        diversa dal contratto — la chiave «subito», il contratto concluso
+        «dopo» — sarebbe il difetto peggiore di tutto il flusso.
+      */}
+      <p className="mt-5 text-corpo font-medium leading-relaxed">{PRIMA_DI_PAGARE}</p>
 
       {pronto ? (
         <a
-          href={dichiara ? PAYMENT_LINK : undefined}
-          aria-disabled={!dichiara}
+          href={puoPagare ? PAYMENT_LINK : undefined}
+          aria-disabled={!puoPagare}
           /*
             `InitiateCheckout` sul clic che porta davvero a Stripe. Senza la
             spunta il collegamento non ha indirizzo e non si apre: l'evento non
@@ -255,7 +318,7 @@ function PagaConStripe({
             diventato un checkout.
           */
           onClick={() => {
-            if (dichiara) tracciaMeta("InitiateCheckout", { ...CONTENUTO, ...VALORE });
+            if (puoPagare) tracciaMeta("InitiateCheckout", { ...CONTENUTO, ...VALORE });
           }}
           /*
             Senza la spunta il collegamento non ha un `href`: un `<a>` senza
@@ -265,13 +328,13 @@ function PagaConStripe({
             dev'essere una condizione, non un aspetto.
           */
           className={
-            dichiara
+            puoPagare
               ? "mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-campo bg-accento px-6 text-corpo font-medium text-white transition-colors hover:bg-[#3D4CE8] sm:w-auto"
               : "mt-4 inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-campo bg-bordo px-6 text-corpo font-medium text-inchiostro-tenue sm:w-auto"
           }
         >
           Paga {PREZZO_SCRITTO.totale} con Stripe
-          {dichiara && <ExternalLink className="size-4" aria-hidden />}
+          {puoPagare && <ExternalLink className="size-4" aria-hidden />}
         </a>
       ) : (
         <p className="mt-4 rounded-campo border border-attenzione/40 bg-attenzione-tenue px-4 py-3 text-corpo">
@@ -283,22 +346,21 @@ function PagaConStripe({
         </p>
       )}
 
-      {pronto && !dichiara && (
+      {/*
+        Il messaggio dice **quale** delle due manca. «Spunta le caselle per
+        proseguire», davanti a una sola spuntata, manda a rileggerle tutte e
+        due per scoprire quale: è il tipo di attrito che si prende tutto il
+        guadagno di averle separate.
+      */}
+      {pronto && !puoPagare && (
         <p className="mt-2 text-etichetta text-inchiostro-tenue" role="status">
-          Spunta la dichiarazione per proseguire.
+          {!accetta && !dichiara
+            ? "Spunta l'accettazione dei Termini e la dichiarazione per proseguire."
+            : !accetta
+              ? "Manca l'accettazione dei Termini."
+              : "Manca la dichiarazione di acquisto professionale."}
         </p>
       )}
-
-      {/*
-        Le due promesse, subito sotto il pulsante. Sono nei Termini — art. 7 il
-        rimborso, punto 3 la chiave — ma là si leggono dopo aver deciso, che è
-        troppo tardi perché servano a decidere.
-      */}
-      <p className="mt-4 text-corpo leading-relaxed">
-        <strong className="font-medium">Rimborso entro 30 giorni</strong>, senza spiegare perché.
-        <br />
-        <strong className="font-medium">Chiave entro 24 ore lavorative.</strong>
-      </p>
 
       {/* ——— 3 · La nota sull'IVA, in corpo piccolo, attaccata al pulsante ——— */}
       <p className="mt-3 max-w-[52ch] text-etichetta leading-relaxed text-inchiostro-tenue">
@@ -306,10 +368,6 @@ function PagaConStripe({
         vedi all&apos;inizio è imponibile.
       </p>
 
-      <p className="mt-3 max-w-[52ch] text-etichetta leading-relaxed text-inchiostro-tenue">
-        Le clausole indicate al punto 13 si approvano separatamente, per email, prima della
-        consegna della chiave: qui non si approva niente.
-      </p>
     </section>
   );
 }

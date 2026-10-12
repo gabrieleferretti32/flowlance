@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PREZZO, PREZZO_SCRITTO } from "./acquisto";
+import { PREZZO, PREZZO_SCRITTO, PRIMA_DI_PAGARE, accettazioneTermini } from "./acquisto";
 import { euro, euroTondo, percentuale } from "@/lib/format";
 
 /**
@@ -92,5 +92,83 @@ describe("il prezzo scritto", () => {
       `Cifre del prezzo scritte a mano:\n${colpevoli.join("\n")}\n\n`
         + "Il prezzo cambia una volta sola, in src/lib/sito/acquisto.ts.",
     ).toEqual([]);
+  });
+});
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Quello che la pagina promette prima del pulsante, e quello che il contratto
+  dice dopo
+  ─────────────────────────────────────────────────────────────────────────
+
+  `PRIMA_DI_PAGARE` è l'unica frase del sito che una persona legge **con la
+  carta in mano**, e dice tre cose che stanno in due clausole: il contratto si
+  conclude con il pagamento (punto 3), la chiave arriva entro 24 ore lavorative
+  (punto 3), il rimborso è integrale entro 30 giorni (punto 7).
+
+  Il modo in cui questa frase si rompe non è una riscrittura: è una clausola
+  che cambia e una frase che resta. Il legale porta la consegna a 48 ore, o il
+  rimborso a 14 giorni, e la pagina continua a promettere i numeri di prima —
+  che a quel punto non sono più una promessa generosa, sono una promessa che
+  nessun contratto sostiene.
+*/
+describe("la frase prima del pulsante e il contratto", () => {
+  const contratto = readFileSync("contenuti/termini.md", "utf8");
+  const nudo = (t: string) => t.replace(/[\s ]+/g, " ");
+
+  it("dice le tre cose, e nessuna in più", () => {
+    expect(PRIMA_DI_PAGARE).toBe(
+      "Paghi, il contratto è concluso e ricevi la chiave per email entro 24 ore lavorative. "
+        + "Rimborso integrale entro 30 giorni.",
+    );
+  });
+
+  it("le 24 ore lavorative sono quelle del punto 3", () => {
+    const nelContratto = nudo(contratto).match(/entro (\d+) ore lavorative/)?.[1];
+    const inPagina = PRIMA_DI_PAGARE.match(/entro (\d+) ore lavorative/)?.[1];
+    expect(nelContratto, "nel contratto non trovo più il termine di consegna").toBeDefined();
+    expect(inPagina).toBe(nelContratto);
+  });
+
+  it("i 30 giorni del rimborso sono quelli del punto 7", () => {
+    const punto7 = nudo(contratto.split(/^##\s+7\./m)[1]?.split(/^##\s/m)[0] ?? "");
+    const nelContratto = punto7.match(/rimborso entro (\d+) giorni/i)?.[1];
+    const inPagina = PRIMA_DI_PAGARE.match(/entro (\d+) giorni/)?.[1];
+    expect(nelContratto, "il punto 7 non parla più di un rimborso a giorni").toBeDefined();
+    expect(inPagina).toBe(nelContratto);
+  });
+
+  /*
+    E il contratto si conclude dove la pagina dice che si conclude. È la cosa
+    che è appena cambiata — prima si concludeva alla consegna della chiave — e
+    il verso in cui si rompe è silenzioso: una pagina che dicesse «paghi e il
+    contratto è concluso» sopra un contratto che lo fa concludere dopo
+    descriverebbe un acquisto che non esiste.
+  */
+  it("e il contratto si conclude con il pagamento, come la pagina dice", () => {
+    const punto3 = nudo(contratto.split(/^##\s+3\./m)[1]?.split(/^##\s/m)[0] ?? "");
+    expect(punto3).toContain("Il contratto si conclude con il pagamento");
+    expect(PRIMA_DI_PAGARE).toContain("il contratto è concluso");
+  });
+
+  /*
+    Le due caselle sono **due condizioni**, e il pulsante le guarda tutte e
+    due. Il modo in cui questo si rompe è un `href` rimasto attaccato a una
+    sola: la pagina mostra due caselle, una sola conta, e nessuno se ne accorge
+    finché non lo prova qualcuno che ne spunta una.
+  */
+  it("il pagamento richiede tutte e due le caselle", () => {
+    const codice = codiceDi("src/app/(sito)/acquista/schermata-acquisto.tsx");
+    expect(codice).toContain("const puoPagare = accetta && dichiara;");
+    expect(codice).toContain("href={puoPagare ? PAYMENT_LINK : undefined}");
+    expect(
+      codice,
+      "il collegamento al pagamento guarda ancora una casella sola",
+    ).not.toContain("href={dichiara ?");
+  });
+
+  it("e l'accettazione nomina la versione dei Termini", () => {
+    expect(accettazioneTermini(3)).toContain("versione 3");
+    expect(accettazioneTermini(4)).toContain("versione 4");
   });
 });

@@ -16,19 +16,28 @@
  * pagamento.
  *
  * ─────────────────────────────────────────────────────────────────────────
- * Cosa la pagina NON fa
+ * Le due caselle, e cosa sono davvero
  * ─────────────────────────────────────────────────────────────────────────
  *
- * **Non raccoglie l'approvazione specifica delle clausole ex artt. 1341 e
- * 1342.** Quella avviene per email, a mano, prima della consegna della chiave,
- * come dice il punto 13. La ragione è che una spunta su un sito statico non
- * lascia traccia da nessuna parte: non c'è un server che la registri, e una
- * dichiarazione che nessuno conserva non è una prova, è un'animazione. L'email
- * dell'acquirente, invece, è un documento che resta nel fascicolo.
+ * Dalla versione 3 i Termini non hanno più clausole soggette ad approvazione
+ * specifica ex artt. 1341 e 1342 c.c.: niente massimale, niente foro
+ * esclusivo, niente esclusioni di responsabilità. Con quelle è sparito anche
+ * il flusso che le raccoglieva — l'email, la risposta dall'indirizzo
+ * dell'acquirente, l'attesa prima della chiave — e il contratto si conclude
+ * dove lo si conclude di solito: al pagamento.
  *
- * La casella di questa pagina è quindi una cosa sola, ed è onesta su cosa sia:
- * **un filtro all'ingresso**, che impedisce di comprare a chi consumatore lo è
- * davvero, e un promemoria di cosa arriverà via email.
+ * Qui restano due caselle, e nessuna delle due è una firma:
+ *
+ * - **l'accettazione dei Termini**, che è il momento in cui l'acquirente li
+ *   ha davanti — per intero in pagina, e in PDF con la sua impronta — prima
+ *   di pagare;
+ * - **la dichiarazione professionale** del punto 1, che è condizione
+ *   dell'acquisto e tiene fuori chi consumatore lo è davvero.
+ *
+ * Una spunta su un sito statico non lascia traccia da nessuna parte: non c'è
+ * un server che la registri. La prova di cosa è stato accettato non è questa
+ * casella, è il PDF con la sua impronta che parte per email subito dopo il
+ * pagamento — un documento su supporto durevole, che resta nel fascicolo.
  */
 import { euro, euroTondo, percentuale } from "@/lib/format";
 import { DOMINIO, PAYMENT_LINK } from "./impostazioni";
@@ -99,6 +108,39 @@ export const DICHIARAZIONE_PROFESSIONALE =
   "Dichiaro di acquistare nell'esercizio della mia attività imprenditoriale, commerciale, "
   + "artigianale o professionale, e per finalità connesse a tale attività. "
   + "Flowlance non è destinato ai consumatori.";
+
+/**
+ * L'accettazione dei Termini, con dentro il numero di versione.
+ *
+ * Il numero non è decorazione: il punto 12 dice che la licenza resta regolata
+ * dalla versione accettata all'acquisto, e una casella che dicesse soltanto
+ * «accetto i Termini» lascerebbe aperta la domanda *quali*. Arriva da
+ * `contenuti/termini.md` attraverso la pagina — non è scritto qui, perché qui
+ * sarebbe un secondo numero da tenere allineato.
+ */
+export function accettazioneTermini(versione: number): string {
+  return (
+    `Ho letto e accetto i Termini di servizio, versione ${versione}, `
+    + "che trovo per intero e in PDF in fondo a questa pagina."
+  );
+}
+
+/**
+ * Cosa succede premendo il pulsante, scritto prima di premerlo.
+ *
+ * Tre fatti che prima stavano in tre posti diversi — il contratto si conclude
+ * al pagamento (punto 3), la chiave arriva entro 24 ore lavorative (punto 3),
+ * il rimborso è integrale entro 30 giorni (punto 7) — e che una persona vuole
+ * sapere **mentre decide**. In fondo a un contratto si leggono dopo aver
+ * deciso, che è troppo tardi perché servano.
+ *
+ * Sta in una costante perché la guardi anche la tagliola: una pagina che
+ * promettesse una cosa diversa dal contratto sarebbe il difetto peggiore di
+ * tutto il flusso d'acquisto.
+ */
+export const PRIMA_DI_PAGARE =
+  "Paghi, il contratto è concluso e ricevi la chiave per email entro 24 ore lavorative. "
+  + "Rimborso integrale entro 30 giorni.";
 
 /** L'indirizzo pubblico della pagina d'acquisto, per i collegamenti che stanno nell'app. */
 export const INDIRIZZO_ACQUISTO_PUBBLICO = `${DOMINIO}${SITO.acquisto}/`;
