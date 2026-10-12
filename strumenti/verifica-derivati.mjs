@@ -461,16 +461,28 @@ const demo = await righeDelProspetto();
   }
 
   /*
-    La casella della dichiarazione è una condizione, non un aspetto: senza
-    spunta il collegamento al pagamento non deve avere un indirizzo. Si misura
+    Le caselle sono **condizioni**, non un aspetto: finché non sono spuntate
+    tutte, il collegamento al pagamento non deve avere un indirizzo. Si misura
     l'attributo `href`, che è ciò che rende un link raggiungibile — non il
     colore, che un utente da tastiera non vede.
+
+    Dalla versione 3 dei Termini sono due: l'accettazione dei Termini e la
+    dichiarazione professionale. Si spuntano **una alla volta**, e si pretende
+    che con una sola il pulsante sia ancora muto: è l'unico modo di accorgersi
+    di un `href` rimasto attaccato a una casella sola, che è il difetto
+    esatto che l'aggiunta della seconda poteva introdurre — la pagina ne mostra
+    due, una sola conta, e non lo vede nessuno finché non lo prova qualcuno
+    che ne spunta una.
   */
   await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
   await p.waitForTimeout(800);
-  const casella = p.locator('input[type="checkbox"]').first();
-  if ((await casella.count()) === 0) {
-    problemi.push("/acquista/: manca la casella della dichiarazione professionale");
+  const caselle = p.locator('input[type="checkbox"]');
+  const quante = await caselle.count();
+  if (quante < 2) {
+    problemi.push(
+      `/acquista/: trovate ${quante} caselle invece di due (accettazione dei Termini e `
+        + "dichiarazione professionale)",
+    );
   } else {
     const paga = p.locator("a", { hasText: /^Paga / }).first();
     if ((await paga.count()) === 0) {
@@ -484,12 +496,23 @@ const demo = await righeDelProspetto();
       );
     } else {
       const prima = await paga.getAttribute("href");
-      await casella.check();
+      await caselle.nth(0).check();
+      await p.waitForTimeout(200);
+      const conUnaSola = await paga.getAttribute("href");
+      await caselle.nth(1).check();
       await p.waitForTimeout(200);
       const dopo = await paga.getAttribute("href");
       sostiene(
-        prima === null && typeof dopo === "string" && dopo.length > 0,
-        `/acquista/: senza spunta il pulsante non ha indirizzo (${prima}), con la spunta sì`,
+        prima === null,
+        `/acquista/: senza nessuna spunta il pulsante non ha indirizzo (${prima})`,
+      );
+      sostiene(
+        conUnaSola === null,
+        `/acquista/: con una sola delle due caselle il pulsante resta muto (${conUnaSola})`,
+      );
+      sostiene(
+        typeof dopo === "string" && dopo.length > 0,
+        `/acquista/: con tutte e ${quante} le caselle il pulsante porta al pagamento`,
       );
     }
   }
