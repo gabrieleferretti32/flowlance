@@ -1,7 +1,13 @@
 import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { FORNITORE, MARGINE, generaPdfTermini, indirizzoPdfTermini } from "./pdf-termini";
+import {
+  FORNITORE,
+  MARGINE,
+  esigiNienteApprovazioneSpecifica,
+  generaPdfTermini,
+  indirizzoPdfTermini,
+} from "./pdf-termini";
 import { leggiPagine, stessoColore, terna } from "./geometria-pdf";
 import { leggiMarchio } from "./marchio-pdf";
 import { leggiPagina } from "./pagine";
@@ -262,12 +268,13 @@ describe("la struttura del contratto", () => {
   /**
    * I numeri di sezione sono unici e in fila.
    *
-   * Un contratto con due «7.» rimanda a un articolo che non si sa quale sia, e
-   * il punto 13 approva le clausole **per numero**: «art. 5», «art. 9». Se due
-   * sezioni portassero lo stesso numero, l'approvazione specifica indicherebbe
-   * due testi diversi, e sarebbe la firma su qualcosa di indeterminato.
+   * Il contratto **si cita da solo**: il 6-bis rimanda «al punto 7» per le
+   * licenze rimborsate, l'art. 4 «al punto 5» per i dati, l'art. 12 «al punto
+   * 6-bis» per le garanzie dei Fondatori. Un contratto con due «7.» rimanda a
+   * un articolo che non si sa quale sia, e quel rinvio è il contenuto della
+   * clausola, non una comodità tipografica.
    *
-   * Non è una regola di stile: è la condizione perché il punto 13 significhi
+   * Non è una regola di stile: è la condizione perché i rinvii significhino
    * qualcosa.
    */
   const numeri = [...markdown.matchAll(/^##\s+(\d+)\.\s+(.+)$/gm)].map((m) => ({
@@ -285,8 +292,8 @@ describe("la struttura del contratto", () => {
     const doppi = [...visti].filter(([, titoli]) => titoli.length > 1);
     expect(
       doppi.map(([n, titoli]) => `art. ${n}: ${titoli.map((t) => `«${t}»`).join(" e ")}`),
-      "Due sezioni con lo stesso numero: il punto 13 approva le clausole per numero,\n"
-        + "e un numero che ne indica due è un'approvazione su un testo indeterminato.",
+      "Due sezioni con lo stesso numero: il contratto si cita da solo, e un numero\n"
+        + "che ne indica due manda il lettore su un testo indeterminato.",
     ).toEqual([]);
   });
 
@@ -296,12 +303,35 @@ describe("la struttura del contratto", () => {
     );
   });
 
-  it("ogni clausola citata dal punto 13 esiste", () => {
-    const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
-    const citati = [...punto13.matchAll(/\*\*art\.\s*(\d+)\*\*/g)].map((m) => Number(m[1]));
-    expect(citati.length, "il punto 13 non cita nessun articolo").toBeGreaterThan(3);
-    const esistenti = new Set(numeri.map((n) => n.numero));
-    expect(citati.filter((c) => !esistenti.has(c))).toEqual([]);
+  /*
+    ─────────────────────────────────────────────────────────────────────
+    Ogni rinvio interno porta a un articolo che esiste
+    ─────────────────────────────────────────────────────────────────────
+
+    Prima questo controllo guardava le clausole elencate dal punto 13, che
+    nominava gli articoli per numero. Il punto 13 non c'è più — nella versione
+    3 non ci sono clausole da approvare specificamente — ma i rinvii interni
+    sono rimasti, e sono la cosa che la sua sparizione poteva rompere: via un
+    articolo, i numeri scalano, e «ai sensi del punto 7» indica un'altra
+    clausola senza che niente si rompa. Il contratto resta valido, resta
+    impaginato, e dice una cosa diversa.
+
+    Qui si raccolgono **tutti** i rinvii del testo — «punto 7», «punto 6-bis»,
+    «art. 5» — e si pretende che dall'altra parte ci sia un articolo.
+  */
+  it("ogni rinvio interno porta a un articolo che esiste", () => {
+    const etichette = new Set<string>([
+      ...numeri.map((n) => String(n.numero)),
+      ...[...markdown.matchAll(/^##\s+(\d+-bis)\./gm)].map((m) => m[1]),
+    ]);
+    const rinvii = [...markdown.matchAll(/\b(?:punto|art\.)\s+(\d+(?:-bis)?)/g)].map((m) => m[1]);
+    expect(rinvii.length, "il contratto non si cita mai da solo: controlla la regex").toBeGreaterThan(2);
+    const rotti = [...new Set(rinvii.filter((r) => !etichette.has(r)))];
+    expect(
+      rotti,
+      `Il contratto rimanda a punti che non esistono: ${rotti.join(", ")}.\n`
+        + "Succede rinumerando: il rinvio non si rompe, cambia bersaglio.",
+    ).toEqual([]);
   });
 
   /*
@@ -331,105 +361,27 @@ describe("la struttura del contratto", () => {
     expect([...visti].filter(([, t]) => t.length > 1)).toEqual([]);
   });
 
-  it("ogni articolo «bis» citato dal punto 13 esiste davvero", () => {
-    const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
-    const citati = [...punto13.matchAll(/\*\*art\.\s*(\d+-bis)[^*]*\*\*/g)].map((m) => m[1]);
-    const esistenti = new Set(bis.map((b) => b.etichetta));
-    expect(
-      citati.filter((c) => !esistenti.has(c)),
-      "Il punto 13 approva specificamente una clausola «bis» che nel contratto non c'è.",
-    ).toEqual([]);
-  });
-
   /*
-    E il verso opposto, che è quello che è appena successo: un «bis» aggiunto
-    al contratto senza aggiungerlo all'elenco delle clausole da approvare. Un
-    articolo che limita un diritto e non passa dall'approvazione specifica è
-    inefficace ai sensi dell'art. 1341 c.c. — cioè scritto per niente.
+    E la tagliola che tiene chiusa la porta da cui il punto 13 è uscito.
+
+    Il controllo vero sta in `pdf-termini.ts` e ferma il **build**: è là perché
+    una clausola vessatoria tornata nel contratto non si vede — è numerata,
+    impaginata, dentro il PDF allegato all'ordine — e senza approvazione
+    specifica è inefficace (art. 1341 c. 2 c.c.). Qui si prova che quella
+    tagliola morde, nei due versi: tace sul contratto di oggi e parla su un
+    contratto che il rinvio ce l'ha.
   */
-  it("il 6-bis, se c'è, è approvato specificamente", () => {
-    if (!bis.some((b) => b.etichetta === "6-bis")) return;
-    const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
-    expect(punto13, "l'art. 6-bis c'è ma il punto 13 non lo nomina").toContain("art. 6-bis");
-    expect(punto13, "l'approvazione deve nominare i commi, non l'articolo intero").toMatch(/6-bis[^|]*commi?\s*3\s*e\s*4/);
-    expect(punto13, "il termine di 30 giorni va richiamato nell'approvazione").toContain("30 giorni");
-    expect(punto13, "la perdita definitiva va richiamata nell'approvazione").toMatch(/cessazione definitiva|definitivamente/);
-  });
-});
-
-/*
-  ─────────────────────────────────────────────────────────────────────────
-  L'email di approvazione elenca esattamente le clausole del punto 13
-  ─────────────────────────────────────────────────────────────────────────
-
-  L'approvazione ex artt. 1341-1342 si raccoglie per email, incollando un
-  testo. Finché quel testo si riscriveva a mano a ogni ordine, bastava una
-  distrazione per elencare una clausola in meno — e una clausola non elencata
-  è una clausola **non approvata**, cioè inefficace: scritta nel contratto e
-  priva di effetto, senza che niente lo segnali.
-
-  Ora il testo sta in un file solo, e questo test lo tiene allineato al
-  contratto nei due versi: nessuna clausola del punto 13 manca dall'email, e
-  l'email non ne inventa nessuna che il punto 13 non abbia.
-*/
-describe("l'email di approvazione e il punto 13 dicono le stesse clausole", () => {
-  const email = readFileSync(
-    new URL("../../../docs/legale/approvazione-specifica.md", import.meta.url),
-    "utf8",
-  );
-  const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
-
-  /** Le etichette degli articoli citati: «3», «6-bis», «12». */
-  const etichette = (testo: string) =>
-    [...testo.matchAll(/art\.\s*(\d+(?:-bis)?)/g)].map((m) => m[1]);
-
-  const nelContratto = [...new Set(etichette(punto13))].sort();
-  const nellEmail = [...new Set(etichette(email))].sort();
-
-  it("il punto 13 cita qualcosa, e l'email anche", () => {
-    expect(nelContratto.length).toBeGreaterThan(3);
-    expect(nellEmail.length).toBeGreaterThan(3);
+  it("il contratto di oggi non rinvia agli artt. 1341-1342", () => {
+    expect(() => esigiNienteApprovazioneSpecifica(markdown)).not.toThrow();
   });
 
-  it("nessuna clausola del contratto manca dall'email", () => {
-    expect(
-      nelContratto.filter((a) => !nellEmail.includes(a)),
-      "Clausole che il punto 13 vuole approvate e che l'email non elenca:\n"
-        + "chi risponde non le approva, e restano inefficaci.",
-    ).toEqual([]);
-  });
-
-  it("e l'email non ne inventa nessuna", () => {
-    expect(
-      nellEmail.filter((a) => !nelContratto.includes(a)),
-      "L'email fa approvare clausole che il punto 13 non elenca.",
-    ).toEqual([]);
-  });
-
-  /*
-    Il 6-bis per esteso: è l'unica clausola dell'elenco che si perde **senza
-    fare niente**, il trentunesimo giorno dopo la scadenza. Un'approvazione
-    che dicesse solo «art. 6-bis, commi 3 e 4» sarebbe una firma al buio.
-  */
-  /*
-    Il numero di versione dentro un testo da incollare è il caso peggiore
-    della famiglia: si allega il PDF giusto — quello lo genera il build — e si
-    scrive a mano il numero vecchio. L'acquirente approva per iscritto un
-    documento diverso da quello che ha in mano, e niente lo segnala.
-  */
-  it("l'email nomina la versione corrente dei Termini", () => {
-    const versione = leggiPagina(SITO.termini).versione;
-    const nominate = [...email.matchAll(/versione\s+(\d+)/gi)].map((m) => Number(m[1]));
-    expect(nominate.length, "l'email non nomina nessuna versione").toBeGreaterThan(0);
-    expect(
-      nominate.filter((v) => v !== versione),
-      `L'email allega la versione ${versione} e ne nomina un'altra.`,
-    ).toEqual([]);
-  });
-
-  it("l'email scrive per esteso i trenta giorni e la perdita definitiva", () => {
-    expect(email).toContain("30 giorni");
-    expect(email).toMatch(/perd[oe]\s+definitivamente|definitivamente/);
+  it("e se il rinvio tornasse, il build si fermerebbe", () => {
+    const conClausola = markdown
+      + "\n## 14. Clausole soggette ad approvazione specifica\n\n"
+      + "Ai sensi e per gli effetti degli artt. 1341 e 1342 del Codice civile, l'acquirente "
+      + "approva specificamente le clausole seguenti.\n";
+    expect(() => esigiNienteApprovazioneSpecifica(conClausola)).toThrow(/1341/);
+    expect(() => esigiNienteApprovazioneSpecifica(conClausola)).toThrow(/inefficace/);
   });
 });
 
@@ -522,5 +474,66 @@ describe("il numero di versione sta scritto una volta sola", () => {
       `La versione ${versione} dei Termini compare nel codice di:\n${colpevoli.join("\n")}\n\n`
         + `Si legge da ${SORGENTE} con leggiPagina(...).versione, che è l'unico posto in cui è scritta.`,
     ).toEqual([]);
+  });
+});
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Quello che il punto 4 promette alla scadenza, il codice lo fa
+  ─────────────────────────────────────────────────────────────────────────
+
+  «Alla scadenza restano consultabili i dati, resta attiva l'esportazione
+  dell'archivio, resta attiva la stampa del prospetto, non è più possibile
+  inserire o modificare»: è una clausola, non una preferenza d'interfaccia. Da
+  quando dall'art. 5 e dall'art. 9 sono sparite le esclusioni di
+  responsabilità, è anche una delle poche cose che il contratto **promette** di
+  fare, invece di dire cosa non garantisce.
+
+  Nel codice la differenza fra «si può» e «non si più» è un marcatore solo:
+  `<Button scrive>` e `BloccoScrittura` spengono il controllo a licenza
+  scaduta. Mettere `scrive` sul pulsante «Esporta» — per simmetria, per
+  distrazione, perché sta accanto a «Importa» che invece ce l'ha — spegnerebbe
+  l'esportazione a chi ha una licenza scaduta: niente si romperebbe, nessun
+  test cadrebbe, e la promessa del punto 4 sarebbe falsa esattamente per le
+  persone a cui serve.
+
+  Questo controllo guarda il sorgente dei due pulsanti. È una misura grezza — è
+  testo — ma è l'unica disponibile senza un browser, e cade nel verso giusto:
+  se il pulsante cambia forma, il test non lo trova e fallisce invece di
+  tacere.
+*/
+describe("la sola lettura alla scadenza, come la scrive il punto 4", () => {
+  /** La riga del pulsante, con quello che la segue fino alla chiusura del tag. */
+  function pulsante(file: string, etichetta: string): string {
+    const testo = readFileSync(file, "utf8");
+    const dal = testo.indexOf(etichetta);
+    expect(dal, `in ${file} non trovo più «${etichetta}»`).toBeGreaterThan(-1);
+    const apertura = testo.lastIndexOf("<Button", dal);
+    expect(apertura, `«${etichetta}» non sta dentro un <Button>`).toBeGreaterThan(-1);
+    return testo.slice(apertura, dal);
+  }
+
+  it("l'esportazione dell'archivio non si spegne a licenza scaduta", () => {
+    expect(
+      pulsante("src/app/app/dati/pannello-dati.tsx", "Esporta\n"),
+      "Il pulsante «Esporta» è marcato `scrive`: a licenza scaduta sarebbe spento,\n"
+        + "e il punto 4 dei Termini promette che l'esportazione resta attiva.",
+    ).not.toMatch(/\bscrive\b/);
+  });
+
+  it("la stampa del prospetto nemmeno", () => {
+    expect(
+      pulsante("src/app/app/fisco/schermata-fisco.tsx", "Stampa il prospetto"),
+      "Il pulsante della stampa è marcato `scrive`: il punto 4 promette che resta attiva.",
+    ).not.toMatch(/\bscrive\b/);
+  });
+
+  /*
+    E la controprova: se nessun pulsante di quella schermata portasse il
+    marcatore, i due controlli qui sopra passerebbero su un file in cui
+    `scrive` non esiste più — cioè su un'app che non si spegne mai.
+  */
+  it("ma l'importazione sì, se no questo controllo non misura niente", () => {
+    expect(pulsante("src/app/app/dati/pannello-dati.tsx", "Importa\n")).toMatch(/\bscrive\b/);
   });
 });

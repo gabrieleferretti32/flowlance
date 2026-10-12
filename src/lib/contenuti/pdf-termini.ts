@@ -106,6 +106,51 @@ type Blocco =
   | { tipo: "comma"; numero: string; testo: string };
 
 /**
+ * Nel contratto non c'è nessun rinvio agli artt. 1341-1342 c.c.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché questo controllo ferma il build e non è un test
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Fino alla versione 2 i Termini avevano un elenco di clausole da approvare
+ * specificamente, e intorno a quell'elenco c'era un **flusso**: un'email con i
+ * Termini in PDF, una risposta dell'acquirente dal suo indirizzo, la chiave
+ * che partiva solo dopo. Il legale ha ridotto le clausole vessatorie e il
+ * flusso è stato smontato: niente email da approvare, contratto concluso al
+ * pagamento, chiave consegnata senza chiedere niente.
+ *
+ * La cosa pericolosa è il ritorno. Una clausola vessatoria si riscrive in una
+ * riga — un massimale, un foro, una facoltà di recesso — e **nel contratto
+ * sembrerebbe a posto**: numerata, impaginata, nel PDF allegato all'ordine.
+ * Solo che l'art. 1341 comma 2 c.c. la rende inefficace senza approvazione
+ * specifica per iscritto, e quell'approvazione nessuno la raccoglierebbe più,
+ * perché il posto dove si raccoglieva non esiste. Una clausola inefficace che
+ * sembra efficace: esattamente la misura che conferma invece di rompere.
+ *
+ * Perciò il controllo sta **qui**, nel generatore che ogni `next build`
+ * attraversa per scrivere il PDF, e non in un test che si può lanciare o no:
+ * se il rinvio torna nel contratto, il sito non si costruisce.
+ */
+export function esigiNienteApprovazioneSpecifica(grezzo: string): void {
+  const rinvio = grezzo.match(/^.*\b134[12]\b.*$/m);
+  if (rinvio === null) return;
+  throw new Error(
+    `${SORGENTE}: il contratto rinvia di nuovo agli artt. 1341-1342 c.c.\n`
+      + `  «${rinvio[0].trim().slice(0, 120)}»\n\n`
+      + "Nella versione corrente non ci sono clausole soggette ad approvazione specifica, e\n"
+      + "con loro è stato smontato il flusso che la raccoglieva: l'email con i Termini da\n"
+      + "approvare, la risposta dell'acquirente, la chiave consegnata solo dopo. Oggi il\n"
+      + "contratto si conclude al pagamento e la chiave parte senza chiedere niente.\n\n"
+      + "Una clausola vessatoria senza approvazione specifica è **inefficace** (art. 1341 c. 2\n"
+      + "c.c.): resterebbe scritta nel contratto, stampata nel PDF dell'ordine, e priva di\n"
+      + "effetto senza che niente lo segnali.\n\n"
+      + "Quindi: o la clausola si toglie, o va rimesso in piedi un flusso di approvazione —\n"
+      + "raccolta per iscritto prima o insieme alla conclusione, conservata nel fascicolo —\n"
+      + "e questo controllo va cambiato insieme a quello.",
+  );
+}
+
+/**
  * Le righe del Markdown, una per una, senza indovinare.
  *
  * Ogni riga non vuota deve corrispondere a una forma conosciuta. Il messaggio
@@ -113,6 +158,7 @@ type Blocco =
  * sta guardando un file scritto da un'altra persona.
  */
 function leggiBlocchi(grezzo: string): Blocco[] {
+  esigiNienteApprovazioneSpecifica(grezzo);
   const blocchi: Blocco[] = [];
   const righe = grezzo.split("\n");
 

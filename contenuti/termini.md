@@ -26,40 +26,36 @@ L'utente resta l'unico responsabile della correttezza dei dati inseriti, della v
 
 ## 3. Conclusione del contratto e licenza
 
-**L'ordine e il pagamento costituiscono proposta contrattuale dell'acquirente.** Il contratto si conclude nel momento in cui il Fornitore invia la chiave di licenza all'indirizzo email indicato.
+**Il contratto si conclude con il pagamento.** Il pagamento avviene nella pagina d'acquisto, dopo che l'acquirente ha accettato i presenti Termini — consultabili per intero e scaricabili in PDF nella stessa pagina — e ha reso la dichiarazione di acquisto professionale di cui al punto 1.
 
-Prima dell'invio della chiave il Fornitore trasmette all'acquirente, allo stesso indirizzo, i presenti Termini in formato PDF con l'indicazione della versione, e richiede la dichiarazione di acquisto professionale e l'approvazione specifica delle clausole indicate al punto 13. **La chiave viene inviata dopo il ricevimento di tale dichiarazione**, di norma entro 24 ore lavorative dal ricevimento.
+Subito dopo il pagamento il Fornitore trasmette all'indirizzo email indicato dall'acquirente la chiave di licenza e copia dei presenti Termini in formato PDF, con l'indicazione della versione, **di norma entro 24 ore lavorative**. La trasmissione non è condizione del contratto, che è già concluso: è la consegna di quanto acquistato.
 
-In assenza di risposta entro 14 giorni dal pagamento, il contratto non si conclude e il Fornitore rimborsa integralmente l'importo versato.
+**L'acquisto dà diritto a una licenza d'uso personale e non esclusiva della durata di 12 mesi** dalla data di emissione. Alla scadenza la licenza cessa senza bisogno di disdetta e **non si rinnova tacitamente**: il rinnovo è un nuovo acquisto, che l'utente decide se fare.
 
-**L'acquisto dà diritto a una licenza d'uso personale, non esclusiva e non trasferibile, della durata di 12 mesi** dalla data di emissione.
+La licenza è nominativa ed è destinata a un singolo titolare di partita IVA: non è consentito condividerla, rivenderla o distribuirla.
 
-La licenza è nominativa e destinata a un singolo titolare di partita IVA. Non è consentito condividerla, rivenderla o distribuirla.
+## 4. Che cosa si acquista
 
-## 4. Alla scadenza
+Per i 12 mesi della licenza l'applicazione è disponibile in tutte le sue funzioni operative: inserimento e modifica di fatture, costi, movimenti e impostazioni, calcolo di imposte e contributi, prospetto, scadenzario, confronto fra i regimi, esportazione e stampa. Il Fornitore non sospende né revoca una licenza valida.
 
-Alla scadenza della licenza, e in assenza di rinnovo:
+Alla scadenza, e in assenza di rinnovo:
 
-- l'applicazione resta accessibile in sola lettura;
-- tutti i dati restano consultabili e l'esportazione dell'archivio resta attiva;
+- tutti i dati restano consultabili;
+- l'esportazione dell'archivio resta attiva;
 - la stampa del prospetto resta attiva;
 - non è più possibile inserire o modificare dati.
 
-Nessun dato viene cancellato dal Fornitore alla scadenza, per la ragione indicata al punto 5: il Fornitore non ne dispone.
+Nessun dato viene cancellato alla scadenza, per la ragione indicata al punto 5: il Fornitore non ne dispone.
 
 Il rinnovo si effettua acquistando una nuova licenza e inserendo la nuova chiave nell'applicazione; i dati restano quelli già presenti.
 
-## 5. Dati dell'utente e responsabilità del backup
+## 5. Dove stanno i dati, e il backup
 
 Flowlance funziona interamente nel browser dell'utente. I dati inseriti sono conservati nella memoria locale del dispositivo e non vengono trasmessi ad alcun server del Fornitore.
 
-Ne consegue che:
+Ne consegue che il Fornitore non ha accesso ai dati dell'utente, non ne conserva copia e non dispone quindi di alcuna copia da cui recuperarli in caso di cambio di dispositivo, cancellazione dei dati del browser, guasto o smarrimento.
 
-- il Fornitore non ha accesso ai dati dell'utente e non ne conserva copia;
-- **la conservazione e il backup dei dati sono responsabilità esclusiva dell'utente,** tramite la funzione di esportazione dell'archivio presente nell'applicazione;
-- **in caso di cambio di dispositivo, cancellazione dei dati del browser, guasto o smarrimento, il Fornitore non è in grado di recuperare i dati** in alcun modo.
-
-L'applicazione segnala periodicamente all'utente l'opportunità di effettuare un backup.
+**L'utente provvede al backup dei propri dati** con la funzione di esportazione dell'archivio presente nell'applicazione, secondo le istruzioni ivi indicate. L'applicazione segnala periodicamente l'opportunità di effettuare un backup.
 
 ## 6. Prezzo e pagamento
 
@@ -77,9 +73,9 @@ Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nu
 
 2. L'ordine dei Fondatori è determinato dalla data di conclusione del contratto. Le licenze rimborsate ai sensi del punto 7 non sono conteggiate.
 
-3. La garanzia si applica a ciascun rinnovo acquistato prima della scadenza della licenza in corso o entro 30 giorni dalla stessa. Si applica senza limite al numero di rinnovi, finché il Fornitore rende disponibile il rinnovo della licenza Flowlance ai clienti esistenti. La cessazione delle vendite ai nuovi clienti non determina, di per sé, la cessazione della garanzia. Restano ferme le prestazioni dovute per le licenze già acquistate.
+3. Il prezzo garantito si applica a ciascun rinnovo acquistato prima della scadenza della licenza in corso o entro 30 giorni dalla stessa, senza limite al numero di rinnovi, finché il Fornitore rende disponibile il rinnovo della licenza Flowlance ai clienti esistenti. La cessazione delle vendite ai nuovi clienti non determina, di per sé, la cessazione della garanzia. Restano ferme le prestazioni dovute per le licenze già acquistate.
 
-4. Se il rinnovo non avviene entro il termine di cui al comma 3, la garanzia cessa definitivamente: un acquisto successivo avviene al prezzo di listino vigente in quel momento.
+4. Al rinnovo acquistato oltre il termine di cui al comma 3 si applica il prezzo di listino vigente in quel momento. Il ritardo non comporta la perdita della qualità di Fondatore: ai rinnovi successivi acquistati nel termine si applica nuovamente il prezzo garantito.
 
 5. Se il prezzo di listino vigente al momento del rinnovo è inferiore a quello garantito, si applica il prezzo di listino.
 
@@ -99,15 +95,11 @@ Il Fornitore si impegna a mantenere aggiornati i parametri fiscali dell'applicaz
 
 Poiché l'applicazione funziona nel browser dell'utente, non è soggetta a interruzioni di servizio: resta utilizzabile anche in caso di indisponibilità temporanea del sito.
 
-## 9. Limitazione di responsabilità
+## 9. Natura dei risultati e verifica prima dei versamenti
 
-Il Fornitore non risponde di sanzioni, interessi, maggiori imposte o altri pregiudizi derivanti da decisioni assunte sulla base dei risultati prodotti dall'applicazione, che hanno natura di stima e vanno verificati con un professionista abilitato.
+I risultati prodotti dall'applicazione — imposte, contributi, acconti, liquidazioni IVA, scadenze e proiezioni — sono **stime calcolate sui dati inseriti dall'utente** e sui parametri da lui dichiarati, secondo le regole descritte nell'applicazione e nell'elenco pubblico delle semplificazioni.
 
-Il Fornitore non risponde della perdita di dati conservati sul dispositivo dell'utente, per le ragioni indicate al punto 5.
-
-In ogni caso, e nei limiti consentiti dalla legge, la responsabilità complessiva del Fornitore non eccede il triplo dell'importo pagato dall'utente per la licenza in corso.
-
-Nulla in questi termini limita la responsabilità per dolo o colpa grave, né i diritti inderogabili riconosciuti ai consumatori dalla legge italiana.
+Flowlance non è un servizio di consulenza fiscale, non sostituisce il commercialista e non produce dichiarazioni dei redditi. Gli importi da versare e le date dei versamenti vanno verificati con un professionista abilitato prima di effettuare i pagamenti.
 
 ## 10. Proprietà intellettuale
 
@@ -115,26 +107,14 @@ L'applicazione, il suo codice, la sua interfaccia e i suoi contenuti sono di pro
 
 I dati inseriti dall'utente restano di proprietà dell'utente.
 
-## 11. Legge applicabile e foro
+## 11. Legge applicabile e controversie
 
 I presenti termini sono regolati dalla legge italiana.
 
-Per le controversie con utenti che agiscono in qualità di consumatori è competente il foro di residenza o domicilio del consumatore. Negli altri casi è competente il foro di Alessandria.
+Per le controversie si applicano i criteri di competenza previsti dalla legge.
 
 ## 12. Modifiche
 
-Il Fornitore può modificare i presenti termini. Le modifiche si applicano alle licenze acquistate successivamente; per le licenze in corso valgono i termini accettati all'acquisto, nella versione indicata in testa al documento trasmesso all'acquirente.
+Il Fornitore può modificare i presenti termini **per i soli acquisti futuri**. Le modifiche sono pubblicate nella pagina d'acquisto prima dell'acquisto e sono accettate con esso: la versione accettata è quella indicata in testa al documento trasmesso all'acquirente.
 
-## 13. Clausole soggette ad approvazione specifica
-
-Ai sensi e per gli effetti degli artt. 1341 e 1342 del Codice civile, l'acquirente approva specificamente le seguenti clausole:
-
-- **art. 3** — conclusione del contratto alla consegna della chiave; durata, non trasferibilità e nominatività della licenza;
-- **art. 4** — limitazione dell'applicazione alla sola lettura alla scadenza della licenza;
-- **art. 5** — esclusione di responsabilità del Fornitore per la conservazione, il backup e il recupero dei dati dell'utente;
-- **art. 9** — limitazione di responsabilità e relativo massimale;
-- **art. 11** — legge applicabile e foro competente;
-- **art. 12** — facoltà del Fornitore di modificare i presenti termini;
-- **art. 6-bis, commi 3 e 4** — condizioni del prezzo garantito per i Fondatori: la garanzia si applica solo al rinnovo acquistato prima della scadenza della licenza in corso o **entro 30 giorni** dalla stessa, e **il mancato rinnovo entro tale termine ne comporta la cessazione definitiva**, con applicazione del prezzo di listino a ogni acquisto successivo.
-
-L'approvazione avviene con la dichiarazione richiesta al punto 3, trasmessa dall'acquirente dall'indirizzo email indicato in fase di acquisto.
+Le licenze già acquistate non sono modificate, per tutta la loro durata, da alcuna versione successiva dei presenti termini. Restano ferme le garanzie già riconosciute ai Fondatori ai sensi del punto 6-bis.
