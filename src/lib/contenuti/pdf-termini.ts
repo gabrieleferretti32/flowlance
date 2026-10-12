@@ -89,7 +89,21 @@ type Blocco =
   | { tipo: "titolo"; testo: string }
   | { tipo: "sezione"; testo: string }
   | { tipo: "paragrafo"; testo: string }
-  | { tipo: "voce"; testo: string };
+  | { tipo: "voce"; testo: string }
+  /**
+   * Un comma numerato: `1.`, `2.`, … dentro un articolo.
+   *
+   * È arrivato con l'art. 6-bis, che il legale ha consegnato scritto a commi.
+   * Il renderer si è fermato invece di saltarli — ed è servito: il messaggio
+   * diceva quale riga e perché, e la scelta è stata fra riscrivere una
+   * clausola approvata e insegnare al renderer una forma in più. Un contratto
+   * si impagina come è scritto.
+   *
+   * Il numero resta un campo suo e non entra nel testo: così il marcatore si
+   * disegna come il pallino delle voci, con lo stesso rientro appeso, e il
+   * grassetto dentro il comma non se lo porta dietro.
+   */
+  | { tipo: "comma"; numero: string; testo: string };
 
 /**
  * Le righe del Markdown, una per una, senza indovinare.
@@ -111,10 +125,18 @@ function leggiBlocchi(grezzo: string): Blocco[] {
     if (t.startsWith("# ")) blocchi.push({ tipo: "titolo", testo: t.slice(2).trim() });
     else if (t.startsWith("## ")) blocchi.push({ tipo: "sezione", testo: t.slice(3).trim() });
     else if (t.startsWith("- ")) blocchi.push({ tipo: "voce", testo: t.slice(2).trim() });
-    else if (/^[#>|]|^\d+\.\s|^!\[|^```/.test(t)) {
+    else if (/^\d+\.\s/.test(t)) {
+      const taglio = t.indexOf(". ");
+      blocchi.push({
+        tipo: "comma",
+        numero: t.slice(0, taglio + 1),
+        testo: t.slice(taglio + 2).trim(),
+      });
+    } else if (/^[#>|]|^!\[|^```/.test(t)) {
       throw new Error(
         `${SORGENTE}, riga ${indice + 1}: «${t.slice(0, 60)}» è una forma che il PDF dei Termini non sa impaginare.\n`
-          + "Il renderer conosce titolo, sezione, paragrafo ed elenco puntato, e si ferma sul resto\n"
+          + "Il renderer conosce titolo, sezione, paragrafo, elenco puntato e commi numerati,\n"
+          + "e si ferma sul resto\n"
           + "invece di saltarlo: un contratto con dentro un pezzo in meno è il caso peggiore.\n"
           + "Aggiungi la forma a src/lib/contenuti/pdf-termini.ts, oppure riscrivi la riga.",
       );
@@ -324,10 +346,18 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
       scriverlo con `continued` lo legava al primo pezzo, e un pezzo in
       grassetto si portava dietro anche il pallino.
     */
-    const colonna = blocco.tipo === "voce" ? MARGINE + 16 : MARGINE;
-    if (blocco.tipo === "voce") {
+    const rientrato = blocco.tipo === "voce" || blocco.tipo === "comma";
+    const colonna = rientrato ? MARGINE + 16 : MARGINE;
+    if (rientrato) {
+      /*
+        Il marcatore — il pallino o il numero del comma — si disegna prima,
+        alla sua `y`, e la `y` si rimette com'era. Vale per tutti e due per la
+        stessa ragione: scriverlo con `continued` lo legherebbe al primo
+        pezzo, e un pezzo in grassetto se lo porterebbe dietro.
+      */
+      const marcatore = blocco.tipo === "voce" ? "•" : blocco.numero;
       const y = doc.y;
-      doc.font("Helvetica").text("•", MARGINE + 4, y, { lineBreak: false, width: 10 });
+      doc.font("Helvetica").text(marcatore, MARGINE + 2, y, { lineBreak: false, width: 13 });
       doc.y = y;
     }
 
@@ -342,6 +372,7 @@ export async function generaPdfTermini(radice = process.cwd()): Promise<EsitoPdf
       });
     });
     doc.x = MARGINE;
+    /* I commi respirano come i paragrafi: sono frasi intere, non voci di elenco. */
     doc.moveDown(blocco.tipo === "voce" ? 0.3 : 0.7);
   }
 

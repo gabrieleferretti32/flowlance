@@ -71,6 +71,22 @@ L'acquirente titolare di partita IVA è tenuto a fornire i dati fiscali necessar
 
 Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nuova licenza.
 
+## 6-bis. Prezzo garantito per i Fondatori
+
+1. Ai primi 50 acquirenti di una licenza Flowlance («Fondatori») il Fornitore garantisce, per ogni rinnovo successivo, il prezzo di 97 € oltre IVA. All'aliquota del 22 % vigente alla data di questi Termini il totale è di 118,34 €; in caso di variazione dell'aliquota si applica quella vigente al momento del rinnovo.
+
+2. L'ordine dei Fondatori è determinato dalla data di conclusione del contratto. Le licenze rimborsate ai sensi del punto 7 non sono conteggiate.
+
+3. La garanzia si applica a ciascun rinnovo acquistato prima della scadenza della licenza in corso o entro 30 giorni dalla stessa. Si applica senza limite al numero di rinnovi, finché il Fornitore rende disponibile il rinnovo della licenza Flowlance ai clienti esistenti. La cessazione delle vendite ai nuovi clienti non determina, di per sé, la cessazione della garanzia. Restano ferme le prestazioni dovute per le licenze già acquistate.
+
+4. Se il rinnovo non avviene entro il termine di cui al comma 3, la garanzia cessa definitivamente: un acquisto successivo avviene al prezzo di listino vigente in quel momento.
+
+5. Se il prezzo di listino vigente al momento del rinnovo è inferiore a quello garantito, si applica il prezzo di listino.
+
+6. Il prezzo garantito riguarda il rinnovo della stessa licenza annuale, comprensiva di quanto previsto da questi Termini, inclusi gli aggiornamenti dell'applicazione e dei parametri fiscali. Non riguarda eventuali servizi aggiuntivi offerti separatamente, che restano al prezzo di listino.
+
+7. La garanzia è personale e non cedibile. È riferita all'acquirente, identificato dalla partita IVA usata per l'acquisto. Il cambio dell'indirizzo email, comunicato al Fornitore e verificato, non comporta la perdita della garanzia.
+
 ## 7. Garanzia di rimborso
 
 Poiché Flowlance è offerto esclusivamente a chi acquista nell'esercizio della propria attività professionale, la disciplina del recesso prevista dal Codice del Consumo non trova applicazione.
@@ -118,6 +134,7 @@ Ai sensi e per gli effetti degli artt. 1341 e 1342 del Codice civile, l'acquiren
 - **art. 5** — esclusione di responsabilità del Fornitore per la conservazione, il backup e il recupero dei dati dell'utente;
 - **art. 9** — limitazione di responsabilità e relativo massimale;
 - **art. 11** — legge applicabile e foro competente;
-- **art. 12** — facoltà del Fornitore di modificare i presenti termini.
+- **art. 12** — facoltà del Fornitore di modificare i presenti termini;
+- **art. 6-bis, commi 3 e 4** — condizioni del prezzo garantito per i Fondatori: la garanzia si applica solo al rinnovo acquistato prima della scadenza della licenza in corso o **entro 30 giorni** dalla stessa, e **il mancato rinnovo entro tale termine ne comporta la cessazione definitiva**, con applicazione del prezzo di listino a ogni acquisto successivo.
 
 L'approvazione avviene con la dichiarazione richiesta al punto 3, trasmessa dall'acquirente dall'indirizzo email indicato in fase di acquisto.

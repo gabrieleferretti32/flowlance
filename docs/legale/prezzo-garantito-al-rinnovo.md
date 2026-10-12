@@ -1,5 +1,15 @@
 # Bozza — Prezzo garantito al rinnovo
 
+> ## SUPERATA — 12 ottobre 2026
+>
+> Il legale ha approvato il testo, che ora è **l'art. 6-bis di
+> `contenuti/termini.md`**. Quello è il testo che vale; questo file resta
+> perché contiene il ragionamento che ci ha portati — le domande poste e il
+> perché — e perché un giorno potrebbe servire sapere che cosa era stato
+> chiesto. **Non si cita, non si copia, non si manda a nessuno.**
+>
+> Se i due testi divergono, vale l'art. 6-bis.
+
 *Bozza del 24 settembre 2026. Non pubblicata: né sul sito né nei Termini.*
 
 Questo file serve a una cosa sola: mandare al legale una clausola da valutare,

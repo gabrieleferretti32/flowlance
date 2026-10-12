@@ -31,13 +31,19 @@ l'attuale punto (c) resta com'è.
 > **Dati trattati.** Indirizzo email e, per chi lo richiede dal simulatore
 > pubblico, i dati necessari a redigere il promemoria: regime fiscale
 > dichiarato dall'interessato, accantonamento mensile calcolato, data e importo
-> stimato delle due successive scadenze di versamento. È inoltre registrata la
-> data dell'ultima interazione dell'interessato, al solo fine di applicare i
-> termini di conservazione indicati più sotto.
+> stimato delle due successive scadenze di versamento.
 >
-> **Si tratta di dati di natura economica.** Pur non essendo raccolto l'importo
-> del fatturato, dagli importi delle scadenze e dall'accantonamento mensile è
-> possibile risalire per approssimazione al reddito dell'interessato.
+> È inoltre registrata **la sola data dell'ultima interazione** dell'interessato
+> (giorno della richiesta, di un nuovo calcolo o dell'apertura di un
+> collegamento), al solo fine di applicare i termini di conservazione indicati
+> più sotto. **Questa data non è un dato economico e non ne contiene alcuno:**
+> indica quando qualcosa è accaduto, non che cosa, e dal suo valore non è
+> possibile ricavare né importi né redditi.
+>
+> **I restanti dati sono invece di natura economica.** Pur non essendo
+> raccolto l'importo del fatturato, dagli importi delle scadenze e
+> dall'accantonamento mensile è possibile risalire per approssimazione al
+> reddito dell'interessato.
 >
 > **Finalità.** Inviare, sette giorni prima di ciascuna delle due scadenze
 > indicate, un messaggio con l'importo stimato sui dati forniti; inviare, dopo
@@ -93,24 +99,62 @@ l'attuale punto (c) resta com'è.
 
 ---
 
-## (f) — la riga sulle prove, se il legale la vuole esplicita
+## (f) — le prove dei consensi
 
 > ### f) Prove dei consensi e delle revoche
 >
-> Data, indirizzo email e oggetto di ciascun consenso prestato o revocato, al
-> solo fine di dimostrarne l'acquisizione ai sensi dell'art. 7.1 GDPR. Questi
-> dati sono conservati separatamente e **non sono utilizzati per alcuna
-> comunicazione**, commerciale o di servizio.
+> **Dati trattati.** Per ciascun evento rilevante — richiesta del servizio,
+> conferma dell'indirizzo, revoca, consenso o rifiuto delle comunicazioni sul
+> prodotto — sono registrati: l'indirizzo email, il tipo di evento, la data e
+> l'ora, e la versione del testo dei consensi che l'interessato aveva davanti
+> al momento dell'evento.
 >
-> **Base giuridica.** Obbligo di accountability del Titolare (art. 6.1.c in
-> relazione all'art. 7.1 GDPR).
+> **Non sono registrati i dati del calcolo**: né il regime, né
+> l'accantonamento mensile, né le date e gli importi delle scadenze.
+>
+> **Finalità.** Dimostrare, su richiesta dell'interessato o dell'Autorità,
+> l'acquisizione e l'eventuale revoca dei consensi, ai sensi dell'art. 7.1
+> GDPR.
+>
+> **Base giuridica.** Obbligo di rendicontazione del Titolare (art. 6.1.c
+> GDPR in relazione agli artt. 5.2 e 7.1).
+>
+> **Modalità.** Le prove sono conservate **in un archivio separato dal
+> sistema di invio delle comunicazioni**, e non sono utilizzate per alcuna
+> comunicazione, commerciale o di servizio. Quando un contatto viene
+> cancellato dal sistema di invio in applicazione dei termini di cui ai punti
+> (d) ed (e), la relativa prova è scritta nell'archivio separato **prima**
+> della cancellazione.
+>
+> **Conservazione.** [DA CONFERMARE DAL LEGALE] mesi dalla data dell'evento.
 
-**Questa riga non va pubblicata finché non è deciso dove quelle prove stanno
-davvero.** Oggi vivono dentro Brevo, legate al contatto, e il primo termine
-del punto (d) cancella il contatto — cancellando anche la prova. Le due strade
-sono in fondo a [`../invio-promemoria.md`](../invio-promemoria.md). Scrivere
-(f) prima di aver scelto significherebbe dichiarare una conservazione separata
-che non esiste.
+### Il termine, e perché nel codice è una stringa
+
+`CONSERVAZIONE_PROVE_MESI` in `src/lib/sito/registro-prove.ts` vale oggi la
+stringa letterale `"DA CONFERMARE DAL LEGALE"`, non un numero. Non è un
+segnaposto che qualcuno deve ricordarsi di sostituire: **finché è una stringa,
+la pulizia notturna si rifiuta di partire** e risponde 503. Cancellare
+scrivendo una prova che non si sa per quanto tenere crea un archivio nuovo
+senza una regola, ed è il contrario di quello che questo punto serve a fare.
+
+Un test lo verifica su sette valori diversi, compresa la stringa di oggi.
+
+### Che cosa è già vero, e si può dichiarare
+
+- Le prove stanno **fuori da Brevo**, in un magazzino di file su Vercel Blob,
+  un evento per file.
+- L'archivio delle prove **non è raggiungibile dal codice che manda email**:
+  lo verifica `npm run verifica:registro`, che legge il grafo degli import a
+  partire dalla funzione di iscrizione e dalla pagina pubblica e fallisce se
+  ci arriva. La frase «non sono utilizzate per alcuna comunicazione» la tiene
+  quella separazione, non una buona intenzione.
+- **Nessun dato del calcolo entra nel registro**: un test scrive un contatto
+  pieno di importi e verifica che nell'evento non ne compaia nessuno.
+- Se il registro non accetta la scrittura, **il contatto non viene
+  cancellato**: meglio un contatto che resta un giorno di più che una
+  cancellazione di cui non resta prova.
+- Uscire da una lista perché un termine è scaduto **non è registrato come
+  revoca**: non è un atto dell'interessato, e chiamarlo così direbbe il falso.
 
 ---
 
@@ -131,6 +175,7 @@ Quella attuale dice «invio email». Va ampliata:
 | Conservazione | «24 mesi dall'ultimo contatto» per entrambi | **quattro termini distinti** | decisione del legale |
 | Termine per i non confermati | nessuno, perché non c'era modo di eseguirlo | **30 giorni**, eseguiti da `api/pulizia.ts` | ora c'è il modo |
 | Dati elencati | sei attributi | sei **più la data dell'ultima interazione** | serve a eseguire i termini: senza una data, «24 mesi da» non si può applicare |
+| Prove dei consensi | domanda aperta: dove stanno? | **archivio separato**, punto (f) completo | decisione del titolare, 12 ottobre |
 
 Due cose del prodotto che la base giuridica nuova non cambia, e che conviene
 sapere.

@@ -141,7 +141,11 @@ chiave, non al pagamento. Quindi la chiave è **l'ultimo** passo, non il primo:
 1. arriva la notifica di pagamento da Stripe;
 2. mandi all'acquirente, allo stesso indirizzo, i Termini in PDF — quello con
    l'impronta SHA-256 stampata accanto al link su `/termini/` — e chiedi tre
-   cose nella stessa email:
+   cose nella stessa email. **Il testo da incollare sta in
+   [`docs/legale/approvazione-specifica.md`](../../docs/legale/approvazione-specifica.md)**,
+   scritto una volta sola: riscritto a mano a ogni ordine, prima o poi elenca
+   una clausola in meno, e una clausola non elencata è una clausola non
+   approvata. Le tre cose sono:
    - la dichiarazione di acquisto professionale;
    - l'approvazione delle clausole del punto 13, elencate per numero;
    - **i dati che Stripe non raccoglie**: codice destinatario (o PEC) e codice

@@ -39,8 +39,16 @@
  *   scrittura sui contatti.
  * - `BREVO_LISTA_PROMEMORIA`, `BREVO_LISTA_MARKETING` — le due liste: senza
  *   saperle, «esci da questa e non da quella» non si può nemmeno dire.
+ * - `BLOB_READ_WRITE_TOKEN` — il magazzino del registro delle prove, che
+ *   Vercel fornisce quando lo si collega al progetto.
  *
  * Ne manca una e la funzione risponde 503 senza contattare nessuno.
+ *
+ * E c'è una condizione in più, che non è una variabile d'ambiente:
+ * `CONSERVAZIONE_PROVE_MESI` deve essere un numero. Finché vale «DA CONFERMARE
+ * DAL LEGALE» la pulizia si rifiuta di partire — cancellare scrivendo una
+ * prova che non si sa per quanto tenere crea un archivio nuovo senza una
+ * regola, e lo crea in silenzio.
  *
  * `?prova=1` decide tutto ed esegue niente: è il modo di guardare che cosa
  * farebbe stanotte, ed è la prima cosa da lanciare dopo aver configurato
@@ -48,6 +56,8 @@
  */
 import { clientBrevo } from "../src/lib/sito/brevo";
 import { eseguiPulizia } from "../src/lib/sito/pulizia-server";
+import { registroSuBlob } from "../src/lib/sito/registro-blob";
+import { CONSERVAZIONE_PROVE_MESI } from "../src/lib/sito/registro-prove";
 
 /** Confronto a lunghezza costante: un `===` su un segreto si fa cronometrare. */
 function stessoSegreto(dato: string, atteso: string): boolean {
@@ -68,8 +78,9 @@ export default async function pulizia(richiesta: Request): Promise<Response> {
   const chiave = process.env.BREVO_API_KEY;
   const promemoria = process.env.BREVO_LISTA_PROMEMORIA;
   const marketing = process.env.BREVO_LISTA_MARKETING;
+  const magazzino = process.env.BLOB_READ_WRITE_TOKEN;
 
-  if (!segreto || !chiave || !promemoria || !marketing) {
+  if (!segreto || !chiave || !promemoria || !marketing || !magazzino) {
     console.warn("pulizia: configurazione incompleta, non eseguita");
     return rispondi(503, { ok: false, errore: "Pulizia non configurata." });
   }
@@ -84,10 +95,21 @@ export default async function pulizia(richiesta: Request): Promise<Response> {
 
   const resoconto = await eseguiPulizia({
     client: clientBrevo(chiave, globalThis.fetch),
+    registro: registroSuBlob(magazzino),
+    conservazioneProveMesi: CONSERVAZIONE_PROVE_MESI,
     conf: { listaPromemoria: Number(promemoria), listaMarketing: Number(marketing) },
     oggi: new Date().toISOString().slice(0, 10),
     provaSoltanto,
   });
+
+  /*
+    Il rifiuto è un 503 e non un 200: un cron che riceve «va tutto bene» da
+    una pulizia che non ha fatto niente è un cron che nessuno guarda più.
+  */
+  if (resoconto.rifiutata) {
+    console.warn(`pulizia: ${resoconto.rifiutata}`);
+    return rispondi(503, { ok: false, errore: resoconto.rifiutata });
+  }
 
   /*
     Il registro porta i conti e gli errori, non gli indirizzi: i log di Vercel

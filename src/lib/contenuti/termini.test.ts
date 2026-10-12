@@ -303,6 +303,118 @@ describe("la struttura del contratto", () => {
     const esistenti = new Set(numeri.map((n) => n.numero));
     expect(citati.filter((c) => !esistenti.has(c))).toEqual([]);
   });
+
+  /*
+    ─────────────────────────────────────────────────────────────────────
+    E gli articoli «bis», che al controllo di sopra sono invisibili
+    ─────────────────────────────────────────────────────────────────────
+
+    Il controllo qui sopra cerca `**art. N**`: su `**art. 6-bis, commi 3 e
+    4**` la cifra è seguita da un trattino e la riga non viene nemmeno
+    catturata. Non fallisce — **non guarda**, che è peggio: il punto 13
+    potrebbe approvare specificamente una clausola che nel contratto non
+    esiste, e nessuno se ne accorgerebbe.
+
+    Lo stesso vale per la numerazione: `## 6-bis.` non corrisponde a
+    `^##\s+(\d+)\.` e resta fuori dal conto «da 1 in su senza salti». Giusto
+    così — un «bis» non è un numero della serie — ma vuol dire che la sua
+    esistenza non la verifica nessun altro.
+  */
+  const bis = [...markdown.matchAll(/^##\s+(\d+)-bis\.\s+(.+)$/gm)].map((m) => ({
+    etichetta: `${m[1]}-bis`,
+    titolo: m[2].trim(),
+  }));
+
+  it("gli articoli «bis» hanno un titolo e non si ripetono", () => {
+    const visti = new Map<string, string[]>();
+    for (const b of bis) visti.set(b.etichetta, [...(visti.get(b.etichetta) ?? []), b.titolo]);
+    expect([...visti].filter(([, t]) => t.length > 1)).toEqual([]);
+  });
+
+  it("ogni articolo «bis» citato dal punto 13 esiste davvero", () => {
+    const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
+    const citati = [...punto13.matchAll(/\*\*art\.\s*(\d+-bis)[^*]*\*\*/g)].map((m) => m[1]);
+    const esistenti = new Set(bis.map((b) => b.etichetta));
+    expect(
+      citati.filter((c) => !esistenti.has(c)),
+      "Il punto 13 approva specificamente una clausola «bis» che nel contratto non c'è.",
+    ).toEqual([]);
+  });
+
+  /*
+    E il verso opposto, che è quello che è appena successo: un «bis» aggiunto
+    al contratto senza aggiungerlo all'elenco delle clausole da approvare. Un
+    articolo che limita un diritto e non passa dall'approvazione specifica è
+    inefficace ai sensi dell'art. 1341 c.c. — cioè scritto per niente.
+  */
+  it("il 6-bis, se c'è, è approvato specificamente", () => {
+    if (!bis.some((b) => b.etichetta === "6-bis")) return;
+    const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
+    expect(punto13, "l'art. 6-bis c'è ma il punto 13 non lo nomina").toContain("art. 6-bis");
+    expect(punto13, "l'approvazione deve nominare i commi, non l'articolo intero").toMatch(/6-bis[^|]*commi?\s*3\s*e\s*4/);
+    expect(punto13, "il termine di 30 giorni va richiamato nell'approvazione").toContain("30 giorni");
+    expect(punto13, "la perdita definitiva va richiamata nell'approvazione").toMatch(/cessazione definitiva|definitivamente/);
+  });
+});
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  L'email di approvazione elenca esattamente le clausole del punto 13
+  ─────────────────────────────────────────────────────────────────────────
+
+  L'approvazione ex artt. 1341-1342 si raccoglie per email, incollando un
+  testo. Finché quel testo si riscriveva a mano a ogni ordine, bastava una
+  distrazione per elencare una clausola in meno — e una clausola non elencata
+  è una clausola **non approvata**, cioè inefficace: scritta nel contratto e
+  priva di effetto, senza che niente lo segnali.
+
+  Ora il testo sta in un file solo, e questo test lo tiene allineato al
+  contratto nei due versi: nessuna clausola del punto 13 manca dall'email, e
+  l'email non ne inventa nessuna che il punto 13 non abbia.
+*/
+describe("l'email di approvazione e il punto 13 dicono le stesse clausole", () => {
+  const email = readFileSync(
+    new URL("../../../docs/legale/approvazione-specifica.md", import.meta.url),
+    "utf8",
+  );
+  const punto13 = markdown.split(/^##\s+13\./m)[1] ?? "";
+
+  /** Le etichette degli articoli citati: «3», «6-bis», «12». */
+  const etichette = (testo: string) =>
+    [...testo.matchAll(/art\.\s*(\d+(?:-bis)?)/g)].map((m) => m[1]);
+
+  const nelContratto = [...new Set(etichette(punto13))].sort();
+  const nellEmail = [...new Set(etichette(email))].sort();
+
+  it("il punto 13 cita qualcosa, e l'email anche", () => {
+    expect(nelContratto.length).toBeGreaterThan(3);
+    expect(nellEmail.length).toBeGreaterThan(3);
+  });
+
+  it("nessuna clausola del contratto manca dall'email", () => {
+    expect(
+      nelContratto.filter((a) => !nellEmail.includes(a)),
+      "Clausole che il punto 13 vuole approvate e che l'email non elenca:\n"
+        + "chi risponde non le approva, e restano inefficaci.",
+    ).toEqual([]);
+  });
+
+  it("e l'email non ne inventa nessuna", () => {
+    expect(
+      nellEmail.filter((a) => !nelContratto.includes(a)),
+      "L'email fa approvare clausole che il punto 13 non elenca.",
+    ).toEqual([]);
+  });
+
+  /*
+    Il 6-bis per esteso: è l'unica clausola dell'elenco che si perde **senza
+    fare niente**, il trentunesimo giorno dopo la scadenza. Un'approvazione
+    che dicesse solo «art. 6-bis, commi 3 e 4» sarebbe una firma al buio.
+  */
+  it("l'email scrive per esteso i trenta giorni e la perdita definitiva", () => {
+    expect(email).toContain("30 giorni");
+    expect(email).toMatch(/perd[oe]\s+definitivamente|definitivamente/);
+  });
 });
 
 describe("il prezzo mostrato e il prezzo pattuito", () => {

@@ -8,7 +8,14 @@ import {
   ultimaScadenza,
   type Configurazione,
 } from "./pulizia";
-import { eseguiPulizia } from "./pulizia-server";
+import { eseguiPulizia, type Dipendenze } from "./pulizia-server";
+import {
+  CONSERVAZIONE_PROVE_MESI,
+  VERSIONE_TESTO_CONSENSI,
+  conservazioneConfermata,
+  type EventoProva,
+  type RegistroProve,
+} from "./registro-prove";
 import { piuGiorni, piuMesi } from "./calendario";
 
 const CONF: Configurazione = { listaPromemoria: 7, listaMarketing: 9 };
@@ -65,6 +72,30 @@ function brevoFinto(contatti: ContattoBrevo[] = []) {
     },
     listeToccate: () =>
       chiamate.filter((c) => c.metodo === "togliDaLista").map((c) => c.dettaglio),
+  };
+}
+
+/** Un registro delle prove finto: raccoglie, non scrive da nessuna parte. */
+function registroFinto(rompiti = false) {
+  const eventi: EventoProva[] = [];
+  const registro: RegistroProve = {
+    async scrivi(e) {
+      if (rompiti) throw new Error("magazzino non raggiungibile");
+      eventi.push(e);
+    },
+  };
+  return { registro, eventi };
+}
+
+/** Le dipendenze complete, con il termine confermato: è il caso normale. */
+function dip(client: ClientBrevo, oggi: string, extra: Partial<Dipendenze> = {}): Dipendenze {
+  return {
+    client,
+    registro: registroFinto().registro,
+    conservazioneProveMesi: 24,
+    conf: CONF,
+    oggi,
+    ...extra,
   };
 }
 
@@ -190,7 +221,7 @@ describe("dati del calcolo: 30 giorni dall'ultima scadenza", () => {
 
   it("svuotare tocca le quattro voci del calcolo e nient'altro", async () => {
     const b = brevoFinto([contatto()]);
-    await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    await eseguiPulizia(dip(b.client, "2027-07-30"));
     const scritte = b.chiamate.find((c) => c.metodo === "aggiornaAttributi")?.dettaglio as Record<string, string>;
     expect(Object.keys(scritte).sort()).toEqual(
       ["SCAD_1_DATA", "SCAD_1_IMPORTO", "SCAD_2_DATA", "SCAD_2_IMPORTO"],
@@ -207,7 +238,7 @@ describe("dati del calcolo: 30 giorni dall'ultima scadenza", () => {
   */
   it("e non tocca MAI l'orologio dell'attività", async () => {
     const b = brevoFinto([contatto({ listIds: [PROMEMORIA, MARKETING] })]);
-    await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    await eseguiPulizia(dip(b.client, "2027-07-30"));
     for (const c of b.chiamate.filter((x) => x.metodo === "aggiornaAttributi")) {
       expect(Object.keys(c.dettaglio as object)).not.toContain(ATTRIBUTO_ATTIVITA);
     }
@@ -279,7 +310,7 @@ describe("marketing: 24 mesi dal consenso o dall'ultima interazione", () => {
 describe("le due liste non si toccano a vicenda", () => {
   it("il servizio finisce: esce dai promemoria e resta nel marketing", async () => {
     const b = brevoFinto([contatto({ listIds: [PROMEMORIA, MARKETING] })]);
-    await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    await eseguiPulizia(dip(b.client, "2027-07-30"));
     expect(b.listeToccate()).toEqual([PROMEMORIA]);
     expect(b.chiamate.some((c) => c.metodo === "cancellaContatto")).toBe(false);
   });
@@ -290,7 +321,7 @@ describe("le due liste non si toccano a vicenda", () => {
       attributes: { SCAD_2_DATA: "2030-06-30", [ATTRIBUTO_ATTIVITA]: "2026-10-01" },
     });
     const b = brevoFinto([c]);
-    await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2028-10-01" });
+    await eseguiPulizia(dip(b.client, "2028-10-01"));
     expect(b.listeToccate()).toEqual([MARKETING]);
     expect(b.chiamate.some((x) => x.metodo === "aggiornaAttributi")).toBe(false);
   });
@@ -301,7 +332,7 @@ describe("le due liste non si toccano a vicenda", () => {
       attributes: { SCAD_2_DATA: "2026-11-30", [ATTRIBUTO_ATTIVITA]: "2026-10-01" },
     });
     const b = brevoFinto([c]);
-    await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2028-10-01" });
+    await eseguiPulizia(dip(b.client, "2028-10-01"));
     expect(b.listeToccate().sort()).toEqual([PROMEMORIA, MARKETING]);
     expect(b.chiamate.some((x) => x.metodo === "cancellaContatto")).toBe(false);
   });
@@ -317,7 +348,7 @@ describe("il giro della pulizia", () => {
       contatto({ email: "a@example.com" }),
       contatto({ email: "b@example.com", listIds: [], attributes: { [ATTRIBUTO_ATTIVITA]: "2020-01-01" } }),
     ]);
-    const r = await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    const r = await eseguiPulizia(dip(b.client, "2027-07-30"));
     expect(r.esaminati).toBe(2);
     expect(r.cancellati).toBe(1);
     expect(r.calcoliSvuotati).toBe(1);
@@ -327,7 +358,7 @@ describe("il giro della pulizia", () => {
 
   it("prova soltanto: decide tutto ed esegue niente", async () => {
     const b = brevoFinto([contatto()]);
-    const r = await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30", provaSoltanto: true });
+    const r = await eseguiPulizia(dip(b.client, "2027-07-30", { provaSoltanto: true }));
     expect(r.calcoliSvuotati).toBe(1);
     expect(r.fatte).toHaveLength(2);
     expect(b.chiamate).toHaveLength(0);
@@ -339,7 +370,7 @@ describe("il giro della pulizia", () => {
       contatto({ email: "buono@example.com" }),
     ]);
     b.rompi("rotto@example.com");
-    const r = await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    const r = await eseguiPulizia(dip(b.client, "2027-07-30"));
     expect(r.esaminati).toBe(2);
     expect(r.errori.length).toBeGreaterThan(0);
     expect(b.chiamate.some((c) => c.email === "buono@example.com")).toBe(true);
@@ -353,15 +384,138 @@ describe("il giro della pulizia", () => {
   it("se l'elenco non arriva, il giro si ferma e lo dice", async () => {
     const b = brevoFinto([contatto()]);
     b.rompi("elenca");
-    const r = await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    const r = await eseguiPulizia(dip(b.client, "2027-07-30"));
     expect(r.esaminati).toBe(0);
     expect(r.errori[0].azione).toBe("elenca");
   });
 
   it("un archivio vuoto non fa niente e non si lamenta", async () => {
     const b = brevoFinto([]);
-    const r = await eseguiPulizia({ client: b.client, conf: CONF, oggi: "2027-07-30" });
+    const r = await eseguiPulizia(dip(b.client, "2027-07-30"));
     expect(r).toMatchObject({ esaminati: 0, cancellati: 0, errori: [], troncata: false });
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Il registro delle prove
+// ————————————————————————————————————————————————————————————
+
+describe("il registro delle prove", () => {
+  const nonConfermato = () =>
+    contatto({ listIds: [], attributes: { [ATTRIBUTO_ATTIVITA]: "2026-10-01" } });
+
+  it("prima di cancellare, scrive la prova", async () => {
+    const b = brevoFinto([nonConfermato()]);
+    const reg = registroFinto();
+    await eseguiPulizia(dip(b.client, "2026-12-01", { registro: reg.registro }));
+
+    expect(reg.eventi).toHaveLength(1);
+    expect(reg.eventi[0]).toMatchObject({
+      email: "mario@example.com",
+      tipo: "richiesta",
+      quando: "2026-10-01",
+      versioneTesto: VERSIONE_TESTO_CONSENSI,
+    });
+    expect(b.chiamate.map((c) => c.metodo)).toEqual(["cancellaContatto"]);
+  });
+
+  /*
+    L'ordine è la cosa. Invertirlo non produrrebbe nessun errore: produrrebbe,
+    ogni tanto, una cancellazione senza prova — e di quelle ci si accorge solo
+    il giorno in cui qualcuno chiede di dimostrare che aveva acconsentito.
+  */
+  it("se il registro non accetta, il contatto non si tocca", async () => {
+    const b = brevoFinto([nonConfermato()]);
+    const r = await eseguiPulizia(
+      dip(b.client, "2026-12-01", { registro: registroFinto(true).registro }),
+    );
+    expect(b.chiamate).toHaveLength(0);
+    expect(r.cancellati).toBe(0);
+    expect(r.errori[0].azione).toBe("registro");
+  });
+
+  it("nella prova non entra nessun dato del calcolo", async () => {
+    const reg = registroFinto();
+    const b = brevoFinto([
+      contatto({
+        listIds: [],
+        attributes: {
+          REGIME: "forfettario",
+          ACCANTONAMENTO_MESE: 966.15,
+          SCAD_1_DATA: "2026-11-30",
+          SCAD_1_IMPORTO: 5_329.48,
+          [ATTRIBUTO_ATTIVITA]: "2026-10-01",
+        },
+      }),
+    ]);
+    await eseguiPulizia(dip(b.client, "2026-12-01", { registro: reg.registro }));
+    const scritto = JSON.stringify(reg.eventi[0]);
+    for (const vietato of ["forfettario", "966.15", "5329.48", "SCAD_1", "ACCANTONAMENTO"]) {
+      expect(scritto, `«${vietato}» non deve finire nel registro delle prove`).not.toContain(vietato);
+    }
+  });
+
+  it("uscire da una lista non è una revoca, e non si registra", async () => {
+    const reg = registroFinto();
+    const b = brevoFinto([contatto({ listIds: [PROMEMORIA, MARKETING] })]);
+    await eseguiPulizia(dip(b.client, "2027-07-30", { registro: reg.registro }));
+    expect(b.listeToccate()).toEqual([PROMEMORIA]);
+    expect(reg.eventi).toHaveLength(0);
+  });
+
+  it("in prova soltanto non si scrive niente, nemmeno nel registro", async () => {
+    const reg = registroFinto();
+    const b = brevoFinto([nonConfermato()]);
+    await eseguiPulizia(
+      dip(b.client, "2026-12-01", { registro: reg.registro, provaSoltanto: true }),
+    );
+    expect(reg.eventi).toHaveLength(0);
+    expect(b.chiamate).toHaveLength(0);
+  });
+});
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Il rifiuto di partire
+  ─────────────────────────────────────────────────────────────────────────
+
+  Finché il legale non dice per quanto si conservano le prove, la pulizia non
+  gira. Non «gira saltando il registro», che sarebbe il modo silenzioso di
+  fare esattamente il danno che il registro evita.
+*/
+describe("senza il termine di conservazione confermato, non parte", () => {
+  for (const valore of ["DA CONFERMARE DAL LEGALE", "", 0, -1, Number.NaN, null, undefined]) {
+    it(`con ${JSON.stringify(valore)} si rifiuta e non tocca niente`, async () => {
+      const b = brevoFinto([contatto({ listIds: [] }), contatto()]);
+      const reg = registroFinto();
+      const r = await eseguiPulizia(
+        dip(b.client, "2027-07-30", {
+          registro: reg.registro,
+          conservazioneProveMesi: valore as number | string,
+        }),
+      );
+      expect(r.rifiutata).toContain("non confermato");
+      expect(r.esaminati).toBe(0);
+      expect(b.chiamate).toHaveLength(0);
+      expect(reg.eventi).toHaveLength(0);
+    });
+  }
+
+  it("con un numero di mesi vero, parte", async () => {
+    const b = brevoFinto([contatto()]);
+    const r = await eseguiPulizia(dip(b.client, "2027-07-30", { conservazioneProveMesi: 24 }));
+    expect(r.rifiutata).toBeNull();
+    expect(r.esaminati).toBe(1);
+  });
+
+  /*
+    E oggi il termine **non** è confermato: la costante vale ancora la
+    stringa. Questo test è il promemoria che accendere la pulizia richiede
+    prima una risposta del legale, e cadrà da solo il giorno in cui arriva.
+  */
+  it("oggi il termine non è confermato, e la costante lo dice", () => {
+    expect(conservazioneConfermata()).toBe(false);
+    expect(CONSERVAZIONE_PROVE_MESI).toBe("DA CONFERMARE DAL LEGALE");
   });
 });
 

@@ -214,6 +214,7 @@ BREVO_LISTA_PROMEMORIA  = <id numerico della lista dei promemoria>
 BREVO_LISTA_MARKETING   = <id numerico della lista delle comunicazioni>
 BREVO_TEMPLATE_DOI      = <id numerico del modello>
 CRON_SECRET             = <una stringa lunga a caso>
+BLOB_READ_WRITE_TOKEN   = <lo dà Vercel collegando il magazzino Blob>
 ```
 
 `CRON_SECRET` la usa `api/pulizia.ts`: Vercel firma con quella le chiamate di
@@ -373,13 +374,27 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 3. Le cinque variabili sono su Vercel, e l'iscrizione di prova arriva davvero.
 4. `GET /api/pulizia?prova=1` gira e il resoconto torna sensato — **prima** di
    lasciarla cancellare qualcosa.
-5. È deciso dove stanno le prove di consenso.
+5. Il magazzino delle prove (Vercel Blob) è collegato al progetto e
+   `BLOB_READ_WRITE_TOKEN` è fra le variabili, **e**
+   `CONSERVAZIONE_PROVE_MESI` in `src/lib/sito/registro-prove.ts` è un numero
+   e non più «DA CONFERMARE DAL LEGALE». Finché è la stringa, la pulizia
+   risponde 503 e non tocca niente.
 6. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
 
-L'invio e la pulizia si accendono **insieme**. Con l'invio acceso e la pulizia
-spenta, un contatto che non rifà mai il calcolo riceve ogni anno lo stesso
-promemoria con l'importo vecchio: il trigger a data di Brevo ignora l'anno, ed
-è la pulizia che gli toglie la data da sotto.
+> ### Invio, pulizia e registro delle prove si accendono **insieme**
+>
+> Mai uno senza gli altri. Non è una raccomandazione: ciascuno dei tre, da
+> solo, produce un danno che gli altri due impediscono.
+>
+> | Acceso da solo | Che cosa succede |
+> | --- | --- |
+> | **Invio** senza pulizia | il trigger a data di Brevo ignora l'anno: chi non rifà il calcolo riceve ogni anno lo stesso promemoria con l'importo vecchio, per sempre. È la pulizia che gli toglie la data da sotto. |
+> | **Invio** senza registro | i contatti si accumulano e nessun termine li tocca: l'informativa promette cancellazioni che non avvengono. |
+> | **Pulizia** senza registro | si cancella il contatto **e** la prova che quella persona aveva chiesto qualcosa: si resta senza il dato e senza la prova di averlo trattato legittimamente. Per questo la pulizia si rifiuta di partire finché il termine delle prove non è confermato — ma il rifiuto è una rete, non un permesso di accendere a metà. |
+> | **Registro** senza gli altri due | non fa danno, e non serve a niente: non c'è nessun evento da registrare. |
+>
+> L'ordine di accensione è quello della lista qui sopra: prima il magazzino
+> delle prove e il termine confermato, poi la pulizia in prova, poi l'invio.
 
 ---
 

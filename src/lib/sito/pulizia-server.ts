@@ -8,7 +8,8 @@
  * senza toccare nessuno.
  */
 import type { ClientBrevo, ContattoBrevo } from "./brevo";
-import { ATTRIBUTI_CALCOLO, decidi, type Azione, type Configurazione } from "./pulizia";
+import { ATTRIBUTI_CALCOLO, decidi, ultimaAttivita, type Azione, type Configurazione } from "./pulizia";
+import { VERSIONE_TESTO_CONSENSI, type RegistroProve } from "./registro-prove";
 
 /** Quanti contatti per pagina. Il massimo che Brevo accetta è 1000; qui si sta larghi. */
 export const PAGINA = 500;
@@ -34,12 +35,38 @@ export type Resoconto = {
   errori: { email: string; azione: string; dettaglio: string }[];
   /** La pulizia si è fermata al tetto senza finire l'archivio. */
   troncata: boolean;
+  /**
+   * La pulizia si è rifiutata di partire.
+   *
+   * Succede quando il termine di conservazione delle prove non è ancora un
+   * numero. Vedi `CONSERVAZIONE_PROVE_MESI`: cancellare senza sapere per
+   * quanto si conserva la prova della cancellazione è il danno che il
+   * registro esiste per evitare.
+   */
+  rifiutata: string | null;
   /** Ogni azione eseguita, per il registro. */
   fatte: Azione[];
 };
 
 export type Dipendenze = {
   client: ClientBrevo;
+  /**
+   * Il registro delle prove, fuori da Brevo.
+   *
+   * Non è facoltativo: una pulizia senza registro cancella il contatto **e**
+   * la prova che quella persona aveva chiesto qualcosa. Vedi
+   * `registro-prove.ts`.
+   */
+  registro: RegistroProve;
+  /**
+   * Per quanti mesi si conservano le prove.
+   *
+   * Arriva da `CONSERVAZIONE_PROVE_MESI`, che oggi vale la stringa «DA
+   * CONFERMARE DAL LEGALE». Qui si accetta anche la stringa, e si rifiuta di
+   * partire: così il rifiuto è una cosa che si prova in un test, non una
+   * condizione scritta in un guscio che gira solo in produzione.
+   */
+  conservazioneProveMesi: number | string;
   conf: Configurazione;
   /** La data di oggi, iniettata: questo modulo non ha un orologio. */
   oggi: string;
@@ -56,6 +83,7 @@ async function esegui(client: ClientBrevo, a: Azione): Promise<void> {
   switch (a.tipo) {
     case "cancella":
       return client.cancellaContatto(a.email);
+    /* La prova la scrive `eseguiPulizia` prima di arrivare qui: vedi sotto. */
     case "svuotaCalcolo":
       /*
         Svuota **solo** le quattro voci del calcolo. `REGIME` e
@@ -82,8 +110,26 @@ export async function eseguiPulizia(dip: Dipendenze): Promise<Resoconto> {
     usciteDaLista: 0,
     errori: [],
     troncata: false,
+    rifiutata: null,
     fatte: [],
   };
+
+  /*
+    Il rifiuto, prima di qualunque cosa.
+
+    Finché il legale non dice per quanto si conservano le prove, la pulizia
+    non parte: cancellare scrivendo una prova che non si sa per quanto tenere
+    è peggio che non cancellare, perché crea un archivio nuovo senza una
+    regola. E non parte **del tutto** — non «salta il registro e cancella lo
+    stesso», che sarebbe il modo silenzioso di fare il danno.
+  */
+  const mesi = dip.conservazioneProveMesi;
+  if (typeof mesi !== "number" || !Number.isFinite(mesi) || mesi <= 0) {
+    r.rifiutata =
+      `termine di conservazione delle prove non confermato (${JSON.stringify(mesi)}): `
+      + "la pulizia non parte. Vedi CONSERVAZIONE_PROVE_MESI in src/lib/sito/registro-prove.ts.";
+    return r;
+  }
 
   let offset = 0;
   for (;;) {
@@ -109,6 +155,36 @@ export async function eseguiPulizia(dip: Dipendenze): Promise<Resoconto> {
         if (azione.tipo === "svuotaCalcolo") r.calcoliSvuotati += 1;
         if (azione.tipo === "esciDaLista") r.usciteDaLista += 1;
         if (dip.provaSoltanto) continue;
+
+        /*
+          La prova **prima** della cancellazione, e mai dopo.
+
+          Se il registro non accetta la scrittura, il contatto non si tocca:
+          meglio un contatto che resta un giorno di più che una cancellazione
+          di cui non resta prova. L'ordine qui è la differenza fra le due
+          cose, e invertirlo non produrrebbe nessun errore — solo, ogni tanto,
+          una cancellazione muta.
+
+          Si scrive solo per le cancellazioni. Uscire da una lista perché un
+          termine è scaduto non è un atto della persona: non è una revoca, e
+          registrarlo come tale direbbe il falso.
+        */
+        if (azione.tipo === "cancella") {
+          try {
+            await dip.registro.scrivi({
+              email: azione.email,
+              tipo: "richiesta",
+              quando: ultimaAttivita(contatto) ?? dip.oggi,
+              versioneTesto: VERSIONE_TESTO_CONSENSI,
+              nota: `mai confermata; contatto cancellato il ${dip.oggi}`,
+            });
+          } catch (e) {
+            r.errori.push({ email: azione.email, azione: "registro", dettaglio: String(e) });
+            r.cancellati -= 1;
+            continue;
+          }
+        }
+
         try {
           await esegui(dip.client, azione);
         } catch (e) {
