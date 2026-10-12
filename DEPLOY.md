@@ -213,7 +213,14 @@ BREVO_API_KEY           = xkeysib-…
 BREVO_LISTA_PROMEMORIA  = <id numerico della lista dei promemoria>
 BREVO_LISTA_MARKETING   = <id numerico della lista delle comunicazioni>
 BREVO_TEMPLATE_DOI      = <id numerico del modello>
+CRON_SECRET             = <una stringa lunga a caso>
 ```
+
+`CRON_SECRET` la usa `api/pulizia.ts`: Vercel firma con quella le chiamate di
+cron, e senza la funzione risponde 401. È un indirizzo pubblico che cancella
+dati — senza segreto non si apre. **Il permesso della chiave Brevo deve
+includere la scrittura sui contatti**, non solo la creazione: la pulizia
+aggiorna attributi, toglie da liste e cancella.
 
 Tutte e quattro sono obbligatorie. Se manca quella del marketing la funzione
 risponde «non attivi» **anche** a chi aveva spuntato solo i promemoria: è
@@ -250,156 +257,129 @@ sono due strade, in ordine di fatica:
    diretto in `API` dentro `src/lib/rotte.ts`. Meglio ancora, una
    distribuzione di anteprima: `originiAmmesse` ammette già `VERCEL_URL`.
 
-### Conservazione — **tre termini da decidere**
+### Conservazione — **i termini sono decisi**
 
-I termini li decide il legale. Qui sta il resto: che cosa va cancellato, e come
-si eseguirebbe. **Niente di tutto questo è costruito**, e nessun termine va
-scritto nell'informativa finché non si sa come rispettarlo — una cancellazione
-promessa e non eseguita è peggio di nessuna promessa.
+Decisi dal legale il 12 ottobre 2026. Li esegue `api/pulizia.ts`, che Vercel
+Cron chiama una volta al giorno (voce `crons` in `vercel.json`).
 
-| | Che cosa | Termine | Cosa andrebbe fatto |
+| | Che cosa | Termine, da quando | Azione |
 | --- | --- | --- | --- |
-| 1 | I dati del calcolo, dopo l'ultima scadenza | *da decidere* | svuotare i sei attributi; il contatto resta iscritto |
-| 2 | Indirizzi confermati e inattivi | *da decidere* | cancellare il contatto |
-| 3 | Indirizzi mai confermati | *da decidere* | cancellare il contatto |
+| 1 | Iscrizioni mai confermate | **30 giorni** dalla richiesta | cancella il contatto |
+| 2 | Dati del calcolo | **30 giorni** dall'ultima scadenza del calcolo, salvo nuovo calcolo | svuota `SCAD_1_*` e `SCAD_2_*` |
+| 3 | Lista promemoria | con il caso 2, **e comunque 12 mesi** senza attività se non restano scadenze future | toglie dalla lista |
+| 4 | Lista marketing | **24 mesi** dal consenso o dall'ultima interazione attiva documentabile | toglie dalla lista |
 
-Il primo è diverso dagli altri due e conviene non confonderlo: **non è una
-disiscrizione**. Passato il 30 giugno a cui si riferiscono, `SCAD_2_DATA` e il
-suo importo non servono più a niente — il promemoria è già partito — e tenerli
-vuol dire tenere un dato economico oltre la sua utilità. Svuotarli non toglie
-nessuno dalla lista: chi tornasse sul simulatore e si reiscrivesse li
-riscriverebbe aggiornati.
+«Ultima scadenza del calcolo» è `SCAD_2_DATA`, **oppure `SCAD_1_DATA` quando la
+seconda è vuota** — nel primo anno di attività e sotto la soglia degli acconti
+di appuntamenti ce n'è uno solo.
 
-#### Cosa sa fare Brevo da solo
+I nostri invii **non** rinnovano il termine 4: lo rinnovano solo un clic o un
+nuovo calcolo, e per questo l'orologio sta in un attributo suo,
+`ULTIMA_ATTIVITA`, che la pulizia non tocca mai. Appoggiarlo a `modifiedAt`
+avrebbe voluto dire che la pulizia del caso 2 rinnova il termine del caso 4, e
+quei contatti non sarebbero usciti mai.
 
-Verificato sul centro assistenza di Brevo — **con un limite dichiarato: da
-questo ambiente `help.brevo.com` e `developers.brevo.com` sono bloccati dal
-proxy di rete, quindi quanto segue viene dagli estratti di ricerca di quelle
-stesse pagine e non da una lettura diretta.** Va riletto sul pannello prima di
-costruirci sopra.
+Il progetto completo — cosa sta sul pannello e cosa nel codice — è in
+[`docs/invio-promemoria.md`](docs/invio-promemoria.md).
 
-- **Svuotare un attributo: sì.** L'azione *Update contact attribute* di
-  un'automazione «allows you to update **or delete** the value of a specific
-  contact attribute for a contact».
-- **Togliere da una lista: sì.** L'azione *Remove contact from a list*.
-- **Cancellare un contatto: sì.** L'azione *Delete a contact*, descritta per il
-  caso di chi «has not interacted with you in a long time».
+#### Le tre verifiche chieste, e come sono andate
 
-#### Cosa **non** è verificato, ed è il punto che decide tutto
+**Non ho potuto aprire nessuna delle due documentazioni.** Da questo ambiente
+il proxy di rete nega `vercel.com`, `developers.brevo.com`, `help.brevo.com` e
+`api.brevo.com` — risposta 403 al CONNECT. Quello che segue viene dagli
+estratti di ricerca di quelle stesse pagine. Va riletto prima di accendere.
 
-**«Dopo l'ultimo invio» non si sa se si può esprimere.** Il trigger a data
-(*Anniversary*) fa entrare un contatto in un'automazione un tot di giorni prima
-o dopo una data contenuta in un attributo — che sarebbe esattamente
-`SCAD_2_DATA` — ma la documentazione dice che **ignora l'anno**: i contatti
-«can enter the automation every year on the same date». Un trigger che si
-ripete ogni anno non esprime «una volta sola, trenta giorni dopo». Se esista un
-altro modo di dirlo, da qui non l'ho potuto verificare.
+**(a) Vercel Cron, disponibilità e frequenza — NON VERIFICATO.**
+Le fonti secondarie concordano su un punto: sul piano **Hobby** i cron sono
+limitati a **una volta al giorno**, e un orario più fitto fa fallire il deploy
+con «Hobby accounts are limited to daily Cron Jobs». Sul numero di job per
+piano le fonti si contraddicono (2 su Hobby; 40, «illimitati», o 100 su Pro a
+seconda della fonte). Concordano anche su due dettagli che qui contano: le
+chiamate possono arrivare **fino a 59 minuti in ritardo**, e i cron girano
+**solo sulle distribuzioni di produzione**, in UTC, **senza ritentativi**.
 
-Non è verificato nemmeno il caso 3. Per il doppio opt-in costruito **come
-workflow di Brevo** — quello per i moduli esterni — esiste un «Wait time» dopo
-il quale il contatto non confermato viene *blocklisted*. Noi però non usiamo
-quel workflow: usiamo l'endpoint API `doubleOptinConfirmation`, che il doppio
-opt-in se lo gestisce da sé. Che quell'impostazione valga anche per questa
-strada **non risulta**, e comunque *blocklisted* non vuol dire cancellato: il
-contatto resta in archivio.
+Il piano attuale del progetto non lo so: **vallo a vedere tu**. Una volta al
+giorno basta a tutti e quattro i termini, quindi anche Hobby regge — ma se il
+piano non prevede cron per niente, il ripiego sta più sotto.
 
-#### Il rischio della ricorrenza — **NON VERIFICATO**
+L'orario è `20 3 * * *`, cioè le 3:20 UTC: non in punto, perché gli orari
+tondi sono quelli su cui si accalca tutto il mondo e il ritardo di
+cinquantanove minuti diventa più probabile.
 
-> Tutto questo riquadro è ipotesi e non misura. Niente di quanto segue è stato
-> provato sul pannello di Brevo, e non c'è codice che lo implementi.
+**(b) Elencare e cancellare i non confermati del doppio opt-in — NON VERIFICATO.**
+Le fonti si contraddicono sul fatto stesso che un contatto esista prima della
+conferma: una guida di terzi parla di uno stato «pending» non visibile fra i
+contatti; una risposta nel forum di Brevo dice che senza conferma il contatto
+«non è salvato» e i suoi attributi non sono disponibili; il centro assistenza
+descrive invece una lista temporanea, che implica un contatto esistente.
 
-**Come sono costruiti oggi i promemoria: non lo sono.** Cercato in tutto il
-repository — `SCAD_1_DATA` e `SCAD_2_DATA` compaiono solo dove vengono
-*scritti* (la pagina del simulatore) e *convalidati* (il contratto in
-`src/lib/sito/promemoria.ts`). **Niente li legge per mandare qualcosa.**
-`api/promemoria.ts` crea il contatto e si ferma lì. Le parole «trigger» e
-«Anniversary» compaiono in un solo file, questo, e solo nel riquadro qui sopra
-che racconta cosa Brevo *potrebbe* fare: mai come descrizione di qualcosa di
-configurato.
+**Il codice è costruito per non dipendere dalla risposta.** La pulizia non
+cerca un campo «non confermato»: cerca i contatti che non stanno in **nessuna**
+delle due liste, perché le liste si popolano solo dopo la conferma. Se Brevo
+non li espone affatto, non c'è niente da cancellare e il termine è rispettato
+da solo; se li espone, la pulizia li trova. Da verificare sul pannello quale
+dei due mondi è il nostro.
 
-Non è nemmeno il caso «sta solo sul pannello»: sul pannello non c'è, perché le
-liste e il modello non sono ancora creati e le variabili d'ambiente non sono
-impostate. **L'invio dei promemoria è da costruire per intero**, e quando lo
-sarà vivrà su Brevo — non qui. Da controllare lì, e da annotare qui sotto
-quando esisterà: quale trigger, su quale attributo.
+**(c) Data dell'ultimo clic per contatto — NON VERIFICATO, e probabilmente no.**
+`GET /v3/contacts/:identifier` restituisce `createdAt`, `modifiedAt` e un
+oggetto `statistics`, ma **le statistiche coprono gli ultimi 90 giorni**, e
+`GET /v3/contacts/:identifier/campaignStats` accetta un intervallo di **al
+massimo 90 giorni**. Il termine del marketing è di **24 mesi**: leggere un clic
+di diciotto mesi fa vorrebbe dire otto chiamate paginate per contatto, ogni
+notte. Non è una strada.
 
-**Il rischio, per quando si costruirà.** La strada più ovvia è il trigger a
-data (*Anniversary*) su `SCAD_1_DATA` e `SCAD_2_DATA`, sette giorni prima. Ma
-quel trigger **ignora l'anno** — è la riga di documentazione riportata qui
-sopra — e un attributo che resta scritto resta scritto: un contatto che non
-rifà mai il calcolo riceverebbe **ogni anno, per sempre, lo stesso promemoria
-con l'importo di quel giorno**. Non è un'email in più: è un'email che afferma
-un numero, a una persona che su quel numero decide quanto mettere da parte, e
-che a ogni anno che passa è più sbagliato.
+Per questo il clic lo registra **un'automazione di Brevo** che scrive
+`ULTIMA_ATTIVITA`, e la pulizia legge quell'attributo. Finché l'automazione
+non esiste il termine conta solo dal consenso e dai nuovi calcoli, cioè
+cancella **prima** del dovuto: prudente, ma da sapere.
 
-#### L'ipotesi che chiuderebbe due problemi con una cosa sola — **NON VERIFICATA**
+#### I ripieghi manuali, se la funzione non si può accendere
 
-Un'azione *Update contact attribute* che **svuota** `SCAD_1_*` e `SCAD_2_*`
-dopo l'ultima scadenza chiuderebbe insieme la conservazione (caso 1 della
-tabella) e la ricorrenza: senza una data, il trigger non ha niente su cui
-scattare. Il contatto resta iscritto, e se torna sul simulatore le date si
-riscrivono aggiornate.
+Settimanali, non mensili: i termini più stretti sono di trenta giorni, e un
+giro mensile li sfonda di quasi una settimana nel caso peggiore. Ogni lunedì,
+sul pannello di Brevo:
 
-Tre cose da verificare prima di crederci, nessuna delle quali ho potuto
-provare:
+| | Filtro | Azione |
+| --- | --- | --- |
+| 1 | contatti in nessuna delle due liste, creati da oltre 30 giorni | cancella |
+| 2 e 3 | `SCAD_2_DATA` (o `SCAD_1_DATA` se vuota) anteriore a 30 giorni fa | svuota le quattro voci, togli dai promemoria |
+| 3 bis | in lista promemoria, senza date, `ULTIMA_ATTIVITA` oltre 12 mesi | togli dalla lista |
+| 4 | in lista marketing, `ULTIMA_ATTIVITA` oltre 24 mesi | togli dalla lista |
 
-1. **Che un attributo data vuoto davvero non faccia scattare il trigger.** È
-   quello che ci si aspetta, e non è quello che si è visto: è un'inferenza.
-2. **Quale sia «l'ultima scadenza».** Non è sempre `SCAD_2_DATA`: quando di
-   appuntamenti ce n'è uno solo — primo anno di attività, o sotto la soglia
-   degli acconti — `SCAD_2_*` **è vuoto fin dall'inizio** e l'ultima scadenza è
-   `SCAD_1_DATA`. Un'automazione ancorata solo a `SCAD_2_DATA` non scatterebbe
-   mai per quei contatti, e sarebbero proprio quelli con una sola data a
-   restare scritta per sempre. Serve una condizione che prenda `SCAD_2_DATA` se
-   c'è, `SCAD_1_DATA` altrimenti.
-3. **Che l'automazione che svuota non soffra dello stesso difetto.** Se la si
-   ancora al trigger a data, anche lei ignora l'anno — ma si spegne da sola
-   alla prima esecuzione, perché dopo aver svuotato l'attributo non ha più una
-   data su cui ripartire. Ragionamento, non prova: va guardato che Brevo si
-   comporti così e non, per dire, tenga in coda i contatti già entrati.
+Vale anche come rete di sicurezza quando la funzione c'è: i cron di Vercel non
+ritentano, e una notte saltata non si recupera da sola. Il giro del lunedì la
+recupera.
 
-Se l'ipotesi regge, il caso 1 della tabella non ha bisogno né di pulizia
-manuale né di job esterno: è un'automazione dentro Brevo, senza codice nostro.
-Resta la domanda a monte, quella del riquadro precedente — se «N giorni dopo
-una data, **una volta sola**» si possa esprimere.
+#### Le prove di consenso: **manca una decisione, non del codice**
 
-**Ma lo chiude solo per metà, e conviene saperlo.** La riga 1 della tabella
-dice «svuotare i sei attributi»; l'ipotesi ne svuota **quattro** — le due date
-e i due importi — perché sono quelli che il trigger legge. Restano `REGIME` e
-`ACCANTONAMENTO_MESE`, e il secondo è il numero da cui il reddito si ricava
-meglio di tutti: `× 12 ÷ pressione` dà il fatturato con due passaggi. Un
-contatto ripulito dalle date resterebbe con addosso la stima del suo reddito.
+Il legale chiede una conservazione minima separata delle prove di consenso e
+delle revoche, non utilizzabile per il marketing. Oggi quelle prove stanno
+dentro Brevo, legate al contatto, e il caso 1 **cancella il contatto** — cioè
+cancella anche la prova che qualcuno aveva chiesto e poi non confermato.
 
-Quindi o l'azione svuota anche quei due — e allora va verificato che
-un'automazione possa toccare più attributi in un colpo, o che se ne possano
-mettere in fila — oppure il caso 1 resta da chiudere con una delle due strade
-qui sotto, e l'ipotesi serve soltanto contro la ricorrenza.
+Due strade, nessuna costruita, descritte in fondo a
+[`docs/invio-promemoria.md`](docs/invio-promemoria.md). Va deciso prima di
+accendere: il giorno dopo, le prime prove cominciano a scadere.
 
-#### Le due strade, per ciascuno dei tre
-
-**Pulizia manuale periodica.** Un promemoria in calendario — trimestrale,
-semestrale — e due filtri sul pannello di Brevo. Costo: zero da costruire,
-qualche minuto a giro. Rischio: dipende da una persona che si ricorda, e
-l'informativa invece promette. Regge se il termine è generoso (mesi, non
-giorni) e se il numero di contatti resta piccolo.
-
-**Job esterno.** Uno script che chiama l'API di Brevo e fa il giro: cerca i
-contatti oltre il termine, svuota o cancella. Da far partire da qualcosa che
-gira da solo — un Vercel Cron o una GitHub Action pianificata — perché qui non
-c'è niente che giri ogni notte: `api/promemoria.ts` risponde a una richiesta e
-muore. Costo: mezza giornata più la chiave API con i permessi di scrittura in
-un secondo posto. Vantaggio: fa quello che l'informativa dice, ogni giorno,
-senza che nessuno se ne ricordi.
-
-**Il caso 1 potrebbe non aver bisogno di nessuna delle due** — vedi l'ipotesi
-qui sopra. È la prima cosa da guardare sul pannello, perché se funziona toglie
-di mezzo il termine più delicato dei tre **e** il rischio della ricorrenza.
 
 ### Quando accendere
 
-1. L'informativa privacy descrive i sei attributi e le due finalità separate.
-2. Le tre variabili sono su Vercel, e l'iscrizione di prova arriva davvero.
-3. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
+1. L'informativa privacy descrive i sei attributi, `ULTIMA_ATTIVITA`, le due
+   finalità separate e i quattro termini. Il testo pronto è in
+   [`docs/legale/privacy-punti-d-e.md`](docs/legale/privacy-punti-d-e.md) e
+   **non è ancora dentro `contenuti/privacy.md`**.
+2. Liste, attributi, modello e automazioni sono sul pannello, annotati in
+   [`docs/invio-promemoria.md`](docs/invio-promemoria.md).
+3. Le cinque variabili sono su Vercel, e l'iscrizione di prova arriva davvero.
+4. `GET /api/pulizia?prova=1` gira e il resoconto torna sensato — **prima** di
+   lasciarla cancellare qualcosa.
+5. È deciso dove stanno le prove di consenso.
+6. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
+
+L'invio e la pulizia si accendono **insieme**. Con l'invio acceso e la pulizia
+spenta, un contatto che non rifà mai il calcolo riceve ogni anno lo stesso
+promemoria con l'importo vecchio: il trigger a data di Brevo ignora l'anno, ed
+è la pulizia che gli toglie la data da sotto.
 
 ---
 

@@ -78,7 +78,7 @@ describe("la strada buona", () => {
     expect(String(body)).not.toContain("xkeysib");
   });
 
-  it("manda i sei attributi, la lista, il modello e il ritorno", async () => {
+  it("manda i sei attributi del browser, la lista, il modello e il ritorno", async () => {
     const s = spia();
     await gestisciPromemoria(posta(), CONF, dip(s.finto));
     const inviato = JSON.parse(String(s.chiamate[0].opzioni.body));
@@ -86,8 +86,35 @@ describe("la strada buona", () => {
     expect(inviato.includeListIds).toEqual([7]);
     expect(inviato.templateId).toBe(3);
     expect(inviato.redirectionUrl).toBe("https://flowlance.it/simulatore/");
-    expect(Object.keys(inviato.attributes)).toHaveLength(6);
+    expect(Object.keys(inviato.attributes).filter((k) => k !== "ULTIMA_ATTIVITA")).toHaveLength(6);
     expect(inviato.attributes.SCAD_1_IMPORTO).toBe(5_329.48);
+  });
+
+  /*
+    Il settimo attributo, e perché non smentisce il «sei» detto al legale.
+
+    `ULTIMA_ATTIVITA` non esce dal browser: lo scrive il server dalla propria
+    data, ed è l'orologio da cui ripartono i termini di conservazione. Il
+    conto dei sei riguarda quello che la pagina manda, e quello resta sei —
+    il test qui sopra lo verifica escludendo proprio questo campo, così non
+    può nascondere un settimo che arrivasse davvero dal browser.
+  */
+  it("più l'orologio della conservazione, che mette il server", async () => {
+    const s = spia();
+    await gestisciPromemoria(posta(), CONF, dip(s.finto));
+    const inviato = JSON.parse(String(s.chiamate[0].opzioni.body));
+    expect(inviato.attributes.ULTIMA_ATTIVITA).toBe(OGGI);
+  });
+
+  it("e il browser non può scriverlo da sé", async () => {
+    const s = spia();
+    await gestisciPromemoria(
+      posta({ ...CORPO, attributi: { ...CORPO.attributi, ULTIMA_ATTIVITA: "2020-01-01" } }),
+      CONF,
+      dip(s.finto),
+    );
+    const inviato = JSON.parse(String(s.chiamate[0].opzioni.body));
+    expect(inviato.attributes.ULTIMA_ATTIVITA).toBe(OGGI);
   });
 
   /*

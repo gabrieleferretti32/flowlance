@@ -4,5 +4,11 @@
   "buildCommand": "next build",
   "outputDirectory": "out",
   "cleanUrls": false,
-  "trailingSlash": true
+  "trailingSlash": true,
+  "crons": [
+    {
+      "path": "/api/pulizia",
+      "schedule": "20 3 * * *"
+    }
+  ]
 }

@@ -49,6 +49,17 @@ const VIETATI = [
   { frammento: "src/lib/dati/db", perche: "è l'archivio IndexedDB" },
   { frammento: "src/lib/dati/azioni", perche: "scrive nell'archivio" },
   { frammento: "src/lib/licenza", perche: "è la chiave di licenza" },
+  /*
+    Il client di Brevo e il giro della pulizia vivono nella funzione
+    serverless, e di là non devono muoversi. Non per un segreto — la chiave
+    arriva dall'ambiente e in un bundle non ci finirebbe comunque — ma perché
+    sono il codice che **cancella i contatti**, e il posto dove non deve
+    esistere è una pagina pubblica che chiunque apre. Un import distratto per
+    riusare un tipo basterebbe: `import { type ContattoBrevo }` senza `type`
+    tira dentro il modulo intero.
+  */
+  { frammento: "src/lib/sito/brevo", perche: "è il client che cancella i contatti" },
+  { frammento: "src/lib/sito/pulizia-server", perche: "esegue le cancellazioni" },
 ];
 /** Pacchetti che non devono entrare: Dexie apre il database appena importato. */
 const PACCHETTI_VIETATI = ["dexie", "dexie-react-hooks"];

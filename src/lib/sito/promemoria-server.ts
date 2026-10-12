@@ -42,6 +42,7 @@
  * clicca nella propria posta.
  */
 import { convalidaPromemoria, origineAmmessa } from "./promemoria";
+import { ATTRIBUTO_ATTIVITA } from "./pulizia";
 
 /** L'indirizzo di Brevo. Costante: non è una configurazione da sbagliare. */
 const BREVO_DOI = "https://api.brevo.com/v3/contacts/doubleOptinConfirmation";
@@ -201,7 +202,31 @@ export async function gestisciPromemoria(
       },
       body: JSON.stringify({
         email: convalida.email,
-        attributes: convalida.attributi,
+        attributes: {
+          ...convalida.attributi,
+          /*
+            L'orologio della conservazione, messo **qui** e non dal browser.
+
+            I termini decisi dal legale ripartono da un'interazione attiva:
+            l'iscrizione, un nuovo calcolo, un clic. Serve una data, e
+            `modifiedAt` di Brevo non va bene — lo muove anche la pulizia
+            quando svuota, e un contatto che la pulizia tocca si vedrebbe
+            rinnovare il termine proprio da chi doveva toglierlo (vedi
+            `pulizia.ts`).
+
+            Lo scrive il server e non la pagina per due ragioni. La prima è
+            che questa non è una data che l'utente dichiara: è il momento in
+            cui la richiesta è arrivata, e l'orologio di chi conserva deve
+            essere di chi conserva. La seconda è che così l'elenco di quello
+            che **esce dal browser** resta di sei attributi, come l'ha visto
+            il legale: questo è un settimo che il browser non manda e non
+            potrebbe mandare.
+
+            Un nuovo calcolo ripassa di qui e lo riscrive: è il «salvo nuovo
+            calcolo» dei termini, senza nessuna regola in più.
+          */
+          [ATTRIBUTO_ATTIVITA]: dip.oggi,
+        },
         /*
           I promemoria sempre, le comunicazioni sul prodotto solo se
           spuntate. Una conferma sola vale per tutte e due le liste: chi
