@@ -164,8 +164,16 @@ const registro = opzione("registro") ?? REGISTRO;
 const { righe: emesse, illeggibili } = existsSync(registro)
   ? leggiRegistro(readFileSync(registro, "utf8"))
   : { righe: [], illeggibili: 0 };
+/*
+  Oggi, una volta sola. Serve due volte: alla finestra dei 30 giorni del punto
+  6-bis, qui sotto, e alla data di emissione più in basso. Due letture
+  dell'orologio a mezzanotte darebbero due giorni diversi.
+*/
+const oggi = new Date();
+const emessaIl = oggi.toISOString().slice(0, 10);
+
 const precedenti = storicoDi(emesse, email);
-const storia = raccontaStorico(precedenti);
+const storia = raccontaStorico(precedenti, emessaIl);
 
 console.log(`\n  ${storia.righe.join("\n  ")}`);
 if (illeggibili > 0) {
@@ -180,9 +188,6 @@ if (argomenti.includes("--storico")) {
   console.log("");
   process.exit(0);
 }
-
-const oggi = new Date();
-const emessaIl = oggi.toISOString().slice(0, 10);
 
 let scadenza = posizionali[1] ?? null;
 const mesi = opzione("mesi");

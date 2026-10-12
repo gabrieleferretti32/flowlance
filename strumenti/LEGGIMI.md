@@ -9,6 +9,7 @@ Nessuna di queste gira nel browser dell'utente e nessuna finisce nel bundle.
 | `artefatto.mjs` | La guardia: rifiuta di misurare `out/` se non è il sito del sorgente di adesso |
 | `timbra-artefatto.mjs` | Timbra il sito appena costruito, dentro `npm run build` |
 | `verifica-link.mjs` | Apre ogni pagina del sito costruito e controlla che nessun link interno sia morto |
+| `verifica-offerta.mjs` | Confronta la card dell'offerta costruita col punto 6-bis dei Termini: posti, prezzo, giorni, e le parole che non si possono dire |
 | `verifica-derivati.mjs` | Rifà i conti delle formule del prospetto e li confronta con gli importi mostrati accanto |
 | `verifica-allineamento.mjs` | Misura in pixel che ogni totale del piede stia sotto la colonna che somma, e che la somma torni |
 | `verifica-versione.mjs` | Chiede al sito online da quale commit è costruito e lo confronta con il ramo |

@@ -89,9 +89,15 @@ export function storicoDi(righe, email) {
  * stampano tutti e due i numeri, con le date, e chi legge non deve contare
  * niente.
  */
-export function raccontaStorico(precedenti) {
+export function raccontaStorico(precedenti, oggi = null) {
   if (precedenti.length === 0) {
-    return { nuovo: true, numeroLicenza: 1, rinnovi: 0, righe: ["Primo acquisto: nessuna licenza precedente per questo indirizzo."] };
+    return {
+      nuovo: true,
+      numeroLicenza: 1,
+      rinnovi: 0,
+      righe: ["Primo acquisto: nessuna licenza precedente per questo indirizzo."],
+      finestra: null,
+    };
   }
   const numeroLicenza = precedenti.length + 1;
   const rinnovi = precedenti.length;
@@ -110,5 +116,160 @@ export function raccontaStorico(precedenti) {
   if (grafie.length > 1) {
     righe.push(`Scritto in ${grafie.length} modi diversi nel registro: ${grafie.join(", ")}`);
   }
-  return { nuovo: false, numeroLicenza, rinnovi, righe };
+  /*
+    E da che parte della finestra dei 30 giorni siamo, se chi chiama sa che
+    giorno è. Senza `oggi` non si dice niente: una finestra calcolata
+    sull'orologio di dentro non si potrebbe provare, e questo modulo non legge
+    nessuno stato del mondo di proposito.
+  */
+  const ultima = precedenti[precedenti.length - 1];
+  const finestra = oggi === null ? null : finestraDiRinnovo(ultima?.scadenza, oggi);
+  if (oggi !== null) righe.push(...raccontaFinestra(ultima?.scadenza, oggi));
+  return { nuovo: false, numeroLicenza, rinnovi, righe, finestra };
+}
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  La finestra dei 30 giorni del punto 6-bis
+  ─────────────────────────────────────────────────────────────────────────
+
+  Il comma 3 garantisce il prezzo dei Fondatori «a ciascun rinnovo acquistato
+  prima della scadenza della licenza in corso o entro 30 giorni dalla stessa»,
+  e il comma 4 dice che fuori da quel termine la garanzia «cessa
+  definitivamente».
+
+  È quindi una cosa da sapere **prima** di scrivere il prezzo in una email, e
+  oggi non c'è nessun posto dove leggerla: il registro ha la data di scadenza
+  dell'ultima licenza, e il conto si fa a mente. A mente, il trentunesimo
+  giorno somiglia molto al trentesimo.
+
+  Qui si dice soltanto da che parte della finestra siamo. Non si decide nessun
+  prezzo, non si blocca nessuna emissione: la clausola ha commi che un conto
+  non copre — il comma 5 (se il listino è più basso vince il listino) e il
+  comma 2 (le licenze rimborsate non contano) — e uno strumento che decidesse
+  al posto di chi legge sbaglierebbe proprio nei casi in cui serve pensare.
+
+  ─────────────────────────────────────────────────────────────────────────
+  «Entro 30 giorni» qui vuol dire che il trentesimo va bene
+  ─────────────────────────────────────────────────────────────────────────
+
+  È il verso opposto a quello di `src/lib/sito/calendario.ts`, dove
+  `scaduto(d, 30, oggi)` diventa vero **al** trentesimo giorno: là il termine
+  è il tempo che si ha per *compiere un dovere* — cancellare dei dati — e al
+  trentesimo il dovere è esigibile. Qui il termine è un *diritto* di chi
+  compra, e un diritto «entro 30 giorni» comprende il trentesimo. Lo stesso
+  numero, letto nei due versi, dà due giorni diversi: scriverlo è meno
+  rischioso che ricordarselo.
+*/
+
+/** I giorni di grazia del comma 3. Un test lo confronta col contratto. */
+export const GIORNI_DI_GRAZIA = 30;
+
+const GIORNI_PER_MESE = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+const bisestile = (anno) => (anno % 4 === 0 && anno % 100 !== 0) || anno % 400 === 0;
+const giorniDelMese = (anno, mese) => (mese === 2 && bisestile(anno) ? 29 : GIORNI_PER_MESE[mese - 1]);
+
+/**
+ * `data` più `giorni` giorni, sulle cifre della stringa e senza nessun `Date`.
+ *
+ * È la stessa funzione di `src/lib/sito/calendario.ts`, riscritta qui perché
+ * questo strumento gira con `node` nudo — e un `import` di un file `.ts` da
+ * uno `.mjs` chiede a Node una funzione sperimentale che sulla versione 20,
+ * che `package.json` dichiara di sostenere, non c'è.
+ *
+ * La copia non si regge sulla buona volontà: `storico.test.mjs` importa tutte
+ * e due le implementazioni e pretende che diano la stessa risposta su un anno
+ * intero di date, passaggi di mese e di anno e 29 febbraio compresi. Il giorno
+ * in cui una delle due cambia, il test cade.
+ *
+ * `new Date("2027-09-12")` nasce a mezzanotte UTC: letto da un fuso a est è
+ * già il tredici, e la finestra dei trenta giorni si chiuderebbe un giorno
+ * prima del dovuto per chi la guarda da Tokyo.
+ */
+export function piuGiorni(data, giorni) {
+  let anno = Number(String(data).slice(0, 4));
+  let mese = Number(String(data).slice(5, 7));
+  let giorno = Number(String(data).slice(8, 10));
+  let resto = giorni;
+  while (resto > 0) {
+    const disponibili = giorniDelMese(anno, mese) - giorno;
+    if (resto <= disponibili) {
+      giorno += resto;
+      resto = 0;
+    } else {
+      resto -= disponibili + 1;
+      giorno = 1;
+      mese += 1;
+      if (mese > 12) {
+        mese = 1;
+        anno += 1;
+      }
+    }
+  }
+  return `${anno}-${String(mese).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
+}
+
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * Da che parte della finestra siamo, rispetto alla scadenza dell'ultima licenza.
+ *
+ * - `prima`: la licenza è ancora valida, il rinnovo è nei termini.
+ * - `grazia`: scaduta, ma dentro i 30 giorni. `giorno` dice quale.
+ * - `oltre`: fuori. La garanzia del prezzo è cessata.
+ * - `ignota`: nel registro non c'è una scadenza leggibile, e un conto su una
+ *   data inventata direbbe «prezzo garantito» con la stessa sicurezza.
+ */
+export function finestraDiRinnovo(scadenza, oggi, giorni = GIORNI_DI_GRAZIA) {
+  if (!ISO.test(String(scadenza ?? "")) || !ISO.test(String(oggi ?? ""))) {
+    return { stato: "ignota", scadenza: scadenza ?? null, ultimoGiorno: null, giorno: null };
+  }
+  const ultimoGiorno = piuGiorni(scadenza, giorni);
+  if (oggi <= scadenza) return { stato: "prima", scadenza, ultimoGiorno, giorno: null };
+  if (oggi <= ultimoGiorno) {
+    let giorno = null;
+    for (let n = 1; n <= giorni; n += 1) {
+      if (piuGiorni(scadenza, n) === oggi) {
+        giorno = n;
+        break;
+      }
+    }
+    return { stato: "grazia", scadenza, ultimoGiorno, giorno };
+  }
+  return { stato: "oltre", scadenza, ultimoGiorno, giorno: null };
+}
+
+/**
+ * Le righe che raccontano la finestra. Informazione, non una decisione.
+ *
+ * Il prezzo non lo scrive questo strumento: lo scrive chi manda l'email, e lo
+ * scrive guardando anche i commi che un conto non sa leggere.
+ */
+export function raccontaFinestra(scadenza, oggi, giorni = GIORNI_DI_GRAZIA) {
+  const f = finestraDiRinnovo(scadenza, oggi, giorni);
+  if (f.stato === "ignota") {
+    return [
+      `Finestra del prezzo fondatori: non la so dire — nell'ultima licenza la scadenza è «${f.scadenza ?? "assente"}».`,
+      `  Il punto 6-bis la lega alla scadenza, e su una data illeggibile ogni conto sarebbe inventato.`,
+    ];
+  }
+  if (f.stato === "prima") {
+    return [
+      `Finestra del prezzo fondatori: aperta. La licenza in corso scade il ${f.scadenza}, oggi è ${oggi}.`,
+      `  Rinnovando entro il ${f.ultimoGiorno} vale il prezzo garantito dal punto 6-bis, comma 3.`,
+    ];
+  }
+  if (f.stato === "grazia") {
+    return [
+      `Finestra del prezzo fondatori: aperta, ma siamo oltre la scadenza (${f.scadenza})`
+        + `${f.giorno === null ? "" : ` — giorno ${f.giorno} di ${giorni}`}.`,
+      `  Ultimo giorno utile: ${f.ultimoGiorno}. Dopo, il comma 4: la garanzia cessa definitivamente.`,
+    ];
+  }
+  return [
+    `Finestra del prezzo fondatori: CHIUSA. La licenza è scaduta il ${f.scadenza} e i ${giorni} giorni`
+      + ` del comma 3 sono finiti il ${f.ultimoGiorno}.`,
+    `  Per il comma 4 la garanzia è cessata: vale il prezzo di listino di oggi.`,
+  ];
 }

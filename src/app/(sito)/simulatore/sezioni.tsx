@@ -7,7 +7,7 @@ import { ArrowRight, Check, CalendarX, Layers, Scale, Receipt } from "lucide-rea
 import { SITO, rottaDemo } from "@/lib/rotte";
 import { euro, euroTondo, percentuale } from "@/lib/format";
 import { PREZZO_SCRITTO } from "@/lib/sito/acquisto";
-import { DA_RIEMPIRE, OFFERTA } from "@/lib/sito/offerta";
+import { DA_RIEMPIRE, OFFERTA, RIMANDO_AI_TERMINI, condizioniSpezzate } from "@/lib/sito/offerta";
 import { conUtm } from "@/lib/sito/utm";
 import { AlComparire } from "@/components/sito/apparizione";
 import type { EsitoSimulazione } from "@/lib/sito/simulatore";
@@ -199,10 +199,12 @@ export function Ponte() {
 }
 
 // ————————————————————————————————————————————————————————————
-// 6 · L'offerta — testi segnaposto, visibili di proposito
+// 6 · L'offerta
 // ————————————————————————————————————————————————————————————
 
 export function Offerta() {
+  const condizioni = condizioniSpezzate();
+
   return (
     <AlComparire>
       <section aria-labelledby="offerta" className="mt-16">
@@ -233,6 +235,23 @@ export function Offerta() {
             <span className="text-etichetta text-inchiostro-tenue">
               + IVA all&apos;anno · {PREZZO_SCRITTO.totale} con l&apos;IVA
             </span>
+          </p>
+
+          {/*
+            Le condizioni essenziali, subito sotto il prezzo e senza un clic in
+            mezzo. La frase sta intera in `offerta.ts`: qui si taglia nei tre
+            pezzi che servono a farne un collegamento, e il taglio fallisce
+            rumorosamente se il pezzo da linkare non c'è.
+          */}
+          <p className="mt-3 text-etichetta leading-relaxed text-inchiostro-tenue">
+            {condizioni.prima}
+            <Link
+              href={RIMANDO_AI_TERMINI}
+              className="text-accento underline underline-offset-2"
+            >
+              {condizioni.rimando}
+            </Link>
+            {condizioni.dopo}
           </p>
 
           <ul className="mt-6 space-y-3">

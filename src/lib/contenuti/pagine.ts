@@ -16,8 +16,9 @@
  */
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { marked } from "marked";
+import { Marked } from "marked";
 import { SITO } from "@/lib/rotte";
+import { ancoraDelPunto, numeroDelPunto } from "./ancore";
 
 export type PaginaTesto = {
   /** Il titolo, preso dall'`# ` in testa al file. */
@@ -78,6 +79,30 @@ export type IndirizzoDiTesto = keyof typeof PAGINE_DI_TESTO;
 const RIGA_DATA = /^\*Ultimo aggiornamento:\s*(.+?)\s*\*$/m;
 const RIGA_VERSIONE = /^\*Versione\s+(\d+)\s*[—–-]\s*(.+?)\s*\*$/m;
 
+/**
+ * Il convertitore, con una cosa in più dei titoli: l'ancora dei punti numerati.
+ *
+ * `## 6-bis. Prezzo garantito…` esce con `id="punto-6-bis"`, e da lì lo
+ * raggiunge il rimando della card dell'offerta. Il numero lo ricava
+ * `ancore.ts`, che è anche il modulo da cui lo prende chi scrive il
+ * collegamento: le due metà non possono scrivere due identificativi diversi.
+ *
+ * I titoli che non sono clausole numerate non prendono niente. `marked` da
+ * solo non mette identificativi — dalla versione 5 ha smesso — e un'ancora
+ * ricavata dal titolo sarebbe un indirizzo che cambia quando il legale
+ * riscrive una riga, senza che niente lo segnali.
+ */
+const CONVERTITORE = new Marked({
+  renderer: {
+    heading(token) {
+      const dentro = this.parser.parseInline(token.tokens);
+      const numero = numeroDelPunto(token.text);
+      const ancora = numero === null ? "" : ` id="${ancoraDelPunto(numero)}"`;
+      return `<h${token.depth}${ancora}>${dentro}</h${token.depth}>\n`;
+    },
+  },
+});
+
 export function leggiPagina(indirizzo: IndirizzoDiTesto): PaginaTesto {
   const { file } = PAGINE_DI_TESTO[indirizzo];
   const grezzo = readFileSync(join(process.cwd(), file), "utf8");
@@ -100,5 +125,5 @@ export function leggiPagina(indirizzo: IndirizzoDiTesto): PaginaTesto {
     .replace(RIGA_DATA, "")
     .replace(RIGA_VERSIONE, "");
 
-  return { titolo, aggiornatoIl, versione, html: marked.parse(corpo, { async: false }) };
+  return { titolo, aggiornatoIl, versione, html: CONVERTITORE.parse(corpo, { async: false }) };
 }

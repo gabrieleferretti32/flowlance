@@ -402,7 +402,7 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 
 ```sh
 npm run test
-npm run build                 # timbra out/ e verifica i link
+npm run build                 # timbra out/, verifica i link e l'offerta contro i Termini
 npm run verifica:derivati     # i conti delle formule, i pulsanti, i prezzi
 npm run verifica:allineamento # i totali sotto la colonna che sommano
 npm run verifica:consenso     # niente misurazione prima del sì, mai su /app
