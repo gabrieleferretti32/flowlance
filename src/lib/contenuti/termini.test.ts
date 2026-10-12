@@ -411,6 +411,22 @@ describe("l'email di approvazione e il punto 13 dicono le stesse clausole", () =
     fare niente**, il trentunesimo giorno dopo la scadenza. Un'approvazione
     che dicesse solo «art. 6-bis, commi 3 e 4» sarebbe una firma al buio.
   */
+  /*
+    Il numero di versione dentro un testo da incollare è il caso peggiore
+    della famiglia: si allega il PDF giusto — quello lo genera il build — e si
+    scrive a mano il numero vecchio. L'acquirente approva per iscritto un
+    documento diverso da quello che ha in mano, e niente lo segnala.
+  */
+  it("l'email nomina la versione corrente dei Termini", () => {
+    const versione = leggiPagina(SITO.termini).versione;
+    const nominate = [...email.matchAll(/versione\s+(\d+)/gi)].map((m) => Number(m[1]));
+    expect(nominate.length, "l'email non nomina nessuna versione").toBeGreaterThan(0);
+    expect(
+      nominate.filter((v) => v !== versione),
+      `L'email allega la versione ${versione} e ne nomina un'altra.`,
+    ).toEqual([]);
+  });
+
   it("l'email scrive per esteso i trenta giorni e la perdita definitiva", () => {
     expect(email).toContain("30 giorni");
     expect(email).toMatch(/perd[oe]\s+definitivamente|definitivamente/);

@@ -1,6 +1,6 @@
 # Il checkout: com'è deciso, e cosa resta da fare
 
-*Aggiornato il 10 settembre 2026, con la versione 2 dei Termini.*
+*Aggiornato il 12 ottobre 2026, con la versione 3 dei Termini.*
 
 Il legale ha risposto, e la risposta ha chiuso metà di questo documento.
 **Flowlance è offerto ai soli professionisti** (Termini, punto 1), il contratto
@@ -71,7 +71,7 @@ ha pagato mai.
 ## Niente OTP, niente funzione serverless
 
 Erano le due cose che questo documento considerava probabili, e la versione 2
-dei Termini le ha rese inutili tutte e due.
+dei Termini le ha rese inutili tutte e due (e la 3 non le ha riportate).
 
 **Niente OTP.** Serviva a legare una dichiarazione raccolta sul sito a una
 persona verificabile. Ma la dichiarazione che conta — l'approvazione specifica
@@ -215,5 +215,5 @@ esiste:
 - **I parametri fiscali aggiornati per gli anni coperti** (punto 8):
   `src/lib/fisco/parametri/`, un file per anno.
 - **La versione vale per le licenze in corso** (punto 12): i PDF portano la
-  versione nel nome (`flowlance-termini-v2.pdf`) e non si sovrascrivono. Il
+  versione nel nome (`flowlance-termini-v3.pdf`) e non si sovrascrivono. Il
   fascicolo di un ordine vecchio continua a puntare al testo che lo governava.

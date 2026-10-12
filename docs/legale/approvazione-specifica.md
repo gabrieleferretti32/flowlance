@@ -11,9 +11,12 @@ dall'indirizzo email indicato in fase di acquisto».
 numero in meno — e una clausola non elencata è una clausola non approvata, cioè
 inefficace. Da qui in avanti il testo sta scritto una volta sola, qui.
 
-`termini.test.ts` verifica che le clausole elencate in questo file siano
-esattamente quelle del punto 13: se il contratto ne guadagna una e questo testo
-no, la griglia lo dice.
+`termini.test.ts` verifica due cose su questo file: che le clausole elencate
+siano esattamente quelle del punto 13 — se il contratto ne guadagna una e
+questo testo no, la griglia lo dice — e che **la versione nominata qui sia
+quella corrente**. Il numero di versione in un testo da incollare è il caso
+peggiore della famiglia: si allega il PDF giusto e si scrive il numero
+vecchio, e l'acquirente approva un documento diverso da quello che riceve.
 
 ---
 
@@ -27,7 +30,7 @@ no, la griglia lo dice.
 > di rispondere **da questo stesso indirizzo** incollando le due dichiarazioni
 > qui sotto, e i dati che mi mancano per la fattura.
 >
-> In allegato i Termini di servizio in PDF, versione 2 del 10 settembre 2026.
+> In allegato i Termini di servizio in PDF, versione 3 del 12 ottobre 2026.
 >
 > ---
 >

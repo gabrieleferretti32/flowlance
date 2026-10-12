@@ -33,8 +33,27 @@ const opzione = (nome, predefinito = "") => {
   return trovata ? trovata.slice(nome.length + 3) : predefinito;
 };
 
+/*
+  Il PDF predefinito è quello della versione **corrente**, letta dal contratto.
+
+  Era scritto a mano — `flowlance-termini-v2.pdf` — e al primo cambio di
+  versione sarebbe diventato un'anteprima di un documento vecchio, aperta
+  credendo di guardare quello nuovo. Il numero sta in un posto solo, in testa a
+  `contenuti/termini.md`, e da lì lo prende anche il generatore.
+*/
+function versioneCorrente() {
+  const testa = readFileSync(resolve("contenuti/termini.md"), "utf8");
+  const trovata = testa.match(/^\*Versione\s+(\d+)\s*[—–-]/m);
+  if (!trovata) {
+    console.error("contenuti/termini.md: non trovo la riga «*Versione N — data*».");
+    process.exit(1);
+  }
+  return trovata[1];
+}
+
 const FILE = resolve(
-  process.argv.slice(2).find((a) => !a.startsWith("--")) ?? "public/termini/flowlance-termini-v2.pdf",
+  process.argv.slice(2).find((a) => !a.startsWith("--"))
+    ?? `public/termini/flowlance-termini-v${versioneCorrente()}.pdf`,
 );
 const DOVE = resolve(opzione("dove", "/tmp/anteprima-pdf"));
 const SCALA = Number(opzione("scala", "1.6"));

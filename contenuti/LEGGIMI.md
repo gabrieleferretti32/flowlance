@@ -31,7 +31,7 @@ Ne discendono tre conseguenze pratiche:
   `*Versione 2 — 10 settembre 2026*` invece di `*Ultimo aggiornamento: …*`, e la
   differenza non è di stile: un contratto non si aggiorna, se ne conclude un
   altro, e la versione è il nome di quello che governa un ordine già fatto. Da
-  quel numero escono il nome del PDF (`flowlance-termini-v2.pdf`), la versione
+  quel numero escono il nome del PDF (`flowlance-termini-v3.pdf`), la versione
   mostrata in pagina e quella scritta dentro il file. Un test verifica che non
   compaia scritto a mano da nessun'altra parte del codice.
 - **Le pagine non aggiungono e non riassumono.** Titolo, data, corpo. Se un

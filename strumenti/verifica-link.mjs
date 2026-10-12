@@ -185,5 +185,53 @@ if (rotti.length > 0) {
   console.error("\nSe è una rotta dell'app, il posto da cui prenderla è `ROTTE` in src/lib/rotte.ts.");
 }
 
-if (rotti.length > 0 || vuote.length > 0) process.exit(1);
-console.log("\nNessun collegamento rotto, nessuna pagina vuota.");
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  E nessuna pagina porta a una versione vecchia dei Termini
+  ─────────────────────────────────────────────────────────────────────────
+
+  I PDF delle versioni passate restano in `public/`, e devono: il punto 12 dice
+  che per le licenze in corso valgono i termini «nella versione indicata in
+  testa al documento trasmesso», quindi il documento di chi ha comprato ieri
+  non si cancella.
+
+  Ma restare non vuol dire essere linkati. Un collegamento rimasto alla
+  versione vecchia **non è un link rotto** — il file c'è, la pagina si apre, il
+  PDF si scarica — ed è il motivo per cui il controllo qui sopra non lo vede.
+  È il caso peggiore di tutti: chi clicca scarica un contratto diverso da
+  quello che sta accettando, e niente lo segnala.
+
+  Qui si guarda l'altra cosa: che fra i PDF dei Termini nominati dalle pagine
+  non ce ne sia nessuno che non sia quello corrente.
+*/
+const CORRENTE = (() => {
+  const testa = readFileSync(resolve("contenuti/termini.md"), "utf8");
+  const trovata = testa.match(/^\*Versione\s+(\d+)\s*[—–-]/m);
+  return trovata ? trovata[1] : null;
+})();
+
+const vecchie = [];
+if (CORRENTE === null) {
+  vecchie.push("contenuti/termini.md: non trovo la riga «*Versione N — data*»");
+} else {
+  for (const file of html(RADICE)) {
+    const testo = readFileSync(file, "utf8");
+    for (const m of testo.matchAll(/flowlance-termini-v(\d+)\.pdf/g)) {
+      if (m[1] !== CORRENTE) {
+        vecchie.push(`${indirizzoDi(file)} → flowlance-termini-v${m[1]}.pdf (corrente: v${CORRENTE})`);
+      }
+    }
+  }
+}
+
+if (vecchie.length > 0) {
+  console.error(`\n${vecchie.length} collegamenti portano a una versione vecchia dei Termini:`);
+  for (const v of [...new Set(vecchie)]) console.error(`  ${v}`);
+  console.error(
+    "\nIl file vecchio resta dov'è — serve a chi l'ha accettato — ma nessuna pagina\n"
+      + "deve portarci: chi clicca scaricherebbe un contratto diverso da quello che accetta.",
+  );
+}
+
+if (rotti.length > 0 || vuote.length > 0 || vecchie.length > 0) process.exit(1);
+console.log(`\nNessun collegamento rotto, nessuna pagina vuota, nessun rimando a una versione vecchia dei Termini (corrente: v${CORRENTE}).`);

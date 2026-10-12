@@ -1,6 +1,6 @@
 # Termini di servizio
 
-*Versione 2 — 10 settembre 2026*
+*Versione 3 — 12 ottobre 2026*
 
 ## 1. Oggetto
 
