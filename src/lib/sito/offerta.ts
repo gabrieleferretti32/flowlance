@@ -79,9 +79,16 @@ export const RIMANDO_AI_TERMINI = collegamentoAlPunto(SITO.termini, PUNTO_PREZZO
  * per intero. Stanno **nella card**, non dentro un accordion e non dietro un
  * asterisco: una condizione che si vede solo aprendo qualcosa è una condizione
  * che non si è letta, e il punto 6-bis la rende esigibile comunque.
+ *
+ * «A ogni rinnovo fatto entro 30 giorni» e non «se rinnovi entro 30 giorni»:
+ * il comma 4 riscritto dice che un rinnovo tardivo si paga a listino **ma non
+ * fa perdere la qualità di Fondatore**, e che i rinnovi successivi fatti nel
+ * termine tornano al prezzo garantito. La prima formula racconta una condizione
+ * che si verifica ogni volta; la seconda raccontava un esame da non fallire
+ * mai, cioè una cosa più severa di quella che il contratto dice.
  */
 export const CONDIZIONI_ESSENZIALI =
-  "Il prezzo resta valido se rinnovi entro 30 giorni dalla scadenza. "
+  "Il prezzo resta valido a ogni rinnovo fatto entro 30 giorni dalla scadenza. "
   + "È personale e non cedibile. "
   + `Condizioni al punto ${PUNTO_PREZZO_GARANTITO} dei Termini.`;
 
@@ -130,9 +137,15 @@ export const OFFERTA = {
    * confronto fra i due regimi e «quanto posso spendere» di
    * `/app/finanze/spesa`. Un elenco di cose che il prodotto farà è la riga per
    * cui si chiede il rimborso al punto 7.
+   *
+   * La prima voce dice «di quello che hai incassato» e non «dei soldi sul
+   * conto»: il semaforo fiscale scompone **l'incassato dell'anno**, che è il
+   * numero che quella barra divide davvero. I soldi sul conto sono un'altra
+   * schermata — «quanto posso spendere» — e prometterli qui avrebbe descritto
+   * un cruscotto che non esiste.
    */
   include: [
-    "Il cruscotto: quanto dei soldi sul conto è tuo e quanto è già del fisco",
+    "Il cruscotto: quanto di quello che hai incassato è davvero tuo",
     "Il prospetto di imposte e contributi, riga per riga, da portare al commercialista",
     "Lo scadenzario: saldo, acconti, IVA e contributi, con date e importi",
     "Forfettario e ordinario, con il confronto fra i due",

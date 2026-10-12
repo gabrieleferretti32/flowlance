@@ -64,7 +64,7 @@ const PAGINA_OFFERTA = "simulatore";
 const PROIBITE = [
   {
     espressione: /\bper sempre\b/i,
-    perche: "la garanzia cessa se non si rinnova entro il termine (comma 4)",
+    perche: "la garanzia vale finché il Fornitore offre il rinnovo ai clienti esistenti (comma 3)",
   },
   {
     espressione: /\ba vita\b/i,
@@ -177,7 +177,7 @@ if (promette && clausola !== null) {
     },
     {
       cosa: "i giorni per rinnovare",
-      pagina: /rinnovi entro\s+(\d+)\s+giorni/,
+      pagina: /entro\s+(\d+)\s+giorni dalla scadenza/,
       contratto: /entro\s+(\d+)\s+giorni dalla stessa/,
     },
   ];

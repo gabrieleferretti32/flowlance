@@ -135,19 +135,27 @@ export function raccontaStorico(precedenti, oggi = null) {
 
   Il comma 3 garantisce il prezzo dei Fondatori «a ciascun rinnovo acquistato
   prima della scadenza della licenza in corso o entro 30 giorni dalla stessa»,
-  e il comma 4 dice che fuori da quel termine la garanzia «cessa
-  definitivamente».
+  e il comma 4 dice che al rinnovo acquistato oltre quel termine si applica il
+  prezzo di listino, **senza** che il ritardo faccia perdere la qualità di
+  Fondatore: il rinnovo successivo fatto nel termine torna al prezzo garantito.
 
-  È quindi una cosa da sapere **prima** di scrivere il prezzo in una email, e
-  oggi non c'è nessun posto dove leggerla: il registro ha la data di scadenza
-  dell'ultima licenza, e il conto si fa a mente. A mente, il trentunesimo
-  giorno somiglia molto al trentesimo.
+  Quindi quello che si decide qui è il prezzo di **questo** rinnovo, non lo
+  stato permanente di un cliente. È una cosa da sapere prima di scrivere una
+  cifra in una email, e oggi non c'è nessun posto dove leggerla: il registro ha
+  la data di scadenza dell'ultima licenza, e il conto si fa a mente. A mente, il
+  trentunesimo giorno somiglia molto al trentesimo.
 
   Qui si dice soltanto da che parte della finestra siamo. Non si decide nessun
   prezzo, non si blocca nessuna emissione: la clausola ha commi che un conto
   non copre — il comma 5 (se il listino è più basso vince il listino) e il
   comma 2 (le licenze rimborsate non contano) — e uno strumento che decidesse
   al posto di chi legge sbaglierebbe proprio nei casi in cui serve pensare.
+
+  E soprattutto non dice mai «garanzia persa». Il comma 4 riscritto non toglie
+  niente a nessuno in modo definitivo: toglie il prezzo garantito a **quel**
+  rinnovo. Scriverlo come una perdita definitiva — che è come era scritto
+  prima — avrebbe fatto trattare da ex cliente chi ha solo tardato di una
+  settimana.
 
   ─────────────────────────────────────────────────────────────────────────
   «Entro 30 giorni» qui vuol dire che il trentesimo va bene
@@ -217,7 +225,9 @@ const ISO = /^\d{4}-\d{2}-\d{2}$/;
  *
  * - `prima`: la licenza è ancora valida, il rinnovo è nei termini.
  * - `grazia`: scaduta, ma dentro i 30 giorni. `giorno` dice quale.
- * - `oltre`: fuori. La garanzia del prezzo è cessata.
+ * - `oltre`: fuori termine. **Questo** rinnovo si paga a listino; chi lo
+ *   compra resta Fondatore, e il prossimo fatto nel termine torna al prezzo
+ *   garantito.
  * - `ignota`: nel registro non c'è una scadenza leggibile, e un conto su una
  *   data inventata direbbe «prezzo garantito» con la stessa sicurezza.
  */
@@ -264,12 +274,13 @@ export function raccontaFinestra(scadenza, oggi, giorni = GIORNI_DI_GRAZIA) {
     return [
       `Finestra del prezzo fondatori: aperta, ma siamo oltre la scadenza (${f.scadenza})`
         + `${f.giorno === null ? "" : ` — giorno ${f.giorno} di ${giorni}`}.`,
-      `  Ultimo giorno utile: ${f.ultimoGiorno}. Dopo, il comma 4: la garanzia cessa definitivamente.`,
+      `  Ultimo giorno utile: ${f.ultimoGiorno}. Dopo, per il comma 4, questo rinnovo va a listino.`,
     ];
   }
   return [
-    `Finestra del prezzo fondatori: CHIUSA. La licenza è scaduta il ${f.scadenza} e i ${giorni} giorni`
-      + ` del comma 3 sono finiti il ${f.ultimoGiorno}.`,
-    `  Per il comma 4 la garanzia è cessata: vale il prezzo di listino di oggi.`,
+    `Finestra del prezzo fondatori: questo rinnovo è FUORI TERMINE. La licenza è scaduta il`
+      + ` ${f.scadenza} e i ${giorni} giorni del comma 3 sono finiti il ${f.ultimoGiorno}.`,
+    `  Per il comma 4 si applica il prezzo di listino di oggi. **Resta Fondatore**: il prossimo`,
+    `  rinnovo acquistato nel termine torna al prezzo garantito.`,
   ];
 }

@@ -138,8 +138,9 @@ describe("la card del prezzo fondatori", () => {
       expect(
         tutto,
         `L'offerta usa ${proibita}. La garanzia dura finché il Fornitore rende\n`
-          + "disponibile il rinnovo (comma 3) e cessa se non si rinnova in tempo\n"
-          + "(comma 4): «per sempre» promette una cosa che il contratto non dà.",
+          + "disponibile il rinnovo della licenza ai clienti esistenti (comma 3), e un\n"
+          + "rinnovo fuori termine si paga a listino (comma 4): «per sempre» promette una\n"
+          + "cosa che il contratto non dà.",
       ).not.toMatch(proibita);
     }
   });
@@ -148,7 +149,7 @@ describe("la card del prezzo fondatori", () => {
     it("ricompone esattamente la frase approvata", () => {
       const { prima, rimando, dopo } = condizioniSpezzate();
       expect(prima + rimando + dopo).toBe(
-        "Il prezzo resta valido se rinnovi entro 30 giorni dalla scadenza. "
+        "Il prezzo resta valido a ogni rinnovo fatto entro 30 giorni dalla scadenza. "
           + "È personale e non cedibile. Condizioni al punto 6-bis dei Termini.",
       );
       expect(rimando).toBe(TESTO_DEL_RIMANDO);

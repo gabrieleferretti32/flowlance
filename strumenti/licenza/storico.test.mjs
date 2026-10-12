@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   GIORNI_DI_GRAZIA,
   finestraDiRinnovo,
+  raccontaFinestra,
   leggiRegistro,
   normalizzaEmail,
   piuGiorni,
@@ -148,8 +149,8 @@ describe("raccontaStorico", () => {
   /*
     La finestra si racconta a partire dalla **più recente** delle precedenti, e
     `storicoDi` le ordina dalla più vecchia: prendere la prima darebbe la
-    scadenza di tre anni fa, cioè «garanzia persa» a chiunque rinnovi da
-    tempo. Qui l'ultima di mario scade il 2028-09-14.
+    scadenza di tre anni fa, cioè «fuori termine» a chiunque rinnovi da tempo.
+    Qui l'ultima di mario scade il 2028-09-14.
   */
   it("racconta la finestra sull'ultima licenza, non sulla prima", () => {
     const r = raccontaStorico(storicoDi(righe, "mario@example.com"), "2028-09-20");
@@ -211,10 +212,27 @@ describe("finestraDiRinnovo", () => {
     expect(f.giorno).toBe(30);
   });
 
-  it("il trentunesimo è fuori, e la garanzia è cessata", () => {
+  it("il trentunesimo è fuori termine", () => {
     const f = finestraDiRinnovo(SCADENZA, "2027-10-13");
     expect(f.stato).toBe("oltre");
     expect(f.ultimoGiorno).toBe("2027-10-12");
+  });
+
+  /*
+    E fuori termine **non** vuol dire fuori dai Fondatori. Il comma 4 riscritto
+    manda a listino quel rinnovo e basta: chi legge queste righe sta per
+    scrivere un prezzo in un'email, e «garanzia persa» gli farebbe trattare da
+    ex cliente qualcuno che ha tardato di una settimana. Il testo deve dire
+    tutte e due le cose, e questo test tiene la seconda.
+  */
+  it("e il testo dice che la qualità di Fondatore resta", () => {
+    const righe = raccontaFinestra(SCADENZA, "2027-10-13").join(" ");
+    expect(righe).toMatch(/prezzo di listino/i);
+    expect(righe).toMatch(/Resta Fondatore/i);
+    expect(righe).toMatch(/torna al prezzo garantito/i);
+    expect(righe, "non deve più parlare di garanzia persa o cessata").not.toMatch(
+      /pers[ao]|cessat|definitiv/i,
+    );
   });
 
   it("senza una scadenza leggibile non si inventa nessun conto", () => {
