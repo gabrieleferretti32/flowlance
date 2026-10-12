@@ -288,6 +288,39 @@ quei contatti non sarebbero usciti mai.
 Il progetto completo — cosa sta sul pannello e cosa nel codice — è in
 [`docs/invio-promemoria.md`](docs/invio-promemoria.md).
 
+#### I tre archivi degli eventi, e per quanto restano
+
+Sono **tre e distinti**, perché hanno tre finalità e tre basi giuridiche
+diverse. Stanno tutti fuori da Brevo, nello stesso magazzino di file (Vercel
+Blob) ma sotto tre prefissi che li tengono separati anche a guardarli da fuori.
+
+| Archivio | Prefisso | Che cosa ci finisce | Finalità e base | Conservazione |
+| --- | --- | --- | --- | --- |
+| Probatorio dei consensi marketing | `consensi-marketing/` | consenso, revoca | dimostrare consenso e revoca (art. 7.1; rendicontazione, art. 6.1.c) | durata del trattamento **+ 5 anni** dalla cessazione |
+| Eventi del servizio promemoria | `servizio-promemoria/` | richiesta, attivazione, disattivazione | provare che il servizio è stato chiesto e fino a quando è stato prestato (punto d, art. 6.1.b; prova e difesa, art. 6.1.f) | durata del trattamento **+ 5 anni** dalla cessazione |
+| Elenco di esclusione | `esclusione/` | **solo** l'indirizzo di chi si è disiscritto | non scrivere più a chi ha chiesto di non essere scritto (artt. 21 e 17) | **senza termine**, finché partono comunicazioni: cancellarlo vorrebbe dire ricominciare a scrivergli |
+
+Due regole che il codice tiene da sé, e che valgono quanto la tabella:
+
+- **gli eventi del servizio non si chiamano consenso né revoca.** Si chiamano
+  richiesta, attivazione, disattivazione, e `npm run verifica:registro`
+  fallisce se uno di quei nomi contiene una delle due parole. Un registro che
+  chiamasse «revoca» la fine di un servizio direbbe, agli atti, che quel
+  trattamento si fondava su un consenso — e quindi che tutti i promemoria
+  mandati a chi non aveva spuntato nessuna casella erano senza base;
+- **ogni evento porta la versione del testo dei consensi e la sua impronta.**
+  Il testo integrale di ogni versione è archiviato in
+  `src/lib/sito/testi-consensi.ts`, e l'impronta la calcola il codice: da una
+  registrazione si risale al documento che la persona aveva davanti, e si
+  verifica che non sia stato toccato dopo.
+
+Il termine di cinque anni **non è un obbligo del GDPR** ed è una scelta
+motivata del Titolare: la motivazione, da rileggere, sta in
+[`docs/legale/proporzionalita-prove.md`](docs/legale/proporzionalita-prove.md).
+In caso di contestazione la cancellazione si sospende per quell'indirizzo —
+elenco `BLOCCHI`, con il motivo scritto accanto — e riprende quando la
+contestazione è definita.
+
 #### Le tre verifiche chieste, e come sono andate
 
 **Non ho potuto aprire nessuna delle due documentazioni.** Da questo ambiente
@@ -380,11 +413,19 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 4. `GET /api/pulizia?prova=1` gira e il resoconto torna sensato — **prima** di
    lasciarla cancellare qualcosa.
 5. Il magazzino delle prove (Vercel Blob) è collegato al progetto e
-   `BLOB_READ_WRITE_TOKEN` è fra le variabili, **e**
-   `CONSERVAZIONE_PROVE_MESI` in `src/lib/sito/registro-prove.ts` è un numero
-   e non più «DA CONFERMARE DAL LEGALE». Finché è la stringa, la pulizia
-   risponde 503 e non tocca niente.
-6. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
+   `BLOB_READ_WRITE_TOKEN` è fra le variabili. Il termine di conservazione
+   **c'è** — cinque anni dalla cessazione, `CONSERVAZIONE_PROVE` in
+   `src/lib/sito/registro-prove.ts` — ma il controllo che impedisce alla
+   pulizia di partire senza un termine utilizzabile resta attivo a ogni
+   esecuzione.
+6. **Il webhook della conferma**, su Brevo, verso un indirizzo che registri
+   l'evento di attivazione. Finché non c'è, l'archivio del servizio sa che
+   qualcuno ha *richiesto* i promemoria e non sa dire **quando li ha
+   confermati**: la conferma avviene sui server di Brevo e da qui non si vede.
+   Registrarla dal rimando del clic è escluso — quell'indirizzo lo può aprire
+   chiunque, e una prova che chiunque può fabbricare non è una prova. Vedi
+   [`docs/invio-promemoria.md`](docs/invio-promemoria.md).
+7. Solo allora `PROMEMORIA_ATTIVI = true` in `src/lib/sito/impostazioni.ts`.
 
 > ### Invio, pulizia e registro delle prove si accendono **insieme**
 >
@@ -395,7 +436,7 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 > | --- | --- |
 > | **Invio** senza pulizia | il trigger a data di Brevo ignora l'anno: chi non rifà il calcolo riceve ogni anno lo stesso promemoria con l'importo vecchio, per sempre. È la pulizia che gli toglie la data da sotto. |
 > | **Invio** senza registro | i contatti si accumulano e nessun termine li tocca: l'informativa promette cancellazioni che non avvengono. |
-> | **Pulizia** senza registro | si cancella il contatto **e** la prova che quella persona aveva chiesto qualcosa: si resta senza il dato e senza la prova di averlo trattato legittimamente. Per questo la pulizia si rifiuta di partire finché il termine delle prove non è confermato — ma il rifiuto è una rete, non un permesso di accendere a metà. |
+> | **Pulizia** senza registro | si cancella il contatto **e** la prova che quella persona aveva chiesto qualcosa: si resta senza il dato e senza la prova di averlo trattato legittimamente. Per questo la pulizia si rifiuta di partire se il termine delle prove non è un numero utilizzabile — ma il rifiuto è una rete, non un permesso di accendere a metà. |
 > | **Registro** senza gli altri due | non fa danno, e non serve a niente: non c'è nessun evento da registrare. |
 >
 > L'ordine di accensione è quello della lista qui sopra: prima il magazzino

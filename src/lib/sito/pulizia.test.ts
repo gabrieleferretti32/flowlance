@@ -10,9 +10,10 @@ import {
 } from "./pulizia";
 import { eseguiPulizia, type Dipendenze } from "./pulizia-server";
 import {
-  CONSERVAZIONE_PROVE_MESI,
-  VERSIONE_TESTO_CONSENSI,
+  CONSERVAZIONE_PROVE,
   conservazioneConfermata,
+  testoCorrente,
+  type Esclusione,
   type EventoProva,
   type RegistroProve,
 } from "./registro-prove";
@@ -78,13 +79,18 @@ function brevoFinto(contatti: ContattoBrevo[] = []) {
 /** Un registro delle prove finto: raccoglie, non scrive da nessuna parte. */
 function registroFinto(rompiti = false) {
   const eventi: EventoProva[] = [];
+  const esclusi: Esclusione[] = [];
   const registro: RegistroProve = {
     async scrivi(e) {
       if (rompiti) throw new Error("magazzino non raggiungibile");
       eventi.push(e);
     },
+    async escludi(e) {
+      if (rompiti) throw new Error("magazzino non raggiungibile");
+      esclusi.push(e);
+    },
   };
-  return { registro, eventi };
+  return { registro, eventi, esclusi };
 }
 
 /** Le dipendenze complete, con il termine confermato: è il caso normale. */
@@ -411,10 +417,11 @@ describe("il registro delle prove", () => {
 
     expect(reg.eventi).toHaveLength(1);
     expect(reg.eventi[0]).toMatchObject({
+      archivio: "servizio-promemoria",
       email: "mario@example.com",
-      tipo: "richiesta",
+      tipo: "disattivazione",
       quando: "2026-10-01",
-      versioneTesto: VERSIONE_TESTO_CONSENSI,
+      ...testoCorrente(),
     });
     expect(b.chiamate.map((c) => c.metodo)).toEqual(["cancellaContatto"]);
   });
@@ -509,13 +516,69 @@ describe("senza il termine di conservazione confermato, non parte", () => {
   });
 
   /*
-    E oggi il termine **non** è confermato: la costante vale ancora la
-    stringa. Questo test è il promemoria che accendere la pulizia richiede
-    prima una risposta del legale, e cadrà da solo il giorno in cui arriva.
+    E oggi il termine c'è: cinque anni dalla cessazione del trattamento. Il
+    controllo del rifiuto resta — è la condizione che impedisce di cancellare
+    senza sapere per quanto si tiene la prova — ma non è più la cosa che tiene
+    spenta la pulizia.
   */
-  it("oggi il termine non è confermato, e la costante lo dice", () => {
-    expect(conservazioneConfermata()).toBe(false);
-    expect(CONSERVAZIONE_PROVE_MESI).toBe("DA CONFERMARE DAL LEGALE");
+  it("oggi il termine è confermato: cinque anni dalla cessazione", () => {
+    expect(conservazioneConfermata()).toBe(true);
+    expect(CONSERVAZIONE_PROVE.anniDallaCessazione).toBe(5);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Il blocco per contestazione
+// ————————————————————————————————————————————————————————————
+
+/*
+  Un indirizzo bloccato non si tocca: né il contatto, né i suoi dati, né le
+  liste, né le sue prove. È la cosa che una funzione notturna può fare di
+  peggio — distruggere documenti rilevanti per un procedimento in corso senza
+  che nessuno l'abbia deciso — e si prova nell'unico modo che conta: dandole
+  un contatto che **senza** il blocco cancellerebbe, e guardando che non
+  chiami niente.
+*/
+describe("il blocco sospende ogni cancellazione", () => {
+  const nonConfermato = () =>
+    contatto({ listIds: [], attributes: { [ATTRIBUTO_ATTIVITA]: "2026-10-01" } });
+
+  it("senza blocco il contatto si cancella — se no non si prova niente", async () => {
+    const b = brevoFinto([nonConfermato()]);
+    const r = await eseguiPulizia(dip(b.client, "2026-12-01"));
+    expect(r.cancellati).toBe(1);
+    expect(b.chiamate.map((c) => c.metodo)).toEqual(["cancellaContatto"]);
+  });
+
+  it("con il blocco non si tocca niente, e il resoconto lo dice", async () => {
+    const b = brevoFinto([nonConfermato()]);
+    const reg = registroFinto();
+    const r = await eseguiPulizia(
+      dip(b.client, "2026-12-01", {
+        registro: reg.registro,
+        blocchi: [{ email: "MARIO@example.com", dal: "2026-11-01", motivo: "reclamo al Garante" }],
+      }),
+    );
+    expect(b.chiamate).toHaveLength(0);
+    expect(reg.eventi).toHaveLength(0);
+    expect(r.cancellati).toBe(0);
+    expect(r.bloccati).toBe(1);
+    expect(r.esaminati).toBe(1);
+  });
+
+  it("e blocca solo quello bloccato", async () => {
+    const b = brevoFinto([
+      nonConfermato(),
+      contatto({ id: 2, email: "altro@example.com", listIds: [], attributes: { [ATTRIBUTO_ATTIVITA]: "2026-10-01" } }),
+    ]);
+    const r = await eseguiPulizia(
+      dip(b.client, "2026-12-01", {
+        blocchi: [{ email: "mario@example.com", dal: "2026-11-01", motivo: "reclamo" }],
+      }),
+    );
+    expect(r.bloccati).toBe(1);
+    expect(r.cancellati).toBe(1);
+    expect(b.chiamate.map((c) => c.email)).toEqual(["altro@example.com"]);
   });
 });
 

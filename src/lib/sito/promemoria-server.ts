@@ -43,6 +43,7 @@
  */
 import { convalidaPromemoria, origineAmmessa } from "./promemoria";
 import { ATTRIBUTO_ATTIVITA } from "./pulizia";
+import { testoCorrente, type RegistroProve } from "./registro-prove";
 
 /** L'indirizzo di Brevo. Costante: non è una configurazione da sbagliare. */
 const BREVO_DOI = "https://api.brevo.com/v3/contacts/doubleOptinConfirmation";
@@ -94,6 +95,22 @@ export type Dipendenze = {
   oggi: string;
   /** L'orologio del freno. */
   adesso: number;
+  /**
+   * Il registro degli eventi, fuori da Brevo.
+   *
+   * Facoltativo per una ragione sola: la funzione deve poter rispondere anche
+   * quando il magazzino non è configurato. Ma se c'è, si scrive **dopo** che
+   * Brevo ha accettato — non prima: una richiesta registrata e mai arrivata a
+   * Brevo sarebbe la prova di un trattamento che non è mai cominciato.
+   *
+   * E se la scrittura fallisce, l'iscrizione **resta**: qui l'ordine è il
+   * contrario di quello della pulizia, e non per distrazione. Là si stava per
+   * cancellare, e una cancellazione senza prova è irreversibile; qui si è già
+   * iscritto qualcuno, e rispondergli «non è andata» dopo che Brevo gli ha
+   * mandato l'email di conferma sarebbe dirgli una cosa falsa. L'errore va nel
+   * registro del server, e il resoconto lo dice.
+   */
+  registro?: RegistroProve;
 };
 
 /*
@@ -260,6 +277,52 @@ export async function gestisciPromemoria(
       "L'iscrizione non è andata a buon fine. Riprova fra un attimo.",
       `Brevo ${esito.status}: ${dettaglio.slice(0, 500)}`,
     );
+  }
+
+  /*
+    La richiesta è partita: si registra.
+
+    Due archivi diversi, perché sono due cose diverse. La **richiesta** del
+    servizio sta nell'archivio del punto d (art. 6.1.b): la persona ha chiesto
+    i promemoria, e questo è l'atto che lo dimostra. Il **consenso** al
+    marketing, se c'è, sta nell'archivio probatorio del punto e: è un consenso,
+    ed è l'unico dei due di cui l'art. 7.1 chiede di poter dimostrare
+    l'esistenza.
+
+    Quello che qui **non** si può registrare è la conferma del doppio opt-in:
+    avviene sui server di Brevo, quando la persona clicca nella sua posta, e da
+    qui non si vede. Vedi `docs/invio-promemoria.md`: l'unico segnale che la
+    dimostra è un webhook di Brevo, e registrarla dal rimando del clic
+    significherebbe scrivere una prova che chiunque conosca l'indirizzo di
+    ritorno può fabbricare — cioè non una prova.
+  */
+  if (dip.registro) {
+    const quando = new Date(dip.adesso).toISOString();
+    const testo = testoCorrente();
+    try {
+      await dip.registro.scrivi({
+        archivio: "servizio-promemoria",
+        email: convalida.email,
+        tipo: "richiesta",
+        quando,
+        ...testo,
+      });
+      if (convalida.marketing) {
+        await dip.registro.scrivi({
+          archivio: "consensi-marketing",
+          email: convalida.email,
+          tipo: "consenso",
+          quando,
+          ...testo,
+        });
+      }
+    } catch (e) {
+      return {
+        stato: 200,
+        corpo: { ok: true },
+        registro: `iscrizione riuscita ma evento non registrato: ${String(e)}`,
+      };
+    }
   }
 
   return { stato: 200, corpo: { ok: true } };

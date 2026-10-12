@@ -9,7 +9,7 @@
  */
 import type { ClientBrevo, ContattoBrevo } from "./brevo";
 import { ATTRIBUTI_CALCOLO, decidi, ultimaAttivita, type Azione, type Configurazione } from "./pulizia";
-import { VERSIONE_TESTO_CONSENSI, type RegistroProve } from "./registro-prove";
+import { bloccato, testoCorrente, type Blocco, type RegistroProve } from "./registro-prove";
 
 /** Quanti contatti per pagina. Il massimo che Brevo accetta è 1000; qui si sta larghi. */
 export const PAGINA = 500;
@@ -33,6 +33,8 @@ export type Resoconto = {
   usciteDaLista: number;
   /** Azioni fallite: l'errore è nel registro, il giro è andato avanti. */
   errori: { email: string; azione: string; dettaglio: string }[];
+  /** Contatti saltati perché bloccati da una contestazione. */
+  bloccati: number;
   /** La pulizia si è fermata al tetto senza finire l'archivio. */
   troncata: boolean;
   /**
@@ -67,6 +69,15 @@ export type Dipendenze = {
    * condizione scritta in un guscio che gira solo in produzione.
    */
   conservazioneProveMesi: number | string;
+  /**
+   * Gli indirizzi su cui pende una contestazione: non si toccano.
+   *
+   * Arriva da `BLOCCHI`. Passato come dipendenza e non letto dal modulo, come
+   * tutto il resto qui dentro: un elenco che si può sostituire in un test è un
+   * elenco su cui si può provare che la pulizia **non** fa niente, che è il
+   * comportamento da verificare.
+   */
+  blocchi?: readonly Blocco[];
   conf: Configurazione;
   /** La data di oggi, iniettata: questo modulo non ha un orologio. */
   oggi: string;
@@ -108,6 +119,7 @@ export async function eseguiPulizia(dip: Dipendenze): Promise<Resoconto> {
     cancellati: 0,
     calcoliSvuotati: 0,
     usciteDaLista: 0,
+    bloccati: 0,
     errori: [],
     troncata: false,
     rifiutata: null,
@@ -149,6 +161,19 @@ export async function eseguiPulizia(dip: Dipendenze): Promise<Resoconto> {
 
     for (const contatto of pagina) {
       r.esaminati += 1;
+      /*
+        Il blocco, prima di decidere qualunque cosa.
+
+        Un indirizzo su cui pende una contestazione non si tocca: né il
+        contatto, né i suoi dati del calcolo, né le liste. Saltarlo **qui** e
+        non più in basso vuol dire che non esiste nessun ramo in cui una parte
+        delle azioni viene eseguita lo stesso — e le prove che riguardano quel
+        procedimento restano dove sono.
+      */
+      if (bloccato(contatto.email, dip.blocchi ?? [])) {
+        r.bloccati += 1;
+        continue;
+      }
       for (const azione of decidi(contatto, dip.conf, dip.oggi)) {
         r.fatte.push(azione);
         if (azione.tipo === "cancella") r.cancellati += 1;
@@ -166,17 +191,26 @@ export async function eseguiPulizia(dip: Dipendenze): Promise<Resoconto> {
           una cancellazione muta.
 
           Si scrive solo per le cancellazioni. Uscire da una lista perché un
-          termine è scaduto non è un atto della persona: non è una revoca, e
-          registrarlo come tale direbbe il falso.
+          termine è scaduto non è un atto della persona: non è una
+          disattivazione chiesta da lei, e registrarla come tale direbbe il
+          falso.
+
+          L'evento è una **disattivazione del servizio** e sta nell'archivio
+          del punto d: il contatto cancellato qui è quello che aveva chiesto i
+          promemoria e non aveva mai confermato. Chiamarlo «revoca» lo
+          sposterebbe nell'archivio probatorio dei consensi marketing, dove non
+          c'entra niente — e racconterebbe come ritiro di un consenso quella
+          che è la fine di un servizio mai cominciato.
         */
         if (azione.tipo === "cancella") {
           try {
             await dip.registro.scrivi({
+              archivio: "servizio-promemoria",
               email: azione.email,
-              tipo: "richiesta",
+              tipo: "disattivazione",
               quando: ultimaAttivita(contatto) ?? dip.oggi,
-              versioneTesto: VERSIONE_TESTO_CONSENSI,
-              nota: `mai confermata; contatto cancellato il ${dip.oggi}`,
+              ...testoCorrente(),
+              nota: `richiesta mai confermata; contatto cancellato il ${dip.oggi}`,
             });
           } catch (e) {
             r.errori.push({ email: azione.email, azione: "registro", dettaglio: String(e) });

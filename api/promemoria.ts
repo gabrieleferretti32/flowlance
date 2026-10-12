@@ -33,17 +33,26 @@
  *   lista separata perché la disiscrizione sia separata: da un'email
  *   commerciale si esce senza perdere i promemoria.
  * - `BREVO_TEMPLATE_DOI` — l'id del modello dell'email di conferma.
+ * - `BLOB_READ_WRITE_TOKEN` — il magazzino degli archivi, che Vercel fornisce
+ *   collegando il Blob store al progetto. Senza, l'iscrizione funziona e
+ *   l'evento non viene registrato: il motivo finisce nei log. È l'unica delle
+ *   cinque che non spegne la funzione, perché un magazzino non raggiungibile
+ *   non è una ragione per rifiutare un servizio che la persona ha chiesto —
+ *   ma è una ragione per accorgersene, e per questo l'accensione delle tre
+ *   cose (invio, pulizia, registro) va fatta insieme. Vedi DEPLOY.md.
  *
- * Manca una delle quattro e la funzione risponde «non ancora attivi» senza
- * contattare nessuno. È l'interruttore: finché l'informativa privacy non
+ * Manca una delle quattro prime e la funzione risponde «non ancora attivi»
+ * senza contattare nessuno. È l'interruttore: finché l'informativa privacy non
  * descrive questi sei attributi non si raccolgono, e non raccoglierli non
  * dipende dal fatto che qualcuno si ricordi di non accendere il modulo.
  */
 import { DOMINIO } from "../src/lib/sito/impostazioni";
 import { SITO } from "../src/lib/rotte";
 import { gestisciPromemoria, originiAmmesse } from "../src/lib/sito/promemoria-server";
+import { registroSuBlob } from "../src/lib/sito/registro-blob";
 
 export default async function promemoria(richiesta: Request): Promise<Response> {
+  const magazzino = process.env.BLOB_READ_WRITE_TOKEN;
   const esito = await gestisciPromemoria(
     richiesta,
     {
@@ -63,6 +72,7 @@ export default async function promemoria(richiesta: Request): Promise<Response> 
       fetch: globalThis.fetch,
       oggi: new Date().toISOString().slice(0, 10),
       adesso: Date.now(),
+      registro: magazzino ? registroSuBlob(magazzino) : undefined,
     },
   );
 

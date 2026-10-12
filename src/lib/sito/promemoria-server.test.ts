@@ -7,6 +7,7 @@ import {
   originiAmmesse,
   type Configurazione,
 } from "./promemoria-server";
+import { testoCorrente, type EventoProva, type RegistroProve } from "./registro-prove";
 
 const OGGI = "2026-10-01";
 const ADESSO = 1_767_225_600_000;
@@ -363,5 +364,105 @@ describe("originiAmmesse", () => {
     expect(originiAmmesse("https://flowlance.it", "flowlance-abc123.vercel.app")).toContain(
       "https://flowlance-abc123.vercel.app",
     );
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Gli eventi registrati al momento dell'iscrizione
+// ————————————————————————————————————————————————————————————
+
+/*
+  Due archivi diversi per due cose diverse, e l'ordine rispetto a Brevo.
+
+  La richiesta del servizio e il consenso al marketing finiscono in due posti
+  con due basi giuridiche e due durate; scriverli insieme sarebbe comodo e
+  falso. E tutti e due si scrivono **dopo** che Brevo ha accettato: una
+  richiesta registrata e mai arrivata a Brevo sarebbe la prova di un
+  trattamento che non è mai cominciato.
+*/
+describe("il registro degli eventi, all'iscrizione", () => {
+  function registroFinto(rompiti = false) {
+    const eventi: EventoProva[] = [];
+    const registro: RegistroProve = {
+      async scrivi(e) {
+        if (rompiti) throw new Error("magazzino non raggiungibile");
+        eventi.push(e);
+      },
+      async escludi() {
+        throw new Error("qui non si esclude nessuno");
+      },
+    };
+    return { registro, eventi };
+  }
+
+  it("senza marketing scrive un evento solo, nell'archivio del servizio", async () => {
+    const s = spia();
+    const reg = registroFinto();
+    await gestisciPromemoria(posta({ ...CORPO, marketing: false }), CONF, {
+      ...dip(s.finto),
+      registro: reg.registro,
+    });
+    expect(reg.eventi).toHaveLength(1);
+    expect(reg.eventi[0]).toMatchObject({
+      archivio: "servizio-promemoria",
+      tipo: "richiesta",
+      email: "mario@example.com",
+      ...testoCorrente(),
+    });
+    expect(reg.eventi[0].quando).toBe(new Date(ADESSO).toISOString());
+  });
+
+  it("con il marketing ne scrive due, e il secondo è un consenso", async () => {
+    const s = spia();
+    const reg = registroFinto();
+    await gestisciPromemoria(posta({ ...CORPO, marketing: true }), CONF, {
+      ...dip(s.finto),
+      registro: reg.registro,
+    });
+    expect(reg.eventi.map((e) => [e.archivio, e.tipo])).toEqual([
+      ["servizio-promemoria", "richiesta"],
+      ["consensi-marketing", "consenso"],
+    ]);
+  });
+
+  it("nell'evento non entra nessun dato del calcolo", async () => {
+    const s = spia();
+    const reg = registroFinto();
+    await gestisciPromemoria(posta(), CONF, { ...dip(s.finto), registro: reg.registro });
+    const scritto = JSON.stringify(reg.eventi[0]);
+    for (const vietato of ["REGIME", "ACCANTONAMENTO", "SCAD_", "966", "5329", "forfettario"]) {
+      expect(scritto, `nell'evento è finito ${vietato}`).not.toContain(vietato);
+    }
+  });
+
+  /* Brevo rifiuta: non c'è nessun trattamento cominciato, e niente da registrare. */
+  it("se Brevo rifiuta non si registra niente", async () => {
+    const s = spia(new Response("no", { status: 400 }));
+    const reg = registroFinto();
+    const r = await gestisciPromemoria(posta(), CONF, { ...dip(s.finto), registro: reg.registro });
+    expect(r.corpo).toEqual({ ok: false, errore: expect.any(String) });
+    expect(reg.eventi).toHaveLength(0);
+  });
+
+  /*
+    E il verso opposto: il magazzino non risponde, ma Brevo ha già mandato
+    l'email di conferma. Dire «non è andata» a chi sta per riceverla sarebbe
+    falso; l'iscrizione resta e il motivo finisce nel registro del server.
+  */
+  it("se il magazzino non accetta, l'iscrizione resta e il motivo si legge nei log", async () => {
+    const s = spia();
+    const r = await gestisciPromemoria(posta(), CONF, {
+      ...dip(s.finto),
+      registro: registroFinto(true).registro,
+    });
+    expect(r.stato).toBe(200);
+    expect(r.corpo).toEqual({ ok: true });
+    expect(r.registro).toContain("non registrato");
+  });
+
+  it("e senza magazzino configurato l'iscrizione funziona lo stesso", async () => {
+    const s = spia();
+    const r = await gestisciPromemoria(posta(), CONF, dip(s.finto));
+    expect(r.corpo).toEqual({ ok: true });
   });
 });

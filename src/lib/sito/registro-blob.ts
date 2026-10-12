@@ -36,31 +36,48 @@
  * guardata sul pannello.
  */
 import { put } from "@vercel/blob";
-import { nomeEvento, type EventoProva, type RegistroProve } from "./registro-prove";
+import {
+  nomeEvento,
+  type Esclusione,
+  type EventoProva,
+  type RegistroProve,
+} from "./registro-prove";
 
 export function registroSuBlob(token: string): RegistroProve {
-  return {
-    async scrivi(evento: EventoProva) {
-      await put(nomeEvento(evento), JSON.stringify(evento), {
-        access: "public",
-        token,
-        /*
-          Il suffisso casuale, e perché **non** si disattiva.
+  /*
+    I tre archivi sono tre prefissi dello stesso magazzino, e non tre magazzini.
 
-          Senza, due eventi dello stesso tipo nello stesso giorno finirebbero
-          sullo stesso nome e il secondo coprirebbe il primo: due prove
-          diventerebbero una, e la mancante sarebbe quella vecchia — cioè
-          quella che serve. Con il suffisso ogni evento è un file suo.
-        */
-        addRandomSuffix: true,
-        contentType: "application/json",
-        /*
-          Niente cache: un file di prova non viene riletto da una rete di
-          distribuzione, e un oggetto che resta in cache è un oggetto che
-          continua a esistere dopo essere stato cancellato.
-        */
-        cacheControlMaxAge: 0,
-      });
-    },
+    Separarli in tre store vorrebbe dire tre token, tre configurazioni sul
+    pannello e tre modi di sbagliarne una; il prefisso lo decide `nomeEvento`,
+    che è codice e si prova. Quello che la separazione deve garantire — che un
+    archivio non finisca letto per l'altro — lo garantisce il nome, non il
+    confine del magazzino.
+  */
+  async function deposita(cosa: EventoProva | Esclusione) {
+    await put(nomeEvento(cosa), JSON.stringify(cosa), {
+      access: "public",
+      token,
+      /*
+        Il suffisso casuale, e perché **non** si disattiva.
+
+        Senza, due eventi dello stesso tipo nello stesso giorno finirebbero
+        sullo stesso nome e il secondo coprirebbe il primo: due prove
+        diventerebbero una, e la mancante sarebbe quella vecchia — cioè quella
+        che serve. Con il suffisso ogni evento è un file suo.
+      */
+      addRandomSuffix: true,
+      contentType: "application/json",
+      /*
+        Niente cache: un file di prova non viene riletto da una rete di
+        distribuzione, e un oggetto che resta in cache è un oggetto che
+        continua a esistere dopo essere stato cancellato.
+      */
+      cacheControlMaxAge: 0,
+    });
+  }
+
+  return {
+    scrivi: (evento) => deposita(evento),
+    escludi: (esclusione) => deposita(esclusione),
   };
 }

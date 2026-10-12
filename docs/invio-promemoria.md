@@ -164,6 +164,10 @@ la lista marketing **solo** se la seconda casella era spuntata.
 | 3 | Lista promemoria | con il caso 2, e comunque 12 mesi senza attività se non restano scadenze | toglie dalla lista |
 | 4 | Lista marketing | 24 mesi dal consenso o dall'ultima attività | toglie dalla lista |
 
+E non tocca **niente** di un indirizzo bloccato da una contestazione: l'elenco
+`BLOCCHI` in `src/lib/sito/registro-prove.ts` lo salta prima di decidere
+qualunque cosa, e il resoconto conta quanti ne ha saltati.
+
 Tre cose che il codice fa e che vale la pena sapere:
 
 - **«Mai confermata» si riconosce dall'assenza dalle liste**, non da un campo
@@ -202,22 +206,41 @@ e dedurlo.
 
 ## Quello che resta aperto, e non è codice
 
-**Le prove di consenso.** Il legale chiede una conservazione minima separata
-delle prove di consenso e delle revoche, non utilizzabile per il marketing.
-Oggi quelle prove stanno **dentro Brevo**, legate al contatto — e il caso 1
-della pulizia cancella il contatto. Cancellando il contatto si cancella anche
-la prova che aveva chiesto e poi non confermato.
+### Il webhook della conferma — **l'unica cosa che manca al registro**
 
-Non è un difetto del codice: è una decisione che manca. Le strade sono due, e
-nessuna delle due è costruita:
+Al momento dell'iscrizione il codice registra due eventi: la **richiesta** del
+servizio, nell'archivio del punto d, e il **consenso** al marketing, in quello
+del punto e, se la seconda casella era spuntata. Tutti e due dopo che Brevo ha
+accettato, perché una richiesta registrata e mai arrivata a Brevo sarebbe la
+prova di un trattamento mai cominciato.
 
-1. **Un registro separato**, scritto dalla funzione di iscrizione: data,
-   indirizzo in forma non identificabile, quale consenso. Vuol dire un archivio
-   che oggi non esiste, cioè la cosa che questo prodotto ha scelto di non
-   avere.
-2. **L'esportazione periodica** dei log di Brevo, tenuta fuori dal sistema di
-   invio. Manuale, e quindi con lo stesso difetto dei termini manuali: dipende
-   da qualcuno che si ricorda.
+Manca il terzo: **l'attivazione**, cioè il momento in cui la persona clicca nel
+messaggio di conferma. Quel clic avviene sui server di Brevo e da qui non si
+vede. Le strade possibili sono due, e una sola è una prova:
 
-Va deciso prima di accendere, perché il giorno dopo averlo acceso le prime
-prove cominciano a scadere.
+1. **Un webhook di Brevo** verso una funzione nostra, che scrive l'evento
+   `attivazione` con la data e l'ora che Brevo dichiara. È la strada giusta: il
+   segnale arriva dal sistema che la conferma l'ha raccolta.
+2. **Registrarla dal rimando del clic**, cioè dall'indirizzo su cui Brevo
+   rimanda dopo la conferma. **Esclusa.** Quell'indirizzo lo può aprire
+   chiunque, da qualunque browser, quante volte vuole: scriverne un evento
+   vorrebbe dire produrre una prova fabbricabile da chi vuole — che non è una
+   prova, ed è peggio di non averla, perché ha la stessa faccia.
+
+Finché il webhook non c'è, l'archivio del servizio sa che qualcuno ha
+**richiesto** i promemoria, con data e ora, e non sa dire quando li ha
+confermati. Va annotato qui quando esisterà:
+
+- [ ] Webhook conferma DOI — evento Brevo: … · indirizzo: … · verificato il: …
+
+### Le prove di consenso — **deciso e costruito**
+
+La decisione è presa: gli eventi stanno **fuori da Brevo**, in tre archivi
+distinti su Vercel Blob, e la pulizia scrive la registrazione **prima** di
+cancellare un contatto. Finalità, basi giuridiche e termini stanno in
+`DEPLOY.md`, sezione «I tre archivi degli eventi»; la motivazione dei cinque
+anni in [`legale/proporzionalita-prove.md`](legale/proporzionalita-prove.md).
+
+Resta da fare una cosa sola prima di accendere, ed è nella lista di `DEPLOY.md`:
+collegare il magazzino al progetto e verificare la prima scrittura vera sul
+pannello.

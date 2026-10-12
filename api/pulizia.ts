@@ -44,11 +44,11 @@
  *
  * Ne manca una e la funzione risponde 503 senza contattare nessuno.
  *
- * E c'è una condizione in più, che non è una variabile d'ambiente:
- * `CONSERVAZIONE_PROVE_MESI` deve essere un numero. Finché vale «DA CONFERMARE
- * DAL LEGALE» la pulizia si rifiuta di partire — cancellare scrivendo una
- * prova che non si sa per quanto tenere crea un archivio nuovo senza una
- * regola, e lo crea in silenzio.
+ * E c'è una condizione in più, che non è una variabile d'ambiente: il termine
+ * di conservazione delle prove deve essere un numero di anni utilizzabile. Lo
+ * è — cinque anni dalla cessazione del trattamento — ma il controllo resta:
+ * cancellare scrivendo una prova che non si sa per quanto tenere crea un
+ * archivio nuovo senza una regola, e lo crea in silenzio.
  *
  * `?prova=1` decide tutto ed esegue niente: è il modo di guardare che cosa
  * farebbe stanotte, ed è la prima cosa da lanciare dopo aver configurato
@@ -57,7 +57,7 @@
 import { clientBrevo } from "../src/lib/sito/brevo";
 import { eseguiPulizia } from "../src/lib/sito/pulizia-server";
 import { registroSuBlob } from "../src/lib/sito/registro-blob";
-import { CONSERVAZIONE_PROVE_MESI } from "../src/lib/sito/registro-prove";
+import { BLOCCHI, CONSERVAZIONE_PROVE } from "../src/lib/sito/registro-prove";
 
 /** Confronto a lunghezza costante: un `===` su un segreto si fa cronometrare. */
 function stessoSegreto(dato: string, atteso: string): boolean {
@@ -96,7 +96,8 @@ export default async function pulizia(richiesta: Request): Promise<Response> {
   const resoconto = await eseguiPulizia({
     client: clientBrevo(chiave, globalThis.fetch),
     registro: registroSuBlob(magazzino),
-    conservazioneProveMesi: CONSERVAZIONE_PROVE_MESI,
+    conservazioneProveMesi: CONSERVAZIONE_PROVE.anniDallaCessazione * 12,
+    blocchi: BLOCCHI,
     conf: { listaPromemoria: Number(promemoria), listaMarketing: Number(marketing) },
     oggi: new Date().toISOString().slice(0, 10),
     provaSoltanto,

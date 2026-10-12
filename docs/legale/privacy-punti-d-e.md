@@ -99,55 +99,101 @@ l'attuale punto (c) resta com'è.
 
 ---
 
-## (f) — le prove dei consensi
+## (f) — gli archivi degli eventi, e le prove dei consensi
 
-> ### f) Prove dei consensi e delle revoche
+> ### f) Registrazione degli eventi e prova dei consensi
 >
-> **Dati trattati.** Per ciascun evento rilevante — richiesta del servizio,
-> conferma dell'indirizzo, revoca, consenso o rifiuto delle comunicazioni sul
-> prodotto — sono registrati: l'indirizzo email, il tipo di evento, la data e
-> l'ora, e la versione del testo dei consensi che l'interessato aveva davanti
-> al momento dell'evento.
+> Il Titolare conserva, in archivi distinti e separati dal sistema di invio
+> delle comunicazioni, le registrazioni che seguono.
 >
-> **Non sono registrati i dati del calcolo**: né il regime, né
-> l'accantonamento mensile, né le date e gli importi delle scadenze.
+> **f.1 — Prova dei consensi alle comunicazioni sul prodotto (punto e).**
+> Per il consenso e per la sua revoca sono registrati: l'indirizzo email, il
+> tipo di evento, la data e l'ora, la versione del testo dei consensi che
+> l'interessato aveva davanti e l'impronta informatica (SHA-256) del testo
+> integrale di quella versione, conservato a sua volta. *Finalità:*
+> dimostrare l'acquisizione e l'eventuale revoca del consenso (art. 7.1
+> GDPR). *Base giuridica:* obbligo di rendicontazione del Titolare (art.
+> 6.1.c in relazione agli artt. 5.2 e 7.1).
 >
-> **Finalità.** Dimostrare, su richiesta dell'interessato o dell'Autorità,
-> l'acquisizione e l'eventuale revoca dei consensi, ai sensi dell'art. 7.1
-> GDPR.
+> **f.2 — Eventi del servizio promemoria (punto d).** Per la richiesta del
+> servizio, la sua attivazione e la sua disattivazione sono registrati gli
+> stessi elementi. Questi eventi **non sono consensi**: il servizio è
+> prestato in esecuzione di quanto richiesto dall'interessato (art. 6.1.b).
+> *Finalità:* dimostrare che il servizio è stato richiesto, da quando e fino
+> a quando è stato prestato. *Base giuridica:* legittimo interesse del
+> Titolare alla prova dei rapporti con gli interessati e alla difesa dei
+> propri diritti (art. 6.1.f).
 >
-> **Base giuridica.** Obbligo di rendicontazione del Titolare (art. 6.1.c
-> GDPR in relazione agli artt. 5.2 e 7.1).
+> **f.3 — Elenco di esclusione.** Il solo indirizzo email di chi si è
+> disiscritto, senza altri dati. *Finalità:* non inviare più comunicazioni a
+> chi ha chiesto di non riceverne. *Base giuridica:* obbligo di dare seguito
+> all'opposizione dell'interessato (artt. 21 e 17 GDPR).
 >
-> **Modalità.** Le prove sono conservate **in un archivio separato dal
-> sistema di invio delle comunicazioni**, e non sono utilizzate per alcuna
-> comunicazione, commerciale o di servizio. Quando un contatto viene
-> cancellato dal sistema di invio in applicazione dei termini di cui ai punti
-> (d) ed (e), la relativa prova è scritta nell'archivio separato **prima**
-> della cancellazione.
+> **Non sono registrati i dati del calcolo** in nessuno dei tre archivi: né
+> il regime, né l'accantonamento mensile, né le date e gli importi delle
+> scadenze.
 >
-> **Conservazione.** [DA CONFERMARE DAL LEGALE] mesi dalla data dell'evento.
+> **Modalità.** Gli archivi non sono utilizzati per alcuna comunicazione,
+> commerciale o di servizio. Quando un contatto viene cancellato dal sistema
+> di invio in applicazione dei termini di cui ai punti (d) ed (e), la
+> relativa registrazione è scritta **prima** della cancellazione.
+>
+> **Conservazione.** Le registrazioni di cui a f.1 e f.2 sono conservate per
+> tutta la durata del trattamento a cui si riferiscono e per **cinque anni**
+> dalla sua cessazione. In caso di contestazione sono conservate, fino alla
+> definizione della stessa, le sole registrazioni pertinenti. L'elenco di
+> esclusione di cui a f.3 è conservato finché il Titolare invia comunicazioni
+> di qualunque tipo: cancellarlo significherebbe tornare a scrivere a chi ha
+> chiesto di non essere scritto.
 
-### Il termine, e perché nel codice è una stringa
+### Il termine, e il blocco
 
-`CONSERVAZIONE_PROVE_MESI` in `src/lib/sito/registro-prove.ts` vale oggi la
-stringa letterale `"DA CONFERMARE DAL LEGALE"`, non un numero. Non è un
-segnaposto che qualcuno deve ricordarsi di sostituire: **finché è una stringa,
-la pulizia notturna si rifiuta di partire** e risponde 503. Cancellare
-scrivendo una prova che non si sa per quanto tenere crea un archivio nuovo
-senza una regola, ed è il contrario di quello che questo punto serve a fare.
+Cinque anni dalla cessazione, e non dall'evento. Il perché — e perché cinque e
+non tre o dieci — sta in
+[`proporzionalita-prove.md`](proporzionalita-prove.md), scritto apposta per
+non presentare questo termine come un obbligo del GDPR, che non è.
 
-Un test lo verifica su sette valori diversi, compresa la stringa di oggi.
+Il «blocco» è l'elenco `BLOCCHI` in `src/lib/sito/registro-prove.ts`: ogni voce
+porta l'indirizzo, la data e **il motivo**. Finché un indirizzo è lì dentro, la
+pulizia notturna non lo tocca — né il contatto, né le sue registrazioni — e un
+test lo verifica dando alla pulizia un contatto che senza il blocco
+cancellerebbe. Si toglie quando la contestazione è definita, e da quel momento
+i termini riprendono a correre.
+
+Il controllo che impediva alla pulizia di partire senza un termine confermato
+**resta**: oggi il termine c'è, ma la condizione continua a essere verificata a
+ogni esecuzione.
 
 ### Che cosa è già vero, e si può dichiarare
 
-- Le prove stanno **fuori da Brevo**, in un magazzino di file su Vercel Blob,
-  un evento per file.
-- L'archivio delle prove **non è raggiungibile dal codice che manda email**:
-  lo verifica `npm run verifica:registro`, che legge il grafo degli import a
-  partire dalla funzione di iscrizione e dalla pagina pubblica e fallisce se
-  ci arriva. La frase «non sono utilizzate per alcuna comunicazione» la tiene
-  quella separazione, non una buona intenzione.
+- Gli archivi sono **tre e distinti** anche a guardarli da fuori: il nome di
+  ogni file comincia con il nome del suo archivio
+  (`consensi-marketing/`, `servizio-promemoria/`, `esclusione/`).
+- **I nomi degli eventi del servizio non sono quelli del consenso**:
+  richiesta, attivazione, disattivazione. `npm run verifica:registro` fallisce
+  se uno di quei tipi contiene «consenso» o «revoca» — perché un registro che
+  chiamasse revoca la fine di un servizio direbbe, agli atti, che quel
+  trattamento si fondava su un consenso che non è mai esistito.
+- **Di ogni versione del testo dei consensi è conservato il testo integrale**,
+  in `src/lib/sito/testi-consensi.ts`, con la sua impronta SHA-256 calcolata
+  dal codice e mai scritta a mano. Ogni evento porta versione e impronta: da
+  una registrazione si risale al documento esatto che l'interessato aveva
+  davanti, e si verifica che non sia stato toccato dopo. Un test fa quel giro,
+  e un altro confronta il testo archiviato con quello che la pagina mostra
+  davvero.
+- Le registrazioni stanno **fuori da Brevo**, in un magazzino di file su
+  Vercel Blob, un evento per file.
+- **Dagli archivi non si può leggere niente.** La funzione d'iscrizione ci
+  *scrive* — deve, perché è lei che riceve la richiesta — ma l'interfaccia del
+  registro non ha nessun metodo che legga, e il magazzino importa dal
+  pacchetto di Vercel Blob il solo comando di scrittura. Non esiste, nel
+  codice dell'applicazione, un modo di chiedere agli archivi «dammi gli
+  indirizzi»: `npm run verifica:registro` fallisce se compare un metodo che
+  legge o un import che sa elencare. La frase «non sono utilizzate per alcuna
+  comunicazione» la tiene quella struttura, non una buona intenzione.
+- **Gli archivi non sono raggiungibili dalla pagina pubblica**, cioè dal
+  browser: lo verifica lo stesso strumento, leggendo il grafo degli import a
+  partire dalla pagina.
 - **Nessun dato del calcolo entra nel registro**: un test scrive un contatto
   pieno di importi e verifica che nell'evento non ne compaia nessuno.
 - Se il registro non accetta la scrittura, **il contatto non viene
