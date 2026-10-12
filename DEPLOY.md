@@ -26,17 +26,22 @@ vero; i motori di ricerca no.
 Il comando del progetto è
 
 ```
-next build && node strumenti/verifica-link.mjs
+next build
+  && node strumenti/timbra-artefatto.mjs
+  && node strumenti/verifica-link.mjs
+  && node strumenti/verifica-offerta.mjs
 ```
 
-e il secondo pezzo apre un **Chromium** per controllare che nessun link interno
+e il terzo pezzo apre un **Chromium** per controllare che nessun link interno
 sia morto. Su Vercel quel binario non c'è: lo script esce con codice 1 e la
 build fallisce, dopo che `next build` è andato a buon fine — cioè con un errore
 che sembra un problema del sito e non lo è.
 
-Per questo `vercel.json` fissa `buildCommand: "next build"`. La verifica dei
-link resta il cancello locale, dove il browser c'è: si passa da lì prima di
-spingere, non dopo.
+Per questo `vercel.json` fissa `buildCommand: "next build"`. Le verifiche in
+coda restano il cancello locale, dove il browser c'è: si passa da lì prima di
+spingere, non dopo. Vale anche per `verifica-offerta.mjs`, che un browser non
+lo apre ma legge `out/` insieme al suo timbro, e quindi vuole il build appena
+fatto.
 
 Per la stessa ragione `framework: null`: non c'è niente da far girare lato
 server, e il costruttore Next.js di Vercel aggiungerebbe un livello che questo
