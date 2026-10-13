@@ -26,6 +26,19 @@
  *       registro. È il comando da usare **prima** di rispondere a un'email di
  *       rinnovo, quando serve sapere che prezzo fare.
  *
+ *   node genera-licenza.mjs nuovo@esempio.it --trasferisci vecchio@esempio.it
+ *       Trasferisce la licenza in corso di `vecchio@` a `nuovo@`, come
+ *       previsto dal punto 3 dei Termini: emette una chiave nuova con la
+ *       **stessa scadenza** — il trasferimento non prolunga niente — e annota
+ *       nel registro da chi arriva.
+ *
+ *       Due cose che questo comando **non** fa, e che vanno dette a voce:
+ *       la chiave vecchia non si disattiva (l'applicazione funziona senza
+ *       collegamento al Fornitore, e il punto 3 mette in capo al precedente
+ *       intestatario l'obbligo di smettere di usarla), e il prezzo dei
+ *       Fondatori **non** si trasferisce: resta a chi ha comprato per primo,
+ *       e il punto 6-bis comma 7 lo scrive.
+ *
  * Opzioni: `--privata <percorso>` per usare un'altra chiave privata,
  * `--registro <percorso>` per il file in cui si annotano le emissioni
  * (`chiavi/emesse.jsonl` per impostazione predefinita).
@@ -34,7 +47,13 @@ import { createPrivateKey, generateKeyPairSync, sign } from "node:crypto";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { leggiRegistro, raccontaStorico, storicoDi } from "./storico.mjs";
+import {
+  leggiRegistro,
+  normalizzaEmail,
+  raccontaStorico,
+  storicoDi,
+  trasferimenti,
+} from "./storico.mjs";
 
 const QUI = dirname(fileURLToPath(import.meta.url));
 const CARTELLA_CHIAVI = resolve(QUI, "chiavi");
@@ -143,6 +162,7 @@ if (argomenti.includes("--nuove-chiavi")) {
 const posizionali = argomenti.filter(
   (a, i) => !a.startsWith("--") && !argomenti[i - 1]?.startsWith("--"),
 );
+const cedente = opzione("trasferisci");
 const email = posizionali[0];
 if (!email || !email.includes("@")) {
   errore(
@@ -173,7 +193,7 @@ const oggi = new Date();
 const emessaIl = oggi.toISOString().slice(0, 10);
 
 const precedenti = storicoDi(emesse, email);
-const storia = raccontaStorico(precedenti, emessaIl);
+const storia = raccontaStorico(precedenti, emessaIl, trasferimenti(emesse, email));
 
 console.log(`\n  ${storia.righe.join("\n  ")}`);
 if (illeggibili > 0) {
@@ -192,6 +212,53 @@ if (argomenti.includes("--storico")) {
 let scadenza = posizionali[1] ?? null;
 const mesi = opzione("mesi");
 const anni = opzione("anni");
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Il trasferimento: stessa scadenza, e niente di quello che non si trasferisce
+  ─────────────────────────────────────────────────────────────────────────
+
+  La scadenza non si ricalcola: si **copia** da quella ceduta. Il punto 3 dice
+  che il trasferimento non prolunga la durata, e ricalcolarla da oggi sarebbe
+  il modo più naturale di regalare dei mesi senza accorgersene — un conto che
+  sembra giusto, fatto sulla data sbagliata.
+
+  Per la stessa ragione una data scritta a mano, `--mesi` o `--anni` insieme a
+  `--trasferisci` non si ignorano in silenzio: si rifiutano. Un'opzione
+  ignorata è una decisione presa da chi legge il comando e non da chi lo
+  scrive.
+*/
+let cedutaDa = null;
+if (cedente) {
+  if (normalizzaEmail(cedente) === normalizzaEmail(email)) {
+    errore(`Il cedente e il nuovo intestatario sono lo stesso indirizzo (${email}).`);
+  }
+  if (scadenza || mesi || anni) {
+    errore(
+      "Con --trasferisci la scadenza non si sceglie: è quella della licenza ceduta.\n  "
+        + "  Il punto 3 dei Termini dice che il trasferimento non prolunga la durata.",
+    );
+  }
+  const sue = storicoDi(emesse, cedente);
+  if (sue.length === 0) {
+    errore(
+      `Nel registro non c'è nessuna licenza per ${cedente}.\n  `
+        + `  ${registro} è il registro letto: controlla l'indirizzo, o passane un altro con --registro.`,
+    );
+  }
+  cedutaDa = sue[sue.length - 1];
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(cedutaDa.scadenza ?? ""))) {
+    errore(`La licenza di ${cedente} non porta una scadenza leggibile: «${cedutaDa.scadenza}».`);
+  }
+  if (cedutaDa.scadenza < emessaIl) {
+    errore(
+      `La licenza di ${cedente} è scaduta il ${cedutaDa.scadenza}: non c'è durata residua da trasferire.\n  `
+        + "  Il nuovo intestatario compra una licenza sua, al prezzo di listino.",
+    );
+  }
+  scadenza = cedutaDa.scadenza;
+}
+
 if (!scadenza) {
   const fine = new Date(Date.UTC(oggi.getUTCFullYear(), oggi.getUTCMonth(), oggi.getUTCDate()));
   if (mesi) fine.setUTCMonth(fine.getUTCMonth() + Number(mesi));
@@ -220,12 +287,37 @@ const firma = sign(null, Buffer.from(`${PREFISSO}.${carico}`, "utf8"), privata);
 const chiave = `${PREFISSO}.${carico}.${inBase64Url(firma)}`;
 
 mkdirSync(dirname(registro), { recursive: true });
-appendFileSync(registro, `${JSON.stringify({ email, scadenza, emessaIl, chiave })}\n`);
+/*
+  La riga del trasferimento porta **da chi** arriva, e non una riga a parte per
+  il cedente: una riga sola non può raccontarne metà, e due righe che si devono
+  tenere insieme sono due righe che un giorno si separano. Da `trasferitaDa` si
+  ricostruiscono tutti e due i versi — chi ha ceduto e chi ha ricevuto — che è
+  quello che fa `trasferimenti()` in `storico.mjs`.
+*/
+const riga = { email, scadenza, emessaIl, chiave };
+if (cedutaDa) riga.trasferitaDa = cedutaDa.email;
+appendFileSync(registro, `${JSON.stringify(riga)}\n`);
+
+const intestazione = cedutaDa
+  ? [
+      `  Licenza TRASFERITA da ${cedutaDa.email} a ${email}`,
+      `  Stessa scadenza della ceduta: ${scadenza} compreso · emessa il ${emessaIl}`,
+      "",
+      "  Da dire a voce, perché il programma non può farlo:",
+      "  · la chiave del precedente intestatario NON viene disattivata — l'applicazione",
+      "    funziona senza collegamento al Fornitore, e il punto 3 mette in capo a lui",
+      "    l'obbligo di cessare l'utilizzo;",
+      "  · il prezzo fondatori NON si trasferisce (6-bis, comma 7): resta a",
+      `    ${cedutaDa.email}, e per ${email} vale il listino.`,
+    ].join("\n")
+  : [
+      `  Licenza per ${email}`,
+      `  ${storia.nuovo ? "Primo acquisto" : `${storia.numeroLicenza}ª licenza · ${storia.rinnovi} ${storia.rinnovi === 1 ? "rinnovo" : "rinnovi"}`}`,
+      `  Valida fino al ${scadenza} compreso · emessa il ${emessaIl}`,
+    ].join("\n");
 
 console.log(`
-  Licenza per ${email}
-  ${storia.nuovo ? "Primo acquisto" : `${storia.numeroLicenza}ª licenza · ${storia.rinnovi} ${storia.rinnovi === 1 ? "rinnovo" : "rinnovi"}`}
-  Valida fino al ${scadenza} compreso · emessa il ${emessaIl}
+${intestazione}
   Annotata in ${registro}
 
   Da mandare all'acquirente — si incolla in Impostazioni › Licenza:

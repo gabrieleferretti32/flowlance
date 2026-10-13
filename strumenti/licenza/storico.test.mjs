@@ -9,6 +9,7 @@ import {
   piuGiorni,
   raccontaStorico,
   storicoDi,
+  trasferimenti,
 } from "./storico.mjs";
 
 const riga = (email, emessaIl, scadenza) =>
@@ -301,5 +302,108 @@ describe("i giorni di grazia", () => {
     const nel6bis = clausola.match(/entro\s+(\d+)\s+giorni dalla stessa/)?.[1];
     expect(nel6bis, "nel comma 3 non trovo «entro N giorni dalla stessa»").toBeDefined();
     expect(Number(nel6bis)).toBe(GIORNI_DI_GRAZIA);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// I trasferimenti
+// ————————————————————————————————————————————————————————————
+
+/*
+  Una licenza trasferita produce una riga sola, intestata al **nuovo**
+  titolare. Per lui si vede nello storico; per il vecchio non ci sarebbe
+  niente, e il suo storico resterebbe identico a prima.
+
+  È il verso in cui si sbaglia un prezzo: il punto 6-bis comma 7 tiene il
+  beneficio a chi ha ceduto e non lo dà a chi ha ricevuto, e senza queste
+  righe le due situazioni si leggono uguali davanti a un'email di rinnovo.
+*/
+describe("i trasferimenti, nei due versi", () => {
+  const conTrasferimento = [
+    riga("primo@esempio.it", "2026-10-13", "2027-10-13"),
+    JSON.stringify({
+      email: "secondo@esempio.it",
+      scadenza: "2027-10-13",
+      emessaIl: "2026-11-02",
+      chiave: "FLW1.z.z",
+      trasferitaDa: "Primo@Esempio.it",
+    }),
+  ].join("\n");
+  const righe = leggiRegistro(conTrasferimento).righe;
+
+  it("chi ha ceduto le vede, anche se la riga non è intestata a lui", () => {
+    const t = trasferimenti(righe, "primo@esempio.it");
+    expect(t.cedute).toHaveLength(1);
+    expect(t.cedute[0].email).toBe("secondo@esempio.it");
+    expect(t.ricevute).toHaveLength(0);
+  });
+
+  it("e chi ha ricevuto le vede dall'altra parte", () => {
+    const t = trasferimenti(righe, "secondo@esempio.it");
+    expect(t.ricevute).toHaveLength(1);
+    expect(t.ricevute[0].trasferitaDa).toBe("Primo@Esempio.it");
+    expect(t.cedute).toHaveLength(0);
+  });
+
+  it("le maiuscole diverse non nascondono un trasferimento", () => {
+    expect(trasferimenti(righe, "PRIMO@ESEMPIO.IT").cedute).toHaveLength(1);
+  });
+
+  it("un acquisto normale non è un trasferimento di nessuno", () => {
+    const t = trasferimenti(leggiRegistro(REGISTRO).righe, "mario@example.com");
+    expect(t.cedute).toEqual([]);
+    expect(t.ricevute).toEqual([]);
+  });
+
+  /*
+    Le due frasi che devono esserci sempre, perché sono quelle che decidono un
+    prezzo. Si verificano sul **testo**, non sui dati: è il testo che finisce
+    sotto gli occhi di chi sta scrivendo l'email.
+  */
+  it("a chi ha ceduto dice che il prezzo fondatori resta suo", () => {
+    const testo = raccontaStorico(
+      storicoDi(righe, "primo@esempio.it"),
+      "2026-12-01",
+      trasferimenti(righe, "primo@esempio.it"),
+    ).righe.join("\n");
+    expect(testo).toContain("CEDUTA");
+    expect(testo).toMatch(/prezzo fondatori resta a questo indirizzo/i);
+    expect(testo).toContain("comma 7");
+  });
+
+  it("e a chi l'ha ricevuta che non è arrivato con la licenza", () => {
+    const testo = raccontaStorico(
+      storicoDi(righe, "secondo@esempio.it"),
+      "2026-12-01",
+      trasferimenti(righe, "secondo@esempio.it"),
+    ).righe.join("\n");
+    expect(testo).toContain("RICEVUTA");
+    expect(testo).toMatch(/NON è arrivato con la licenza/);
+    expect(testo).toMatch(/vale il listino/);
+  });
+
+  /*
+    Chi ha ceduto la sua **unica** licenza non ha più niente nel proprio
+    storico: senza i trasferimenti risulterebbe un cliente nuovo, a cui si fa
+    il prezzo pieno — che è esattamente il caso in cui il comma 7 dice il
+    contrario.
+  */
+  it("chi ha ceduto tutto non risulta un cliente nuovo", () => {
+    const solaCessione = leggiRegistro(
+      JSON.stringify({
+        email: "nuovo@esempio.it",
+        scadenza: "2027-10-13",
+        emessaIl: "2026-11-02",
+        chiave: "FLW1.z.z",
+        trasferitaDa: "vecchio@esempio.it",
+      }),
+    ).righe;
+    const r = raccontaStorico([], "2026-12-01", trasferimenti(solaCessione, "vecchio@esempio.it"));
+    expect(r.nuovo).toBe(false);
+    expect(r.righe.join("\n")).toContain("CEDUTA");
+  });
+
+  it("ma chi non ha davvero niente resta un cliente nuovo", () => {
+    expect(raccontaStorico([], "2026-12-01").nuovo).toBe(true);
   });
 });

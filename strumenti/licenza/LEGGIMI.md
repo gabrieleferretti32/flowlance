@@ -141,8 +141,9 @@ una consegna.
 
 1. arriva la notifica di pagamento da Stripe;
 2. generi la chiave con la riga qui sopra;
-3. mandi una sola email all'indirizzo dell'acquisto, **entro 24 ore
-   lavorative**, con dentro:
+3. mandi una sola email all'indirizzo dell'acquisto, **entro la fine del
+   primo giorno lavorativo successivo alla conferma del pagamento**, con
+   dentro:
    - la chiave di licenza;
    - il PDF dei Termini **nella versione che ha accettato**, con la sua
      impronta SHA-256 — quella stampata accanto al link su `/termini/`. È la

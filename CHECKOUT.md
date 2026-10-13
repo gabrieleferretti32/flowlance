@@ -28,7 +28,7 @@ servire, e per la stessa ragione di prima: non c'è niente da registrare
 |---|---|---|
 | 1 · Lettura, accettazione dei Termini e dichiarazione professionale | `/acquista` sul sito | niente, ed è voluto — vedi sotto |
 | 2 · Pagamento: **qui si conclude il contratto** | Payment Link di Stripe | ricevuta e dati di fatturazione, in Stripe |
-| 3 · Consegna: chiave **e** Termini in PDF con la loro impronta | email, a mano, entro 24 ore lavorative | il PDF inviato e la riga in `emesse.jsonl` |
+| 3 · Consegna: chiave **e** Termini in PDF con la loro impronta | email, a mano, entro la fine del primo giorno lavorativo successivo | il PDF inviato e la riga in `emesse.jsonl` |
 
 La pagina `/acquista` esiste ed è `src/app/(sito)/acquista/`. Mostra il testo
 integrale dei Termini, il PDF con la sua impronta SHA-256, e **due caselle
@@ -36,14 +36,74 @@ obbligatorie**: l'accettazione dei Termini, che nomina la versione, e la
 dichiarazione di acquisto professionale. Senza tutte e due il collegamento al
 pagamento non ha un indirizzo, quindi non è raggiungibile neanche da tastiera.
 Subito sopra il pulsante c'è scritto cosa succede premendolo: *«Paghi, il
-contratto è concluso e ricevi la chiave per email entro 24 ore lavorative.
-Rimborso integrale entro 30 giorni.»*
+contratto è concluso e ricevi la chiave per email entro la fine del primo
+giorno lavorativo successivo. Rimborso integrale entro 30 giorni.»*
 
 Il Payment Link **c'è**, dal 10 settembre 2026: sta in `PAYMENT_LINK`, dentro
 `src/lib/sito/impostazioni.ts`. Il riquadro del segnaposto è sparito e il
 pulsante «Paga 118,34 € con Stripe» ha preso il suo posto, con la riga sull'IVA
 attaccata sotto.
 
+
+---
+
+## Trasferimento e rimborso: due procedure, una cosa in comune
+
+La cosa in comune è quella che il programma **non** può fare, e che va detta a
+voce tutte e due le volte: **le chiavi non si disattivano a distanza.**
+L'applicazione funziona nel browser dell'utente, senza collegamento al
+Fornitore — è il motivo per cui i dati di chi compra non si possono rubare da
+qui, ed è lo stesso motivo per cui una chiave già consegnata resta valida fino
+alla sua scadenza, qualunque cosa succeda dopo. I Termini lo scrivono due
+volte, al punto 3 per il trasferimento e al punto 4 per il rimborso, e mettono
+in capo all'utente l'obbligo di cessare l'utilizzo.
+
+Non è una falla da tappare: tapparla vorrebbe dire un server che ogni app
+interroga, cioè il contrario del prodotto. È una condizione da dichiarare, e
+quindi la si dichiara.
+
+### Trasferimento (punto 3)
+
+Chi cede scrive, o scrive chi riceve: in tutti e due i casi serve il consenso
+di tutti e due, e i dati del nuovo intestatario.
+
+```sh
+node genera-licenza.mjs nuovo@esempio.it --trasferisci vecchio@esempio.it
+```
+
+Il comando emette una chiave nuova **con la stessa scadenza** — il
+trasferimento non prolunga la durata — e annota nel registro da chi arriva. Se
+si prova a passargli anche una data, `--mesi` o `--anni`, si ferma: un'opzione
+ignorata è una decisione presa da chi legge il comando invece che da chi lo
+scrive.
+
+Nell'email al nuovo intestatario vanno due frasi che il comando stampa da sé:
+
+1. la chiave del precedente intestatario **non viene disattivata**, e cessare
+   l'utilizzo è un suo obbligo (punto 3);
+2. **il prezzo fondatori non si trasferisce** (punto 6-bis, comma 7): resta a
+   chi ha comprato per primo, e per il nuovo intestatario vale il listino.
+
+Da quel momento `--storico` lo dice da tutte e due le parti: a chi ha ceduto
+che il beneficio è rimasto suo, a chi ha ricevuto che non è arrivato con la
+licenza.
+
+### Rimborso (punto 7)
+
+Entro 30 giorni dalla conclusione, senza motivazione, su richiesta a
+`info@flowlance.it`. Rimborso dell'intero importo IVA compresa entro 14 giorni,
+con lo stesso mezzo di pagamento, con nota di credito.
+
+La licenza cessa di essere valida **alla data di esecuzione del rimborso**
+(punto 4), e anche qui la chiave resta tecnicamente funzionante fino alla
+scadenza: nell'email del rimborso va scritto che l'utilizzo cessa. Nel registro
+non si cancella niente — `emesse.jsonl` è un giornale, non uno stato — e la
+riga della licenza rimborsata resta dov'è.
+
+Una conseguenza da ricordare: il punto 6-bis comma 2 dice che **le licenze
+rimborsate non contano** nell'ordine dei primi 50 Fondatori. Il conto lo fa chi
+emette, guardando il registro: `--storico` non lo sa, perché nel registro non
+c'è nessuna annotazione dei rimborsi.
 
 ---
 

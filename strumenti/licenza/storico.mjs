@@ -81,6 +81,37 @@ export function storicoDi(righe, email) {
 }
 
 /**
+ * I trasferimenti che riguardano un indirizzo, nei due versi.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché non bastava `storicoDi`
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Una licenza trasferita produce **una riga sola**, intestata al nuovo
+ * titolare, che porta scritto da chi arriva (`trasferitaDa`). Per il nuovo
+ * intestatario quella riga è nel suo storico e si vede; per il **vecchio** non
+ * c'è niente da nessuna parte — il suo storico resta identico a prima, come se
+ * la licenza fosse ancora sua.
+ *
+ * È il verso che conta di più, perché è quello in cui si sbaglia un prezzo:
+ * chi ha ceduto la licenza mantiene il beneficio del punto 6-bis (comma 7), e
+ * chi l'ha ricevuta no. Senza questa funzione, davanti a un'email di rinnovo,
+ * le due situazioni si leggono uguali.
+ */
+export function trasferimenti(righe, email) {
+  const cercata = normalizzaEmail(email);
+  const perData = (a, b) => String(a.emessaIl ?? "").localeCompare(String(b.emessaIl ?? ""));
+  return {
+    /** Licenze che questo indirizzo ha **ceduto**: la riga è intestata ad altri. */
+    cedute: righe.filter((r) => normalizzaEmail(r.trasferitaDa ?? "") === cercata).sort(perData),
+    /** Licenze che questo indirizzo ha **ricevuto** da qualcun altro. */
+    ricevute: righe
+      .filter((r) => normalizzaEmail(r.email) === cercata && r.trasferitaDa)
+      .sort(perData),
+  };
+}
+
+/**
  * Come si racconta, senza lasciare spazio all'ambiguità.
  *
  * «Rinnovo n. 3» non vuol dire niente da solo: può essere la terza licenza o
@@ -89,13 +120,26 @@ export function storicoDi(righe, email) {
  * stampano tutti e due i numeri, con le date, e chi legge non deve contare
  * niente.
  */
-export function raccontaStorico(precedenti, oggi = null) {
+export function raccontaStorico(precedenti, oggi = null, scambi = { cedute: [], ricevute: [] }) {
+  /*
+    Le righe sui trasferimenti si compongono **prima** del ramo «primo
+    acquisto»: chi ha ceduto la sua unica licenza non ha più niente nel
+    proprio storico, e senza questo finirebbe fra i clienti nuovi — a cui si
+    fa il prezzo pieno, e che è esattamente il caso in cui il 6-bis comma 7
+    dice il contrario.
+  */
+  const suiTrasferimenti = righeDeiTrasferimenti(scambi);
   if (precedenti.length === 0) {
     return {
-      nuovo: true,
+      nuovo: suiTrasferimenti.length === 0,
       numeroLicenza: 1,
       rinnovi: 0,
-      righe: ["Primo acquisto: nessuna licenza precedente per questo indirizzo."],
+      righe: [
+        suiTrasferimenti.length === 0
+          ? "Primo acquisto: nessuna licenza precedente per questo indirizzo."
+          : "Nessuna licenza attiva a questo indirizzo, ma dei trasferimenti sì:",
+        ...suiTrasferimenti,
+      ],
       finestra: null,
     };
   }
@@ -125,7 +169,50 @@ export function raccontaStorico(precedenti, oggi = null) {
   const ultima = precedenti[precedenti.length - 1];
   const finestra = oggi === null ? null : finestraDiRinnovo(ultima?.scadenza, oggi);
   if (oggi !== null) righe.push(...raccontaFinestra(ultima?.scadenza, oggi));
+  righe.push(...suiTrasferimenti);
   return { nuovo: false, numeroLicenza, rinnovi, righe, finestra };
+}
+
+/**
+ * Le righe che raccontano i trasferimenti, e dove **non** va il prezzo.
+ *
+ * Il comma 7 del 6-bis, nella stesura del legale, è esplicito: il beneficio
+ * del prezzo garantito è personale e non cedibile «anche in caso di
+ * trasferimento della licenza ai sensi del punto 3». Sono due frasi da dire
+ * ogni volta, perché la domanda arriva sempre dall'altra parte — è il nuovo
+ * intestatario a scrivere, ed è a lui che verrebbe naturale fare il prezzo che
+ * trova nel registro.
+ */
+export function righeDeiTrasferimenti({ cedute = [], ricevute = [] } = {}) {
+  const righe = [];
+  for (const r of cedute) {
+    righe.push(
+      `Licenza CEDUTA il ${r.emessaIl ?? "?"} a ${r.email} (scadenza ${r.scadenza ?? "?"}).`,
+      "  Il prezzo fondatori resta a questo indirizzo: il punto 6-bis, comma 7, lo dice personale",
+      "  e non cedibile anche in caso di trasferimento.",
+      /*
+        E una cosa che il contratto non dice, detta come non detta.
+
+        La finestra del comma 3 si misura sulla scadenza della «licenza in
+        corso». Dopo una cessione, a quella scadenza non c'è più niente da
+        rinnovare per chi ha ceduto: il beneficio resta suo (comma 7), ma su
+        quale acquisto si applichi non lo scrive nessun comma. Tacere qui
+        vorrebbe dire far credere che il riquadro della finestra parli di una
+        licenza che questo indirizzo non ha più.
+      */
+      "  Attenzione: la finestra qui sopra è calcolata su quella scadenza. Dopo la cessione, a",
+      "  quel termine non c'è più niente da rinnovare per questo indirizzo — il beneficio resta",
+      "  suo, ma su quale acquisto si applichi il contratto non lo dice. Da chiedere al legale.",
+    );
+  }
+  for (const r of ricevute) {
+    righe.push(
+      `Licenza RICEVUTA il ${r.emessaIl ?? "?"} da ${r.trasferitaDa} (scadenza ${r.scadenza ?? "?"}).`,
+      "  Il prezzo fondatori NON è arrivato con la licenza (6-bis, comma 7): per questo indirizzo",
+      "  vale il listino, a meno che sia Fondatore per un acquisto suo.",
+    );
+  }
+  return righe;
 }
 
 /*
