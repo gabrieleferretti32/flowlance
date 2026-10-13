@@ -292,10 +292,11 @@ export function Offerta() {
 /**
  * Le risposte, e l'unico numero che non è un segnaposto.
  *
- * «di solito entro 24 ore» e non «entro [X] ore»: le ventiquattro ore
- * lavorative sono scritte nei Termini, cioè in un contratto, e ripetute in
- * altri quattro punti del sito. Un numero diverso qui — o un segnaposto
- * pubblicato — sarebbe una promessa che contraddice quella che obbliga.
+ * Il termine di consegna è scritto nei Termini, cioè in un contratto, ed è
+ * ripetuto in altri quattro punti del sito. Una formulazione diversa qui — o
+ * un segnaposto pubblicato — sarebbe una promessa che contraddice quella che
+ * obbliga. Quando è cambiato (da «24 ore lavorative» alla fine del primo
+ * giorno lavorativo successivo) sono cambiati tutti e cinque insieme.
  */
 const DOMANDE: { d: string; r: React.ReactNode }[] = [
   {
@@ -325,7 +326,8 @@ const DOMANDE: { d: string; r: React.ReactNode }[] = [
     r: (
       <>
         Il contratto si conclude con il pagamento. Ricevi per email la chiave di attivazione e i
-        Termini in PDF, di solito entro 24 ore lavorative: non devi rispondere a niente.
+        Termini in PDF entro la fine del primo giorno lavorativo successivo: non devi rispondere a
+        niente.
       </>
     ),
   },

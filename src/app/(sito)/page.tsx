@@ -441,14 +441,14 @@ function CosaFa() {
     {
       titolo: "Il prospetto: da dove viene ogni numero.",
       testo:
-        "Non un totale da prendere per buono. Ogni riga dice il suo calcolo — il coefficiente ATECO, l'aliquota della tua regione, la detrazione che ti spetta — e si stampa su due fogli che puoi mettere in mano al commercialista.",
+        "Non un totale da prendere per buono. Ogni riga dice il suo calcolo — il coefficiente ATECO, l'aliquota della tua regione, la detrazione per redditi di lavoro autonomo — e si stampa su due fogli che puoi mettere in mano al commercialista.",
       src: SCHERMATE.fisco,
       alt: "Prospetto di imposte e contributi, riga per riga",
     },
     {
       titolo: "Il limite del mese: quanto puoi spendere.",
       testo:
-        "Prima chiede una cosa sola: gli F24 da quale conto li paghi. Poi toglie dalle entrate quello che è già impegnato — tasse, se le paghi tu, affitto, rate — e quello che resta è la cifra spendibile davvero questo mese, non il saldo del conto. Carichi l'estratto conto della banca e ogni riga si categorizza da sola.",
+        "Prima chiede una cosa sola: gli F24 da quale conto li paghi. Poi toglie dalle entrate quello che è già impegnato — tasse, se le paghi tu, affitto, rate — e quello che resta è la cifra spendibile davvero questo mese, non il saldo del conto. Carichi l'estratto conto della banca e le righe che il dizionario riconosce si categorizzano da sole; le altre le sistemi in anteprima, e la correzione diventa una regola.",
       src: SCHERMATE.spesa,
       alt: "Quanto posso spendere: il limite del mese, al netto delle tasse da accantonare",
     },

@@ -126,20 +126,45 @@ export function accettazioneTermini(versione: number): string {
 }
 
 /**
+ * Il termine di consegna della chiave, con le parole del contratto.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché due forme della stessa cosa, e come restano una
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il punto 3 scrive «entro la fine del primo giorno lavorativo successivo
+ * alla conferma del pagamento». È preciso e va bene in un contratto; su un
+ * pulsante, dove la frase è già lunga, la coda «alla conferma del pagamento»
+ * ripete quello che il verbo «paghi» ha appena detto.
+ *
+ * Quindi due forme: quella **intera**, che è letteralmente la frase del
+ * contratto e che la tagliola ci cerca dentro, e quella **breve**, che è il
+ * suo prefisso. Essere un prefisso non è un dettaglio di stile: è la
+ * proprietà che un test può verificare, e che impedisce alle due di dire due
+ * cose diverse. Accorciare «primo giorno lavorativo» in «un giorno» romperebbe
+ * il prefisso, e cadrebbe.
+ */
+export const CONSEGNA_CHIAVE =
+  "entro la fine del primo giorno lavorativo successivo alla conferma del pagamento";
+
+/** La stessa cosa, dove la coda sarebbe una ripetizione. Prefisso della prima. */
+export const CONSEGNA_CHIAVE_BREVE = "entro la fine del primo giorno lavorativo successivo";
+
+/**
  * Cosa succede premendo il pulsante, scritto prima di premerlo.
  *
  * Tre fatti che prima stavano in tre posti diversi — il contratto si conclude
- * al pagamento (punto 3), la chiave arriva entro 24 ore lavorative (punto 3),
- * il rimborso è integrale entro 30 giorni (punto 7) — e che una persona vuole
- * sapere **mentre decide**. In fondo a un contratto si leggono dopo aver
- * deciso, che è troppo tardi perché servano.
+ * al pagamento (punto 3), quando arriva la chiave (punto 3), il rimborso è
+ * integrale entro 30 giorni (punto 7) — e che una persona vuole sapere
+ * **mentre decide**. In fondo a un contratto si leggono dopo aver deciso, che
+ * è troppo tardi perché servano.
  *
  * Sta in una costante perché la guardi anche la tagliola: una pagina che
  * promettesse una cosa diversa dal contratto sarebbe il difetto peggiore di
  * tutto il flusso d'acquisto.
  */
 export const PRIMA_DI_PAGARE =
-  "Paghi, il contratto è concluso e ricevi la chiave per email entro 24 ore lavorative. "
+  `Paghi, il contratto è concluso e ricevi la chiave per email ${CONSEGNA_CHIAVE_BREVE}. `
   + "Rimborso integrale entro 30 giorni.";
 
 /** L'indirizzo pubblico della pagina d'acquisto, per i collegamenti che stanno nell'app. */

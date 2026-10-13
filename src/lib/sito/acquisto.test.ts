@@ -1,6 +1,13 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { PREZZO, PREZZO_SCRITTO, PRIMA_DI_PAGARE, accettazioneTermini } from "./acquisto";
+import {
+  CONSEGNA_CHIAVE,
+  CONSEGNA_CHIAVE_BREVE,
+  PREZZO,
+  PREZZO_SCRITTO,
+  PRIMA_DI_PAGARE,
+  accettazioneTermini,
+} from "./acquisto";
 import { euro, euroTondo, percentuale } from "@/lib/format";
 
 /**
@@ -103,14 +110,21 @@ describe("il prezzo scritto", () => {
 
   `PRIMA_DI_PAGARE` è l'unica frase del sito che una persona legge **con la
   carta in mano**, e dice tre cose che stanno in due clausole: il contratto si
-  conclude con il pagamento (punto 3), la chiave arriva entro 24 ore lavorative
-  (punto 3), il rimborso è integrale entro 30 giorni (punto 7).
+  conclude con il pagamento (punto 3), quando arriva la chiave (punto 3), il
+  rimborso è integrale entro 30 giorni (punto 7).
 
   Il modo in cui questa frase si rompe non è una riscrittura: è una clausola
-  che cambia e una frase che resta. Il legale porta la consegna a 48 ore, o il
-  rimborso a 14 giorni, e la pagina continua a promettere i numeri di prima —
-  che a quel punto non sono più una promessa generosa, sono una promessa che
-  nessun contratto sostiene.
+  che cambia e una frase che resta. È appena successo — il legale ha
+  sostituito «24 ore lavorative» con la fine del primo giorno lavorativo
+  successivo — e senza questi controlli la pagina avrebbe continuato a
+  promettere un termine che il contratto non dà più.
+
+  Per il termine di consegna non si confronta più un **numero**: si pretende
+  che la frase della pagina sia, parola per parola, dentro il contratto. Un
+  numero si poteva confrontare finché il termine era un numero; adesso che è
+  una formula, cercarci dentro delle cifre vorrebbe dire inventare una regex
+  su una clausola in prosa — e la prima riscrittura del legale la manderebbe a
+  vuoto in silenzio.
 */
 describe("la frase prima del pulsante e il contratto", () => {
   const contratto = readFileSync("contenuti/termini.md", "utf8");
@@ -118,16 +132,30 @@ describe("la frase prima del pulsante e il contratto", () => {
 
   it("dice le tre cose, e nessuna in più", () => {
     expect(PRIMA_DI_PAGARE).toBe(
-      "Paghi, il contratto è concluso e ricevi la chiave per email entro 24 ore lavorative. "
-        + "Rimborso integrale entro 30 giorni.",
+      "Paghi, il contratto è concluso e ricevi la chiave per email entro la fine del primo "
+        + "giorno lavorativo successivo. Rimborso integrale entro 30 giorni.",
     );
   });
 
-  it("le 24 ore lavorative sono quelle del punto 3", () => {
-    const nelContratto = nudo(contratto).match(/entro (\d+) ore lavorative/)?.[1];
-    const inPagina = PRIMA_DI_PAGARE.match(/entro (\d+) ore lavorative/)?.[1];
-    expect(nelContratto, "nel contratto non trovo più il termine di consegna").toBeDefined();
-    expect(inPagina).toBe(nelContratto);
+  it("il termine di consegna è, parola per parola, quello del punto 3", () => {
+    const punto3 = nudo(contratto.split(/^##\s+3\./m)[1]?.split(/^##\s/m)[0] ?? "");
+    expect(
+      punto3,
+      `Nel punto 3 non c'è più la frase «${CONSEGNA_CHIAVE}».\n`
+        + "La pagina la mostra comunque: è una promessa che nessuna clausola sostiene.",
+    ).toContain(CONSEGNA_CHIAVE);
+  });
+
+  /*
+    E la forma breve è un **prefisso** di quella intera. È la proprietà che
+    tiene insieme le due: accorciare la coda è permesso — sul pulsante «alla
+    conferma del pagamento» ripete quello che «paghi» ha appena detto — ma
+    cambiare le parole no. «Entro un giorno lavorativo» romperebbe il
+    prefisso, e qui cadrebbe.
+  */
+  it("e la forma breve della pagina è un prefisso di quella del contratto", () => {
+    expect(CONSEGNA_CHIAVE.startsWith(CONSEGNA_CHIAVE_BREVE)).toBe(true);
+    expect(PRIMA_DI_PAGARE).toContain(CONSEGNA_CHIAVE_BREVE);
   });
 
   it("i 30 giorni del rimborso sono quelli del punto 7", () => {

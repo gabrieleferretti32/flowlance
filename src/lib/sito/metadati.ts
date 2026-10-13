@@ -147,7 +147,7 @@ export const METADATI: Record<string, MetadatiPagina> = {
   [SITO.grazie]: {
     titolo: "Grazie · Flowlance",
     descrizione:
-      "Il pagamento è arrivato. La chiave di licenza parte per email, di norma entro 24 ore lavorative.",
+      "Il pagamento è arrivato. La chiave di licenza parte per email entro la fine del primo giorno lavorativo successivo.",
     indicizzabile: false,
   },
 };

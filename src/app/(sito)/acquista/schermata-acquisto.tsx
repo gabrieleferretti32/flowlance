@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Download, ExternalLink } from "lucide-react";
 import type { PaginaTesto } from "@/lib/contenuti/pagine";
 import {
+  CONSEGNA_CHIAVE_BREVE,
   DICHIARAZIONE_PROFESSIONALE,
   PAYMENT_LINK,
   PREZZO_SCRITTO,
@@ -123,8 +124,8 @@ export function SchermataAcquisto({
           </li>
           <li>
             <strong className="font-medium text-inchiostro">2.</strong> Ricevi per email la chiave
-            di licenza e questi Termini in PDF, versione {versione}, con la loro impronta: di
-            norma entro 24 ore lavorative.
+            di licenza e questi Termini in PDF, versione {versione}, con la loro impronta:{" "}
+            {CONSEGNA_CHIAVE_BREVE}.
           </li>
           <li>
             <strong className="font-medium text-inchiostro">3.</strong> Incolli la chiave
@@ -189,14 +190,6 @@ export function SchermataAcquisto({
           <div className="prosa mt-6" dangerouslySetInnerHTML={{ __html: termini.html }} />
         </details>
 
-        <p className="mt-6 text-etichetta text-inchiostro-tenue">
-          Prima di comprare vale la pena leggere anche{" "}
-          <Link href={SITO.approssimazioni} className="underline underline-offset-2">
-            cosa Flowlance non calcola
-          </Link>
-          : è l&apos;elenco delle semplificazioni, e sta lì apposta perché tu lo veda adesso e non
-          dopo.
-        </p>
       </section>
     </main>
   );
@@ -297,6 +290,22 @@ function PagaConStripe({
           Leggi i Termini e scarica il PDF
         </a>{" "}
         — sono in fondo a questa pagina, con l&apos;impronta del file.
+      </p>
+
+      {/*
+        L'elenco delle semplificazioni, **prima** del pagamento e non in fondo.
+
+        Stava sotto il contratto, dopo il pulsante: lì lo legge chi ha già
+        deciso. Il punto 9 dei Termini dice che i risultati sono stime da
+        verificare, e il punto 2 che l'elenco di cosa l'applicazione non
+        calcola è pubblico: metterlo dove si decide è il modo di far valere
+        quelle due clausole invece di limitarsi a scriverle.
+      */}
+      <p className="mt-2 text-etichetta text-inchiostro-tenue">
+        <Link href={SITO.approssimazioni} className="underline underline-offset-2">
+          Leggi cosa Flowlance non calcola
+        </Link>{" "}
+        — l&apos;elenco delle semplificazioni, scritto prima di vendere e non dopo.
       </p>
 
       {/*

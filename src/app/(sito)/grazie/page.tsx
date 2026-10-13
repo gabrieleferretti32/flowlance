@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { SITO } from "@/lib/rotte";
+import { CONSEGNA_CHIAVE_BREVE } from "@/lib/sito/acquisto";
 import { metadatiDi } from "@/lib/sito/metadati";
 import { AcquistoContato } from "./acquisto-contato";
 
@@ -15,8 +16,8 @@ export const metadata = metadatiDi(SITO.grazie);
  * l'indirizzo a mano, senza aver pagato niente.
  *
  * Dice quindi soltanto le due cose che sono vere per chiunque abbia pagato
- * davvero: **la chiave arriva per email**, e **entro 24 ore lavorative**, che è
- * il termine scritto nei Termini al punto 3. Il ritardo non è un difetto da
+ * davvero: **la chiave arriva per email**, ed entro il termine scritto nei
+ * Termini al punto 3 — la fine del primo giorno lavorativo successivo. Il ritardo non è un difetto da
  * nascondere: le licenze si firmano a mano con una chiave privata che non sta
  * in nessun server, ed è la ragione per cui i dati di chi compra non possono
  * essere rubati da qui.
@@ -35,8 +36,8 @@ export default function Grazie() {
       </h1>
       <p className="mt-4 text-corpo leading-relaxed">
         La chiave di licenza arriva <strong className="font-semibold">per email</strong>,
-        all&apos;indirizzo che hai indicato durante l&apos;acquisto, di norma{" "}
-        <strong className="font-semibold">entro 24 ore lavorative</strong>.
+        all&apos;indirizzo che hai indicato durante l&apos;acquisto,{" "}
+        <strong className="font-semibold">{CONSEGNA_CHIAVE_BREVE}</strong>.
       </p>
       {/*
         Che non ci sia niente da fare va **detto**: chi ha appena pagato lo sta
@@ -54,7 +55,7 @@ export default function Grazie() {
         possono essere presi da qui — non ci sono.
       </p>
       <p className="mt-8 text-etichetta text-inchiostro-tenue">
-        Se dopo 24 ore lavorative non hai ricevuto niente, scrivi a{" "}
+        Se quel termine è passato e non hai ricevuto niente, scrivi a{" "}
         <a
           href="mailto:info@flowlance.it"
           className="text-accento underline underline-offset-2"
