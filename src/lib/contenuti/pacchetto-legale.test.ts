@@ -55,25 +55,26 @@ describe("il pacchetto per il legale", () => {
 });
 
 /*
-  La cartella contiene esattamente quattro file, e ciascuno è nominato dal
-  LEGGIMI. Un file in più — una bozza vecchia, un appunto — è un documento che
-  parte insieme agli altri senza che nessuno abbia deciso di mandarlo.
+  La cartella contiene esattamente i file del pacchetto, e ciascuno è nominato
+  dal LEGGIMI. Un file in più — una bozza vecchia, un appunto — è un documento
+  che parte insieme agli altri senza che nessuno abbia deciso di mandarlo.
 */
 describe("la cartella del pacchetto", () => {
   const CARTELLA = "docs/legale/per-il-legale";
   const ATTESI = [
     "LEGGIMI.md",
+    "modifiche-finali.md",
     "privacy-punti-d-e.md",
     "proporzionalita-prove.md",
     "termini-v3-completo.md",
   ];
 
-  it("contiene esattamente i quattro file del pacchetto", async () => {
+  it("contiene esattamente i file del pacchetto, e nessun altro", async () => {
     const { readdirSync } = await import("node:fs");
     expect(readdirSync(CARTELLA).sort()).toEqual(ATTESI);
   });
 
-  it("e il LEGGIMI li nomina tutti e tre, oltre a sé stesso", () => {
+  it("e il LEGGIMI li nomina tutti, oltre a sé stesso", () => {
     const leggimi = readFileSync(`${CARTELLA}/LEGGIMI.md`, "utf8");
     for (const f of ATTESI.filter((f) => f !== "LEGGIMI.md")) {
       expect(leggimi, `il LEGGIMI non dice cosa contiene ${f}`).toContain(f);

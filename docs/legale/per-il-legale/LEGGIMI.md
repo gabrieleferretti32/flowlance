@@ -1,6 +1,6 @@
 # Pacchetto per il legale
 
-*Quattro file, aggiornati al 13 ottobre 2026. Niente qui dentro è pubblicato
+*Cinque file, aggiornati al 13 ottobre 2026. Niente qui dentro è pubblicato
 sul sito tranne il primo.*
 
 - **`termini-v3-completo.md`** — i Termini di servizio versione 3, testo
@@ -14,3 +14,6 @@ sul sito tranne il primo.*
 - **`proporzionalita-prove.md`** — perché le registrazioni si conservano
   cinque anni dalla cessazione, scritto come motivazione del Titolare e non
   come obbligo di legge, con le domande ancora aperte.
+- **`modifiche-finali.md`** — le sette correzioni del 13 ottobre, una per una,
+  con il testo **prima** e **dopo**: serve a rileggere solo quello che è
+  cambiato. In fondo, la sola cosa che resta da sistemare fuori dal contratto.

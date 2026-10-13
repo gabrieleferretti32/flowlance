@@ -31,7 +31,7 @@ Qualora, nonostante tale dichiarazione, l'acquirente rivestisse in concreto la q
 
 Il Fornitore mantiene pubblico un elenco delle semplificazioni e dei calcoli non effettuati dall'applicazione, consultabile all'indirizzo indicato nel sito.
 
-L'utente resta l'unico responsabile della correttezza dei dati inseriti, della verifica dei risultati e dei propri adempimenti fiscali.
+L'utente è responsabile della correttezza e completezza dei dati che inserisce ed è tenuto a verificare i risultati secondo quanto previsto al punto 9. Restano ferme le responsabilità del Fornitore per il funzionamento dell'applicazione e per le prestazioni promesse.
 
 ## 3. Conclusione del contratto e licenza
 
@@ -40,6 +40,8 @@ L'utente resta l'unico responsabile della correttezza dei dati inseriti, della v
 Il Fornitore trasmette la chiave di licenza e il PDF dei Termini entro la fine del primo giorno lavorativo successivo alla conferma del pagamento. La trasmissione non è condizione del contratto, che è già concluso: è la consegna di quanto acquistato.
 
 **L'acquisto dà diritto a una licenza d'uso personale e non esclusiva della durata di 12 mesi** dalla data di emissione. Alla scadenza la licenza cessa senza bisogno di disdetta e **non si rinnova tacitamente**: il rinnovo è un nuovo acquisto, che l'utente decide se fare.
+
+Il rinnovo acquistato prima della scadenza della licenza in corso decorre dalla scadenza di quest'ultima, senza perdita dei giorni già pagati.
 
 La licenza consente l'utilizzo dell'applicazione per l'attività di un solo titolare di partita IVA alla volta. È consentito trasferire la licenza per la durata residua, comunicando al Fornitore i dati del nuovo intestatario e cessando l'utilizzo da parte del precedente. Il trasferimento non prolunga la durata della licenza e non trasferisce il beneficio personale previsto al punto 6-bis. In caso di trasferimento il Fornitore emette una nuova chiave intestata al nuovo titolare, con la stessa scadenza. Poiché l'applicazione funziona senza collegamento al Fornitore, la chiave precedente non viene disattivata a distanza: la cessazione dell'utilizzo da parte del precedente intestatario è un suo obbligo.
 
@@ -60,13 +62,13 @@ Il rinnovo si effettua acquistando una nuova licenza e inserendo la nuova chiave
 
 ## 5. Dove stanno i dati, e il backup
 
-Flowlance funziona interamente nel browser dell'utente. I dati inseriti sono conservati nella memoria locale del dispositivo e non vengono trasmessi ad alcun server del Fornitore.
+Flowlance funziona interamente nel browser dell'utente. I dati inseriti nell'archivio locale dell'applicazione sono conservati nella memoria del dispositivo e non vengono trasmessi ad alcun server del Fornitore.
 
 Ne consegue che il Fornitore non ha accesso ai dati dell'utente, non ne conserva copia e non dispone quindi di alcuna copia da cui recuperarli in caso di cambio di dispositivo, cancellazione dei dati del browser, guasto o smarrimento.
 
 **L'utente provvede al backup dei propri dati** con la funzione di esportazione dell'archivio presente nell'applicazione, secondo le istruzioni ivi indicate. L'applicazione segnala periodicamente l'opportunità di effettuare un backup.
 
-Quanto sopra riguarda l'archivio locale dell'applicazione. Per gli eventuali dati trasmessi su richiesta dell'utente ai fini del servizio promemoria si applica quanto indicato nell'informativa privacy dedicata.
+Gli eventuali dati trasmessi su richiesta dell'utente ai fini del servizio promemoria sono disciplinati dall'informativa privacy dedicata.
 
 ## 6. Prezzo e pagamento
 
@@ -94,17 +96,21 @@ Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nu
 
 7. Il beneficio del prezzo garantito è personale e non cedibile, anche in caso di trasferimento della licenza ai sensi del punto 3. È riferito all'acquirente, identificato dalla partita IVA usata per l'acquisto. Il cambio dell'indirizzo email, comunicato al Fornitore e verificato, non comporta la perdita del beneficio.
 
+8. In caso di trasferimento della licenza, il Fondatore conserva il beneficio personale. Per il suo successivo acquisto si considera la scadenza originaria della licenza trasferita: entro 30 giorni da tale scadenza si applica il prezzo garantito; oltre tale termine si applica il listino. Gli acquisti successivi seguono le condizioni dei commi 3 e 4.
+
 ## 7. Garanzia di rimborso
 
 Poiché Flowlance è offerto esclusivamente a chi acquista nell'esercizio della propria attività professionale, la disciplina del recesso prevista dal Codice del Consumo non trova applicazione.
 
 **Il Fornitore concede in ogni caso una garanzia contrattuale di rimborso entro 30 giorni dalla conclusione del contratto,** senza obbligo di motivazione. È sufficiente scrivere a info@flowlance.it. Il rimborso è pari all'intero importo pagato, IVA compresa, viene effettuato entro 14 giorni con lo stesso mezzo di pagamento usato per l'acquisto ed è accompagnato da nota di credito. La licenza cessa di essere valida alle condizioni indicate al punto 4.
 
+Qualora l'acquirente rivesta in concreto la qualità di consumatore, restano fermi i diritti inderogabili previsti dalla legge, indipendentemente dalla presente garanzia contrattuale.
+
 ## 8. Disponibilità e aggiornamenti
 
 Il Fornitore si impegna a mantenere aggiornati i parametri fiscali dell'applicazione per gli anni d'imposta coperti dalla licenza attiva.
 
-Poiché l'applicazione funziona nel browser dell'utente, non è soggetta a interruzioni di servizio: resta utilizzabile anche in caso di indisponibilità temporanea del sito.
+L'applicazione già caricata e disponibile sul dispositivo può essere utilizzata offline, nei limiti dei requisiti tecnici indicati sul sito. L'indisponibilità temporanea del sito non interrompe tale utilizzo; può invece incidere sul download, sugli aggiornamenti e sui servizi che richiedono una connessione.
 
 ## 9. Natura dei risultati e verifica prima dei versamenti
 
@@ -116,7 +122,7 @@ Restano ferme le responsabilità del Fornitore previste dalla legge.
 
 ## 10. Proprietà intellettuale
 
-L'applicazione, il suo codice, la sua interfaccia e i suoi contenuti sono di proprietà del Fornitore. La licenza conferisce il diritto d'uso, non la proprietà. È vietata la decompilazione, la copia e la redistribuzione.
+L'applicazione, il suo codice, la sua interfaccia e i suoi contenuti sono di proprietà del Fornitore. La licenza conferisce il diritto d'uso dell'applicazione e non trasferisce i diritti di proprietà intellettuale sul software. Sono vietate la riproduzione e la distribuzione non autorizzate, fatti salvi il trasferimento consentito dal punto 3 e gli atti consentiti dalla normativa applicabile, incluse le eccezioni previste dagli artt. 64-ter e 64-quater della legge n. 633/1941.
 
 I dati inseriti dall'utente restano di proprietà dell'utente.
 
