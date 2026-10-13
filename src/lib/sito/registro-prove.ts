@@ -135,7 +135,7 @@ export function testoCorrente(): { versioneTesto: string; improntaTesto: string 
  * **Per tutta la durata del trattamento, e poi cinque anni dalla sua
  * cessazione.** Non è un obbligo del GDPR — il GDPR dice «non più del
  * necessario» e lascia a chi tratta il compito di motivare il termine: il
- * perché di questi cinque anni sta in `docs/legale/proporzionalita-prove.md`.
+ * perché di questi cinque anni sta in `docs/legale/per-il-legale/proporzionalita-prove.md`.
  *
  * Il termine **non** si conta dall'evento. Una prova di consenso raccolta nel
  * 2026, per un contatto ancora iscritto nel 2033, serve ancora: è la prova di

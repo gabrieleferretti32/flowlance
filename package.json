@@ -26,7 +26,8 @@
     "verifica:metadati": "node strumenti/verifica-metadati.mjs",
     "verifica:versione": "node strumenti/verifica-versione.mjs",
     "verifica:registro": "node strumenti/verifica-registro.mjs",
-    "verifica:offerta": "node strumenti/verifica-offerta.mjs"
+    "verifica:offerta": "node strumenti/verifica-offerta.mjs",
+    "legale:pacchetto": "node strumenti/pacchetto-legale.mjs"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",

@@ -239,7 +239,7 @@ La decisione è presa: gli eventi stanno **fuori da Brevo**, in tre archivi
 distinti su Vercel Blob, e la pulizia scrive la registrazione **prima** di
 cancellare un contatto. Finalità, basi giuridiche e termini stanno in
 `DEPLOY.md`, sezione «I tre archivi degli eventi»; la motivazione dei cinque
-anni in [`legale/proporzionalita-prove.md`](legale/proporzionalita-prove.md).
+anni in [`legale/per-il-legale/proporzionalita-prove.md`](legale/per-il-legale/proporzionalita-prove.md).
 
 Resta da fare una cosa sola prima di accendere, ed è nella lista di `DEPLOY.md`:
 collegare il magazzino al progetto e verificare la prima scrittura vera sul

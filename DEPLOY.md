@@ -316,7 +316,7 @@ Due regole che il codice tiene da sé, e che valgono quanto la tabella:
 
 Il termine di cinque anni **non è un obbligo del GDPR** ed è una scelta
 motivata del Titolare: la motivazione, da rileggere, sta in
-[`docs/legale/proporzionalita-prove.md`](docs/legale/proporzionalita-prove.md).
+[`docs/legale/per-il-legale/proporzionalita-prove.md`](docs/legale/per-il-legale/proporzionalita-prove.md).
 In caso di contestazione la cancellazione si sospende per quell'indirizzo —
 elenco `BLOCCHI`, con il motivo scritto accanto — e riprende quando la
 contestazione è definita.
@@ -405,7 +405,7 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 
 1. L'informativa privacy descrive i sei attributi, `ULTIMA_ATTIVITA`, le due
    finalità separate e i quattro termini. Il testo pronto è in
-   [`docs/legale/privacy-punti-d-e.md`](docs/legale/privacy-punti-d-e.md) e
+   [`docs/legale/per-il-legale/privacy-punti-d-e.md`](docs/legale/per-il-legale/privacy-punti-d-e.md) e
    **non è ancora dentro `contenuti/privacy.md`**.
 2. Liste, attributi, modello e automazioni sono sul pannello, annotati in
    [`docs/invio-promemoria.md`](docs/invio-promemoria.md).
