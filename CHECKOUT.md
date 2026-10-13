@@ -85,8 +85,35 @@ Nell'email al nuovo intestatario vanno due frasi che il comando stampa da sé:
    chi ha comprato per primo, e per il nuovo intestatario vale il listino.
 
 Da quel momento `--storico` lo dice da tutte e due le parti: a chi ha ceduto
-che il beneficio è rimasto suo, a chi ha ricevuto che non è arrivato con la
-licenza.
+che il beneficio è rimasto suo — e che per il comma 8 il suo prossimo acquisto
+si misura sulla **scadenza originaria** della licenza trasferita — e a chi ha
+ricevuto che non è arrivato con la licenza.
+
+**L'email al precedente intestatario**, pronta da copiare:
+
+> Oggetto: **Flowlance — licenza trasferita a [nuovo indirizzo]**
+>
+> Ciao [nome],
+>
+> ho registrato il trasferimento della tua licenza Flowlance a [nuovo
+> indirizzo]. La nuova chiave è stata emessa con la **stessa scadenza** della
+> tua: [data]. Il trasferimento non prolunga la durata.
+>
+> Due cose, perché siano scritte:
+>
+> 1. **Da adesso l'utilizzo della tua chiave deve cessare.** L'applicazione
+>    funziona nel tuo browser senza collegarsi a noi, quindi la chiave resta
+>    tecnicamente valida fino alla scadenza e non possiamo disattivarla a
+>    distanza: il punto 3 dei Termini mette in capo a te l'obbligo di smettere
+>    di usarla. I tuoi dati restano sul tuo dispositivo — se ti servono,
+>    esportali prima: l'esportazione funziona sempre.
+> 2. **Il prezzo riservato ai Fondatori resta tuo** e non passa a chi ha
+>    ricevuto la licenza (punto 6-bis, comma 7). Se in futuro comprerai una
+>    nuova licenza, vale il prezzo garantito se l'acquisto avviene entro 30
+>    giorni dalla scadenza originaria di quella trasferita — il [data] — e il
+>    listino dopo (comma 8).
+>
+> [firma]
 
 ### Rimborso (punto 7)
 
@@ -96,14 +123,46 @@ con lo stesso mezzo di pagamento, con nota di credito.
 
 La licenza cessa di essere valida **alla data di esecuzione del rimborso**
 (punto 4), e anche qui la chiave resta tecnicamente funzionante fino alla
-scadenza: nell'email del rimborso va scritto che l'utilizzo cessa. Nel registro
-non si cancella niente — `emesse.jsonl` è un giornale, non uno stato — e la
-riga della licenza rimborsata resta dov'è.
+scadenza: nell'email del rimborso va scritto che l'utilizzo cessa.
 
-Una conseguenza da ricordare: il punto 6-bis comma 2 dice che **le licenze
-rimborsate non contano** nell'ordine dei primi 50 Fondatori. Il conto lo fa chi
-emette, guardando il registro: `--storico` non lo sa, perché nel registro non
-c'è nessuna annotazione dei rimborsi.
+L'evento si registra con lo strumento, che non cancella niente — `emesse.jsonl`
+è un giornale, non uno stato — e scrive una riga nuova con la data del rimborso
+e quella da cui cessa il diritto d'uso:
+
+```sh
+node genera-licenza.mjs cliente@esempio.it --rimborso
+node genera-licenza.mjs cliente@esempio.it --rimborso --cessa 2026-11-05
+```
+
+Da lì in poi il conto dei Fondatori lo fa lo strumento: il punto 6-bis comma 2
+dice che **le licenze rimborsate non contano** nell'ordine dei primi 50, il
+posto si libera, e l'ordine degli altri non cambia — è un ordine per data di
+primo acquisto, e togliere una riga non sposta le altre. `--storico` stampa
+quanti posti sono occupati e che posizione ha l'indirizzo.
+
+**L'email del rimborso**, pronta da copiare:
+
+> Oggetto: **Flowlance — rimborso eseguito**
+>
+> Ciao [nome],
+>
+> ho eseguito il rimborso di [importo] € il [data rimborso], con lo stesso
+> mezzo di pagamento usato per l'acquisto. Trovi in allegato la nota di
+> credito.
+>
+> **Dal [data di cessazione] la licenza non è più valida e l'utilizzo
+> dell'applicazione deve cessare** (punto 4 dei Termini). L'applicazione
+> funziona nel tuo browser senza collegarsi a noi, quindi la chiave resta
+> tecnicamente valida fino alla scadenza e non possiamo disattivarla a
+> distanza: la cessazione è un tuo obbligo.
+>
+> **I tuoi dati restano sul tuo dispositivo**, e sono tuoi: esportali quando
+> vuoi da «Dati e backup» — l'esportazione funziona anche a licenza scaduta.
+> Noi non ne abbiamo copia e non possiamo cancellarli né recuperarli.
+>
+> Se un domani vorrai tornare, basta un acquisto nuovo.
+>
+> [firma]
 
 ---
 

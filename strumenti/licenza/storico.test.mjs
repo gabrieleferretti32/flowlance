@@ -8,6 +8,13 @@ import {
   normalizzaEmail,
   piuGiorni,
   raccontaStorico,
+  fondatori,
+  piuMesi,
+  posizioneFondatore,
+  righeDeiFondatori,
+  rimborsata,
+  rimborsiDi,
+  scadenzaDelRinnovo,
   storicoDi,
   trasferimenti,
 } from "./storico.mjs";
@@ -262,6 +269,7 @@ describe("finestraDiRinnovo", () => {
 describe("le due copie di piuGiorni dicono la stessa cosa", () => {
   it("su quattro anni di date e tre termini", async () => {
     const { piuGiorni: dalProdotto } = await import("@/lib/sito/calendario");
+    const { piuMesi: mesiDalProdotto } = await import("@/lib/sito/calendario");
     const discordi = [];
     let provate = 0;
     for (let anno = 2026; anno <= 2029; anno += 1) {
@@ -275,6 +283,17 @@ describe("le due copie di piuGiorni dicono la stessa cosa", () => {
             const qui = piuGiorni(data, giorni);
             const la = dalProdotto(data, giorni);
             if (qui !== la) discordi.push(`${data} + ${giorni}: qui ${qui}, nel prodotto ${la}`);
+          }
+          /*
+            E i mesi, che servono alla decorrenza dei rinnovi: 12 è il caso
+            normale, 6 e 1 sono quelli in cui il giorno si schiaccia a fine
+            mese. È la stessa copia, con lo stesso patto.
+          */
+          for (const mesi of [1, 6, 12]) {
+            provate += 1;
+            const qui = piuMesi(data, mesi);
+            const la = mesiDalProdotto(data, mesi);
+            if (qui !== la) discordi.push(`${data} + ${mesi} mesi: qui ${qui}, nel prodotto ${la}`);
           }
         }
       }
@@ -361,22 +380,18 @@ describe("i trasferimenti, nei due versi", () => {
     sotto gli occhi di chi sta scrivendo l'email.
   */
   it("a chi ha ceduto dice che il prezzo fondatori resta suo", () => {
-    const testo = raccontaStorico(
-      storicoDi(righe, "primo@esempio.it"),
-      "2026-12-01",
-      trasferimenti(righe, "primo@esempio.it"),
-    ).righe.join("\n");
+    const testo = raccontaStorico(storicoDi(righe, "primo@esempio.it"), "2026-12-01", {
+      scambi: trasferimenti(righe, "primo@esempio.it"),
+    }).righe.join("\n");
     expect(testo).toContain("CEDUTA");
     expect(testo).toMatch(/prezzo fondatori resta a questo indirizzo/i);
     expect(testo).toContain("comma 7");
   });
 
   it("e a chi l'ha ricevuta che non è arrivato con la licenza", () => {
-    const testo = raccontaStorico(
-      storicoDi(righe, "secondo@esempio.it"),
-      "2026-12-01",
-      trasferimenti(righe, "secondo@esempio.it"),
-    ).righe.join("\n");
+    const testo = raccontaStorico(storicoDi(righe, "secondo@esempio.it"), "2026-12-01", {
+      scambi: trasferimenti(righe, "secondo@esempio.it"),
+    }).righe.join("\n");
     expect(testo).toContain("RICEVUTA");
     expect(testo).toMatch(/NON è arrivato con la licenza/);
     expect(testo).toMatch(/vale il listino/);
@@ -398,12 +413,312 @@ describe("i trasferimenti, nei due versi", () => {
         trasferitaDa: "vecchio@esempio.it",
       }),
     ).righe;
-    const r = raccontaStorico([], "2026-12-01", trasferimenti(solaCessione, "vecchio@esempio.it"));
+    const r = raccontaStorico([], "2026-12-01", {
+      scambi: trasferimenti(solaCessione, "vecchio@esempio.it"),
+    });
     expect(r.nuovo).toBe(false);
     expect(r.righe.join("\n")).toContain("CEDUTA");
   });
 
   it("ma chi non ha davvero niente resta un cliente nuovo", () => {
     expect(raccontaStorico([], "2026-12-01").nuovo).toBe(true);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// La decorrenza del rinnovo (punto 3)
+// ————————————————————————————————————————————————————————————
+
+/*
+  «Il rinnovo acquistato prima della scadenza della licenza in corso decorre
+  dalla scadenza di quest'ultima, senza perdita dei giorni già pagati.»
+
+  I tre casi sono il bordo: un mese prima, il giorno stesso, dieci giorni dopo.
+  Nel mezzo non si sbaglia; sul bordo si sbaglia di mesi, e l'errore non si
+  vede — una scadenza plausibile, calcolata sulla data sbagliata, che nessuno
+  confronta con quella di prima.
+*/
+describe("da quando decorre un rinnovo", () => {
+  const licenza = (scadenza, emessaIl = "2026-03-31") => [{ email: "x@y.it", emessaIl, scadenza }];
+
+  it("un mese prima della scadenza: parte dalla scadenza, non da oggi", () => {
+    const r = scadenzaDelRinnovo(licenza("2027-03-31"), "2027-02-28");
+    expect(r.base).toBe("2027-03-31");
+    expect(r.anticipato).toBe(true);
+    expect(r.scadenza).toBe("2028-03-31");
+  });
+
+  it("il giorno stesso della scadenza: la licenza vale tutto il giorno, quindi ancora dalla scadenza", () => {
+    const r = scadenzaDelRinnovo(licenza("2027-03-31"), "2027-03-31");
+    expect(r.base).toBe("2027-03-31");
+    expect(r.anticipato).toBe(false);
+    expect(r.scadenza).toBe("2028-03-31");
+  });
+
+  it("dieci giorni dopo: non c'è più niente a cui attaccarsi, si parte da oggi", () => {
+    const r = scadenzaDelRinnovo(licenza("2027-03-31"), "2027-04-10");
+    expect(r.base).toBe("2027-04-10");
+    // Non è un rinnovo anticipato: non c'è nessuna scadenza futura da cui far decorrere.
+    expect(r.anticipato).toBe(false);
+    expect(r.scadenza).toBe("2028-04-10");
+  });
+
+  it("al primo acquisto si parte da oggi", () => {
+    expect(scadenzaDelRinnovo([], "2026-10-13").scadenza).toBe("2027-10-13");
+  });
+
+  it("e `--mesi` conta dalla stessa base, non da oggi", () => {
+    expect(scadenzaDelRinnovo(licenza("2027-03-31"), "2027-02-28", { mesi: 6 }).scadenza).toBe(
+      "2027-09-30",
+    );
+  });
+
+  /*
+    Il giorno che non esiste: 31 agosto più sei mesi. Schiacciare sul 28 (o 29)
+    tiene la scadenza dentro il mese che l'acquirente si aspetta; scivolare al
+    primo marzo regalerebbe un giorno e sposterebbe il rinnovo in un mese che
+    sulla fattura non c'entra niente.
+  */
+  it("una scadenza che cadrebbe su un giorno inesistente si schiaccia a fine mese", () => {
+    expect(piuMesi("2027-08-31", 6)).toBe("2028-02-29");
+    expect(scadenzaDelRinnovo(licenza("2027-08-31"), "2027-08-01", { mesi: 6 }).scadenza).toBe(
+      "2028-02-29",
+    );
+  });
+
+  it("fra più licenze si guarda la scadenza più lontana ancora valida", () => {
+    const due = [
+      { email: "x@y.it", emessaIl: "2026-01-01", scadenza: "2027-01-01" },
+      { email: "x@y.it", emessaIl: "2026-06-01", scadenza: "2027-06-01" },
+    ];
+    expect(scadenzaDelRinnovo(due, "2026-12-01").base).toBe("2027-06-01");
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// I rimborsi, e i cinquanta posti
+// ————————————————————————————————————————————————————————————
+
+describe("i rimborsi", () => {
+  const licenza = (email, emessaIl, scadenza, chiave) =>
+    JSON.stringify({ email, scadenza, emessaIl, chiave });
+  const rimborso = (email, chiave, data, cessaIl) =>
+    JSON.stringify({ tipo: "rimborso", email, chiave, data, cessaIl });
+
+  const registro = leggiRegistro(
+    [
+      licenza("uno@esempio.it", "2026-01-10", "2027-01-10", "K1"),
+      licenza("due@esempio.it", "2026-02-10", "2027-02-10", "K2"),
+      licenza("tre@esempio.it", "2026-03-10", "2027-03-10", "K3"),
+      rimborso("due@esempio.it", "K2", "2026-02-20", "2026-02-20"),
+    ].join("\n"),
+  ).righe;
+
+  it("una riga di rimborso non è una licenza", () => {
+    expect(storicoDi(registro, "due@esempio.it")).toHaveLength(1);
+    expect(rimborsiDi(registro, "due@esempio.it")).toHaveLength(1);
+  });
+
+  it("la licenza rimborsata si riconosce dalla chiave", () => {
+    const sua = storicoDi(registro, "due@esempio.it")[0];
+    expect(rimborsata(sua, rimborsiDi(registro, "due@esempio.it"))).toBe(true);
+    expect(rimborsata(storicoDi(registro, "uno@esempio.it")[0], rimborsiDi(registro, "uno@esempio.it"))).toBe(
+      false,
+    );
+  });
+
+  /*
+    Due licenze dello stesso indirizzo con la stessa scadenza — un rinnovo
+    anticipato emesso due volte — si distinguono **solo** per chiave. Senza
+    questo confronto, rimborsare l'una marcherebbe anche l'altra.
+  */
+  it("e due licenze con le stesse date non si confondono", () => {
+    const doppie = leggiRegistro(
+      [
+        licenza("tizio@esempio.it", "2026-05-01", "2027-05-01", "A"),
+        licenza("tizio@esempio.it", "2026-05-01", "2027-05-01", "B"),
+        rimborso("tizio@esempio.it", "B", "2026-05-02", "2026-05-02"),
+      ].join("\n"),
+    ).righe;
+    const sue = storicoDi(doppie, "tizio@esempio.it");
+    const r = rimborsiDi(doppie, "tizio@esempio.it");
+    expect(rimborsata(sue[0], r)).toBe(false);
+    expect(rimborsata(sue[1], r)).toBe(true);
+  });
+
+  it("nel racconto la licenza rimborsata è marcata, con la data da cui l'uso cessa", () => {
+    const testo = raccontaStorico(storicoDi(registro, "due@esempio.it"), "2026-06-01", {
+      rimborsi: rimborsiDi(registro, "due@esempio.it"),
+    }).righe.join("\n");
+    expect(testo).toContain("RIMBORSATA il 2026-02-20");
+    expect(testo).toContain("uso cessato dal 2026-02-20");
+  });
+
+  describe("i cinquanta posti", () => {
+    it("chi è stato rimborsato non occupa un posto, e l'ordine degli altri non cambia", () => {
+      const stato = fondatori(registro);
+      expect(stato.elenco.map((f) => f.email)).toEqual(["uno@esempio.it", "tre@esempio.it"]);
+      expect(stato.elenco.map((f) => f.posizione)).toEqual([1, 2]);
+      expect(stato.occupati).toBe(2);
+      expect(stato.liberi).toBe(48);
+    });
+
+    it("senza il rimborso sarebbero tre, nello stesso ordine", () => {
+      const senza = registro.filter((r) => r.tipo !== "rimborso");
+      expect(fondatori(senza).elenco.map((f) => f.email)).toEqual([
+        "uno@esempio.it",
+        "due@esempio.it",
+        "tre@esempio.it",
+      ]);
+    });
+
+    it("chi riceve una licenza per trasferimento non prende un posto", () => {
+      const conTrasferimento = [
+        ...registro,
+        {
+          email: "quattro@esempio.it",
+          emessaIl: "2026-04-10",
+          scadenza: "2027-01-10",
+          chiave: "K4",
+          trasferitaDa: "uno@esempio.it",
+        },
+      ];
+      const stato = fondatori(conTrasferimento);
+      expect(stato.elenco.map((f) => f.email)).not.toContain("quattro@esempio.it");
+      expect(stato.occupati).toBe(2);
+    });
+
+    it("i rinnovi non occupano un secondo posto: conta il primo acquisto", () => {
+      const conRinnovo = [
+        ...registro,
+        { email: "Uno@Esempio.it", emessaIl: "2027-01-05", scadenza: "2028-01-10", chiave: "K5" },
+      ];
+      const stato = fondatori(conRinnovo);
+      expect(stato.occupati).toBe(2);
+      expect(stato.elenco[0]).toMatchObject({ posizione: 1, dal: "2026-01-10" });
+    });
+
+    it("oltre il cinquantesimo non si entra", () => {
+      const tanti = Array.from({ length: 52 }, (_, i) =>
+        JSON.parse(
+          licenza(`c${i}@esempio.it`, `2026-01-${String((i % 28) + 1).padStart(2, "0")}`, "2027-01-01", `C${i}`),
+        ),
+      );
+      const stato = fondatori(tanti);
+      expect(stato.occupati).toBe(50);
+      expect(stato.liberi).toBe(0);
+      expect(posizioneFondatore(tanti, "c0@esempio.it")).toBe(1);
+    });
+
+    it("e la posizione si legge anche con le maiuscole diverse", () => {
+      expect(posizioneFondatore(registro, "UNO@ESEMPIO.IT")).toBe(1);
+      expect(posizioneFondatore(registro, "due@esempio.it")).toBeNull();
+    });
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Il comma 8: la finestra di chi ha trasferito
+// ————————————————————————————————————————————————————————————
+
+/*
+  «Per il suo successivo acquisto si considera la scadenza originaria della
+  licenza trasferita: entro 30 giorni da tale scadenza si applica il prezzo
+  garantito; oltre tale termine si applica il listino.»
+
+  Il conto era già quello — la riga del cedente porta la scadenza originaria —
+  ma fino a ieri lo strumento lo segnalava come una domanda aperta. Adesso la
+  regola c'è, e il testo deve dirla: a chi legge serve sapere **perché** quel
+  numero è giusto, se no lo ricontrolla a mano ogni volta.
+*/
+describe("la finestra di chi ha trasferito (comma 8)", () => {
+  const righe = leggiRegistro(
+    [
+      JSON.stringify({ email: "fondatore@esempio.it", emessaIl: "2026-02-01", scadenza: "2027-02-01", chiave: "F1" }),
+      JSON.stringify({
+        email: "nuovo@esempio.it",
+        emessaIl: "2026-09-01",
+        scadenza: "2027-02-01",
+        chiave: "N1",
+        trasferitaDa: "fondatore@esempio.it",
+      }),
+    ].join("\n"),
+  ).righe;
+
+  const raccontoDi = (oggi) =>
+    raccontaStorico(storicoDi(righe, "fondatore@esempio.it"), oggi, {
+      scambi: trasferimenti(righe, "fondatore@esempio.it"),
+    }).righe.join("\n");
+
+  it("dice che la finestra si misura sulla scadenza originaria, e cita il comma 8", () => {
+    const testo = raccontoDi("2027-02-20");
+    expect(testo).toContain("è stata trasferita");
+    expect(testo).toContain("comma 8");
+    expect(testo).toContain("scadenza originaria");
+  });
+
+  it("entro i 30 giorni da quella scadenza il prezzo garantito vale ancora", () => {
+    const f = raccontaStorico(storicoDi(righe, "fondatore@esempio.it"), "2027-03-03", {
+      scambi: trasferimenti(righe, "fondatore@esempio.it"),
+    }).finestra;
+    expect(f.scadenza).toBe("2027-02-01");
+    expect(f.ultimoGiorno).toBe("2027-03-03");
+    expect(f.stato).toBe("grazia");
+  });
+
+  it("e il giorno dopo si va a listino", () => {
+    const f = raccontaStorico(storicoDi(righe, "fondatore@esempio.it"), "2027-03-04", {
+      scambi: trasferimenti(righe, "fondatore@esempio.it"),
+    }).finestra;
+    expect(f.stato).toBe("oltre");
+  });
+
+  it("chi non ha trasferito niente non si vede dire niente del comma 8", () => {
+    const soloSua = leggiRegistro(
+      JSON.stringify({ email: "solo@esempio.it", emessaIl: "2026-02-01", scadenza: "2027-02-01" }),
+    ).righe;
+    const testo = raccontaStorico(storicoDi(soloSua, "solo@esempio.it"), "2027-02-20", {
+      scambi: trasferimenti(soloSua, "solo@esempio.it"),
+    }).righe.join("\n");
+    expect(testo).not.toContain("comma 8");
+  });
+});
+
+/*
+  Le righe dei posti si leggono in un'email a un cliente: «1 posti occupati» è
+  il tipo di sciatteria che fa dubitare anche del numero.
+*/
+describe("come si scrivono i posti", () => {
+  const unaSola = [{ email: "a@b.it", emessaIl: "2026-01-01", scadenza: "2027-01-01" }];
+
+  it("al singolare dice «1 posto occupato»", () => {
+    const testo = righeDeiFondatori(fondatori(unaSola), "a@b.it").join("\n");
+    expect(testo).toContain("1 posto occupato");
+    expect(testo).not.toContain("1 posti");
+  });
+
+  it("e «49 posti liberi» al plurale", () => {
+    expect(righeDeiFondatori(fondatori(unaSola), "a@b.it").join("\n")).toContain("49 posti liberi");
+  });
+
+  it("con un posto solo libero, «1 posto libero»", () => {
+    const quasi = Array.from({ length: 49 }, (_, i) => ({
+      email: `c${i}@b.it`,
+      emessaIl: "2026-01-01",
+      scadenza: "2027-01-01",
+    }));
+    expect(righeDeiFondatori(fondatori(quasi)).join("\n")).toContain("1 posto libero");
+  });
+
+  it("e una licenza rimborsata «non occupa», due «non occupano»", () => {
+    const con = (quanti) => ({
+      posti: 50,
+      elenco: [],
+      occupati: 0,
+      liberi: 50,
+      rimborsiEsclusi: quanti,
+    });
+    expect(righeDeiFondatori(con(1)).join("\n")).toContain("1 licenza rimborsata non occupa");
+    expect(righeDeiFondatori(con(2)).join("\n")).toContain("2 licenze rimborsate non occupano");
   });
 });

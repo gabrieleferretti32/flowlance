@@ -71,13 +71,55 @@ export function leggiRegistro(testo) {
 }
 
 /**
+ * Le righe del registro non sono più tutte licenze.
+ *
+ * Da quando esiste `--rimborso`, in `emesse.jsonl` ci sono due specie di riga:
+ * le licenze, come sempre, e i rimborsi, che portano `tipo: "rimborso"`. Le
+ * righe vecchie non hanno nessun `tipo` e sono licenze: trattarle diversamente
+ * vorrebbe dire che il registro di ieri non si legge più.
+ *
+ * Perché un rimborso è una **riga nuova** e non un campo sulla licenza: il
+ * registro è un giornale, non uno stato. Tornare indietro a modificare la riga
+ * di un'emissione vorrebbe dire riscrivere un documento già scritto, e perdere
+ * la data in cui la cosa è successa — che è l'unica informazione per cui un
+ * giornale esiste.
+ */
+export const eLicenza = (r) => r?.tipo === undefined || r.tipo === "licenza";
+export const eRimborso = (r) => r?.tipo === "rimborso";
+
+/**
  * Le licenze già emesse a quell'indirizzo, dalla più vecchia alla più recente.
  */
 export function storicoDi(righe, email) {
   const cercata = normalizzaEmail(email);
   return righe
-    .filter((r) => normalizzaEmail(r.email) === cercata)
+    .filter((r) => eLicenza(r) && normalizzaEmail(r.email) === cercata)
     .sort((a, b) => String(a.emessaIl ?? "").localeCompare(String(b.emessaIl ?? "")));
+}
+
+/** I rimborsi annotati per quell'indirizzo, dal più vecchio al più recente. */
+export function rimborsiDi(righe, email) {
+  const cercata = normalizzaEmail(email);
+  return righe
+    .filter((r) => eRimborso(r) && normalizzaEmail(r.email) === cercata)
+    .sort((a, b) => String(a.data ?? "").localeCompare(String(b.data ?? "")));
+}
+
+/**
+ * Questa licenza è stata rimborsata?
+ *
+ * Si confronta la **chiave** quando c'è: è l'unica cosa che identifica una
+ * licenza senza ambiguità. Due licenze dello stesso indirizzo possono avere la
+ * stessa scadenza — un rinnovo anticipato emesso due volte per sbaglio — e
+ * confrontare solo le date rimborserebbe quella sbagliata. Senza chiave si
+ * ripiega su emissione più scadenza, e lo si fa sapendo che è un ripiego.
+ */
+export function rimborsata(licenza, rimborsi) {
+  return rimborsi.some((r) =>
+    r.chiave && licenza.chiave
+      ? r.chiave === licenza.chiave
+      : r.licenzaEmessaIl === licenza.emessaIl && r.licenzaScadenza === licenza.scadenza,
+  );
 }
 
 /**
@@ -120,7 +162,10 @@ export function trasferimenti(righe, email) {
  * stampano tutti e due i numeri, con le date, e chi legge non deve contare
  * niente.
  */
-export function raccontaStorico(precedenti, oggi = null, scambi = { cedute: [], ricevute: [] }) {
+export function raccontaStorico(precedenti, oggi = null, contorno = {}) {
+  const scambi = contorno.scambi ?? { cedute: [], ricevute: [] };
+  const rimborsi = contorno.rimborsi ?? [];
+  const fondatore = contorno.fondatore ?? null;
   /*
     Le righe sui trasferimenti si compongono **prima** del ramo «primo
     acquisto»: chi ha ceduto la sua unica licenza non ha più niente nel
@@ -145,12 +190,23 @@ export function raccontaStorico(precedenti, oggi = null, scambi = { cedute: [], 
   }
   const numeroLicenza = precedenti.length + 1;
   const rinnovi = precedenti.length;
+  /*
+    Le licenze rimborsate restano nell'elenco, **marcate**. Toglierle farebbe
+    sparire dal racconto un contratto che è esistito e di cui resta la nota di
+    credito; marcarle dice tutte e due le cose — c'è stata, e non c'è più.
+  */
   const righe = [
     `È la ${numeroLicenza}ª licenza per questo indirizzo — ${rinnovi} ${rinnovi === 1 ? "rinnovo" : "rinnovi"} dopo il primo acquisto.`,
     "Precedenti:",
-    ...precedenti.map(
-      (p, i) => `  ${i + 1}. emessa il ${p.emessaIl ?? "?"}, valida fino al ${p.scadenza ?? "?"}`,
-    ),
+    ...precedenti.map((p, i) => {
+      const r = rimborsi.find((x) =>
+        x.chiave && p.chiave
+          ? x.chiave === p.chiave
+          : x.licenzaEmessaIl === p.emessaIl && x.licenzaScadenza === p.scadenza,
+      );
+      const coda = r ? ` — RIMBORSATA il ${r.data ?? "?"}, uso cessato dal ${r.cessaIl ?? "?"}` : "";
+      return `  ${i + 1}. emessa il ${p.emessaIl ?? "?"}, valida fino al ${p.scadenza ?? "?"}${coda}`;
+    }),
   ];
   /*
     Gli indirizzi scritti con maiuscole diverse nel registro: si nominano,
@@ -166,10 +222,30 @@ export function raccontaStorico(precedenti, oggi = null, scambi = { cedute: [], 
     sull'orologio di dentro non si potrebbe provare, e questo modulo non legge
     nessuno stato del mondo di proposito.
   */
+  /*
+    La scadenza su cui si misura la finestra, e il comma 8.
+
+    Per chi ha ceduto la licenza, la scadenza dell'ultima riga del suo storico
+    **è** la scadenza originaria della licenza trasferita: la riga resta la
+    sua, il trasferimento ne ha creata una nuova intestata ad altri. Il comma 8
+    dice esattamente questo — «per il suo successivo acquisto si considera la
+    scadenza originaria della licenza trasferita» — e quindi il conto non
+    cambia. Cambia che adesso si sa perché è giusto, e si dice.
+  */
   const ultima = precedenti[precedenti.length - 1];
+  const ceduta = scambi.cedute.some((c) => c.scadenza === ultima?.scadenza);
   const finestra = oggi === null ? null : finestraDiRinnovo(ultima?.scadenza, oggi);
-  if (oggi !== null) righe.push(...raccontaFinestra(ultima?.scadenza, oggi));
+  if (oggi !== null) {
+    if (ceduta) {
+      righe.push(
+        "La licenza con questa scadenza è stata trasferita: per il comma 8 la finestra si misura",
+        "sulla sua scadenza originaria, che è quella qui sotto.",
+      );
+    }
+    righe.push(...raccontaFinestra(ultima?.scadenza, oggi));
+  }
   righe.push(...suiTrasferimenti);
+  if (fondatore !== null) righe.push(...righeDeiFondatori(fondatore, precedenti[0]?.email));
   return { nuovo: false, numeroLicenza, rinnovi, righe, finestra };
 }
 
@@ -191,18 +267,14 @@ export function righeDeiTrasferimenti({ cedute = [], ricevute = [] } = {}) {
       "  Il prezzo fondatori resta a questo indirizzo: il punto 6-bis, comma 7, lo dice personale",
       "  e non cedibile anche in caso di trasferimento.",
       /*
-        E una cosa che il contratto non dice, detta come non detta.
-
-        La finestra del comma 3 si misura sulla scadenza della «licenza in
-        corso». Dopo una cessione, a quella scadenza non c'è più niente da
-        rinnovare per chi ha ceduto: il beneficio resta suo (comma 7), ma su
-        quale acquisto si applichi non lo scrive nessun comma. Tacere qui
-        vorrebbe dire far credere che il riquadro della finestra parli di una
-        licenza che questo indirizzo non ha più.
+        Qui, fino al 13 ottobre, c'era una domanda aperta: dopo una cessione la
+        finestra si misura su una scadenza che non è più di chi ha ceduto, e su
+        quale acquisto si applicasse il beneficio non lo diceva nessun comma.
+        Il comma 8 l'ha chiusa, e adesso la riga racconta la regola invece di
+        segnalare il buco.
       */
-      "  Attenzione: la finestra qui sopra è calcolata su quella scadenza. Dopo la cessione, a",
-      "  quel termine non c'è più niente da rinnovare per questo indirizzo — il beneficio resta",
-      "  suo, ma su quale acquisto si applichi il contratto non lo dice. Da chiedere al legale.",
+      "  Per il comma 8 il suo prossimo acquisto si misura su questa scadenza: entro 30 giorni",
+      "  da lì vale il prezzo garantito, oltre vale il listino.",
     );
   }
   for (const r of ricevute) {
@@ -305,6 +377,30 @@ export function piuGiorni(data, giorni) {
   return `${anno}-${String(mese).padStart(2, "0")}-${String(giorno).padStart(2, "0")}`;
 }
 
+/**
+ * `data` più `mesi` mesi, col giorno schiacciato sulla fine del mese.
+ *
+ * Il 31 agosto più sei mesi è il 28 febbraio (o il 29): non esiste un 31
+ * febbraio, e la scelta è fra schiacciare e scivolare al primo marzo.
+ * Schiacciare tiene la scadenza **dentro** il mese che l'acquirente si
+ * aspetta; scivolare regalerebbe un giorno e sposterebbe il rinnovo in un
+ * mese che sulla fattura non c'entra niente.
+ *
+ * Anche questa è la gemella di quella in `src/lib/sito/calendario.ts`, e lo
+ * stesso test le interroga tutte e due: vedi `piuGiorni` qui sopra per il
+ * perché la copia esiste.
+ */
+export function piuMesi(data, mesi) {
+  const anno = Number(String(data).slice(0, 4));
+  const mese = Number(String(data).slice(5, 7));
+  const giorno = Number(String(data).slice(8, 10));
+  const totale = anno * 12 + (mese - 1) + Number(mesi);
+  const annoNuovo = Math.floor(totale / 12);
+  const meseNuovo = (totale % 12) + 1;
+  const ultimo = giorniDelMese(annoNuovo, meseNuovo);
+  return `${annoNuovo}-${String(meseNuovo).padStart(2, "0")}-${String(Math.min(giorno, ultimo)).padStart(2, "0")}`;
+}
+
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -370,4 +466,140 @@ export function raccontaFinestra(scadenza, oggi, giorni = GIORNI_DI_GRAZIA) {
     `  Per il comma 4 si applica il prezzo di listino di oggi. **Resta Fondatore**: il prossimo`,
     `  rinnovo acquistato nel termine torna al prezzo garantito.`,
   ];
+}
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Da quando decorre un rinnovo
+  ─────────────────────────────────────────────────────────────────────────
+
+  Il punto 3: «Il rinnovo acquistato prima della scadenza della licenza in
+  corso decorre dalla scadenza di quest'ultima, senza perdita dei giorni già
+  pagati.»
+
+  È la clausola che costa soldi a chi la sbaglia, e la sbaglia **in silenzio**:
+  una licenza emessa oggi, a chi ne ha una valida fino a marzo, gli toglie
+  cinque mesi che aveva pagato. Nessun errore, nessuna riga storta — una
+  scadenza plausibile, calcolata sulla data sbagliata, che nessuno confronta
+  con quella di prima.
+
+  Chi rinnova **dopo** la scadenza riparte dal giorno dell'emissione: non c'è
+  niente da attaccare, e far decorrere dalla scadenza vecchia gli venderebbe
+  dei giorni già passati.
+*/
+
+/** La data da cui far partire i 12 mesi: la scadenza in corso, se c'è ancora. */
+export function baseDelRinnovo(precedenti, oggi) {
+  const valide = precedenti
+    .map((p) => p.scadenza)
+    .filter((s) => ISO.test(String(s ?? "")) && s >= oggi)
+    .sort();
+  return valide.length > 0 ? valide[valide.length - 1] : oggi;
+}
+
+/**
+ * La scadenza della licenza nuova.
+ *
+ * `durata` è `{ mesi }` o `{ anni }`; senza, un anno. Si contano **dalla
+ * base**, che è la scadenza in corso quando ce n'è una: è la differenza fra
+ * rinnovare e ricominciare.
+ */
+export function scadenzaDelRinnovo(precedenti, oggi, durata = {}) {
+  const base = baseDelRinnovo(precedenti, oggi);
+  const mesi = durata.mesi !== undefined && durata.mesi !== null
+    ? Number(durata.mesi)
+    : Number(durata.anni ?? 1) * 12;
+  return { base, anticipato: base !== oggi, scadenza: piuMesi(base, mesi) };
+}
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  I primi 50: chi sono, e che cosa libera un posto
+  ─────────────────────────────────────────────────────────────────────────
+
+  Il punto 6-bis conta i «primi 50 acquirenti», ordinati per data di
+  conclusione del contratto, e il comma 2 toglie dal conto le licenze
+  rimborsate. Due cose non entrano nel conteggio, e per due ragioni diverse:
+
+  - **i trasferimenti**, perché chi riceve una licenza non l'ha acquistata: il
+    posto resta di chi ha comprato, e il comma 7 tiene a lui anche il
+    beneficio;
+  - **le licenze rimborsate**, perché il comma 2 lo dice. Il posto si libera —
+    non si tiene occupato da un contratto che è stato sciolto — e l'ordine
+    degli altri non cambia, perché è un ordine per data: togliere una riga non
+    sposta nessuna delle altre, e chi era Fondatore resta Fondatore.
+
+  Il conto si fa sul **primo acquisto** di ogni indirizzo: i rinnovi non
+  occupano un secondo posto.
+*/
+export function fondatori(righe, posti = 50, rimborsiTutti = null) {
+  const rimborsi = rimborsiTutti ?? righe.filter(eRimborso);
+  const primi = new Map();
+  righe.forEach((r, indice) => {
+    if (!eLicenza(r) || r.trasferitaDa) return;
+    if (rimborsata(r, rimborsi.filter((x) => normalizzaEmail(x.email) === normalizzaEmail(r.email)))) return;
+    const chiave = normalizzaEmail(r.email);
+    const data = String(r.emessaIl ?? "");
+    const gia = primi.get(chiave);
+    if (!gia || data < gia.dal) primi.set(chiave, { email: r.email, dal: data, indice });
+  });
+  const elenco = [...primi.values()]
+    .sort((a, b) => a.dal.localeCompare(b.dal) || a.indice - b.indice)
+    .map((v, i) => ({ email: v.email, dal: v.dal, posizione: i + 1 }))
+    .filter((v) => v.posizione <= posti);
+  return {
+    posti,
+    elenco,
+    occupati: elenco.length,
+    liberi: Math.max(0, posti - elenco.length),
+    rimborsiEsclusi: rimborsi.length,
+  };
+}
+
+/** La posizione di un indirizzo fra i Fondatori, o `null` se non ci sta dentro. */
+export function posizioneFondatore(righe, email, posti = 50) {
+  const cercata = normalizzaEmail(email);
+  return (
+    fondatori(righe, posti).elenco.find((f) => normalizzaEmail(f.email) === cercata)?.posizione
+    ?? null
+  );
+}
+
+/**
+ * Lo stato dei cinquanta posti, e dove sta questo indirizzo.
+ *
+ * Serve mentre si scrive un'email, cioè nel momento in cui si decide un
+ * prezzo: «è il Fondatore numero 12» e «restano 7 posti» sono due fatti che
+ * altrimenti si contano a mano sul registro, e a mano si contano male.
+ */
+export function righeDeiFondatori(stato, email) {
+  const mio = email
+    ? stato.elenco.find((f) => normalizzaEmail(f.email) === normalizzaEmail(email))
+    : null;
+  /*
+    Singolare e plurale scritti, non lasciati al caso: «1 posti occupati» su una
+    riga che qualcuno incolla in un'email al cliente è il tipo di sciatteria che
+    fa dubitare anche del numero.
+  */
+  const posti = (n) => (n === 1 ? "1 posto" : `${n} posti`);
+  const righe = [
+    `Fondatori: ${posti(stato.occupati)} occupat${stato.occupati === 1 ? "o" : "i"}`
+      + ` su ${stato.posti}, ${posti(stato.liberi)} liber${stato.liberi === 1 ? "o" : "i"}.`,
+  ];
+  if (mio) {
+    righe.push(`  Questo indirizzo è il Fondatore n. ${mio.posizione}, dal ${mio.dal}.`);
+  } else if (email) {
+    righe.push("  Questo indirizzo NON è fra i Fondatori: vale il prezzo di listino.");
+  }
+  if (stato.rimborsiEsclusi > 0) {
+    const n = stato.rimborsiEsclusi;
+    righe.push(
+      n === 1
+        ? "  1 licenza rimborsata non occupa un posto (comma 2): il posto si libera e l'ordine"
+          + " degli altri non cambia."
+        : `  ${n} licenze rimborsate non occupano un posto (comma 2): i posti si liberano e`
+          + " l'ordine degli altri non cambia.",
+    );
+  }
+  return righe;
 }

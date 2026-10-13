@@ -39,6 +39,17 @@
  *       Fondatori **non** si trasferisce: resta a chi ha comprato per primo,
  *       e il punto 6-bis comma 7 lo scrive.
  *
+ *   node genera-licenza.mjs cliente@esempio.it --rimborso
+ *   node genera-licenza.mjs cliente@esempio.it --rimborso --cessa 2026-11-05
+ *       Annota nel registro il rimborso dell'ultima licenza di quell'indirizzo
+ *       e **la data da cui cessa il diritto d'uso** (punto 4: la data di
+ *       esecuzione del rimborso; con `--cessa` se ne indica un'altra). Non
+ *       emette niente e non disattiva nessuna chiave — non si può, e il punto
+ *       4 lo dichiara: la cessazione dell'utilizzo è un obbligo dell'utente.
+ *
+ *       Il posto fra i 50 Fondatori si libera, come dice il comma 2, e
+ *       l'ordine degli altri non cambia.
+ *
  * Opzioni: `--privata <percorso>` per usare un'altra chiave privata,
  * `--registro <percorso>` per il file in cui si annotano le emissioni
  * (`chiavi/emesse.jsonl` per impostazione predefinita).
@@ -48,9 +59,13 @@ import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } fr
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import {
+  fondatori,
   leggiRegistro,
   normalizzaEmail,
   raccontaStorico,
+  rimborsata,
+  rimborsiDi,
+  scadenzaDelRinnovo,
   storicoDi,
   trasferimenti,
 } from "./storico.mjs";
@@ -163,6 +178,7 @@ const posizionali = argomenti.filter(
   (a, i) => !a.startsWith("--") && !argomenti[i - 1]?.startsWith("--"),
 );
 const cedente = opzione("trasferisci");
+const chiedeRimborso = argomenti.includes("--rimborso");
 const email = posizionali[0];
 if (!email || !email.includes("@")) {
   errore(
@@ -193,7 +209,12 @@ const oggi = new Date();
 const emessaIl = oggi.toISOString().slice(0, 10);
 
 const precedenti = storicoDi(emesse, email);
-const storia = raccontaStorico(precedenti, emessaIl, trasferimenti(emesse, email));
+const rimborsi = rimborsiDi(emesse, email);
+const storia = raccontaStorico(precedenti, emessaIl, {
+  scambi: trasferimenti(emesse, email),
+  rimborsi,
+  fondatore: fondatori(emesse),
+});
 
 console.log(`\n  ${storia.righe.join("\n  ")}`);
 if (illeggibili > 0) {
@@ -206,6 +227,67 @@ if (illeggibili > 0) {
 
 if (argomenti.includes("--storico")) {
   console.log("");
+  process.exit(0);
+}
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Il rimborso: una riga nel giornale, e una data da comunicare
+  ─────────────────────────────────────────────────────────────────────────
+
+  Non si cancella niente e non si modifica la riga dell'emissione: il registro
+  è un giornale. La riga del rimborso porta **quando** è stato eseguito e **da
+  quando** cessa il diritto d'uso — che per il punto 4 sono la stessa data,
+  salvo indicarne un'altra con `--cessa`.
+
+  Quello che il comando non può fare è disattivare la chiave. Il punto 4 lo
+  dichiara, e il resoconto lo ripete: la cessazione dell'utilizzo è un obbligo
+  dell'acquirente, e il modo di farlo valere è scriverglielo, non un
+  interruttore che non esiste.
+*/
+if (chiedeRimborso) {
+  if (cedente) errore("--rimborso e --trasferisci non si combinano: sono due cose diverse.");
+  if (precedenti.length === 0) {
+    errore(`Nel registro non c'è nessuna licenza per ${email}: non c'è niente da rimborsare.`);
+  }
+  const daRimborsare = precedenti[precedenti.length - 1];
+  if (rimborsata(daRimborsare, rimborsi)) {
+    errore(
+      `L'ultima licenza di ${email} (emessa il ${daRimborsare.emessaIl}) risulta già rimborsata.\n  `
+        + "  Un secondo rimborso della stessa licenza libererebbe due volte lo stesso posto.",
+    );
+  }
+  const cessa = opzione("cessa") ?? emessaIl;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(cessa)) {
+    errore(`Data «${cessa}» non valida: serve una data nella forma 2026-11-05.`);
+  }
+  const voce = {
+    tipo: "rimborso",
+    email,
+    licenzaEmessaIl: daRimborsare.emessaIl,
+    licenzaScadenza: daRimborsare.scadenza,
+    chiave: daRimborsare.chiave,
+    data: emessaIl,
+    cessaIl: cessa,
+  };
+  mkdirSync(dirname(registro), { recursive: true });
+  appendFileSync(registro, `${JSON.stringify(voce)}\n`);
+
+  const dopo = leggiRegistro(readFileSync(registro, "utf8")).righe;
+  const posti = fondatori(dopo);
+  console.log(`
+  Rimborso annotato per ${email}
+  Licenza emessa il ${daRimborsare.emessaIl}, scadenza ${daRimborsare.scadenza}
+  Rimborso eseguito il ${emessaIl} · diritto d'uso cessato dal ${cessa}
+  Annotato in ${registro}
+
+  Fondatori: ${posti.occupati} posti occupati su ${posti.posti}, ${posti.liberi} liberi.
+
+  Da scrivere all'interessato, perché il programma non può farlo:
+  · la chiave NON viene disattivata a distanza — l'applicazione funziona senza
+    collegamento al Fornitore — e dal ${cessa} l'utilizzo deve cessare (punto 4).
+  Il testo pronto da copiare è in CHECKOUT.md, sezione «Trasferimento e rimborso».
+`);
   process.exit(0);
 }
 
@@ -259,11 +341,27 @@ if (cedente) {
   scadenza = cedutaDa.scadenza;
 }
 
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  La decorrenza del rinnovo anticipato (punto 3)
+  ─────────────────────────────────────────────────────────────────────────
+
+  «Il rinnovo acquistato prima della scadenza della licenza in corso decorre
+  dalla scadenza di quest'ultima, senza perdita dei giorni già pagati.»
+
+  È la clausola che si sbaglia in silenzio: una licenza emessa oggi, a chi ne
+  ha una valida fino a marzo, gli toglie cinque mesi che aveva pagato. Nessun
+  errore, nessuna riga storta — una scadenza plausibile, calcolata sulla data
+  sbagliata, che nessuno confronta con quella di prima.
+
+  Il conto sta in `scadenzaDelRinnovo`, che non legge né orologio né disco e si
+  prova sui tre casi che contano: un mese prima della scadenza, il giorno
+  stesso, dieci giorni dopo.
+*/
+let rinnovo = null;
 if (!scadenza) {
-  const fine = new Date(Date.UTC(oggi.getUTCFullYear(), oggi.getUTCMonth(), oggi.getUTCDate()));
-  if (mesi) fine.setUTCMonth(fine.getUTCMonth() + Number(mesi));
-  else fine.setUTCFullYear(fine.getUTCFullYear() + Number(anni ?? 1));
-  scadenza = fine.toISOString().slice(0, 10);
+  rinnovo = scadenzaDelRinnovo(precedenti, emessaIl, { mesi, anni });
+  scadenza = rinnovo.scadenza;
 }
 if (!/^\d{4}-\d{2}-\d{2}$/.test(scadenza)) {
   errore(`Scadenza «${scadenza}» non valida: serve una data nella forma 2027-09-30.`);
@@ -314,6 +412,12 @@ const intestazione = cedutaDa
       `  Licenza per ${email}`,
       `  ${storia.nuovo ? "Primo acquisto" : `${storia.numeroLicenza}ª licenza · ${storia.rinnovi} ${storia.rinnovi === 1 ? "rinnovo" : "rinnovi"}`}`,
       `  Valida fino al ${scadenza} compreso · emessa il ${emessaIl}`,
+      ...(rinnovo?.anticipato
+        ? [
+            `  Rinnovo anticipato: decorre dalla scadenza della licenza in corso (${rinnovo.base}),`,
+            "  non dalla data di emissione — punto 3, nessun giorno già pagato va perso.",
+          ]
+        : []),
     ].join("\n");
 
 console.log(`

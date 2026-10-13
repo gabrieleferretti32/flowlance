@@ -164,9 +164,47 @@ garanzia di rimborso, 30 giorni dal pagamento (punto 7).
 
 ## Rinnovi
 
-Un rinnovo è una licenza nuova con la stessa email e una scadenza più in là.
-Non c'è niente da revocare: la vecchia scade da sola, e incollare la nuova
-sostituisce quella salvata.
+Un rinnovo è una licenza nuova con la stessa email. Non c'è niente da revocare:
+la vecchia scade da sola, e incollare la nuova sostituisce quella salvata.
+
+**Da quando decorre.** Il punto 3 dei Termini: «il rinnovo acquistato prima
+della scadenza della licenza in corso decorre dalla scadenza di quest'ultima,
+senza perdita dei giorni già pagati». Lo fa lo strumento da solo, e non c'è
+niente da calcolare a mano:
+
+| Quando si rinnova | Da dove parte la nuova scadenza |
+| --- | --- |
+| prima della scadenza | dalla **scadenza della licenza in corso** |
+| il giorno stesso della scadenza | dalla scadenza: la licenza vale tutto il giorno |
+| dopo la scadenza | dal **giorno di emissione** |
+
+Il resoconto lo dice quando succede: «Rinnovo anticipato: decorre dalla
+scadenza della licenza in corso (2027-03-31)». È la riga da controllare, perché
+è l'unico modo di accorgersi che il conto è stato fatto sulla data giusta: una
+scadenza calcolata da oggi, a chi ne aveva una valida per altri cinque mesi,
+sarebbe plausibile e sbagliata, e la differenza la vedrebbe solo lui.
+
+Una data scritta a mano vince su tutto: `node genera-licenza.mjs
+cliente@esempio.it 2028-06-30` emette esattamente quella.
+
+## Rimborsi
+
+```sh
+node genera-licenza.mjs cliente@esempio.it --rimborso
+node genera-licenza.mjs cliente@esempio.it --rimborso --cessa 2026-11-05
+```
+
+Annota nel registro il rimborso dell'**ultima** licenza di quell'indirizzo e la
+data da cui cessa il diritto d'uso — che per il punto 4 è la data di esecuzione
+del rimborso, salvo indicarne un'altra. Non emette niente, non cancella niente
+e non disattiva nessuna chiave: il registro è un giornale, e la chiave non si
+può spegnere a distanza. Il resoconto stampa la data da comunicare
+all'interessato; il testo dell'email sta in `CHECKOUT.md`.
+
+Il posto fra i 50 Fondatori **si libera** (punto 6-bis, comma 2) e l'ordine
+degli altri non cambia: è un ordine per data di primo acquisto, e togliere una
+riga non sposta le altre. `--storico` stampa quanti posti sono occupati e che
+posizione ha l'indirizzo che si sta guardando.
 
 ## Cosa succede all'acquirente
 
