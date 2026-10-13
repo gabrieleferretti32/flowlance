@@ -173,7 +173,14 @@ if (promette && clausola !== null) {
     {
       cosa: "il prezzo garantito",
       pagina: /(\d+)\s*€\s*\+\s*IVA l'anno/,
-      contratto: /il prezzo di\s+(\d+)\s*€\s*oltre IVA/,
+      /*
+        «il prezzo di **rinnovo** di 97 €»: il comma 1 riscritto dal legale non
+        dice più «garantisce, per ogni rinnovo successivo, il prezzo di 97 €».
+        La vecchia espressione qui non trovava più niente — e questo strumento
+        lo dice invece di tacere, che è il motivo per cui l'espressione la si
+        pretende trovata da tutte e due le parti.
+      */
+      contratto: /il prezzo di rinnovo di\s+(\d+)\s*€\s*oltre IVA/,
     },
     {
       cosa: "i giorni per rinnovare",

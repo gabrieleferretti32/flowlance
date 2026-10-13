@@ -92,7 +92,7 @@ describe("la card del prezzo fondatori", () => {
       `La pagina promette il prezzo sui rinnovi, ma contenuti/termini.md non ha il punto ${PUNTO_PREZZO_GARANTITO}.\n`
         + "È una promessa senza clausola che la renda esigibile.",
     ).not.toBeNull();
-    expect(SEIBIS).toContain("per ogni rinnovo successivo");
+    expect(SEIBIS).toContain("il prezzo di rinnovo");
   });
 
   describe("i tre numeri coincidono col punto 6-bis", () => {
@@ -106,8 +106,8 @@ describe("la card del prezzo fondatori", () => {
     });
 
     it("il prezzo garantito è quello che la pagina mostra", () => {
-      const nel6bis = SEIBIS?.match(/il prezzo di\s+([\d.,]+)\s*€\s*oltre IVA/)?.[1];
-      expect(nel6bis, "nel 6-bis non trovo «il prezzo di N € oltre IVA»").toBeDefined();
+      const nel6bis = SEIBIS?.match(/il prezzo di rinnovo di\s+([\d.,]+)\s*€\s*oltre IVA/)?.[1];
+      expect(nel6bis, "nel 6-bis non trovo «il prezzo di rinnovo di N € oltre IVA»").toBeDefined();
       expect(
         Number(nel6bis?.replace(",", ".")),
         `La pagina vende a ${PREZZO.imponibile} €, la clausola garantisce ${nel6bis} €.`,

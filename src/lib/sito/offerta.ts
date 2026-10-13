@@ -36,12 +36,19 @@
  * Quello che qui è una promessa, nei Termini è un obbligo
  * ─────────────────────────────────────────────────────────────────────────
  *
- * «97 € + IVA l'anno anche a ogni rinnovo» non è una frase di vendita: è il
- * punto 6-bis del contratto, che la rende esigibile. I numeri che compaiono in
+ * «97 € + IVA l'anno anche ai rinnovi» non è una frase di vendita: è il punto
+ * 6-bis del contratto, che la rende esigibile. I numeri che compaiono in
  * questa card — 50 posti, 97 €, 30 giorni — sono gli stessi tre numeri di
  * quella clausola, e `strumenti/verifica-offerta.mjs` fallisce il build se uno
  * dei due documenti si muove senza l'altro. La pagina che promette di più del
  * contratto è pubblicità ingannevole; quella che promette di meno regala.
+ *
+ * «Alle condizioni qui sotto» e non un punto fermo dopo «rinnovi»: il comma 1,
+ * nella stesura del legale, riconosce il prezzo di rinnovo **alle condizioni
+ * dei commi seguenti**, e il comma 3 è quello che le pone. Una frase che si
+ * chiudesse lì prometterebbe senza condizioni una cosa che il contratto dà
+ * con una — e le condizioni sono due righe più sotto, non in fondo a un
+ * contratto: rimandarci è onesto e costa una virgola.
  */
 import { SITO } from "@/lib/rotte";
 import { collegamentoAlPunto } from "@/lib/contenuti/ancore";
@@ -128,7 +135,7 @@ export const OFFERTA = {
   /** Una riga sotto il nome: per chi è, e perché adesso. */
   sottotitolo:
     `Per i primi ${FONDATORI} professionisti, ${PREZZO_SCRITTO.imponibile} + IVA l'anno `
-    + "anche a ogni rinnovo.",
+    + "anche ai rinnovi, alle condizioni qui sotto.",
   /**
    * Cosa include, una voce per riga. Vanno con la spunta.
    *

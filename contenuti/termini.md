@@ -1,6 +1,6 @@
 # Termini di servizio
 
-*Versione 3 — 12 ottobre 2026*
+*Versione 3 — 13 ottobre 2026*
 
 ## 1. Oggetto
 
@@ -28,15 +28,15 @@ L'utente resta l'unico responsabile della correttezza dei dati inseriti, della v
 
 **Il contratto si conclude con il pagamento.** Il pagamento avviene nella pagina d'acquisto, dopo che l'acquirente ha accettato i presenti Termini — consultabili per intero e scaricabili in PDF nella stessa pagina — e ha reso la dichiarazione di acquisto professionale di cui al punto 1.
 
-Subito dopo il pagamento il Fornitore trasmette all'indirizzo email indicato dall'acquirente la chiave di licenza e copia dei presenti Termini in formato PDF, con l'indicazione della versione, **di norma entro 24 ore lavorative**. La trasmissione non è condizione del contratto, che è già concluso: è la consegna di quanto acquistato.
+Il Fornitore trasmette la chiave di licenza e il PDF dei Termini entro la fine del primo giorno lavorativo successivo alla conferma del pagamento. La trasmissione non è condizione del contratto, che è già concluso: è la consegna di quanto acquistato.
 
 **L'acquisto dà diritto a una licenza d'uso personale e non esclusiva della durata di 12 mesi** dalla data di emissione. Alla scadenza la licenza cessa senza bisogno di disdetta e **non si rinnova tacitamente**: il rinnovo è un nuovo acquisto, che l'utente decide se fare.
 
-La licenza è nominativa ed è destinata a un singolo titolare di partita IVA: non è consentito condividerla, rivenderla o distribuirla.
+La licenza consente l'utilizzo dell'applicazione per l'attività di un solo titolare di partita IVA alla volta. È consentito trasferire la licenza per la durata residua, comunicando al Fornitore i dati del nuovo intestatario e cessando l'utilizzo da parte del precedente. Il trasferimento non prolunga la durata della licenza e non trasferisce il beneficio personale previsto al punto 6-bis. In caso di trasferimento il Fornitore emette una nuova chiave intestata al nuovo titolare, con la stessa scadenza. Poiché l'applicazione funziona senza collegamento al Fornitore, la chiave precedente non viene disattivata a distanza: la cessazione dell'utilizzo da parte del precedente intestatario è un suo obbligo.
 
 ## 4. Che cosa si acquista
 
-Per i 12 mesi della licenza l'applicazione è disponibile in tutte le sue funzioni operative: inserimento e modifica di fatture, costi, movimenti e impostazioni, calcolo di imposte e contributi, prospetto, scadenzario, confronto fra i regimi, esportazione e stampa. Il Fornitore non sospende né revoca una licenza valida.
+Per i 12 mesi della licenza l'applicazione è disponibile in tutte le sue funzioni operative: inserimento e modifica di fatture, costi, movimenti e impostazioni, calcolo di imposte e contributi, prospetto, scadenzario, confronto fra i regimi, esportazione e stampa. Il Fornitore non sospende né revoca una licenza valida. In caso di rimborso ai sensi del punto 7, la licenza cessa di essere valida alla data di esecuzione del rimborso e l'acquirente ne cessa l'utilizzo; poiché l'applicazione funziona senza collegamento al Fornitore, la cessazione non è applicata a distanza.
 
 Alla scadenza, e in assenza di rinnovo:
 
@@ -57,6 +57,8 @@ Ne consegue che il Fornitore non ha accesso ai dati dell'utente, non ne conserva
 
 **L'utente provvede al backup dei propri dati** con la funzione di esportazione dell'archivio presente nell'applicazione, secondo le istruzioni ivi indicate. L'applicazione segnala periodicamente l'opportunità di effettuare un backup.
 
+Quanto sopra riguarda l'archivio locale dell'applicazione. Per gli eventuali dati trasmessi su richiesta dell'utente ai fini del servizio promemoria si applica quanto indicato nell'informativa privacy dedicata.
+
 ## 6. Prezzo e pagamento
 
 **Il prezzo della licenza è di 97 € all'anno, oltre IVA al 22 %, per un totale di 118,34 €.**
@@ -69,7 +71,7 @@ Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nu
 
 ## 6-bis. Prezzo garantito per i Fondatori
 
-1. Ai primi 50 acquirenti di una licenza Flowlance («Fondatori») il Fornitore garantisce, per ogni rinnovo successivo, il prezzo di 97 € oltre IVA. All'aliquota del 22 % vigente alla data di questi Termini il totale è di 118,34 €; in caso di variazione dell'aliquota si applica quella vigente al momento del rinnovo.
+1. Ai primi 50 acquirenti di una licenza Flowlance («Fondatori») il Fornitore riconosce il prezzo di rinnovo di 97 € oltre IVA, alle condizioni dei commi seguenti. All'aliquota del 22 % vigente alla data di questi Termini il totale è di 118,34 €; in caso di variazione dell'aliquota si applica quella vigente al momento del rinnovo.
 
 2. L'ordine dei Fondatori è determinato dalla data di conclusione del contratto. Le licenze rimborsate ai sensi del punto 7 non sono conteggiate.
 
@@ -81,13 +83,13 @@ Il rinnovo non è automatico: alla scadenza l'utente decide se acquistare una nu
 
 6. Il prezzo garantito riguarda il rinnovo della stessa licenza annuale, comprensiva di quanto previsto da questi Termini, inclusi gli aggiornamenti dell'applicazione e dei parametri fiscali. Non riguarda eventuali servizi aggiuntivi offerti separatamente, che restano al prezzo di listino.
 
-7. La garanzia è personale e non cedibile. È riferita all'acquirente, identificato dalla partita IVA usata per l'acquisto. Il cambio dell'indirizzo email, comunicato al Fornitore e verificato, non comporta la perdita della garanzia.
+7. Il beneficio del prezzo garantito è personale e non cedibile, anche in caso di trasferimento della licenza ai sensi del punto 3. È riferito all'acquirente, identificato dalla partita IVA usata per l'acquisto. Il cambio dell'indirizzo email, comunicato al Fornitore e verificato, non comporta la perdita del beneficio.
 
 ## 7. Garanzia di rimborso
 
 Poiché Flowlance è offerto esclusivamente a chi acquista nell'esercizio della propria attività professionale, la disciplina del recesso prevista dal Codice del Consumo non trova applicazione.
 
-**Il Fornitore concede in ogni caso una garanzia contrattuale di rimborso entro 30 giorni dalla conclusione del contratto,** senza obbligo di motivazione. È sufficiente scrivere a info@flowlance.it. Il rimborso è pari all'intero importo pagato, IVA compresa, viene effettuato entro 14 giorni con lo stesso mezzo di pagamento usato per l'acquisto ed è accompagnato da nota di credito. La licenza cessa di essere valida.
+**Il Fornitore concede in ogni caso una garanzia contrattuale di rimborso entro 30 giorni dalla conclusione del contratto,** senza obbligo di motivazione. È sufficiente scrivere a info@flowlance.it. Il rimborso è pari all'intero importo pagato, IVA compresa, viene effettuato entro 14 giorni con lo stesso mezzo di pagamento usato per l'acquisto ed è accompagnato da nota di credito. La licenza cessa di essere valida alle condizioni indicate al punto 4.
 
 ## 8. Disponibilità e aggiornamenti
 
@@ -100,6 +102,8 @@ Poiché l'applicazione funziona nel browser dell'utente, non è soggetta a inter
 I risultati prodotti dall'applicazione — imposte, contributi, acconti, liquidazioni IVA, scadenze e proiezioni — sono **stime calcolate sui dati inseriti dall'utente** e sui parametri da lui dichiarati, secondo le regole descritte nell'applicazione e nell'elenco pubblico delle semplificazioni.
 
 Flowlance non è un servizio di consulenza fiscale, non sostituisce il commercialista e non produce dichiarazioni dei redditi. Gli importi da versare e le date dei versamenti vanno verificati con un professionista abilitato prima di effettuare i pagamenti.
+
+Restano ferme le responsabilità del Fornitore previste dalla legge.
 
 ## 10. Proprietà intellettuale
 
