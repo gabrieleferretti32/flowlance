@@ -4,7 +4,6 @@ import {
   FRENO,
   azzeraFreno,
   gestisciPromemoria,
-  originiAmmesse,
   type Configurazione,
 } from "./promemoria-server";
 import { testoCorrente, type EventoProva, type RegistroProve } from "./registro-prove";
@@ -352,21 +351,6 @@ describe("quando Brevo risponde male", () => {
   });
 });
 
-describe("originiAmmesse", () => {
-  it("il sito con e senza www", () => {
-    expect(originiAmmesse("https://flowlance.it", undefined)).toEqual([
-      "https://flowlance.it",
-      "https://www.flowlance.it",
-    ]);
-  });
-
-  it("più l'anteprima, quando Vercel la dichiara", () => {
-    expect(originiAmmesse("https://flowlance.it", "flowlance-abc123.vercel.app")).toContain(
-      "https://flowlance-abc123.vercel.app",
-    );
-  });
-});
-
 // ————————————————————————————————————————————————————————————
 // Gli eventi registrati al momento dell'iscrizione
 // ————————————————————————————————————————————————————————————
@@ -390,6 +374,9 @@ describe("il registro degli eventi, all'iscrizione", () => {
       },
       async escludi() {
         throw new Error("qui non si esclude nessuno");
+      },
+      async accetta() {
+        throw new Error("qui non si accetta niente");
       },
     };
     return { registro, eventi };

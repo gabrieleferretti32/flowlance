@@ -321,6 +321,41 @@ In caso di contestazione la cancellazione si sospende per quell'indirizzo —
 elenco `BLOCCHI`, con il motivo scritto accanto — e riprende quando la
 contestazione è definita.
 
+#### Il quarto archivio: le accettazioni dei Termini
+
+Sta nello stesso magazzino, sotto un quarto prefisso, e **non è un archivio
+privacy**: non ci sono dentro persone. Lo scrive `api/accettazione.ts` quando
+qualcuno clicca il pulsante di pagamento con le due caselle spuntate, e il
+pagamento non si apre se la scrittura non riesce.
+
+| Archivio | Prefisso | Che cosa ci finisce | Finalità e base | Conservazione |
+| --- | --- | --- | --- | --- |
+| Accettazioni dei Termini | `accettazioni-termini/` | identificativo casuale, data e ora del server, versione e impronta dei Termini mostrati, versione e impronta delle due dichiarazioni | provare che cosa è stato accettato, e quando, alla conclusione del contratto (artt. 1326 e 2697 c.c.; prova e difesa, art. 6.1.f) | **10 anni dalla cessazione della licenza** |
+
+Tre cose da sapere, perché sono tre differenze rispetto ai primi tre archivi:
+
+- **niente dati personali: niente email, niente IP.** Al loro posto c'è un
+  identificativo casuale, che viaggia fino a Stripe come `client_reference_id`.
+  Il collegamento fra l'evento e la persona esiste quindi in **un posto solo**
+  — il cruscotto di Stripe, dove il pagamento c'è già col suo nome. Da
+  `CHECKOUT.md` si parte da là per arrivare qui;
+- **i dieci anni non li esegue nessuna pulizia automatica**, e non per
+  dimenticanza: il conto parte dalla cessazione di una licenza, che vive da
+  un'altra parte, e dentro l'evento non c'è nessuna data da cui contare.
+  Cancellare qui dentro vuol dire deciderlo e farlo a mano, sapendo quale
+  licenza è cessata e quando. Il numero sta in `CONSERVAZIONE_ACCETTAZIONI_ANNI`,
+  in `src/lib/sito/registro-prove.ts`;
+- **dieci anni e non cinque** perché qui non si prova un consenso ma la
+  conclusione di un **contratto**, e il tempo in cui qualcuno può contestarlo è
+  un altro. La prescrizione ordinaria è decennale (art. 2946 c.c.): il termine
+  è il suo, non una stima.
+
+Questo archivio **non si raggiunge da chi manda email**, e il contrario:
+`npm run verifica:registro` fallisce se dalla funzione delle accettazioni si
+arriva a Brevo o al codice dell'iscrizione, se da quelle dell'iscrizione o
+della pulizia si arriva al codice delle accettazioni, o se `accetta(` viene
+chiamato da qualcuno che non sia `accettazione-server.ts`.
+
 #### Le tre verifiche chieste, e come sono andate
 
 **Non ho potuto aprire nessuna delle due documentazioni.** Da questo ambiente
@@ -441,6 +476,43 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 >
 > L'ordine di accensione è quello della lista qui sopra: prima il magazzino
 > delle prove e il termine confermato, poi la pulizia in prova, poi l'invio.
+
+---
+
+## La funzione delle accettazioni (`api/accettazione.ts`) — **accesa**
+
+A differenza dei promemoria, questa parte **deve funzionare dal primo giorno**:
+è la condizione a cui il legale ha legato la pubblicazione. Chi clicca il
+pulsante di pagamento con le due caselle spuntate fa registrare che cosa aveva
+davanti, e **solo dopo** si apre Stripe. Se la registrazione non riesce, il
+pagamento non parte e la pagina lo dice.
+
+Serve una variabile sola, e non è facoltativa:
+
+```
+BLOB_READ_WRITE_TOKEN   = <lo dà Vercel collegando il magazzino Blob>
+```
+
+È la stessa della tabella dei promemoria: **un magazzino solo, quattro
+prefissi**. Ma lì la sua assenza lascia funzionare l'iscrizione senza
+registrare l'evento, qui no: senza magazzino la funzione risponde 503 e nessuno
+può comprare. È voluto — un acquisto senza la prova di cosa è stato accettato è
+esattamente quello che questo giro esiste per evitare — e vuol dire che **il
+Blob store va collegato al progetto prima di pubblicare l'offerta**, anche
+restando i promemoria spenti.
+
+Nessuna variabile di Stripe: questa funzione non parla con Stripe.
+L'identificativo torna alla pagina, che lo attacca al Payment Link come
+`client_reference_id`. Come si risale da un pagamento alla sua prova sta in
+[`CHECKOUT.md`](CHECKOUT.md), e là c'è anche il secondo livello da impostare a
+mano nel pannello Stripe.
+
+Dopo il deploy, la prova che è viva è una sola e dura un minuto: apri
+`/acquista/`, spunta le due caselle, clicca, e guarda che l'indirizzo di Stripe
+che si apre porti `?client_reference_id=` con dentro qualcosa. Se invece compare
+il messaggio «Non riesco a registrare l'accettazione dei Termini», il magazzino
+non è collegato: i log della funzione su Vercel dicono quale delle due cose
+manca.
 
 ---
 

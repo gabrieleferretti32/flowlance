@@ -167,5 +167,29 @@ export const PRIMA_DI_PAGARE =
   `Paghi, il contratto è concluso e ricevi la chiave per email ${CONSEGNA_CHIAVE_BREVE}. `
   + "Rimborso integrale entro 30 giorni.";
 
+/**
+ * Il collegamento al pagamento, con attaccato l'identificativo dell'accettazione.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché il parametro si scrive qui e non nella pagina
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `client_reference_id` è il nome che Stripe dà al valore da ritrovare poi
+ * accanto al pagamento. Scriverlo nel JSX, fra due attributi, vorrebbe dire
+ * che il giorno in cui si sbaglia una lettera il collegamento funziona lo
+ * stesso: Stripe **scarta i parametri che non riconosce senza dire niente** e
+ * la pagina di pagamento si apre comunque. Un incasso senza riferimento, e
+ * nessun errore da nessuna parte.
+ *
+ * Qui invece è una funzione sola, con un test suo. Non protegge dallo scarto
+ * silenzioso — quello si vede soltanto guardando il pagamento sul cruscotto di
+ * Stripe, ed è scritto in CHECKOUT.md fra le cose da controllare al primo
+ * acquisto vero — ma toglie di mezzo il modo più facile di sbagliare.
+ */
+export function collegamentoDiPagamento(identificativo: string, link: string = PAYMENT_LINK): string {
+  const separatore = link.includes("?") ? "&" : "?";
+  return `${link}${separatore}client_reference_id=${encodeURIComponent(identificativo)}`;
+}
+
 /** L'indirizzo pubblico della pagina d'acquisto, per i collegamenti che stanno nell'app. */
 export const INDIRIZZO_ACQUISTO_PUBBLICO = `${DOMINIO}${SITO.acquisto}/`;

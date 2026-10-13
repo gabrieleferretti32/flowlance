@@ -41,7 +41,8 @@
  * attributi: una chiamata sola, e l'iscrizione non vale finché la persona non
  * clicca nella propria posta.
  */
-import { convalidaPromemoria, origineAmmessa } from "./promemoria";
+import { origineAmmessa } from "./origini";
+import { convalidaPromemoria } from "./promemoria";
 import { ATTRIBUTO_ATTIVITA } from "./pulizia";
 import { testoCorrente, type RegistroProve } from "./registro-prove";
 
@@ -326,19 +327,4 @@ export async function gestisciPromemoria(
   }
 
   return { stato: 200, corpo: { ok: true } };
-}
-
-/**
- * Le origini ammesse: il sito, e la distribuzione di anteprima quando c'è.
- *
- * L'anteprima serve a provare la funzione prima di mandarla in produzione, ed
- * è l'unico modo di farlo davvero — `next dev` non esegue questa funzione.
- * Senza il suo indirizzo fra le ammesse, la prova finirebbe con un 403 che
- * sembra un difetto del codice.
- */
-export function originiAmmesse(dominio: string, urlVercel: string | undefined): string[] {
-  const host = dominio.replace(/^https?:\/\//, "");
-  const ammesse = [`https://${host}`, `https://www.${host}`];
-  if (urlVercel) ammesse.push(`https://${urlVercel.replace(/^https?:\/\//, "")}`);
-  return ammesse;
 }

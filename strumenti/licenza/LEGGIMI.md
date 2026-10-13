@@ -155,8 +155,11 @@ una consegna.
      codice destinatario la fattura si trasmette al convenzionale `0000000`,
      che lo SdI recapita nel cassetto fiscale — rete di sicurezza, non scelta
      normale;
-4. nel fascicolo dell'ordine finiscono: la ricevuta Stripe, il PDF dei Termini
-   con la sua impronta, l'email di consegna e la riga di `emesse.jsonl`.
+4. nel fascicolo dell'ordine finiscono: **il file JSON dell'accettazione** —
+   quello scritto prima del pagamento, che si trova partendo dal
+   `client_reference_id` della sessione di checkout: come, sta in `CHECKOUT.md`,
+   «Dal pagamento alla prova dell'accettazione» — la ricevuta Stripe, il PDF dei
+   Termini con la sua impronta, l'email di consegna e la riga di `emesse.jsonl`.
 
 Non ci sono scadenze da tenere d'occhio dopo il pagamento, e non c'è nessun
 contratto che possa non concludersi: l'unica data che resta è quella della

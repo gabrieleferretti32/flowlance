@@ -28,6 +28,7 @@ import type { Metadata } from "next";
 import { BASE_APP, SITO } from "@/lib/rotte";
 import { CHIUSO_AI_MOTORI, DOMINIO } from "./impostazioni";
 import { MISURA, PERCORSO_ANTEPRIMA } from "./anteprima";
+import { CONSEGNA_CHIAVE_BREVE } from "./acquisto";
 
 export type MetadatiPagina = {
   /** Quello che si legge nella scheda del browser e in cima al risultato. */
@@ -137,6 +138,13 @@ export const METADATI: Record<string, MetadatiPagina> = {
       + "nessuna misurazione, in nessun caso.",
     indicizzabile: true,
   },
+  [SITO.requisitiTecnici]: {
+    titolo: "Requisiti tecnici · Flowlance",
+    descrizione:
+      "Che cosa serve per usare Flowlance: browser provati, spazio necessario, che cosa "
+      + "succede senza rete e che cosa cancella i dati. Solo cose misurate.",
+    indicizzabile: true,
+  },
   [SITO.approssimazioni]: {
     titolo: "Cosa Flowlance non calcola",
     descrizione:
@@ -146,8 +154,14 @@ export const METADATI: Record<string, MetadatiPagina> = {
   },
   [SITO.grazie]: {
     titolo: "Grazie · Flowlance",
+    /*
+      Il termine non è scritto qui: arriva da `acquisto.ts`, cioè dalla stessa
+      costante che un test tiene dentro il punto 3 del contratto. Una copia in
+      un metadato è la copia che nessuno rilegge — si vede solo nei risultati
+      di un motore di ricerca, dove nessuno la confronta col contratto.
+    */
     descrizione:
-      "Il pagamento è arrivato. La chiave di licenza parte per email entro la fine del primo giorno lavorativo successivo.",
+      `Il pagamento è arrivato. La chiave di licenza parte per email ${CONSEGNA_CHIAVE_BREVE}.`,
     indicizzabile: false,
   },
 };

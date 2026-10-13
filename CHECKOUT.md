@@ -1,7 +1,9 @@
 # Il checkout: com'è deciso, e cosa resta da fare
 
-*Aggiornato il 12 ottobre 2026, con la versione 3 dei Termini — quella senza
-clausole da approvare specificamente.*
+*Aggiornato il 13 ottobre 2026: versione 3 dei Termini — quella senza clausole
+da approvare specificamente — e la registrazione dell'accettazione prima del
+pagamento, che è la terza condizione a cui il legale ha legato la
+pubblicazione.*
 
 Il legale ha ridotto le clausole vessatorie, e con loro è sparita metà di
 questo documento. **Flowlance è offerto ai soli professionisti** (Termini,
@@ -15,10 +17,15 @@ Da lì discende un flusso più corto di quello che questo file descriveva. Il
 giro per email — i Termini da approvare, la risposta dall'indirizzo
 dell'acquirente, la chiave che partiva solo dopo — **non serve più**: non
 proteggeva il contratto, proteggeva un'approvazione che adesso non si deve
-raccogliere. Le tre strade che questo file confrontava all'inizio — Brevo,
-identificativo generato dalla pagina, funzione serverless — continuano a non
-servire, e per la stessa ragione di prima: non c'è niente da registrare
-*durante* il pagamento.
+raccogliere.
+
+Delle tre strade che questo file confrontava all'inizio — Brevo, identificativo
+generato dalla pagina, funzione serverless — ne è stata presa **una**, dal 13
+ottobre: la funzione serverless, che registra l'accettazione **prima** che il
+pagamento parta. Non perché sia cambiato il contratto, ma perché una prova di
+che cosa l'acquirente aveva davanti non può nascere dopo il fatto per mano di
+chi la deve esibire. È la terza condizione del legale, e la sezione «Niente
+OTP» più sotto racconta per intero il perché del cambio.
 
 ---
 
@@ -26,15 +33,23 @@ servire, e per la stessa ragione di prima: non c'è niente da registrare
 
 | | Dove accade | Cosa resta come prova |
 |---|---|---|
-| 1 · Lettura, accettazione dei Termini e dichiarazione professionale | `/acquista` sul sito | niente, ed è voluto — vedi sotto |
+| 1 · Lettura, accettazione dei Termini e dichiarazione professionale | `/acquista` sul sito | un evento nell'archivio `accettazioni-termini/`: versione e impronta di quello che era a schermo, ora del server, identificativo casuale |
 | 2 · Pagamento: **qui si conclude il contratto** | Payment Link di Stripe | ricevuta e dati di fatturazione, in Stripe |
 | 3 · Consegna: chiave **e** Termini in PDF con la loro impronta | email, a mano, entro la fine del primo giorno lavorativo successivo | il PDF inviato e la riga in `emesse.jsonl` |
 
 La pagina `/acquista` esiste ed è `src/app/(sito)/acquista/`. Mostra il testo
 integrale dei Termini, il PDF con la sua impronta SHA-256, e **due caselle
 obbligatorie**: l'accettazione dei Termini, che nomina la versione, e la
-dichiarazione di acquisto professionale. Senza tutte e due il collegamento al
-pagamento non ha un indirizzo, quindi non è raggiungibile neanche da tastiera.
+dichiarazione di acquisto professionale. Senza tutte e due il pulsante del
+pagamento è disattivato, quindi non si può premere neanche da tastiera.
+
+Il pulsante **non è più un collegamento**. Alla pressione chiama
+`/api/accettazione`, che registra cosa c'era a schermo e restituisce un
+identificativo; solo allora la pagina apre il Payment Link, con
+`?client_reference_id=<identificativo>` attaccato. Se la registrazione non
+riesce, **il pagamento non si apre**: resta la pagina con scritto «Non riesco a
+registrare l'accettazione dei Termini, e senza quella non apro il pagamento.
+Riprova, o scrivi a info@flowlance.it.»
 Subito sopra il pulsante c'è scritto cosa succede premendolo: *«Paghi, il
 contratto è concluso e ricevi la chiave per email entro la fine del primo
 giorno lavorativo successivo. Rimborso integrale entro 30 giorni.»*
@@ -194,73 +209,210 @@ ha pagato mai.
 
 ---
 
-## Niente OTP, niente funzione serverless
-
-Erano le due cose che questo documento considerava probabili, e la versione 2
-dei Termini le ha rese inutili tutte e due (e la 3 non le ha riportate).
+## Niente OTP. Una funzione serverless sì, dal 13 ottobre
 
 **Niente OTP.** Serviva a legare a una persona verificabile una dichiarazione
 raccolta sul sito. Con la versione 3 non c'è più nessuna dichiarazione da
-verificare: le clausole da approvare specificamente non esistono, e
-l'accettazione dei Termini si prova con quello che si **consegna**, non con
-quello che si raccoglie.
+verificare: le clausole da approvare specificamente non esistono, e chi compra
+è identificato da Stripe, che incassa il pagamento con cui il contratto si
+conclude.
 
-**Niente funzione serverless.** Serviva a registrare l'accettazione con orario,
-IP e versione del testo. Ma la prova che conta è il documento su supporto
-durevole: il PDF della versione accettata, con la sua impronta, inviato per
-email subito dopo il pagamento, accanto alla ricevuta di Stripe. Il sito resta
-`output: "export"` — solo file statici, nessun segreto nel bundle, nessun
-servizio che possa andare giù e impedire un acquisto.
+**La funzione serverless invece c'è**, e questo documento ha detto per un mese
+il contrario. Vale la pena scrivere perché, perché non è un cambio d'idea: il
+ragionamento di prima era che la prova la fa il documento **consegnato** — il
+PDF della versione accettata, con la sua impronta, mandato per email subito
+dopo il pagamento. Resta vero, e quella consegna continua a esserci. Ma
+risponde a una domanda sola: *che cosa gli ho mandato?* La domanda che un
+giudice fa è un'altra: *che cosa aveva davanti quando ha pagato?* A quella il
+documento consegnato dopo non risponde, perché l'ho scritto io dopo. Il legale
+ha messo questa differenza fra le tre condizioni per pubblicare, e ha ragione:
+una prova che nasce dopo il fatto e per mano di una delle due parti è la parte
+più debole di un fascicolo altrimenti solido.
 
-**Niente `client_reference_id`.** Non serve legare una riga propria al
-pagamento, perché non c'è nessuna riga propria: l'unica cosa che il sito
-raccoglie è una spunta che non conserva. Resta scritto qui sotto solo perché
-qualcuno, un giorno, avrà la tentazione di usarlo.
+Quindi `api/accettazione.ts`, che registra **prima** del pagamento e in un
+archivio che non si riscrive. Il sito resta `output: "export"`: la funzione
+sta fuori da Next, alla radice, come le altre due, e le pagine continuano a
+essere file statici.
 
-> **La trappola, se un domani servisse.** `client_reference_id` si passa a un
+**Quello che la funzione non registra** è la parte da leggere due volte:
+**niente email, niente IP, nessun dato personale.** Dentro l'evento ci sono un
+identificativo casuale, l'ora del server, la versione e l'impronta dei Termini
+mostrati, la versione e l'impronta del testo delle due dichiarazioni. Chi ha
+comprato lo dice Stripe, dove il dato c'è già e per una ragione sua. Il
+collegamento fra le due cose è l'identificativo, che viaggia nell'indirizzo
+come `client_reference_id`.
+
+> **La trappola, che ora conta davvero.** `client_reference_id` si passa a un
 > Payment Link come parametro dell'indirizzo: alfanumerico, trattini e
-> underscore, fino a 200 caratteri
-> ([documentazione Stripe](https://docs.stripe.com/payment-links/url-parameters)).
-> **Un valore non valido viene scartato in silenzio, e la pagina di pagamento
-> continua a funzionare.** Un incasso senza riferimento, e nessun errore da
-> nessuna parte: la stessa famiglia di difetti che questo progetto insegue da
-> settimane. Se mai si userà, il riferimento va **verificato dopo**, mai dato
-> per riuscito.
+> underscore, fino a 200 caratteri. **Un valore non valido viene scartato in
+> silenzio, e la pagina di pagamento continua a funzionare.** Un incasso senza
+> riferimento, e nessun errore da nessuna parte. Per questo l'identificativo
+> che genera la funzione è un `randomUUID()` **senza trattini** — 32 caratteri
+> esadecimali, dentro il formato qualunque cosa succeda — e per questo il
+> riferimento si **guarda dopo**, sul primo acquisto vero: vedi sotto.
+
+**NON VERIFICATO: la documentazione di Stripe, da qui, non si legge.** Il proxy
+di rete di questo ambiente nega `docs.stripe.com` (403 al CONNECT, e
+`ENOTFOUND` passando per il recupero pagina). Quindi le tre affermazioni qui
+sopra — che un Payment Link accetti `client_reference_id` nell'indirizzo, che
+Stripe lo conservi sulla **sessione di checkout** (dove si rilegge sia dal
+pannello sia nell'evento `checkout.session.completed`), e che un valore non
+valido venga scartato in silenzio — vengono da estratti di ricerca di quelle
+stesse pagine, non dalle pagine. Gli estratti concordano fra loro e con quanto
+questo file diceva già a settembre, ma un estratto non è una verifica: **la
+pagina va aperta da un browser vero**, e la prova definitiva è comunque
+l'acquisto vero del punto 4 della lista in fondo. Se Stripe non conservasse il
+riferimento, il giro non si rompe — l'evento resta registrato e in ordine
+cronologico — ma si perde il modo rapido di legare un pagamento alla sua prova,
+e allora si lega per data e ora.
 
 ---
 
-## Perché le spunte sul sito non sono una prova, e va bene così
+## Dal pagamento alla prova dell'accettazione
 
-Su un sito statico una casella spuntata non lascia traccia da nessuna parte:
-non c'è un server che la registri. Una dichiarazione che nessuno conserva non è
-una prova — è un'animazione.
+La domanda a cui questa sezione risponde è una: *ho un pagamento in Stripe, dove
+sta la prova di che cosa quella persona ha accettato?*
 
-Le due caselle di `/acquista` sono quindi quello che sono: **il momento in cui
-l'acquirente ha davanti cosa sta concludendo e chi dichiara di essere**, prima
-di pagare. La prova la fa la consegna: il PDF della versione accettata, con la
-sua impronta, mandato per email subito dopo il pagamento e conservato nel
-fascicolo dell'ordine insieme alla ricevuta di Stripe.
+**1 · Da Stripe, prendi il riferimento.** Pannello Stripe → *Payments* → il
+pagamento → la sessione di checkout collegata. Il campo è *Client reference ID*
+(nell'API, `client_reference_id` sull'oggetto `checkout.session`). È una stringa
+di 32 caratteri esadecimali senza trattini. Lo stesso valore arriva nell'evento
+`checkout.session.completed`, se un giorno ci sarà un webhook.
 
-Fingere sulla pagina una registrazione che non si può conservare sarebbe peggio
-che non farla, perché farebbe credere di averla.
+**2 · Dal riferimento, trova l'evento.** Pannello Vercel → il progetto →
+*Storage* → il Blob store → cartella `accettazioni-termini/`, poi la cartella
+del **giorno**, poi il file che **comincia con quel riferimento**. Il nome è
+`accettazioni-termini/<AAAA-MM-GG>/<identificativo>-<suffisso casuale>.json`: il
+suffisso lo aggiunge Vercel e cambia a ogni scrittura, quindi si cerca per
+inizio del nome, non per nome esatto.
+
+Il giorno è quello **dell'accettazione**, cioè di poco prima del pagamento, in
+UTC. Quasi sempre è lo stesso del pagamento; se il pagamento è a cavallo della
+mezzanotte UTC, o se qualcuno ha spuntato le caselle e ha pagato molto più
+tardi, guarda anche il giorno prima.
+
+**3 · Apri il file.** Dentro c'è questo, e nient'altro:
+
+```json
+{
+  "archivio": "accettazioni-termini",
+  "id": "<lo stesso del client_reference_id>",
+  "quando": "2026-10-13T14:31:07.201Z",
+  "versioneTermini": 3,
+  "improntaTermini": "339ea0254caf98de…",
+  "versioneDichiarazioni": "2026-10-12",
+  "improntaDichiarazioni": "…"
+}
+```
+
+**4 · Verifica le due impronte.** `improntaTermini` è il SHA-256 del PDF che la
+pagina offriva in quel momento: deve essere identica a quella del PDF
+consegnato, e si ricalcola con `shasum -a 256 public/termini/flowlance-termini-v3.pdf`.
+`improntaDichiarazioni` è il SHA-256 del testo integrale delle due caselle: il
+testo sta in `src/lib/sito/dichiarazioni.ts`, archiviato per versione come i
+testi dei consensi, e `versioneDichiarazioni` dice quale rileggere. Le due
+impronte sono il motivo per cui l'evento è piccolo: dicono *quale* documento,
+non ne tengono una copia a ogni acquisto.
+
+**Nel fascicolo della licenza vanno quattro cose**, e la prima è la nuova:
+
+1. **il file JSON dell'evento**, scaricato dal Blob store, con accanto il testo
+   delle due dichiarazioni nella versione che l'evento nomina (copia e incolla
+   da `dichiarazioni.ts`): da solo l'evento nomina un testo che sta altrove, e
+   un fascicolo che rimanda a un file sorgente non è un fascicolo;
+2. **il PDF dei Termini** nella versione accettata, con la sua impronta scritta
+   accanto — lo stesso file mandato per email;
+3. **la ricevuta di Stripe**, che è dove c'è chi ha comprato, e dove sta il
+   *Client reference ID* che lega l'una all'altra;
+4. **la riga di `emesse.jsonl`** della chiave consegnata, con data di consegna
+   e scadenza.
+
+Con queste quattro cose la catena si legge in un verso e nell'altro: dal
+pagamento alla prova, e dalla prova al pagamento. Nessun pezzo della catena sta
+in un posto solo, e nessun pezzo contiene due volte lo stesso dato personale.
+
+**Conservazione: dieci anni dalla cessazione della licenza**, e non li esegue
+nessuna pulizia automatica — vedi `DEPLOY.md`, «Il quarto archivio».
+
+---
+
+## Il secondo livello, nel pannello Stripe
+
+La funzione registra che cosa c'era a schermo sul **nostro** sito. Il secondo
+livello lo dà Stripe, sulla **sua** pagina di pagamento, e serve a una cosa
+precisa: che l'accettazione risulti anche nei documenti di chi incassa, non
+solo nei nostri. Due impostazioni, cinque minuti, e si fanno una volta.
+
+**A · L'indirizzo pubblico dei Termini.**
+
+1. Pannello Stripe → *Settings* (l'icona dell'ingranaggio, in alto a destra) →
+   *Business* → **Public details** (o *Public business information*).
+2. Nel campo **Terms of service URL** (*URL dei termini di servizio*) incolla:
+   `https://flowlance.it/termini/flowlance-termini-v3.pdf`
+3. Nel campo **Privacy policy URL**, quando l'informativa sarà approvata,
+   andrà `https://flowlance.it/privacy/`. **Oggi no**: i documenti privacy sono
+   in revisione, e un indirizzo che rimanda a un testo non definitivo è peggio
+   di un campo vuoto.
+4. Salva.
+
+Il PDF e non `https://flowlance.it/termini/`: l'indirizzo che Stripe mostra
+deve puntare al **documento con l'impronta**, cioè a quello che si consegna e
+che l'evento nomina. La pagina HTML dice le stesse parole, ma non è il file di
+cui esiste un SHA-256 nel fascicolo.
+
+**B · L'accettazione obbligatoria sul Payment Link.**
+
+1. Pannello Stripe → *Payment links* → il link di Flowlance (quello in
+   `PAYMENT_LINK`, `src/lib/sito/impostazioni.ts`) → *Edit*.
+2. Sezione *Options* / *Advanced options* → **Require customers to accept your
+   terms of service** (*Richiedi ai clienti di accettare i termini di
+   servizio*). Attivala.
+3. Salva, e **riapri la pagina di pagamento dal sito** per vedere la casella
+   comparire: è l'unico modo di sapere che l'hai attivata sul link giusto.
+
+Quella spunta è registrata da Stripe insieme al pagamento — con il suo orario e
+il suo indirizzo IP, che noi non raccogliamo — e diventa la seconda prova,
+indipendente dalla nostra, sullo stesso fatto.
+
+> **I nomi delle voci del pannello non li ho potuti verificare**: da qui
+> `docs.stripe.com` e `dashboard.stripe.com` sono bloccati dal proxy. Le
+> etichette qui sopra sono quelle che Stripe usava; se una non la trovi,
+> cercala nella casella di ricerca del pannello con le parole *terms of
+> service*. Quello che conta — un indirizzo pubblico dei ToS, e la casella
+> obbligatoria sul link — c'è da anni e si chiama più o meno così.
+
+Se attivare la casella su Stripe facesse comparire **due** accettazioni di fila
+all'acquirente (una nostra, una loro), va bene: sono due atti diversi davanti a
+due soggetti diversi, e nessuno si è mai lamentato di aver dovuto confermare di
+aver letto un contratto. Il contrario — una sola, da una parte sola — è il caso
+in cui una contestazione diventa la nostra parola contro la sua.
 
 ---
 
 ## Cosa resta da fare, in ordine
 
 1. ~~Creare il Payment Link su Stripe~~ — **fatto** il 10 settembre 2026.
-2. **Attivare la notifica email di Stripe a ogni pagamento riuscito**: è
+2. **Collegare il Blob store al progetto su Vercel**, se non è già collegato:
+   senza `BLOB_READ_WRITE_TOKEN` la funzione delle accettazioni risponde 503 e
+   **nessuno può comprare**. Vedi `DEPLOY.md`, «La funzione delle accettazioni».
+   È il primo passo adesso, perché è l'unico che impedisce di vendere.
+3. **Le due impostazioni nel pannello Stripe** — l'indirizzo pubblico dei ToS e
+   la casella obbligatoria sul Payment Link: passo per passo nella sezione «Il
+   secondo livello» qui sopra.
+4. **Attivare la notifica email di Stripe a ogni pagamento riuscito**: è
    l'unico segnale che l'acquisto è avvenuto, e senza non parte niente.
-3. **Preparare l'email di consegna**, una sola: la chiave, il PDF dei Termini
+5. **Preparare l'email di consegna**, una sola: la chiave, il PDF dei Termini
    nella versione accettata e la sua impronta. Non chiede niente in risposta —
    il contratto è già concluso. La sequenza dei passi sta in
    `strumenti/licenza/LEGGIMI.md`, sotto «L'ordine dei passi, per un acquisto
    vero».
-4. **Un acquisto vero, con una carta vera, rimborsato subito**: è l'unico modo
+6. **Un acquisto vero, con una carta vera, rimborsato subito**: è l'unico modo
    di vedere tutto il giro — la ricevuta, i dati che Stripe raccoglie e quelli
-   che non raccoglie, l'email, la chiave, l'attivazione. Va fatto **prima** di
-   togliere il noindex, ed è l'ultimo gesto prima del lancio.
-4. **Niente da decidere sulla fatturazione elettronica: è deciso.** Vedi il
+   che non raccoglie, l'email, la chiave, l'attivazione. Guarda anche le due
+   cose nuove: che l'indirizzo di Stripe porti `?client_reference_id=`, e che
+   nel Blob store compaia il file dell'evento. Va fatto **prima** di togliere
+   il noindex, ed è l'ultimo gesto prima del lancio.
+7. **Niente da decidere sulla fatturazione elettronica: è deciso.** Vedi il
    punto qui sotto.
 
 ---

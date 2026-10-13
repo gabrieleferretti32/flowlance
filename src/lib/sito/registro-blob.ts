@@ -39,6 +39,7 @@ import { put } from "@vercel/blob";
 import {
   nomeEvento,
   type Esclusione,
+  type EventoAccettazione,
   type EventoProva,
   type RegistroProve,
 } from "./registro-prove";
@@ -53,7 +54,7 @@ export function registroSuBlob(token: string): RegistroProve {
     archivio non finisca letto per l'altro — lo garantisce il nome, non il
     confine del magazzino.
   */
-  async function deposita(cosa: EventoProva | Esclusione) {
+  async function deposita(cosa: EventoProva | Esclusione | EventoAccettazione) {
     await put(nomeEvento(cosa), JSON.stringify(cosa), {
       access: "public",
       token,
@@ -79,5 +80,6 @@ export function registroSuBlob(token: string): RegistroProve {
   return {
     scrivi: (evento) => deposita(evento),
     escludi: (esclusione) => deposita(esclusione),
+    accetta: (evento) => deposita(evento),
   };
 }

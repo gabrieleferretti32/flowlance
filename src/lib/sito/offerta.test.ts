@@ -177,3 +177,38 @@ describe("la card del prezzo fondatori", () => {
     });
   });
 });
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  E la pagina dove si paga dice le stesse tre cose
+  ─────────────────────────────────────────────────────────────────────────
+
+  La card vendeva cinquanta posti, il prezzo garantito ai rinnovi e il rimborso
+  a trenta giorni; `/acquista/` — la pagina dove quelle tre cose si accettano
+  insieme a un contratto — non ne diceva nessuna. Non c'era una frase sbagliata
+  da nessuna parte: c'era una promessa che convinceva su una pagina e spariva
+  su quella dopo, ed è il verso in cui una pubblicità diventa ingannevole senza
+  che nessuno abbia scritto una bugia.
+
+  Qui si pretende che quel blocco sia **composto dalle stesse costanti**, non
+  riscritto: due stesure della stessa promessa sono due promesse, e la seconda
+  resta indietro il giorno in cui il legale tocca il punto 6-bis.
+*/
+describe("la pagina d'acquisto e la card", () => {
+  const PAGINA = "src/app/(sito)/acquista/schermata-acquisto.tsx";
+  const codice = readFileSync(PAGINA, "utf8")
+    .replace(/\{?\/\*[\s\S]*?\*\/\}?/g, "")
+    .replace(/^\s*\/\/.*$/gm, "");
+
+  it("compone la promessa dai testi dell'offerta", () => {
+    for (const pezzo of ["OFFERTA.sottotitolo", "OFFERTA.garanzia", "OFFERTA.posti", "condizioniSpezzate()"]) {
+      expect(codice, `${PAGINA} non usa ${pezzo}`).toContain(pezzo);
+    }
+  });
+
+  it("e non riscrive a mano né i posti né la promessa sui rinnovi", () => {
+    expect(codice).not.toMatch(new RegExp(`(^|[^\\w])${OFFERTA.posti}([^\\w]|$)`));
+    expect(codice).not.toMatch(/anche ai rinnovi/);
+    expect(codice).not.toMatch(/Rimborso integrale entro/);
+  });
+});

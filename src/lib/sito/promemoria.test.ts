@@ -6,7 +6,6 @@ import {
   TETTO_IMPORTI,
   TETTO_RICAVI,
   convalidaPromemoria,
-  origineAmmessa,
 } from "./promemoria";
 import { RICAVI_MASSIMI } from "./simulatore";
 
@@ -405,21 +404,5 @@ describe("la pagina promette quello che il contratto manda", () => {
   it("il pulsante guarda solo il consenso necessario", () => {
     expect(sorgente).toContain("consensoPromemoria && Boolean(prossimo)");
     expect(sorgente).not.toContain("consensoMarketing &&");
-  });
-});
-
-describe("origineAmmessa", () => {
-  const ammesse = ["https://flowlance.it", "https://www.flowlance.it"];
-
-  it("passa l'origine del sito, con o senza barra finale", () => {
-    expect(origineAmmessa("https://flowlance.it", ammesse)).toBe(true);
-    expect(origineAmmessa("https://flowlance.it/", ammesse)).toBe(true);
-  });
-
-  it("non passa un altro sito, né l'assenza di origine", () => {
-    expect(origineAmmessa("https://flowlance.it.evil.com", ammesse)).toBe(false);
-    expect(origineAmmessa("http://flowlance.it", ammesse)).toBe(false);
-    expect(origineAmmessa(undefined, ammesse)).toBe(false);
-    expect(origineAmmessa("", ammesse)).toBe(false);
   });
 });

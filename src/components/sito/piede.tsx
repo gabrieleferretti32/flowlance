@@ -37,6 +37,7 @@ export function Piede() {
             <li>
               <PreferenzeCookie />
             </li>
+            <VocePiede href={SITO.requisitiTecnici}>Requisiti tecnici</VocePiede>
             <VocePiede href={SITO.approssimazioni}>Cosa Flowlance non calcola</VocePiede>
             <VocePiede href={SITO.simulatore}>Simulatore</VocePiede>
           </ul>

@@ -110,7 +110,7 @@ Qualora l'acquirente rivesta in concreto la qualità di consumatore, restano fer
 
 Il Fornitore si impegna a mantenere aggiornati i parametri fiscali dell'applicazione per gli anni d'imposta coperti dalla licenza attiva.
 
-L'applicazione già caricata e disponibile sul dispositivo può essere utilizzata offline, nei limiti dei requisiti tecnici indicati sul sito. L'indisponibilità temporanea del sito non interrompe tale utilizzo; può invece incidere sul download, sugli aggiornamenti e sui servizi che richiedono una connessione.
+L'applicazione già caricata e disponibile sul dispositivo può essere utilizzata offline, nei limiti dei requisiti tecnici indicati sul sito all'indirizzo [flowlance.it/requisiti-tecnici/](https://flowlance.it/requisiti-tecnici/). L'indisponibilità temporanea del sito non interrompe tale utilizzo; può invece incidere sul download, sugli aggiornamenti e sui servizi che richiedono una connessione.
 
 ## 9. Natura dei risultati e verifica prima dei versamenti
 

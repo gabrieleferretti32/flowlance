@@ -191,13 +191,33 @@ function leggiBlocchi(grezzo: string): Blocco[] {
   return blocchi;
 }
 
+/**
+ * Un collegamento del Markdown, ridotto al suo testo.
+ *
+ * Il PDF non ha link: è il documento che si allega all'ordine e si stampa. Un
+ * `[flowlance.it/requisiti-tecnici/](https://…)` lasciato passare si
+ * stamperebbe con le parentesi quadre e l'indirizzo due volte — in un
+ * contratto, su carta.
+ *
+ * Perciò nel PDF resta **il testo del collegamento**, e il contratto scrive
+ * come testo l'indirizzo stesso: così la clausola si legge uguale sullo
+ * schermo, dove si clicca, e sul foglio, dove si copia a mano. Chi scrive la
+ * clausola non deve ricordarselo — un test pretende che l'indirizzo compaia
+ * nel PDF.
+ */
+function senzaCollegamenti(testo: string): string {
+  return testo.replace(/\[([^\]]+)\]\([^)]+\)/g, "$1");
+}
+
 /** I pezzi di una riga, alternando normale e grassetto sui `**`. */
 function inGrassetto(testo: string): { testo: string; forte: boolean }[] {
-  return testo
+  return senzaCollegamenti(testo)
     .split("**")
     .map((pezzo, i) => ({ testo: pezzo, forte: i % 2 === 1 }))
     .filter((p) => p.testo !== "");
 }
+
+export { senzaCollegamenti };
 
 /**
  * La data del documento, come data del PDF.

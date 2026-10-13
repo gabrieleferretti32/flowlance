@@ -109,6 +109,27 @@ const problemi = [];
 const fatti = [];
 const sostiene = (ok, frase) => (ok ? fatti.push(frase) : problemi.push(frase));
 
+/**
+ * Il Payment Link, letto dal sorgente.
+ *
+ * Non copiato qui: sta in `src/lib/sito/impostazioni.ts`, ed è lo stesso da cui
+ * lo prende la pagina. Una copia resterebbe indietro il giorno in cui il link
+ * cambia, e il controllo sul `client_reference_id` passerebbe guardando un
+ * indirizzo che nessuno apre più.
+ */
+const PAYMENT_LINK = (() => {
+  const testo = readFileSync(resolve("src/lib/sito/impostazioni.ts"), "utf8");
+  const trovato = testo.match(/export const PAYMENT_LINK\s*=\s*"([^"]+)"/);
+  if (!trovato) {
+    console.error(
+      "src/lib/sito/impostazioni.ts: non trovo PAYMENT_LINK. Senza, non si può\n"
+        + "verificare che il pulsante porti a Stripe l'identificativo della prova.",
+    );
+    process.exit(1);
+  }
+  return trovato[1];
+})();
+
 // ————————————————————————————————————————————————————————————
 // Il browser
 // ————————————————————————————————————————————————————————————
@@ -461,60 +482,164 @@ const demo = await righeDelProspetto();
   }
 
   /*
-    Le caselle sono **condizioni**, non un aspetto: finché non sono spuntate
-    tutte, il collegamento al pagamento non deve avere un indirizzo. Si misura
-    l'attributo `href`, che è ciò che rende un link raggiungibile — non il
-    colore, che un utente da tastiera non vede.
+    ─────────────────────────────────────────────────────────────────────────
+    Le due caselle, e il pulsante che non è più un collegamento
+    ─────────────────────────────────────────────────────────────────────────
 
-    Dalla versione 3 dei Termini sono due: l'accettazione dei Termini e la
-    dichiarazione professionale. Si spuntano **una alla volta**, e si pretende
-    che con una sola il pulsante sia ancora muto: è l'unico modo di accorgersi
-    di un `href` rimasto attaccato a una casella sola, che è il difetto
-    esatto che l'aggiunta della seconda poteva introdurre — la pagina ne mostra
-    due, una sola conta, e non lo vede nessuno finché non lo prova qualcuno
-    che ne spunta una.
+    Le caselle sono **condizioni**, non un aspetto: finché non sono spuntate
+    tutte e due, il pagamento non deve essere raggiungibile. Fino a ieri si
+    misurava l'attributo `href`, perché il pulsante era un `<a>`. Adesso è un
+    `<button>`, perché prima di andare su Stripe c'è una chiamata da fare e da
+    aspettare — e quindi si misura `disabled`, che è la cosa che un utente da
+    tastiera incontra, non il colore.
+
+    Si spuntano **una alla volta**: è l'unico modo di accorgersi di una
+    condizione rimasta attaccata a una casella sola — la pagina ne mostra due,
+    una sola conta, e non lo vede nessuno finché non lo prova qualcuno che ne
+    spunta una.
   */
   await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
   await p.waitForTimeout(800);
   const caselle = p.locator('input[type="checkbox"]');
   const quante = await caselle.count();
+  const paga = p.locator("button", { hasText: /^Paga / }).first();
   if (quante < 2) {
     problemi.push(
       `/acquista/: trovate ${quante} caselle invece di due (accettazione dei Termini e `
         + "dichiarazione professionale)",
     );
+  } else if ((await paga.count()) === 0) {
+    /*
+      Col Payment Link ancora al segnaposto la pagina mostra l'avviso, non il
+      pulsante: è il comportamento voluto, e va detto invece che dato per buono
+      in silenzio. Si guarda anche che non sia rimasto un `<a>` al suo posto:
+      un collegamento porta via la pagina al primo clic, e la registrazione
+      dell'accettazione non farebbe in tempo a succedere.
+    */
+    const avviso = await p.evaluate(() => document.body.innerText);
+    const link = await p.locator("a", { hasText: /^Paga / }).count();
+    sostiene(
+      avviso.includes("non è ancora attivo") && link === 0,
+      "/acquista/: senza Payment Link la pagina lo dichiara invece di mostrare un pulsante muto",
+    );
   } else {
-    const paga = p.locator("a", { hasText: /^Paga / }).first();
-    if ((await paga.count()) === 0) {
-      // Col Payment Link ancora al segnaposto la pagina mostra l'avviso, non il
-      // pulsante: è il comportamento voluto, e va detto invece che dato per
-      // buono in silenzio.
-      const avviso = await p.evaluate(() => document.body.innerText);
-      sostiene(
-        avviso.includes("non è ancora attivo"),
-        "/acquista/: senza Payment Link la pagina lo dichiara invece di mostrare un pulsante muto",
-      );
-    } else {
-      const prima = await paga.getAttribute("href");
-      await caselle.nth(0).check();
-      await p.waitForTimeout(200);
-      const conUnaSola = await paga.getAttribute("href");
-      await caselle.nth(1).check();
-      await p.waitForTimeout(200);
-      const dopo = await paga.getAttribute("href");
-      sostiene(
-        prima === null,
-        `/acquista/: senza nessuna spunta il pulsante non ha indirizzo (${prima})`,
-      );
-      sostiene(
-        conUnaSola === null,
-        `/acquista/: con una sola delle due caselle il pulsante resta muto (${conUnaSola})`,
-      );
-      sostiene(
-        typeof dopo === "string" && dopo.length > 0,
-        `/acquista/: con tutte e ${quante} le caselle il pulsante porta al pagamento`,
-      );
-    }
+    const spento = () => paga.isDisabled();
+    const prima = await spento();
+    await caselle.nth(0).check();
+    await p.waitForTimeout(200);
+    const conUnaSola = await spento();
+    await caselle.nth(1).check();
+    await p.waitForTimeout(200);
+    const dopo = await spento();
+    sostiene(prima === true, "/acquista/: senza nessuna spunta il pulsante è spento");
+    sostiene(
+      conUnaSola === true,
+      "/acquista/: con una sola delle due caselle il pulsante resta spento",
+    );
+    sostiene(dopo === false, `/acquista/: con tutte e ${quante} le caselle si accende`);
+
+    /*
+      ───────────────────────────────────────────────────────────────────────
+      E con le caselle spuntate: nessuna prova, nessun pagamento
+      ───────────────────────────────────────────────────────────────────────
+
+      Questa è la condizione che il legale ha posto, e l'unico posto dove si
+      può misurare per intero è un browser vero: la pagina chiama
+      `/api/accettazione`, e **solo se la chiamata riesce** cambia pagina.
+
+      Qui `out/` è servito da un server statico, dove quell'indirizzo non
+      esiste: la si intercetta, e la si fa rispondere due volte in due modi.
+
+      - Rotta: 500. Si pretende che il browser **resti su /acquista/** e che la
+        pagina lo dica. È la misura che rompe — senza di lei un `await`
+        dimenticato passerebbe inosservato, perché il caso normale funziona
+        comunque.
+      - Riuscita: `{ok:true,id:…}`. Si pretende che l'indirizzo dove il browser
+        prova ad andare sia il Payment Link **con `client_reference_id` uguale
+        a quell'id**. Un riferimento perso non romperebbe niente a schermo:
+        Stripe scarta in silenzio un valore che non gli piace, e l'incasso
+        arriverebbe senza il modo di risalire alla sua prova.
+    */
+    const ID_FINTO = "a1b2c3d4e5f60718293a4b5c6d7e8f90";
+    let risponde = { stato: 500, corpo: { errore: "rotto di proposito" } };
+    await p.route("**/api/accettazione", (rotta) =>
+      rotta.fulfill({
+        status: risponde.stato,
+        contentType: "application/json",
+        body: JSON.stringify(risponde.corpo),
+      }),
+    );
+
+    /*
+      I **tentativi** di andare su Stripe, non dove si è finiti.
+
+      La prima stesura guardava l'indirizzo della scheda dopo il clic, e con
+      quella misura la verifica si apriva addosso due difetti. Uno: nel caso
+      rotto il browser andava davvero su `buy.stripe.com`, cioè questo
+      strumento apriva una pagina di pagamento vera a ogni esecuzione. Due, ed
+      è il peggiore: bloccando la navigazione, l'indirizzo **resta**
+      `/acquista/` anche quando il pagamento è stato chiesto — e la misura
+      «il pagamento non si è aperto» sarebbe passata proprio nel caso che
+      doveva bocciare.
+
+      Quindi si intercetta prima, si **annulla** la navigazione, e si tiene
+      l'elenco di quante volte è stata chiesta: zero quando la registrazione
+      non riesce, una e con il riferimento giusto quando riesce.
+    */
+    const tentativi = [];
+    await p.route("https://buy.stripe.com/**", (rotta) => {
+      tentativi.push(rotta.request().url());
+      return rotta.abort();
+    });
+
+    await paga.click();
+    await p.waitForTimeout(900);
+    sostiene(
+      tentativi.length === 0,
+      `/acquista/: con la registrazione rotta il pagamento non si apre${tentativi.length ? ` (chiesto ${tentativi.length} ${tentativi.length === 1 ? "volta" : "volte"})` : ""}`,
+    );
+    sostiene(
+      (await p.evaluate(() => document.body.innerText)).includes("rotto di proposito"),
+      "/acquista/: e la pagina dice perché, invece di non fare niente",
+    );
+
+    /*
+      La seconda prova riparte da una pagina **ricaricata**.
+
+      Non è pulizia: nel caso che questa misura deve bocciare — un pagamento
+      che si apre anche quando la registrazione è fallita — al primo clic la
+      scheda prova ad andarsene, e quello che resta dopo una navigazione
+      annullata non è una pagina su cui si possa cliccare di nuovo. Riusando la
+      stessa scheda, la bocciatura arrivava come un timeout di Playwright
+      trenta secondi dopo, su una riga che non c'entrava niente: il difetto
+      veniva **visto** e raccontato male, che è il modo in cui si smette di
+      credere a uno strumento.
+    */
+    risponde = { stato: 200, corpo: { ok: true, id: ID_FINTO } };
+    await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
+    await p.waitForTimeout(800);
+    await caselle.nth(0).check();
+    await caselle.nth(1).check();
+    await p.waitForTimeout(200);
+    await paga.click();
+    await p.waitForTimeout(1_500);
+    /*
+      Quanti tentativi non si pretende: una navigazione annullata il browser la
+      può ripresentare, e contarli vorrebbe dire misurare Chromium invece della
+      pagina. Si pretende che ce ne sia **almeno uno** — prima non ce n'era
+      nessuno — e che **tutti** portino il riferimento giusto: un secondo
+      tentativo senza `client_reference_id` sarebbe un pagamento senza prova
+      esattamente come il primo.
+    */
+    const andato = tentativi[0] ?? "";
+    sostiene(
+      tentativi.length > 0 && tentativi.every((u) => u.startsWith(PAYMENT_LINK)),
+      `/acquista/: registrata l'accettazione, il pulsante va al Payment Link (${andato.slice(0, 48) || "non ci è andato"}…)`,
+    );
+    sostiene(
+      tentativi.length > 0 && tentativi.every((u) => u.includes(`client_reference_id=${ID_FINTO}`)),
+      "/acquista/: e porta a Stripe l'identificativo della prova, non un altro",
+    );
   }
   await ctx.close();
 }
@@ -630,12 +755,7 @@ const demo = await righeDelProspetto();
     Il prezzo della landing è quello del contratto. Sono due pagine diverse che
     citano lo stesso numero, e una landing che dice una cifra mentre i Termini
     ne dicono un'altra è la promessa che si scopre alla fattura.
-  */
-  const testoVendita = await p.evaluate(() => document.body.innerText);
-  await p.goto(`${BASE}/acquista/`, { waitUntil: "networkidle" });
-  await p.waitForTimeout(600);
-  const testoAcquisto = await p.evaluate(() => document.body.innerText);
-  /*
+
     Tutti e due i numeri, non «il primo importo che trovo»: la prima stesura
     prendeva la prima cifra in euro della pagina d'acquisto — 97,00 € — e la
     trovava anche sulla landing, quindi passava. Ma il numero che conta è il
@@ -799,8 +919,9 @@ const demo = await righeDelProspetto();
   await p.waitForTimeout(1_500);
 
   const acquisto = await p.evaluate(() => {
-    const paga = [...document.querySelectorAll("a")].find((a) =>
-      /^Paga /.test((a.textContent ?? "").trim()),
+    /* Un `<button>` da quando c'è l'accettazione da registrare prima. */
+    const paga = [...document.querySelectorAll("button")].find((b) =>
+      /^Paga /.test((b.textContent ?? "").trim()),
     );
     const casella = document.querySelector('input[type="checkbox"]');
     const r = (el) => (el ? Math.round(el.getBoundingClientRect().bottom) : null);

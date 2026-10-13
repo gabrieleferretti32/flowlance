@@ -281,22 +281,3 @@ export function convalidaPromemoria(corpo: unknown, oggi: string): EsitoConvalid
 
   return { ok: true, email, attributi, marketing };
 }
-
-/**
- * L'origine della richiesta è una delle nostre?
- *
- * Non è un presidio contro chi vuole davvero inondare l'endpoint — un'intestazione
- * la scrive chiunque con `curl` — ed è inutile dire il contrario. Serve contro
- * il caso che succede per davvero: il modulo copiato su un altro sito, o uno
- * script di terzi che chiama l'indirizzo perché l'ha trovato nel bundle. Quel
- * traffico porta l'`Origin` giusto di qualcun altro, o non lo porta affatto.
- *
- * Il freno vero contro l'abuso non è questo: è che la funzione non ha nessun
- * modo di dire a Brevo di mandare un'email diversa da quella di conferma, e
- * che il doppio opt-in non iscrive nessuno che non abbia cliccato nella
- * propria posta.
- */
-export function origineAmmessa(origine: string | undefined, ammesse: string[]): boolean {
-  if (!origine) return false;
-  return ammesse.includes(origine.replace(/\/$/, ""));
-}

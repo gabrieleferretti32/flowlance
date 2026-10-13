@@ -44,6 +44,25 @@ const opzione = (nome, predefinito = "") => {
 
 const RADICE = resolve(opzione("cartella", "out"));
 
+/**
+ * Il nostro dominio, letto dal sorgente.
+ *
+ * Non scritto qui: sta in `src/lib/sito/impostazioni.ts`, ed è lo stesso da cui
+ * lo prendono il contratto e i metadati. Una copia qui dentro resterebbe
+ * indietro il giorno del cambio, e questo controllo smetterebbe di guardare gli
+ * indirizzi assoluti senza dire niente — tornerebbe a dire «nessun link rotto»
+ * su un sito con dentro i rinvii al dominio di prima.
+ */
+const DOMINIO = (() => {
+  const testo = readFileSync(resolve("src/lib/sito/impostazioni.ts"), "utf8");
+  const trovato = testo.match(/export const DOMINIO\s*=\s*"([^"]+)"/);
+  if (!trovato) {
+    console.error("src/lib/sito/impostazioni.ts: non trovo DOMINIO. Gli indirizzi assoluti non si possono verificare.");
+    process.exit(1);
+  }
+  return trovato[1].replace(/\/$/, "");
+})();
+
 try {
   statSync(RADICE);
 } catch {
@@ -160,8 +179,20 @@ for (const indirizzo of pagine) {
   if (testo === 0) vuote.push(indirizzo);
 
   for (const grezzo of new Set(collegamenti)) {
-    if (!grezzo || !grezzo.startsWith("/") || grezzo.startsWith("//")) continue;
-    const pulito = grezzo.split("#")[0].split("?")[0];
+    if (!grezzo) continue;
+    /*
+      Anche gli indirizzi **assoluti** del nostro dominio.
+
+      Il contratto scrive l'indirizzo per esteso — «flowlance.it/requisiti-tecnici/» —
+      perché il PDF non ha link e sul foglio deve restare qualcosa da copiare a
+      mano. Un `https://flowlance.it/...` però non comincia con `/`, e per
+      questo controllo era invisibile: il punto 8 ha nominato per un mese una
+      pagina che non esisteva, e niente lo ha detto.
+    */
+    const nostro = grezzo.startsWith(DOMINIO) ? grezzo.slice(DOMINIO.length) || "/" : null;
+    const interno = grezzo.startsWith("/") && !grezzo.startsWith("//") ? grezzo : nostro;
+    if (!interno) continue;
+    const pulito = interno.split("#")[0].split("?")[0];
     if (pulito === "") continue;
     contati++;
     if (!esiste(pulito)) rotti.push({ da: indirizzo, a: pulito });

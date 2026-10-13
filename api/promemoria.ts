@@ -48,7 +48,8 @@
  */
 import { DOMINIO } from "../src/lib/sito/impostazioni";
 import { SITO } from "../src/lib/rotte";
-import { gestisciPromemoria, originiAmmesse } from "../src/lib/sito/promemoria-server";
+import { originiAmmesse } from "../src/lib/sito/origini";
+import { gestisciPromemoria } from "../src/lib/sito/promemoria-server";
 import { registroSuBlob } from "../src/lib/sito/registro-blob";
 
 export default async function promemoria(richiesta: Request): Promise<Response> {

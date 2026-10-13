@@ -7,10 +7,12 @@ import {
   esigiNienteApprovazioneSpecifica,
   generaPdfTermini,
   indirizzoPdfTermini,
+  senzaCollegamenti,
 } from "./pdf-termini";
 import { leggiPagine, stessoColore, terna } from "./geometria-pdf";
 import { leggiMarchio } from "./marchio-pdf";
-import { leggiPagina } from "./pagine";
+import { PAGINE_DI_TESTO, leggiPagina } from "./pagine";
+import { DOMINIO } from "@/lib/sito/impostazioni";
 import { SITO } from "@/lib/rotte";
 import { PREZZO } from "@/lib/sito/acquisto";
 import { round2 } from "@/lib/fisco/aritmetica";
@@ -49,8 +51,18 @@ function corpoDelPdf(byte: Buffer): string {
     .join(" ");
 }
 
-/** Senza spazi e senza asterischi: l'impaginazione manda a capo dove vuole. */
-const nudo = (s: string) => s.replace(/\*\*/g, "").replace(/\s+/g, "");
+/**
+ * Senza spazi e senza asterischi: l'impaginazione manda a capo dove vuole.
+ *
+ * E senza la sintassi dei collegamenti, per la stessa ragione per cui il PDF
+ * non la stampa: `[flowlance.it/requisiti-tecnici/](https://…)` sul foglio è
+ * il solo testo fra parentesi quadre. Il confronto deve guardare quello che il
+ * PDF contiene davvero — e se un giorno il renderer smettesse di ridurre i
+ * collegamenti, il testo nel PDF conterrebbe l'indirizzo due volte e questo
+ * controllo cadrebbe.
+ */
+const nudo = (s: string) =>
+  senzaCollegamenti(s).replace(/\*\*/g, "").replace(/\s+/g, "");
 
 describe("i Termini in PDF", () => {
   it("contiene tutte le righe del Markdown, nessuna esclusa", async () => {
@@ -535,5 +547,50 @@ describe("la sola lettura alla scadenza, come la scrive il punto 4", () => {
   */
   it("ma l'importazione sì, se no questo controllo non misura niente", () => {
     expect(pulsante("src/app/app/dati/pannello-dati.tsx", "Importa\n")).toMatch(/\bscrive\b/);
+  });
+});
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  Il punto 8 rimanda a una pagina che esiste
+  ─────────────────────────────────────────────────────────────────────────
+
+  La clausola dice che l'uso offline vale «nei limiti dei requisiti tecnici
+  indicati sul sito all'indirizzo …». Per un mese quel rinvio è stato a
+  vuoto: il contratto nominava dei requisiti che sul sito non c'erano, e
+  niente lo segnalava — un contratto non si rompe, si legge.
+
+  Qui si pretende che l'indirizzo nominato dal contratto sia una pagina che il
+  sito pubblica davvero. Il controllo sul **sito costruito** lo fa
+  `verifica-link.mjs`, che da oggi guarda anche gli indirizzi assoluti: i due
+  si dividono il lavoro, il contratto a questo e le pagine all'altro.
+*/
+describe("i rimandi del contratto fuori da sé stesso", () => {
+  const indirizzi = [...markdown.matchAll(/\]\((https:\/\/[^)]+)\)/g)].map((m) => m[1]);
+
+  it("il contratto nomina almeno un indirizzo del sito", () => {
+    expect(indirizzi.length).toBeGreaterThan(0);
+  });
+
+  it("ogni indirizzo di flowlance.it nominato dal contratto è una pagina pubblicata", () => {
+    const nostri = indirizzi
+      .filter((i) => i.startsWith(DOMINIO))
+      .map((i) => i.slice(DOMINIO.length).replace(/\/$/, ""));
+    expect(nostri.length, "il contratto non nomina nessuna pagina del sito").toBeGreaterThan(0);
+    const pubblicate = new Set<string>(Object.keys(PAGINE_DI_TESTO));
+    const mancanti = nostri.filter((i) => !pubblicate.has(i));
+    expect(
+      mancanti,
+      `Il contratto rimanda a ${mancanti.join(", ")}, che il sito non pubblica.\n`
+        + "Un rinvio a vuoto in una clausola non si rompe: si legge, e manda chi legge da nessuna parte.",
+    ).toEqual([]);
+  });
+
+  it("e il punto 8 nomina proprio quella dei requisiti tecnici", () => {
+    const punto8 = markdown.split(/^##\s+8\./m)[1]?.split(/^##\s/m)[0] ?? "";
+    expect(punto8).toContain(`${DOMINIO}${SITO.requisitiTecnici}/`);
+    // L'indirizzo è anche il **testo** del collegamento: nel PDF, che non ha
+    // link, resta scritto. Un testo diverso lascerebbe il foglio senza.
+    expect(punto8).toContain(`[flowlance.it${SITO.requisitiTecnici}/]`);
   });
 });

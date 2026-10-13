@@ -62,8 +62,12 @@
 import { piuMesi } from "./calendario";
 import { VERSIONE_CORRENTE } from "./testi-consensi";
 
-/** I tre archivi. Un quarto si aggiunge qui, con la sua finalità scritta. */
-export type Archivio = "consensi-marketing" | "servizio-promemoria" | "esclusione";
+/** Gli archivi. Un altro si aggiunge qui, con la sua finalità scritta. */
+export type Archivio =
+  | "consensi-marketing"
+  | "servizio-promemoria"
+  | "esclusione"
+  | "accettazioni-termini";
 
 /**
  * Gli eventi dell'archivio probatorio dei consensi marketing (punto e).
@@ -111,11 +115,50 @@ export type Esclusione = {
   quando: string;
 };
 
+/**
+ * L'accettazione dei Termini, registrata prima del pagamento.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché è un archivio a sé, e perché non ha dentro nessuno
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Gli altri archivi riguardano il **servizio promemoria** e hanno dentro un
+ * indirizzo email, perché è l'indirizzo il soggetto di quello che registrano.
+ * Questo riguarda un'altra cosa — che cosa aveva davanti chi stava per pagare
+ * — e di persone non ne contiene nessuna: **niente email, niente IP**.
+ *
+ * Al loro posto c'è un identificativo casuale, che viaggia fino a Stripe come
+ * `client_reference_id`. Il collegamento fra la persona e questo evento
+ * esiste quindi in un posto solo: il cruscotto di Stripe, dove il pagamento
+ * c'è già con i suoi dati. Se un giorno questo archivio finisse in mano a
+ * qualcuno, non direbbe chi ha comprato.
+ *
+ * Le due dichiarazioni si registrano **per impronta**: il testo integrale sta
+ * in `dichiarazioni.ts`, archiviato una volta per versione come i consensi, e
+ * l'impronta lega l'evento a quel testo. Copiarlo dentro ogni evento sarebbe
+ * lo stesso documento riscritto a ogni acquisto.
+ */
+export type EventoAccettazione = {
+  archivio: "accettazioni-termini";
+  /** Casuale, e l'unica cosa che esce di qui: va a Stripe come client_reference_id. */
+  id: string;
+  /** Data e ora **del server**: l'orologio di chi compra non è una prova. */
+  quando: string;
+  /** La versione dei Termini mostrata, e l'impronta del PDF che la pagina offriva. */
+  versioneTermini: number;
+  improntaTermini: string;
+  /** La versione del testo delle due dichiarazioni, e la sua impronta. */
+  versioneDichiarazioni: string;
+  improntaDichiarazioni: string;
+};
+
 export interface RegistroProve {
   /** Aggiunge un evento. Lancia se non ci riesce: chi chiama deve saperlo. */
   scrivi(evento: EventoProva): Promise<void>;
   /** Aggiunge un indirizzo alla lista di esclusione. */
   escludi(esclusione: Esclusione): Promise<void>;
+  /** Aggiunge un'accettazione dei Termini. Lancia se non ci riesce: il pagamento non parte. */
+  accetta(evento: EventoAccettazione): Promise<void>;
 }
 
 /**
@@ -130,7 +173,11 @@ export function testoCorrente(): { versioneTesto: string; improntaTesto: string 
 }
 
 /**
- * Per quanto si conservano le prove.
+ * Per quanto si conservano le prove del servizio promemoria.
+ *
+ * Le accettazioni dei Termini hanno un termine loro — dieci anni dalla
+ * cessazione della licenza — perché provano un contratto e non un consenso:
+ * vedi `CONSERVAZIONE_ACCETTAZIONI_ANNI` più sotto.
  *
  * **Per tutta la durata del trattamento, e poi cinque anni dalla sua
  * cessazione.** Non è un obbligo del GDPR — il GDPR dice «non più del
@@ -147,6 +194,19 @@ export const CONSERVAZIONE_PROVE = {
   /** Anni dalla cessazione del trattamento. */
   anniDallaCessazione: 5,
 } as const;
+
+/**
+ * Per quanto si conserva la prova dell'accettazione dei Termini.
+ *
+ * **Dieci anni dalla cessazione della licenza.** Non è il termine delle prove
+ * di consenso, ed è giusto che non lo sia: lì si dimostra un consenso, qui si
+ * dimostra la conclusione di un **contratto**, e il tempo in cui qualcuno può
+ * contestarlo è un altro. Il numero sta qui, DEPLOY.md lo scrive accanto agli
+ * altri, e nessuna pulizia automatica lo esegue: questo archivio non ha una
+ * data di cessazione dentro di sé — non ha dentro nessuno — e il conto parte
+ * da una licenza che vive da un'altra parte.
+ */
+export const CONSERVAZIONE_ACCETTAZIONI_ANNI = 10;
 
 /** Il termine è un numero utilizzabile? Se no, la pulizia non deve girare. */
 export function conservazioneConfermata(): boolean {
@@ -258,8 +318,8 @@ export function proveDaCancellare(
  * e un elenco di nomi file sarebbe una rubrica di indirizzi leggibile senza
  * aprire un solo evento. Dentro il file sì, perché lì serve.
  */
-export function nomeEvento(evento: EventoProva | Esclusione): string {
+export function nomeEvento(evento: EventoProva | Esclusione | EventoAccettazione): string {
   const giorno = evento.quando.slice(0, 10);
-  const coda = "tipo" in evento ? evento.tipo : "esclusione";
+  const coda = "tipo" in evento ? evento.tipo : "id" in evento ? evento.id : "esclusione";
   return `${evento.archivio}/${giorno}/${coda}.json`;
 }

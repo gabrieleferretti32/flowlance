@@ -58,7 +58,10 @@ const SORGENTE = join(RADICE, "src");
  * l'interfaccia resti di sola scrittura, e che il magazzino non importi da
  * `@vercel/blob` niente che sappia elencare.
  */
-const ORIGINI = [{ file: "src/app/(sito)/simulatore/page.tsx", cosa: "la pagina pubblica" }];
+const ORIGINI = [
+  { file: "src/app/(sito)/simulatore/page.tsx", cosa: "la pagina pubblica" },
+  { file: "src/app/(sito)/acquista/page.tsx", cosa: "la pagina d'acquisto" },
+];
 
 const VIETATI = [
   { frammento: "src/lib/sito/registro-prove", perche: "è il registro delle prove" },
@@ -278,6 +281,125 @@ for (const origine of ORIGINI) {
     } else {
       fatti.push(`il magazzino importa solo ${nomi.join(", ")}: non sa elencare niente`);
     }
+  }
+}
+
+/*
+  ─────────────────────────────────────────────────────────────────────────
+  E l'archivio delle accettazioni non incontra gli indirizzi
+  ─────────────────────────────────────────────────────────────────────────
+
+  Il quarto archivio — `accettazioni-termini` — è l'unico che **non contiene
+  nessuno**: un identificativo casuale, l'ora del server, due impronte. Non
+  perché i dati non servissero, ma perché il collegamento fra quell'evento e
+  una persona deve esistere in un posto solo, il cruscotto di Stripe, dove il
+  pagamento c'è già col suo nome.
+
+  Quella promessa si tiene in due versi, e nessuno dei due è un'intenzione:
+
+  - chi **manda** non arriva al codice delle accettazioni. Non perché
+    scriverci sarebbe grave in sé, ma perché il giorno in cui la funzione che
+    ha in mano un indirizzo può anche registrare o toccare un'accettazione, il
+    passo che manca per annotare l'email accanto all'identificativo è un
+    parametro in più;
+  - chi **registra l'accettazione** non arriva a Brevo, né al codice
+    dell'iscrizione e della pulizia, che gli indirizzi li maneggiano per
+    mestiere. È il verso che si rompe per comodità, e si è già rotto una volta:
+    `api/accettazione.ts` importava `originiAmmesse` da `promemoria-server.ts`
+    — due righe su `Origin`, nessun comportamento sbagliato — e si portava
+    dietro per intero il meccanismo d'invio. Da lì nasce `origini.ts`.
+
+  Restano in comune `registro-prove.ts` e `registro-blob.ts`: l'interfaccia e
+  il magazzino sono **uno** di proposito, ed è quell'interfaccia di sola
+  scrittura, controllata qui sopra, a dire che dal registro non esce niente.
+  Per questo si guarda anche chi chiama `accetta(`: il metodo esiste per tutti,
+  e il controllo è che lo usi uno solo.
+*/
+const ACCETTAZIONI = {
+  nome: "accettazioni-termini",
+  /* Chi ha in mano gli indirizzi. */
+  invio: [
+    { file: "api/promemoria.ts", cosa: "la funzione che iscrive" },
+    { file: "api/pulizia.ts", cosa: "la pulizia notturna" },
+  ],
+  vietatiAllInvio: [
+    { frammento: "src/lib/sito/accettazione-server", perche: "registra le accettazioni" },
+    { frammento: "src/lib/sito/dichiarazioni", perche: "è il testo delle due dichiarazioni" },
+  ],
+  /* Chi registra l'accettazione, e non deve vedere né Brevo né gli indirizzi. */
+  acquisto: { file: "api/accettazione.ts", cosa: "la funzione che registra l'accettazione" },
+  vietatiAllAcquisto: [
+    { frammento: "src/lib/sito/brevo", perche: "è il codice che parla con Brevo" },
+    { frammento: "src/lib/sito/promemoria", perche: "è l'iscrizione, che ha dentro l'indirizzo" },
+    { frammento: "src/lib/sito/pulizia", perche: "cancella i contatti e li elenca" },
+  ],
+  /* L'unico che può chiamare `accetta(`. Gli altri due sono l'interfaccia e il magazzino. */
+  soloLui: "src/lib/sito/accettazione-server.ts",
+  condivisi: ["src/lib/sito/registro-prove.ts", "src/lib/sito/registro-blob.ts"],
+};
+
+{
+  /*
+    La controprova prima dei divieti: se dalla funzione delle accettazioni non
+    si arrivasse al codice che le registra, o se il nome dell'archivio non
+    comparisse da nessuna parte lì dentro, i due «non ci arriva» qui sotto
+    sarebbero veri per il motivo sbagliato — e lo resterebbero anche dopo aver
+    cancellato tutto.
+  */
+  const suoi = [...chiusura(ACCETTAZIONI.acquisto.file)].map((f) => relative(RADICE, f).replace(/\\/g, "/"));
+  const arriva = suoi.some((f) => f.includes("src/lib/sito/accettazione-server"));
+  const nomina = suoi.some((f) => readFileSync(resolve(RADICE, f), "utf8").includes(`"${ACCETTAZIONI.nome}"`));
+  if (arriva && nomina) {
+    fatti.push(
+      `da ${ACCETTAZIONI.acquisto.file} si arriva a chi registra le accettazioni, `
+        + `e «${ACCETTAZIONI.nome}» lì dentro c'è: i divieti che seguono guardano qualcosa`,
+    );
+  } else {
+    problemi.push(
+      `da ${ACCETTAZIONI.acquisto.file} ${arriva ? `nessun file nomina «${ACCETTAZIONI.nome}»` : "non si arriva a accettazione-server"}: `
+        + "questo controllo sta misurando il vuoto, e ogni «non ci arriva» qui sotto non vuol dire niente",
+    );
+  }
+
+  for (const o of [...ACCETTAZIONI.invio, ACCETTAZIONI.acquisto]) {
+    const vietati = ACCETTAZIONI.invio.includes(o)
+      ? ACCETTAZIONI.vietatiAllInvio
+      : ACCETTAZIONI.vietatiAllAcquisto;
+    const raggiunti = [...chiusura(o.file)].map((f) => relative(RADICE, f).replace(/\\/g, "/"));
+    fatti.push(`da ${o.file} (${o.cosa}) si raggiungono ${raggiunti.length} file`);
+    for (const { frammento, perche } of vietati) {
+      const trovati = raggiunti.filter((f) => f.includes(frammento));
+      if (trovati.length > 0) {
+        problemi.push(
+          `${o.file} arriva a ${frammento} (${perche}): ${trovati.join(", ")}. `
+            + "L'archivio delle accettazioni non contiene nessuno, e resta così solo se il codice "
+            + "che ha in mano gli indirizzi e quello che registra l'accettazione non si incontrano",
+        );
+      } else {
+        fatti.push(`  non arriva a ${frammento}, che ${perche}`);
+      }
+    }
+  }
+
+  /* E `accetta(` lo chiama uno solo. */
+  const chiamanti = [];
+  for (const partenza of [...ACCETTAZIONI.invio, ACCETTAZIONI.acquisto]) {
+    for (const file of chiusura(partenza.file)) {
+      const nome = relative(RADICE, file).replace(/\\/g, "/");
+      if (chiamanti.includes(nome) || ACCETTAZIONI.condivisi.includes(nome)) continue;
+      if (/\.accetta\s*\(/.test(readFileSync(file, "utf8"))) chiamanti.push(nome);
+    }
+  }
+  if (chiamanti.length === 1 && chiamanti[0] === ACCETTAZIONI.soloLui) {
+    fatti.push(`e «accetta(» lo chiama solo ${ACCETTAZIONI.soloLui}`);
+  } else {
+    problemi.push(
+      `«accetta(» lo chiamano ${chiamanti.length === 0 ? "zero file" : chiamanti.join(", ")}, `
+        + `e deve chiamarlo solo ${ACCETTAZIONI.soloLui}: `
+        + (chiamanti.length === 0
+          ? "se nessuno lo chiama, o il metodo è morto o questo controllo guarda il posto sbagliato"
+          : "il metodo è sull'interfaccia di tutti, e il presidio è che lo usi uno"),
+    );
   }
 }
 

@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CONSEGNA_CHIAVE,
@@ -7,6 +7,7 @@ import {
   PREZZO_SCRITTO,
   PRIMA_DI_PAGARE,
   accettazioneTermini,
+  collegamentoDiPagamento,
 } from "./acquisto";
 import { euro, euroTondo, percentuale } from "@/lib/format";
 
@@ -158,6 +159,52 @@ describe("la frase prima del pulsante e il contratto", () => {
     expect(PRIMA_DI_PAGARE).toContain(CONSEGNA_CHIAVE_BREVE);
   });
 
+  /*
+    ─────────────────────────────────────────────────────────────────────────
+    E nessuna pagina riscrive quel termine a mano
+    ─────────────────────────────────────────────────────────────────────────
+
+    Il controllo qui sopra tiene insieme `acquisto.ts` e il contratto. Non
+    diceva niente, però, delle **altre** superfici che lo ripetono: la FAQ del
+    simulatore e la descrizione di `/grazie/` lo avevano scritto a mano, e il
+    commento accanto diceva che «quando è cambiato sono cambiati tutti e cinque
+    insieme». Era vero, ed era una cosa andata bene — non un presidio. La copia
+    giusta oggi è la copia vecchia alla prossima riscrittura.
+
+    Qui si scandiscono i sorgenti del sito e si pretende che la frase non
+    compaia **scritta**: dove serve, si importa la costante. L'unico file che
+    può contenerla è quello che la definisce.
+
+    Il testo delle scadenze fiscali dice «spostate al primo giorno lavorativo
+    successivo» e non è questo termine: per quello si cerca la frase intera,
+    «entro la fine del…», e non tre parole che vogliono dire un'altra cosa.
+  */
+  it("e nessun'altra pagina la scrive a mano", () => {
+    const radice = "src";
+    const esclusi = ["src/lib/sito/acquisto.ts"];
+    const colpevoli: string[] = [];
+    const visita = (cartella: string) => {
+      for (const voce of readdirSync(cartella, { withFileTypes: true })) {
+        const percorso = `${cartella}/${voce.name}`;
+        if (voce.isDirectory()) {
+          visita(percorso);
+          continue;
+        }
+        if (!/\.(ts|tsx)$/.test(voce.name) || voce.name.endsWith(".test.ts")) continue;
+        if (esclusi.includes(percorso)) continue;
+        if (codiceDi(percorso).includes(CONSEGNA_CHIAVE_BREVE)) colpevoli.push(percorso);
+      }
+    };
+    visita(radice);
+    expect(
+      colpevoli,
+      `Il termine di consegna è scritto a mano in:\n${colpevoli.join("\n")}\n\n`
+        + "Importa CONSEGNA_CHIAVE_BREVE da @/lib/sito/acquisto: è la stessa frase, e\n"
+        + "un test la tiene dentro il punto 3 del contratto. Una copia resta indietro\n"
+        + "senza dirlo il giorno in cui il legale riscrive quella clausola.",
+    ).toEqual([]);
+  });
+
   it("i 30 giorni del rimborso sono quelli del punto 7", () => {
     const punto7 = nudo(contratto.split(/^##\s+7\./m)[1]?.split(/^##\s/m)[0] ?? "");
     const nelContratto = punto7.match(/rimborso entro (\d+) giorni/i)?.[1];
@@ -188,11 +235,47 @@ describe("la frase prima del pulsante e il contratto", () => {
   it("il pagamento richiede tutte e due le caselle", () => {
     const codice = codiceDi("src/app/(sito)/acquista/schermata-acquisto.tsx");
     expect(codice).toContain("const puoPagare = accetta && dichiara;");
-    expect(codice).toContain("href={puoPagare ? PAYMENT_LINK : undefined}");
+    expect(codice).toContain("disabled={!puoPagare || inCorso}");
     expect(
       codice,
-      "il collegamento al pagamento guarda ancora una casella sola",
-    ).not.toContain("href={dichiara ?");
+      "il pulsante guarda ancora una casella sola",
+    ).not.toContain("disabled={!dichiara");
+  });
+
+  /*
+    E il pagamento non è più un collegamento: è un pulsante che **prima**
+    registra l'accettazione e solo dopo cambia pagina. Un `<a href>` sarebbe
+    tornato a portare via la pagina al primo clic, e la prova si sarebbe
+    scritta — quando si scriveva — mentre il browser stava già andando via.
+  */
+  it("e prima di aprire Stripe passa dalla registrazione dell'accettazione", () => {
+    const codice = codiceDi("src/app/(sito)/acquista/schermata-acquisto.tsx");
+    expect(codice).toContain("API.accettazione");
+    expect(codice).toContain("collegamentoDiPagamento(id)");
+    expect(
+      codice,
+      "il pulsante porta a Stripe senza passare dalla funzione: la prova non verrebbe scritta",
+    ).not.toMatch(/href=\{[^}]*PAYMENT_LINK/);
+  });
+
+  describe("il collegamento al pagamento", () => {
+    const LINK = "https://buy.stripe.com/test_123";
+
+    it("attacca l'identificativo come client_reference_id", () => {
+      expect(collegamentoDiPagamento("abc123", LINK)).toBe(
+        `${LINK}?client_reference_id=abc123`,
+      );
+    });
+
+    it("e se il link ha già una query usa &", () => {
+      expect(collegamentoDiPagamento("abc", `${LINK}?locale=it`)).toBe(
+        `${LINK}?locale=it&client_reference_id=abc`,
+      );
+    });
+
+    it("quello che ci finisce dentro è codificato", () => {
+      expect(collegamentoDiPagamento("a b/c", LINK)).toBe(`${LINK}?client_reference_id=a%20b%2Fc`);
+    });
   });
 
   it("e l'accettazione nomina la versione dei Termini", () => {

@@ -54,6 +54,10 @@ export const PAGINE_DI_TESTO = {
   [SITO.privacy]: { file: "contenuti/privacy.md", nome: "Privacy" },
   [SITO.termini]: { file: "contenuti/termini.md", nome: "Termini" },
   [SITO.cookie]: { file: "contenuti/cookie.md", nome: "Cookie" },
+  [SITO.requisitiTecnici]: {
+    file: "contenuti/requisiti-tecnici.md",
+    nome: "Requisiti tecnici",
+  },
   /*
     APPROSSIMAZIONI.md sta alla radice e non in `contenuti/` perché è citato da
     cinque punti del codice come documento del progetto prima ancora che come

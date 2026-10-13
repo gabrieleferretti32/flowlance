@@ -6,7 +6,7 @@ import Image from "next/image";
 import { ArrowRight, Check, CalendarX, Layers, Scale, Receipt } from "lucide-react";
 import { SITO, rottaDemo } from "@/lib/rotte";
 import { euro, euroTondo, percentuale } from "@/lib/format";
-import { PREZZO_SCRITTO } from "@/lib/sito/acquisto";
+import { CONSEGNA_CHIAVE_BREVE, PREZZO_SCRITTO } from "@/lib/sito/acquisto";
 import { DA_RIEMPIRE, OFFERTA, RIMANDO_AI_TERMINI, condizioniSpezzate } from "@/lib/sito/offerta";
 import { conUtm } from "@/lib/sito/utm";
 import { AlComparire } from "@/components/sito/apparizione";
@@ -293,10 +293,17 @@ export function Offerta() {
  * Le risposte, e l'unico numero che non è un segnaposto.
  *
  * Il termine di consegna è scritto nei Termini, cioè in un contratto, ed è
- * ripetuto in altri quattro punti del sito. Una formulazione diversa qui — o
- * un segnaposto pubblicato — sarebbe una promessa che contraddice quella che
- * obbliga. Quando è cambiato (da «24 ore lavorative» alla fine del primo
- * giorno lavorativo successivo) sono cambiati tutti e cinque insieme.
+ * ripetuto in più punti del sito. Una formulazione diversa qui sarebbe una
+ * promessa che contraddice quella che obbliga.
+ *
+ * Per un mese questo commento diceva che quando il termine è cambiato — da «24
+ * ore lavorative» alla fine del primo giorno lavorativo successivo — «sono
+ * cambiati tutti e cinque insieme». Era vero, e non era un presidio: era una
+ * cosa andata bene. La frase qui sotto era una **copia**, e la copia giusta
+ * oggi è la copia vecchia alla prossima riscrittura del legale. Adesso arriva
+ * da `CONSEGNA_CHIAVE_BREVE`, che un test tiene dentro il punto 3 del
+ * contratto parola per parola: una sola strada, e quando cambia cambia qui
+ * senza che nessuno se ne ricordi.
  */
 const DOMANDE: { d: string; r: React.ReactNode }[] = [
   {
@@ -326,8 +333,7 @@ const DOMANDE: { d: string; r: React.ReactNode }[] = [
     r: (
       <>
         Il contratto si conclude con il pagamento. Ricevi per email la chiave di attivazione e i
-        Termini in PDF entro la fine del primo giorno lavorativo successivo: non devi rispondere a
-        niente.
+        Termini in PDF {CONSEGNA_CHIAVE_BREVE}: non devi rispondere a niente.
       </>
     ),
   },

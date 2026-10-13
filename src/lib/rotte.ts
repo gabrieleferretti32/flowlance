@@ -85,6 +85,16 @@ export const SITO = {
   privacy: "/privacy",
   termini: "/termini",
   cookie: "/cookie",
+  /**
+   * I requisiti tecnici, che il punto 8 dei Termini richiama per nome.
+   *
+   * Non è una pagina di marketing: è il documento a cui una clausola rimanda,
+   * e per questo porta soltanto cose misurate. Sta in `SITO` come le altre
+   * perché il piede, la pagina d'acquisto e il contratto la nominano, e un
+   * indirizzo scritto a mano in tre posti è un indirizzo che un giorno ne
+   * indica due diversi.
+   */
+  requisitiTecnici: "/requisiti-tecnici",
   approssimazioni: "/cosa-non-calcola",
   /**
    * Il simulatore pubblico: il prodotto che si prova senza comprarlo.
@@ -125,6 +135,13 @@ export const SITO = {
  */
 export const API = {
   promemoria: "/api/promemoria",
+  /**
+   * La registrazione dell'accettazione dei Termini, prima del pagamento.
+   *
+   * La chiama la pagina d'acquisto quando si preme «Paga»: se risponde male,
+   * il collegamento a Stripe non si apre. Vedi `api/accettazione.ts`.
+   */
+  accettazione: "/api/accettazione",
 } as const;
 
 /**

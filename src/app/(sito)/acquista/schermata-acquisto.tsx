@@ -7,13 +7,14 @@ import type { PaginaTesto } from "@/lib/contenuti/pagine";
 import {
   CONSEGNA_CHIAVE_BREVE,
   DICHIARAZIONE_PROFESSIONALE,
-  PAYMENT_LINK,
   PREZZO_SCRITTO,
   PRIMA_DI_PAGARE,
   accettazioneTermini,
+  collegamentoDiPagamento,
   pagamentoConfigurato,
 } from "@/lib/sito/acquisto";
-import { SITO } from "@/lib/rotte";
+import { OFFERTA, RIMANDO_AI_TERMINI, condizioniSpezzate } from "@/lib/sito/offerta";
+import { API, SITO } from "@/lib/rotte";
 import { CONTENUTO, VALORE, tracciaMeta } from "@/lib/sito/pixel";
 
 /**
@@ -94,8 +95,11 @@ export function SchermataAcquisto({
         automatico.
       </p>
 
+      <PrezzoFondatori />
+
       <PagaConStripe
         versione={versione}
+        impronta={impronta}
         accetta={accetta}
         onAccetta={setAccetta}
         dichiara={dichiara}
@@ -218,19 +222,70 @@ export function SchermataAcquisto({
  * Sulla pagina di vendita non c'è: là i pulsanti dicono già «+ IVA» accanto al
  * prezzo, e nessuno sta per pagare.
  */
+/**
+ * L'offerta Fondatori, ripetuta dove si paga.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché questo blocco è stato aggiunto, e cosa mancava
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * La card sul simulatore vende tre cose: cinquanta posti, il prezzo garantito
+ * anche ai rinnovi, il rimborso a trenta giorni. Chi cliccava «Acquista»
+ * arrivava qui e non ne ritrovava **nessuna**: la pagina diceva il prezzo di
+ * oggi, «il rinnovo non è automatico», e taceva sul resto.
+ *
+ * Nessuna frase sbagliata, e però la superficie dove si accetta un contratto
+ * prometteva meno di quella che aveva convinto a venirci. Fra le due versioni
+ * vale quella scritta nel punto 6-bis — che le dice tutte — ma farle leggere
+ * qui è l'unico modo perché chi compra sappia cosa sta comprando *mentre*
+ * compra, e non in un contratto di tredici articoli più in basso.
+ *
+ * I testi **non** sono riscritti: arrivano da `offerta.ts`, gli stessi tre
+ * della card. Due stesure della stessa promessa sono due promesse, e il giorno
+ * in cui il legale tocca il 6-bis una delle due resta indietro.
+ */
+function PrezzoFondatori() {
+  const { prima, rimando, dopo } = condizioniSpezzate();
+  return (
+    <section
+      aria-labelledby="prezzo-fondatori"
+      className="mt-5 rounded-campo border border-accento/30 bg-accento-tenue px-5 py-4"
+    >
+      <h2 id="prezzo-fondatori" className="text-etichetta font-semibold">
+        {OFFERTA.nome} · {OFFERTA.posti} posti
+      </h2>
+      <p className="mt-2 text-corpo leading-relaxed">{OFFERTA.sottotitolo}</p>
+      <p className="mt-2 text-etichetta leading-relaxed text-inchiostro-tenue">
+        {prima}
+        <Link href={RIMANDO_AI_TERMINI} className="underline underline-offset-2">
+          {rimando}
+        </Link>
+        {dopo}
+      </p>
+      <p className="mt-2 text-etichetta leading-relaxed text-inchiostro-tenue">
+        {OFFERTA.garanzia}
+      </p>
+    </section>
+  );
+}
+
 function PagaConStripe({
   versione,
+  impronta,
   accetta,
   onAccetta,
   dichiara,
   onDichiara,
 }: {
   versione: number;
+  impronta: string;
   accetta: boolean;
   onAccetta: (v: boolean) => void;
   dichiara: boolean;
   onDichiara: (v: boolean) => void;
 }) {
+  const [inCorso, setInCorso] = React.useState(false);
+  const [errore, setErrore] = React.useState("");
   const pronto = pagamentoConfigurato();
   /*
     Il pulsante si accende solo con tutte e due. Un'unica variabile, usata in
@@ -240,6 +295,63 @@ function PagaConStripe({
     senza una delle due dichiarazioni.
   */
   const puoPagare = accetta && dichiara;
+
+  /**
+   * Registra l'accettazione, poi apre il pagamento. In quest'ordine.
+   *
+   * ─────────────────────────────────────────────────────────────────────
+   * Perché il pagamento aspetta
+   * ─────────────────────────────────────────────────────────────────────
+   *
+   * La prova di che cosa è stato accettato si scrive **prima**: se la
+   * scrittura non riesce, a Stripe non ci si va. L'ordine inverso —
+   * aprire il pagamento e registrare dopo, o insieme — produrrebbe ogni
+   * tanto un acquisto senza la sua prova, e di quelli ci si accorge il
+   * giorno in cui qualcuno contesta di aver accettato qualcosa.
+   *
+   * Alla funzione si manda soltanto che cosa c'era a schermo: versione e
+   * impronta dei Termini. Nessun dato della persona — l'email la raccoglie
+   * Stripe, che la deve avere, e noi non la vediamo mai.
+   */
+  async function paga() {
+    if (!puoPagare || inCorso) return;
+    setInCorso(true);
+    setErrore("");
+    const nonRiuscito =
+      "Non riesco a registrare l'accettazione dei Termini, e senza quella non apro il "
+      + "pagamento. Riprova, o scrivi a info@flowlance.it.";
+    try {
+      const risposta = await fetch(API.accettazione, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ versioneTermini: versione, improntaTermini: impronta }),
+      });
+      const corpo: unknown = await risposta.json().catch(() => null);
+      const id =
+        typeof corpo === "object" && corpo !== null && "ok" in corpo && (corpo as { ok: unknown }).ok === true
+          ? (corpo as { id?: unknown }).id
+          : null;
+      if (!risposta.ok || typeof id !== "string" || id === "") {
+        const detto =
+          typeof corpo === "object" && corpo !== null && "errore" in corpo
+            ? String((corpo as { errore: unknown }).errore)
+            : nonRiuscito;
+        setErrore(detto);
+        setInCorso(false);
+        return;
+      }
+      /*
+        `InitiateCheckout` qui e non sul clic: adesso il clic e l'apertura del
+        pagamento sono due momenti diversi, e contare il clic conterebbe anche
+        i tentativi finiti con un errore.
+      */
+      tracciaMeta("InitiateCheckout", { ...CONTENUTO, ...VALORE });
+      window.location.href = collegamentoDiPagamento(id);
+    } catch {
+      setErrore(nonRiuscito);
+      setInCorso(false);
+    }
+  }
 
   /*
     Chi è arrivato fin qui sta leggendo la scheda del prodotto: è `ViewContent`.
@@ -309,6 +421,20 @@ function PagaConStripe({
       </p>
 
       {/*
+        E i requisiti tecnici, prima del pagamento.
+
+        È la pagina che il punto 8 richiama per nome, e dice due cose che vale
+        la pena sapere **prima** di pagare e non dopo: per aprire l'applicazione
+        serve una connessione, e i dati stanno solo nel browser di chi la usa.
+      */}
+      <p className="mt-2 text-etichetta text-inchiostro-tenue">
+        <Link href={SITO.requisitiTecnici} className="underline underline-offset-2">
+          Guarda i requisiti tecnici
+        </Link>{" "}
+        — che cosa serve per usarlo, e che cosa cancella i dati.
+      </p>
+
+      {/*
         Cosa succede premendo, prima di premere. Il testo sta in `acquisto.ts`
         perché lo guardi anche la tagliola: una pagina che promettesse una cosa
         diversa dal contratto — la chiave «subito», il contratto concluso
@@ -317,34 +443,32 @@ function PagaConStripe({
       <p className="mt-5 text-corpo font-medium leading-relaxed">{PRIMA_DI_PAGARE}</p>
 
       {pronto ? (
-        <a
-          href={puoPagare ? PAYMENT_LINK : undefined}
-          aria-disabled={!puoPagare}
-          /*
-            `InitiateCheckout` sul clic che porta davvero a Stripe. Senza la
-            spunta il collegamento non ha indirizzo e non si apre: l'evento non
-            deve partire neanche lì, o conterebbe un tentativo che non è mai
-            diventato un checkout.
-          */
-          onClick={() => {
-            if (puoPagare) tracciaMeta("InitiateCheckout", { ...CONTENUTO, ...VALORE });
-          }}
-          /*
-            Senza la spunta il collegamento non ha un `href`: un `<a>` senza
-            indirizzo non è raggiungibile con il tabulatore e non si apre in
-            nessun modo, mentre un pulsante «disabilitato» via CSS resta
-            cliccabile da chi naviga da tastiera. La condizione dell'acquisto
-            dev'essere una condizione, non un aspetto.
-          */
+        /*
+          Un pulsante, e non più un collegamento.
+
+          Prima di andare su Stripe c'è una cosa da fare: registrare che cosa
+          è stato accettato, e **aspettare che sia riuscita**. Un `<a href>`
+          non può aspettare niente — porta via la pagina al primo clic — e per
+          questo qui c'è un `<button>` che fa la chiamata, guarda com'è andata,
+          e solo allora cambia pagina.
+
+          Spento finché le due caselle non sono spuntate: un `disabled` vero,
+          che non si raggiunge col tabulatore e non si preme. La condizione
+          dell'acquisto dev'essere una condizione, non un aspetto.
+        */
+        <button
+          type="button"
+          disabled={!puoPagare || inCorso}
+          onClick={paga}
           className={
-            puoPagare
+            puoPagare && !inCorso
               ? "mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-campo bg-accento px-6 text-corpo font-medium text-white transition-colors hover:bg-[#3D4CE8] sm:w-auto"
               : "mt-4 inline-flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-campo bg-bordo px-6 text-corpo font-medium text-inchiostro-tenue sm:w-auto"
           }
         >
-          Paga {PREZZO_SCRITTO.totale} con Stripe
-          {puoPagare && <ExternalLink className="size-4" aria-hidden />}
-        </a>
+          {inCorso ? "Un momento…" : `Paga ${PREZZO_SCRITTO.totale} con Stripe`}
+          {puoPagare && !inCorso && <ExternalLink className="size-4" aria-hidden />}
+        </button>
       ) : (
         <p className="mt-4 rounded-campo border border-attenzione/40 bg-attenzione-tenue px-4 py-3 text-corpo">
           Il pagamento non è ancora attivo su questo sito. Scrivi a{" "}
@@ -352,6 +476,21 @@ function PagaConStripe({
             info@flowlance.it
           </a>{" "}
           e ti mando io il collegamento.
+        </p>
+      )}
+
+      {/*
+        Se la registrazione non riesce il pagamento non parte, e la pagina lo
+        dice. Non «riprova più tardi»: che cosa è successo, che cosa fare, e
+        l'indirizzo a cui scrivere se riprovare non basta. Chi aveva la carta in
+        mano merita di sapere perché non si è aperto niente.
+      */}
+      {errore !== "" && (
+        <p
+          role="alert"
+          className="mt-3 rounded-campo border border-attenzione/40 bg-attenzione-tenue px-4 py-3 text-corpo leading-relaxed"
+        >
+          {errore}
         </p>
       )}
 

@@ -89,6 +89,9 @@ function registroFinto(rompiti = false) {
       if (rompiti) throw new Error("magazzino non raggiungibile");
       esclusi.push(e);
     },
+    async accetta() {
+      throw new Error("la pulizia non registra accettazioni");
+    },
   };
   return { registro, eventi, esclusi };
 }
