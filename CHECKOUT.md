@@ -281,7 +281,12 @@ di 32 caratteri esadecimali senza trattini. Lo stesso valore arriva nell'evento
 
 **2 · Dal riferimento, trova l'evento.** Pannello Vercel → il progetto →
 *Storage* → il Blob store → cartella `accettazioni-termini/`, poi la cartella
-del **giorno**, poi il file che **comincia con quel riferimento**. Il nome è
+del **giorno**, poi il file che **comincia con quel riferimento**.
+
+Il magazzino è **privato**: dal pannello si sfoglia e si scarica perché sei tu,
+ma l'indirizzo del file da solo non apre niente. Non incollarlo in un'email
+aspettandoti che si apra, e non c'è bisogno di trattarlo come un segreto se
+dovesse finire da qualche parte. Il nome è
 `accettazioni-termini/<AAAA-MM-GG>/<identificativo>-<suffisso casuale>.json`: il
 suffisso lo aggiunge Vercel e cambia a ogni scrittura, quindi si cerca per
 inizio del nome, non per nome esatto.

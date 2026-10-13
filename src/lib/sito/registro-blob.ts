@@ -25,6 +25,21 @@
  * - **Edge Config.** In sola lettura dal codice: non è un posto dove scrivere.
  *
  * ─────────────────────────────────────────────────────────────────────────
+ * Il magazzino è privato, e il codice lo dice a ogni scrittura
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `access: "private"`. Non è una ripetizione dell'impostazione del pannello: è
+ * il pacchetto che richiede di dichiararlo a ogni `put`, e un `"public"` scritto
+ * qui dentro, in un magazzino privato, è il modo preciso in cui un archivio di
+ * prove — con dentro degli indirizzi email — diventerebbe una serie di file
+ * leggibili da chiunque conosca l'indirizzo. Nessun errore, nessun avviso, e
+ * dei .json con dentro delle persone raggiungibili da fuori.
+ *
+ * Il magazzino sta nella regione **fra1 (Francoforte)**: i dati restano nello
+ * Spazio economico europeo, che per un archivio probatorio di consensi è una
+ * delle poche cose che si decidono una volta sola. Vedi DEPLOY.md.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
  * Quello che non è verificato
  * ─────────────────────────────────────────────────────────────────────────
  *
@@ -32,8 +47,9 @@
  * fornisce `BLOB_READ_WRITE_TOKEN`. Da questo ambiente `vercel.com` è bloccato
  * dal proxy di rete, quindi **non ho potuto leggere la documentazione né
  * provare una scrittura vera**: quello che c'è qui sotto compila contro i tipi
- * del pacchetto `@vercel/blob@2.8.1`, e tanto vale. La prima scrittura vera va
- * guardata sul pannello.
+ * del pacchetto `@vercel/blob@2.8.1` — dove `access` è `'public' | 'private'` e
+ * il controllo a tempo d'esecuzione accetta tutti e due — e tanto vale. La prima
+ * scrittura vera va guardata sul pannello.
  */
 import { put } from "@vercel/blob";
 import {
@@ -44,7 +60,28 @@ import {
   type RegistroProve,
 } from "./registro-prove";
 
-export function registroSuBlob(token: string): RegistroProve {
+/**
+ * Quel poco di `put` che serve qui.
+ *
+ * Il parametro esiste per una ragione sola: provare **che cosa** si manda al
+ * magazzino senza un magazzino. Le opzioni di scrittura — prima fra tutte
+ * `access` — non si possono guardare da nessun'altra parte: una scrittura
+ * pubblica in un magazzino privato non fallisce, riesce, e il file resta
+ * leggibile da fuori. Qui invece un test le legge e le pretende.
+ */
+export type ScritturaBlob = (
+  percorso: string,
+  contenuto: string,
+  opzioni: {
+    access: "public" | "private";
+    token: string;
+    addRandomSuffix: boolean;
+    contentType: string;
+    cacheControlMaxAge: number;
+  },
+) => Promise<unknown>;
+
+export function registroSuBlob(token: string, metti: ScritturaBlob = put): RegistroProve {
   /*
     I tre archivi sono tre prefissi dello stesso magazzino, e non tre magazzini.
 
@@ -55,8 +92,12 @@ export function registroSuBlob(token: string): RegistroProve {
     confine del magazzino.
   */
   async function deposita(cosa: EventoProva | Esclusione | EventoAccettazione) {
-    await put(nomeEvento(cosa), JSON.stringify(cosa), {
-      access: "public",
+    await metti(nomeEvento(cosa), JSON.stringify(cosa), {
+      /*
+        Privato, come il magazzino. Vedi la testa del file: qui «public» non
+        darebbe nessun errore, e lascerebbe gli eventi leggibili da fuori.
+      */
+      access: "private",
       token,
       /*
         Il suffisso casuale, e perché **non** si disattiva.

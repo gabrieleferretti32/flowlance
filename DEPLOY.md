@@ -219,7 +219,7 @@ BREVO_LISTA_PROMEMORIA  = <id numerico della lista dei promemoria>
 BREVO_LISTA_MARKETING   = <id numerico della lista delle comunicazioni>
 BREVO_TEMPLATE_DOI      = <id numerico del modello>
 CRON_SECRET             = <una stringa lunga a caso>
-BLOB_READ_WRITE_TOKEN   = <lo dà Vercel collegando il magazzino Blob>
+BLOB_READ_WRITE_TOKEN   = <lo dà Vercel collegando il magazzino Blob privato (fra1)>
 ```
 
 `CRON_SECRET` la usa `api/pulizia.ts`: Vercel firma con quella le chiamate di
@@ -293,6 +293,23 @@ Il progetto completo — cosa sta sul pannello e cosa nel codice — è in
 Sono **tre e distinti**, perché hanno tre finalità e tre basi giuridiche
 diverse. Stanno tutti fuori da Brevo, nello stesso magazzino di file (Vercel
 Blob) ma sotto tre prefissi che li tengono separati anche a guardarli da fuori.
+
+Il magazzino è **privato** e sta nella regione **fra1 (Francoforte)**. Sono due
+cose decise una volta e difficili da cambiare dopo, e valgono per tutti e
+quattro gli archivi:
+
+- **privato** vuol dire che i file non si aprono conoscendo il loro indirizzo:
+  ci vuole il token. Dentro ci sono indirizzi email, e un magazzino pubblico li
+  avrebbe resi leggibili a chiunque avesse una URL — senza nessun errore, e
+  senza che niente smettesse di funzionare. Il codice lo ripete a ogni
+  scrittura (`access: "private"` in `src/lib/sito/registro-blob.ts`), perché il
+  pacchetto lo richiede per ogni `put`, e un test lo pretende: una scrittura
+  pubblica dentro un magazzino privato **riesce**, e si scopre guardando un
+  file da una finestra senza credenziali;
+- **fra1** vuol dire che i dati restano nello Spazio economico europeo. Per un
+  archivio che esiste per dimostrare dei consensi, è una delle poche scelte che
+  si fanno una volta sola: spostarlo dopo vorrebbe dire copiare altrove dei
+  dati raccolti sotto un'altra informativa.
 
 | Archivio | Prefisso | Che cosa ci finisce | Finalità e base | Conservazione |
 | --- | --- | --- | --- | --- |
@@ -447,8 +464,8 @@ accendere: il giorno dopo, le prime prove cominciano a scadere.
 3. Le cinque variabili sono su Vercel, e l'iscrizione di prova arriva davvero.
 4. `GET /api/pulizia?prova=1` gira e il resoconto torna sensato — **prima** di
    lasciarla cancellare qualcosa.
-5. Il magazzino delle prove (Vercel Blob) è collegato al progetto e
-   `BLOB_READ_WRITE_TOKEN` è fra le variabili. Il termine di conservazione
+5. Il magazzino delle prove (Vercel Blob, **privato**, regione **fra1**) è
+   collegato al progetto e `BLOB_READ_WRITE_TOKEN` è fra le variabili. Il termine di conservazione
    **c'è** — cinque anni dalla cessazione, `CONSERVAZIONE_PROVE` in
    `src/lib/sito/registro-prove.ts` — ma il controllo che impedisce alla
    pulizia di partire senza un termine utilizzabile resta attivo a ogni
@@ -490,11 +507,11 @@ pagamento non parte e la pagina lo dice.
 Serve una variabile sola, e non è facoltativa:
 
 ```
-BLOB_READ_WRITE_TOKEN   = <lo dà Vercel collegando il magazzino Blob>
+BLOB_READ_WRITE_TOKEN   = <lo dà Vercel collegando il magazzino Blob privato (fra1)>
 ```
 
-È la stessa della tabella dei promemoria: **un magazzino solo, quattro
-prefissi**. Ma lì la sua assenza lascia funzionare l'iscrizione senza
+È la stessa della tabella dei promemoria: **un magazzino solo, privato, in
+Francoforte, quattro prefissi**. Ma lì la sua assenza lascia funzionare l'iscrizione senza
 registrare l'evento, qui no: senza magazzino la funzione risponde 503 e nessuno
 può comprare. È voluto — un acquisto senza la prova di cosa è stato accettato è
 esattamente quello che questo giro esiste per evitare — e vuol dire che **il
