@@ -311,18 +311,32 @@ describe("le imposte si pagano sul concordato, in tutti e due i versi", () => {
     expect(basso.concordato?.esito.attivo).toBe(true);
     expect(basso.imponibile).toBe(2_217.9);
     expect(basso.imponibile).toBeLessThan(senza.imponibile);
-    // Il reddito effettivo resta scritto: è il termine di paragone, e serve
-    // alle detrazioni. Sparire sarebbe il modo di perderlo.
-    expect(basso.concordato?.redditoEffettivo).toBe(6_520);
-    expect(basso.concordato?.scostamento).toBeCloseTo((6_520 - 3_000) / 3_000, 10);
+    /*
+      Il reddito effettivo resta scritto, e in due forme: il progressivo che il
+      prospetto calcola e la stima a fine anno, che è quella che si confronta.
+      Al 1° settembre i mesi chiusi sono otto e dentro c'è tutto: 6.520 ÷ 8 × 12
+      fa 9.780.
+    */
+    expect(basso.concordato?.redditoEffettivo.aOggi).toBe(6_520);
+    expect(basso.concordato?.redditoEffettivo.stimato).toBe(9_780);
+    expect(basso.concordato?.redditoEffettivo.mesiChiusi).toBe(8);
+    expect(basso.concordato?.scostamento).toBeCloseTo((9_780 - 3_000) / 3_000, 10);
   });
 
-  it("il carico senza concordato si calcola comunque, e la differenza è l'effetto", () => {
+  /*
+    I due lati del confronto stanno tutti e due sull'anno intero.
+
+    Il lato «senza» non è più il carico del prospetto — quello è il progressivo
+    — ma lo stesso conto fatto sul reddito **stimato**: 9.780 €, non 6.520. Si
+    vede dal contributo, che è l'unica riga che si ricontrolla a mente:
+    9.780 × 26,07 % = 2.549,65 €, contro i 1.699,76 € del progressivo.
+  */
+  it("i due lati del confronto guardano l'anno intero, non il progressivo", () => {
     const alto = prospettoDi(conCpb({ redditoConcordato: 40_000, redditoPrecedenteRettificato: 40_000 }));
     const cpb = alto.concordato;
-    expect(cpb?.senzaCpb.carico).toBe(senza.caricoTotale);
-    expect(cpb?.conCpb.carico).toBe(alto.caricoTotale);
-    expect(cpb?.effetto).toBe(round2(alto.caricoTotale - senza.caricoTotale));
+    expect(cpb?.senzaCpb.contributi).toBe(2_549.65);
+    expect(cpb?.senzaCpb.carico).not.toBe(senza.caricoTotale);
+    expect(cpb?.effetto).toBe(round2((cpb?.conCpb.carico ?? 0) - (cpb?.senzaCpb.carico ?? 0)));
     // Qui si paga di più: il segno dell'effetto è quello del carico.
     expect(cpb?.effetto).toBeGreaterThan(0);
   });
@@ -581,5 +595,177 @@ describe("il biennio proposto per un anno", () => {
   it("con quel biennio, nel suo primo anno la maggiorazione c'è", () => {
     const c = concordatoPredefinito(2026);
     expect(primoAnnoDelBiennio(c.biennio, 2026)).toBe(true);
+  });
+});
+
+// ————————————————————————————————————————————————————————————
+// Il reddito dell'anno intero: proiezione e consuntivo
+// ————————————————————————————————————————————————————————————
+
+/*
+  Il difetto che questa sezione chiude si vedeva sul dataset da vetrina: la
+  card diceva «32.429,55 € effettivi contro 60.000 concordati, scostamento
+  −46 %» e accendeva l'avviso della causa di cessazione. Ma 32.429 erano dieci
+  mesi e 60.000 erano dodici: due grandezze diverse nella stessa sottrazione.
+  Lo stesso archivio, guardato il 3 di gennaio, avrebbe detto −99 %.
+*/
+
+/** Una fattura incassata, per costruire a mano i mesi di un anno. */
+function incasso(id: string, data: string, imponibile: number) {
+  return {
+    id,
+    dataEmissione: data,
+    numero: id,
+    clienteId: "alfa",
+    descrizione: "Prova",
+    tipoRicavo: "progetto" as const,
+    imponibile,
+    dataIncasso: data,
+  };
+}
+
+function prospettoDa(p: {
+  fatture: ReturnType<typeof incasso>[];
+  oggi: string;
+  anno?: number;
+  concordato?: Partial<Concordato>;
+}) {
+  return calcolaProspetto({
+    impostazioni: conCpb(p.concordato ?? {}, { ...impostazioniOrdinario(), anno: p.anno ?? 2026 }),
+    parametri: par,
+    fatture: p.fatture,
+    costi: [],
+    oggi: p.oggi,
+  });
+}
+
+describe("il reddito effettivo si confronta sull'anno intero", () => {
+  /*
+    Febbraio, un mese chiuso: gennaio. Incassati 5.000 €, cioè esattamente un
+    dodicesimo dei 60.000 concordati. Il ritmo steso su dodici mesi dà 60.000:
+    chi è in linea con il concordato **non** deve vedersi dire che se ne sta
+    discostando del 92 %, che è quello che diceva il progressivo.
+  */
+  it("a febbraio, con un gennaio in linea, lo scostamento è zero e l'avviso resta spento", () => {
+    const p = prospettoDa({
+      fatture: [incasso("f1", "2026-01-15", 5_000)],
+      oggi: "2026-02-20",
+      concordato: { redditoConcordato: 60_000, redditoPrecedenteRettificato: 60_000 },
+    });
+    const cpb = p.concordato;
+    expect(cpb?.redditoEffettivo.aOggi).toBe(5_000);
+    expect(cpb?.redditoEffettivo.stimato).toBe(60_000);
+    expect(cpb?.redditoEffettivo.mesiChiusi).toBe(1);
+    expect(cpb?.scostamento).toBe(0);
+    expect(cpb?.oltreSogliaCessazione).toBe(false);
+  });
+
+  /*
+    E l'effetto non si calcola sul progressivo. Con la stima pari al
+    concordato, i due lati del confronto sono lo stesso conto sullo stesso
+    reddito: la differenza è **zero**. Calcolato sul progressivo di gennaio
+    sarebbe stato un risparmio di migliaia di euro — il concordato che sembra
+    convenire solo perché l'anno è appena cominciato.
+  */
+  it("a febbraio l'effetto non si calcola sul solo progressivo", () => {
+    const p = prospettoDa({
+      fatture: [incasso("f1", "2026-01-15", 5_000)],
+      oggi: "2026-02-20",
+      concordato: { redditoConcordato: 60_000, redditoPrecedenteRettificato: 60_000 },
+    });
+    const cpb = p.concordato;
+    expect(cpb?.senzaCpb.carico).toBe(cpb?.conCpb.carico);
+    expect(cpb?.effetto).toBe(0);
+    // E il carico del confronto non è quello del prospetto, che è progressivo.
+    expect(cpb?.conCpb.carico).not.toBe(p.caricoTotale);
+    // 60.000 × 26,07 % = 15.642 €: il contributo di un anno intero.
+    expect(cpb?.senzaCpb.contributi).toBe(15_642);
+  });
+
+  /*
+    Meno di tre mesi con dati: il numero si mostra, l'avviso no. Qui gennaio
+    porta 500 € e la stima dice 6.000 contro 60.000 — un −90 % costruito su un
+    mese solo, che non è un motivo per nominare una causa di cessazione.
+  */
+  it("con meno di tre mesi di dati l'avviso resta spento, e la stima si dichiara debole", () => {
+    const p = prospettoDa({
+      fatture: [incasso("f1", "2026-01-15", 500)],
+      oggi: "2026-02-20",
+      concordato: { redditoConcordato: 60_000, redditoPrecedenteRettificato: 60_000 },
+    });
+    const cpb = p.concordato;
+    expect(cpb?.redditoEffettivo.stimato).toBe(6_000);
+    expect(cpb?.redditoEffettivo.mesiConDati).toBe(1);
+    expect(cpb?.redditoEffettivo.affidabile).toBe(false);
+    expect(cpb?.scostamento).toBeCloseTo(-0.9, 10);
+    expect(cpb?.oltreSogliaCessazione).toBe(false);
+  });
+
+  /*
+    Dal terzo mese con dati in poi la stima regge, e l'avviso torna a poter
+    scattare: stessi 500 € al mese, ma tre mesi chiusi invece di uno.
+  */
+  it("dal terzo mese con dati l'avviso può scattare di nuovo", () => {
+    const p = prospettoDa({
+      fatture: [
+        incasso("f1", "2026-01-15", 500),
+        incasso("f2", "2026-02-15", 500),
+        incasso("f3", "2026-03-15", 500),
+      ],
+      oggi: "2026-04-10",
+      concordato: { redditoConcordato: 60_000, redditoPrecedenteRettificato: 60_000 },
+    });
+    const cpb = p.concordato;
+    expect(cpb?.redditoEffettivo.mesiConDati).toBe(3);
+    expect(cpb?.redditoEffettivo.affidabile).toBe(true);
+    expect(cpb?.redditoEffettivo.stimato).toBe(6_000);
+    expect(cpb?.oltreSogliaCessazione).toBe(true);
+  });
+
+  /*
+    Anno chiuso: non c'è niente da proiettare, e il consuntivo è il consuntivo.
+    Gli stessi 5.000 € di gennaio, guardati nel 2027, non diventano 60.000.
+  */
+  it("ad anno chiuso si usa il consuntivo, non una proiezione", () => {
+    const p = prospettoDa({
+      fatture: [incasso("f1", "2026-01-15", 5_000)],
+      oggi: "2027-03-15",
+      concordato: { redditoConcordato: 60_000, redditoPrecedenteRettificato: 60_000 },
+    });
+    const cpb = p.concordato;
+    expect(cpb?.redditoEffettivo.fonte).toBe("consuntivo");
+    expect(cpb?.redditoEffettivo.mesiChiusi).toBe(12);
+    expect(cpb?.redditoEffettivo.aOggi).toBe(5_000);
+    expect(cpb?.redditoEffettivo.stimato).toBe(5_000);
+    expect(cpb?.redditoEffettivo.affidabile).toBe(true);
+    expect(cpb?.scostamento).toBeCloseTo((5_000 - 60_000) / 60_000, 10);
+    // Un anno chiuso con un solo mese di dati: lo scostamento è un fatto, non
+    // una stima — ma i mesi con dati restano meno di tre, e l'avviso tace.
+    expect(cpb?.redditoEffettivo.mesiConDati).toBe(1);
+    expect(cpb?.oltreSogliaCessazione).toBe(false);
+  });
+
+  /*
+    E la serie mensile su cui tutto questo poggia somma al reddito effettivo
+    del prospetto. Se divergessero, la proiezione sarebbe costruita su una
+    grandezza diversa da quella che la card mostra accanto — ed è il genere di
+    scarto che non si vede finché qualcuno non somma a mano.
+  */
+  it("la somma dei dodici mesi è il reddito effettivo del prospetto", () => {
+    const p = prospettoDi(conCpb());
+    expect(p.concordato?.redditoEffettivo.aOggi).toBe(p.redditoLordo);
+  });
+
+  it("a gennaio, senza mesi chiusi, si tiene il progressivo e lo si dichiara", () => {
+    const p = prospettoDa({
+      fatture: [incasso("f1", "2026-01-10", 4_000)],
+      oggi: "2026-01-20",
+      concordato: { redditoConcordato: 60_000, redditoPrecedenteRettificato: 60_000 },
+    });
+    const cpb = p.concordato;
+    expect(cpb?.redditoEffettivo.fonte).toBe("progressivo");
+    expect(cpb?.redditoEffettivo.stimato).toBe(4_000);
+    expect(cpb?.redditoEffettivo.affidabile).toBe(false);
+    expect(cpb?.oltreSogliaCessazione).toBe(false);
   });
 });

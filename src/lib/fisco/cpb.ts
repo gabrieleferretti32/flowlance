@@ -443,6 +443,110 @@ export function valutaConcordato(imp: Impostazioni, anno: number): EsitoConcorda
 }
 
 /**
+ * Il reddito effettivo dell'**anno intero**: proiettato se l'anno è in corso,
+ * consuntivo se è chiuso.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché il progressivo non si può confrontare con il concordato
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il reddito concordato è un numero **annuo**: è quello che l'Agenzia propone
+ * per l'anno intero. Il reddito effettivo che il prospetto calcola è invece il
+ * progressivo da gennaio a oggi, perché tutto il resto dell'app lavora così.
+ *
+ * Confrontarli direttamente è l'errore che questa funzione esiste per
+ * impedire, ed è un errore che a ottobre sembra una notizia: sul dataset da
+ * vetrina la card diceva «scostamento −46 %» e accendeva l'avviso della causa
+ * di cessazione, mentre il tre di gennaio avrebbe detto −99 %. Non era un
+ * reddito basso: erano due grandezze diverse messe nella stessa sottrazione.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Il metodo è quello che l'app usa già nella Pianificazione
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * `avanzamentoAnno`, in `analisi/avanzamento.ts`, proietta così: il ritmo dei
+ * **mesi chiusi** steso su dodici. Non il progressivo più il ritmo sui mesi che
+ * restano — quello conterebbe due volte il mese in corso — e non il
+ * progressivo diviso i mesi compreso quello aperto, che è un complimento che
+ * l'app si era già fatta una volta, misurato all'11 %.
+ *
+ * Qui si applica la stessa regola a una grandezza diversa: non il fatturato
+ * emesso, ma il reddito per cassa — incassi meno costi pagati — perché è
+ * quello che il concordato sostituisce.
+ *
+ * Quello che il metodo **non** sa è scritto in APPROSSIMAZIONI.md: non conosce
+ * la stagionalità, e non sa che una partita IVA aperta a luglio lavora sei
+ * mesi su dodici.
+ */
+export type StatoAnnoCpb = "inCorso" | "chiuso" | "futuro";
+
+export type RedditoAnnuale = {
+  /** Quello che il prospetto calcola: da gennaio a oggi. */
+  aOggi: number;
+  /** L'anno intero: proiettato o consuntivo, a seconda dello stato. */
+  stimato: number;
+  stato: StatoAnnoCpb;
+  /** I mesi finiti prima di oggi: zero a gennaio, dodici su un anno chiuso. */
+  mesiChiusi: number;
+  /** Quanti di quei mesi hanno dentro qualcosa: un incasso, un costo pagato. */
+  mesiConDati: number;
+  /** Da dove viene `stimato`, perché le tre cose non si confondano. */
+  fonte: "consuntivo" | "ritmo" | "progressivo";
+  /**
+   * La stima regge? Meno di tre mesi con dati non sono un ritmo.
+   *
+   * Con un anno chiuso la domanda non si pone: lì non c'è nessuna stima, c'è
+   * quello che è successo. `true` anche quando i mesi sono pochi.
+   */
+  affidabile: boolean;
+};
+
+/** Sotto questo numero di mesi con dati una proiezione non è un ritmo. */
+export const MESI_MINIMI_PER_PROIETTARE = 3;
+
+export function redditoAnnuale(p: {
+  /** I dodici mesi del reddito per cassa dell'anno: incassi meno costi pagati. */
+  mensili: readonly number[];
+  anno: number;
+  oggi: string;
+}): RedditoAnnuale {
+  const mensili = Array.from({ length: 12 }, (_, m) => round2(p.mensili[m] ?? 0));
+  const aOggi = round2(mensili.reduce((a, b) => a + b, 0));
+  const annoDiOggi = Number(p.oggi.slice(0, 4));
+  const stato: StatoAnnoCpb =
+    p.anno > annoDiOggi ? "futuro" : p.anno < annoDiOggi ? "chiuso" : "inCorso";
+  const mesiChiusi = stato === "chiuso" ? 12 : stato === "futuro" ? 0 : Number(p.oggi.slice(5, 7)) - 1;
+  /*
+    Un mese «con dati» è un mese chiuso in cui è successo qualcosa. Un mese
+    vuoto in mezzo a due pieni è uno zero vero e resta nel denominatore del
+    ritmo — ma non conta come dato, perché la domanda a cui serve è un'altra:
+    quanti mesi ho guardato davvero prima di estrapolare.
+  */
+  const mesiConDati = mensili.slice(0, mesiChiusi).filter((v) => v !== 0).length;
+
+  if (stato === "chiuso") {
+    return { aOggi, stimato: aOggi, stato, mesiChiusi, mesiConDati, fonte: "consuntivo", affidabile: true };
+  }
+  if (mesiChiusi === 0) {
+    /*
+      A gennaio non c'è nessun mese chiuso, e un ritmo non esiste. Si tiene il
+      progressivo: è l'unico numero vero che c'è, ed è dichiarato come tale.
+    */
+    return { aOggi, stimato: aOggi, stato, mesiChiusi, mesiConDati, fonte: "progressivo", affidabile: false };
+  }
+  const chiusi = round2(mensili.slice(0, mesiChiusi).reduce((a, b) => a + b, 0));
+  return {
+    aOggi,
+    stimato: round2((chiusi / mesiChiusi) * 12),
+    stato,
+    mesiChiusi,
+    mesiConDati,
+    fonte: "ritmo",
+    affidabile: mesiConDati >= MESI_MINIMI_PER_PROIETTARE,
+  };
+}
+
+/**
  * Lo scostamento fra reddito effettivo e concordato, in frazione.
  *
  * Negativo quando l'effettivo è **sotto** il concordato, che è il verso che
