@@ -1,6 +1,6 @@
 # Cosa Flowlance non calcola
 
-*Ultimo aggiornamento: 23 settembre 2026*
+*Ultimo aggiornamento: 27 ottobre 2026*
 
 Quello che Flowlance **non** calcola, o calcola in modo semplificato. È l'elenco
 da leggere prima di vendere il prodotto: ogni voce è una differenza possibile
@@ -1158,6 +1158,97 @@ di gennaio, che erano stati messi via per altro; il prezzo è che chi risparmia
 da marzo e scrive la meta a settembre parte da zero. La data si vede accanto
 alla fonte e si può cambiare — ma è una modifica da fare sapendo cosa si sta
 facendo, non un campo da riempire distrattamente.
+
+---
+
+## Concordato preventivo biennale
+
+Dal 27 ottobre 2026 l'app calcola il concordato preventivo (D.Lgs. 13/2024,
+artt. 20 e 20-bis). Riguarda **solo il regime ordinario**: dal 2025 i
+forfettari ne sono esclusi, e in forfettario la sezione non compare.
+
+Quello che segue è l'elenco di ciò che il modello **non** fa.
+
+**Le fonti normative non si sono potute aprire.** I riferimenti — D.Lgs.
+13/2024, D.Lgs. 148/2026, L. 88/2026 art. 7-bis, circolare AdE 8/E/2026 —
+arrivano dal brief di chi ha commissionato il lavoro, e da questo ambiente i
+siti istituzionali sono irraggiungibili. Le costanti stanno tutte in un posto
+solo (`REGOLE_CPB`, in `src/lib/fisco/cpb.ts`) con la fonte accanto a ciascuna,
+e `cpb.test.ts` le fissa una per una: **fissarle non è confermarle**. Vanno
+rilette prima di fidarsi dei numeri, ed è la prima cosa da fare se un utente
+vero aderisce.
+
+**IRAP: ignorata.** Il concordato propone anche un valore della produzione
+netta ai fini IRAP, e l'app non lo chiede e non lo calcola. I freelance a cui
+Flowlance si rivolge in genere non sono soggetti IRAP — dal 2022 non è dovuta
+dalle persone fisiche esercenti arti e professioni — ma chi lo fosse non trova
+qui quella parte del concordato. Vale anche fuori dal concordato: l'IRAP non
+esiste nel modello, ed è scritto più in alto, alla voce «Imposte».
+
+**Il «reddito dell'anno precedente rettificato» lo scrivi tu.** È il numero da
+cui dipendono due cose grosse — la base dell'imposta sostitutiva e la
+maggiorazione dell'acconto — e l'app **non lo calcola**: le rettifiche degli
+artt. 15 e 16 (plusvalenze, minusvalenze, redditi da partecipazione e le altre
+voci da neutralizzare) non sono modellate. Il campo prende quello che si
+scrive, e quello che si scrive dovrebbe venire dalla proposta dell'Agenzia o
+dal commercialista. Un numero inventato lì dentro sposta l'imposta sostitutiva
+e la maggiorazione senza che niente lo segnali.
+
+**Il reddito su cui si calcolano detrazioni e deduzioni è da verificare.** La
+norma tiene il reddito **effettivo** rilevante «ai fini della spettanza di
+deduzioni, detrazioni e benefici anche di natura non tributaria», e l'app fa
+così: la detrazione dell'art. 13 TUIR si calcola sul reddito effettivo, non sul
+concordato, mentre IRPEF e addizionali si calcolano sul concordato. È il
+comportamento che l'app aveva prima del concordato, applicato al reddito che
+non è cambiato — ma è anche il punto su cui le letture divergono, e un reddito
+effettivo molto diverso dal concordato sposta la detrazione in modo visibile.
+**Da verificare con il commercialista.**
+
+**La facoltà di versare i contributi sul reddito effettivo non è modellata.**
+L'app calcola i contributi INPS sul reddito concordato, come prevede la norma,
+e quelli delle casse professionali private sul reddito effettivo — il
+concordato è un patto con l'Agenzia, e il regolamento di una cassa non lo
+conosce. Chi ha un reddito effettivo **più alto** del concordato può scegliere
+di versare sul maggiore, per non perdere contribuzione: quella scelta qui non
+c'è, e l'app mostrerà sempre il contributo calcolato sul concordato. **Da
+verificare**, soprattutto da chi è vicino al minimale.
+
+**Cause di cessazione e di decadenza: solo segnalate, mai applicate.** Se il
+reddito effettivo scende sotto il concordato di oltre il 30 %, il cruscotto lo
+dice — «in presenza di circostanze eccezionali potrebbe esserci una causa di
+cessazione» — e non cambia un solo numero. È voluto: la cessazione dipende da
+circostanze che l'app non conosce (eventi straordinari, cessazione
+dell'attività, operazioni straordinarie) e da una valutazione che non è sua.
+Tutte le altre cause — decadenza per infedele dichiarazione, per debiti
+tributari, per omessi versamenti — non esistono proprio nel modello.
+
+**Un biennio che non copre l'anno non si applica.** Se il blocco dice
+«2024-2025» e si sta guardando il 2026, per quell'anno un reddito concordato
+non esiste: l'app torna al reddito effettivo e lo dice con un avviso. È la
+scelta prudente fra le due possibili — l'alternativa sarebbe tassare un anno
+su una cifra che non lo riguarda.
+
+**La maggiorazione dell'acconto entra nell'accantonamento, non nel dovuto.**
+Il 10 % della differenza fra concordato e anno precedente rettificato si versa
+con la seconda rata del primo anno di adesione, e a saldo si scomputa come
+ogni altro acconto: non è una tassa in più. L'app quindi **non** la somma al
+dovuto dell'anno — lì sarebbe una doppia tassazione — ma la somma a quello che
+va messo da parte, perché il 30 novembre quei soldi devono esserci. Chi
+registra gli F24 se la vede coprire come si coprono gli acconti.
+
+**Il confronto fra i due regimi ignora il concordato.** La schermata che
+mette a fianco forfettario e ordinario calcola tutti e due gli scenari sul
+reddito **effettivo**: è un confronto fra regimi, e il concordato in
+forfettario non esiste. Chi ha aderito, quindi, vede lì un ordinario diverso da
+quello del suo prospetto — più alto o più basso a seconda di dove sta il
+concordato. Il numero del concordato sta nel cruscotto, nella card «Effetto del
+concordato», che confronta le due cose giuste: con adesione e senza, a parità
+di regime.
+
+**Il metodo previsionale non c'è.** La maggiorazione si applica a chi calcola
+l'acconto con il **metodo storico**, che è quello che l'app usa ovunque. Chi
+calcola l'acconto in via previsionale segue un'altra strada, e l'app non la
+modella: lo dice qui perché il numero mostrato, in quel caso, non è il suo.
 
 ---
 

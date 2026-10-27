@@ -1,4 +1,5 @@
 import Dexie, { type EntityTable } from "dexie";
+import { concordatoPredefinito } from "@/lib/fisco/cpb";
 import type {
   ChiusuraAnno,
   Cliente,
@@ -47,8 +48,14 @@ import type {
  * numeri si muovono insieme da sempre: lasciare il formato a 11 vorrebbe dire
  * che un'app vecchia legge un file nuovo senza accorgersene e la previsione
  * dentro non la vede nessuno, che è il modo più silenzioso di perderla.
+ *
+ * 13 con il concordato preventivo: nessuna tabella nuova, un blocco in più
+ * dentro le impostazioni di ogni anno. Il formato del file si muove con lui —
+ * il blocco nel backup c'è — e la migrazione scrive il valore predefinito, cioè
+ * «non aderito»: è quello che quegli archivi erano, scritto a chiare lettere
+ * invece che lasciato all'assenza del campo.
  */
-export const VERSIONE_SCHEMA = 12;
+export const VERSIONE_SCHEMA = 13;
 
 /**
  * Lo schema IndexedDB.
@@ -208,6 +215,29 @@ export class DatabaseFinanze extends Dexie {
     */
     this.version(12).stores({
       previsioniFatturato: "anno",
+    });
+    /*
+      Versione 13: il blocco del concordato preventivo nelle impostazioni.
+
+      Nessuna tabella nuova: un campo in più su righe che ci sono già, e una
+      migrazione che lo riempie con il predefinito — non aderito — su tutti gli
+      anni già in archivio. Scriverlo invece di lasciarlo assente non cambia un
+      solo numero: il motore tratta `undefined` come «non aderito» proprio
+      perché un backup importato in una scheda appena aperta non può contare su
+      questa migrazione. Serve a un'altra cosa: che la schermata trovi un
+      oggetto da mostrare, invece di doverlo inventare a ogni render.
+
+      Il blocco si scrive **anche in forfettario**. Toglierlo a chi non è in
+      ordinario sarebbe un modo di perdere i dati di chi cambia regime a
+      gennaio, e il motore in forfettario non lo guarda comunque.
+    */
+    this.version(13).upgrade(async (tx) => {
+      await tx
+        .table("impostazioni")
+        .toCollection()
+        .modify((i: { anno?: number; concordato?: unknown }) => {
+          if (i.concordato === undefined) i.concordato = concordatoPredefinito(i.anno);
+        });
     });
   }
 }

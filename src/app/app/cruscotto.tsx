@@ -9,6 +9,7 @@ import { Chip } from "@/components/ui/chip";
 import { Kpi } from "@/components/ui/kpi";
 import { quotaLimite } from "@/lib/fisco/spiegazioni";
 import { SemaforoFiscale, segmentiSemaforo } from "@/components/fisco/semaforo-fiscale";
+import { CardConcordato } from "@/components/fisco/card-concordato";
 import { GraficoAndamento } from "@/components/grafici/andamento";
 import { GraficoConcentrazione } from "@/components/grafici/concentrazione";
 import { Guscio } from "@/components/guscio/guscio";
@@ -623,6 +624,21 @@ export function Cruscotto() {
             }
           />
         </section>
+
+        {/*
+          Il concordato appena sotto gli indicatori, e solo per chi ha aderito.
+
+          Sta prima degli avvisi e dei grafici perché cambia il senso di tutti i
+          numeri sopra: chi ha aderito guarda il reddito effettivo per sapere
+          come sta andando, non per sapere quanto pagherà. Senza adesione la
+          card non c'è — non una card vuota che spiega una cosa che non lo
+          riguarda.
+        */}
+        {p.concordato && (
+          <section aria-label="Concordato preventivo biennale">
+            <CardConcordato cpb={p.concordato} />
+          </section>
+        )}
 
         <section aria-label="Cosa richiede attenzione">
           <Card>

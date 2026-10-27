@@ -12,7 +12,14 @@ import { aliquota } from "@/lib/format";
 import { round2 } from "@/lib/fisco/aritmetica";
 import { VERSIONE_SCHEMA } from "./db";
 import { parametriDi, parametriSonoDellAnno } from "@/lib/fisco/parametri";
-import { GESTIONI, type Gestione, type ScaglioneIrpef } from "@/lib/fisco/tipi";
+import {
+  GESTIONI,
+  type BiennioCpb,
+  type Concordato,
+  type Gestione,
+  type ScaglioneIrpef,
+} from "@/lib/fisco/tipi";
+import { concordatoPredefinito, elencoBienni, votoIsaValido } from "@/lib/fisco/cpb";
 import type { MappaturaColonne } from "@/lib/finanze/rendiconto";
 import {
   COLLEZIONI,
@@ -108,6 +115,52 @@ function numeroOpzionale(v: unknown): number | null {
 }
 
 /** Scaglioni letti da un backup: `null` se non ce ne sono o sono illeggibili. */
+/**
+ * Il blocco del concordato preventivo.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché un file senza il blocco non è un file rotto
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Ogni backup scritto prima di oggi non ce l'ha, e l'assenza vuol dire
+ * esattamente quello che diceva allora: **non ho aderito**. Il ripiego è
+ * quindi il blocco predefinito, non un errore e nemmeno un avviso: avvisare di
+ * una cosa che non poteva esserci sarebbe rumore su ogni singolo import.
+ *
+ * Quello che invece non si accetta in silenzio è un blocco **presente e
+ * storto**: un biennio che non esiste, un voto ISA fuori scala, un reddito che
+ * non è un numero. Lì il valore si scarta e si torna al predefinito per quel
+ * campo, perché un concordato letto male cambia le imposte di un anno intero.
+ * È la stessa regola della lista bianca delle gestioni, e nasce dallo stesso
+ * difetto: «commercianti» che rientrava come «separata», in silenzio.
+ */
+function leggiConcordato(v: unknown, anno: number): Concordato {
+  const predefinito = concordatoPredefinito(anno);
+  if (!oggetto(v)) return predefinito;
+  const biennio = elencoBienni().map(([nome]) => nome);
+  const votoScritto = typeof v.votoIsa === "number" && Number.isFinite(v.votoIsa) ? v.votoIsa : null;
+  return {
+    aderito: booleano(v.aderito),
+    biennio: biennio.includes(v.biennio as BiennioCpb)
+      ? (v.biennio as BiennioCpb)
+      : predefinito.biennio,
+    tipoAdesione: v.tipoAdesione === "rinnovo" ? "rinnovo" : "primoIngresso",
+    dataAdesione: dataOpzionale(v.dataAdesione),
+    redditoConcordato: numeroOpzionale(v.redditoConcordato),
+    redditoPrecedenteRettificato: numeroOpzionale(v.redditoPrecedenteRettificato),
+    /*
+      Un voto fuori scala entra come `null`, non come il valore scritto.
+
+      Tenerlo avrebbe voluto dire un'aliquota scelta su un numero che la norma
+      non prevede; `null` invece fa quello che deve: niente imposta
+      sostitutiva, e la schermata che chiede il voto. La convalida vera sta in
+      `cpb.ts`, qui si evita soltanto di far entrare il dato storto.
+    */
+    votoIsa: votoScritto !== null && votoIsaValido(votoScritto) ? votoScritto : null,
+    sostitutiva: booleano(v.sostitutiva),
+  };
+}
+
 function leggiScaglioni(v: unknown): ScaglioneIrpef[] | null {
   if (!Array.isArray(v) || v.length === 0) return null;
   const letti = v
@@ -631,6 +684,9 @@ function costruisciConvalidaImpostazioni(
     scaglioniAddizionaleComunale: leggiScaglioni(riga.scaglioniAddizionaleComunale),
     esenzioneAddizionaleComunale: numero(riga.esenzioneAddizionaleComunale),
     dichiarati,
+    // Assente negli archivi di prima: vale «non aderito», che è quello che
+    // erano. Vedi `leggiConcordato`.
+    concordato: leggiConcordato(riga.concordato, anno),
   };
 
   /*

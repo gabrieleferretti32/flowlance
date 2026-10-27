@@ -137,6 +137,31 @@ export function documentoProspetto(
       },
     );
   }
+  /*
+    Il concordato sta fra i parametri e non fra le righe di calcolo: è la
+    **regola** con cui tutto il resto del foglio è stato prodotto, come il
+    regime e gli scaglioni. Chi riceve il prospetto deve saperlo prima di
+    leggere il primo importo, non scoprirlo a metà della sezione B.
+  */
+  const cpb = p.concordato;
+  if (cpb && cpb.esito.attivo) {
+    parametri.push(
+      {
+        etichetta: "Concordato preventivo biennale",
+        valore: `Biennio ${cpb.esito.biennio} · ${cpb.esito.tipoAdesione === "primoIngresso" ? "primo ingresso" : "rinnovo senza interruzione"}`,
+      },
+      {
+        etichetta: "Reddito concordato",
+        valore: `${euro(cpb.redditoConcordato)} — le imposte si calcolano su questo, non sul reddito effettivo (${euro(cpb.redditoEffettivo)})`,
+      },
+    );
+    if (cpb.esito.sostitutivaApplicata && cpb.esito.sostitutiva) {
+      parametri.push({
+        etichetta: "Imposta sostitutiva sul maggior reddito",
+        valore: `${percentuale(cpb.esito.sostitutiva.aliquota, 0)} con voto ISA ${cpb.esito.votoIsa}${cpb.esito.sostitutiva.tettoApplicato ? `, oltre gli 85.000 € al ${percentuale(0.43, 0)}` : ""}`,
+      });
+    }
+  }
   parametri.push({ etichetta: "Previdenza", valore: nomeGestione(imp.gestione) });
   /*
     Le due righe compaiono se le due voci esistono, non se la gestione si
