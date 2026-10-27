@@ -14,11 +14,14 @@ import {
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
 import {
+  MESI_MINIMI_PER_PROIETTARE,
   baseContributivaCpb,
+  redditoAnnuale,
   scostamentoDalConcordato,
   scostamentoDaSegnalare,
   valutaConcordato,
   type EsitoConcordato,
+  type RedditoAnnuale,
 } from "./cpb";
 import { derivato } from "./derivati/registro";
 import { eGestioneCommerciale } from "./tipi";
@@ -130,19 +133,40 @@ export type Acconti = {
 export type ConcordatoProspetto = {
   /** Quello che il blocco delle impostazioni dice, già valutato per quest'anno. */
   esito: EsitoConcordato;
-  /** Il reddito che hai prodotto davvero: ricavi meno costi deducibili. */
-  redditoEffettivo: number;
+  /**
+   * Il reddito effettivo, nelle sue due forme.
+   *
+   * `aOggi` è il progressivo che il prospetto calcola; `stimato` è l'anno
+   * intero — proiettato se l'anno è in corso, consuntivo se è chiuso. **Tutti
+   * i confronti con il concordato usano `stimato`**, perché il concordato è un
+   * numero annuo e il progressivo no: vedi `redditoAnnuale` in `cpb.ts`.
+   */
+  redditoEffettivo: RedditoAnnuale;
   /** Il reddito su cui si pagano le imposte: quello della proposta. */
   redditoConcordato: number;
-  /** Quanto l'effettivo si discosta dal concordato, in frazione. Negativo: sotto. */
+  /** Quanto l'effettivo **stimato a fine anno** si discosta, in frazione. */
   scostamento: number;
-  /** Sotto il concordato di oltre il 30 %: si segnala, non si applica niente. */
+  /**
+   * Sotto il concordato di oltre il 30 %: si segnala, non si applica niente.
+   *
+   * Resta spento quando i mesi con dati sono meno di tre: una proiezione
+   * costruita su due mesi non è un motivo per nominare una causa di
+   * cessazione davanti a chi sta guardando il cruscotto a febbraio.
+   */
   oltreSogliaCessazione: boolean;
-  /** La base su cui sono stati calcolati i contributi. */
+  /** La base su cui sono stati calcolati i contributi nel prospetto. */
   baseContributiva: number;
-  /** Imposte e contributi come sono stati calcolati davvero. */
+  /**
+   * Imposte e contributi **dell'anno intero**, con il concordato.
+   *
+   * Non sono i numeri del prospetto, che seguono il progressivo come tutto il
+   * resto dell'app: sono i due lati di un confronto, e un confronto si fa fra
+   * grandezze dello stesso orizzonte. Con il concordato le imposte sono già
+   * annue — il concordato è un numero annuo — ma le detrazioni e i contributi
+   * dedotti qui guardano il reddito stimato a fine anno, come il lato senza.
+   */
   conCpb: { imposte: number; contributi: number; carico: number };
-  /** Gli stessi, come se non avessi aderito. */
+  /** Gli stessi, sull'anno intero, come se non avessi aderito. */
   senzaCpb: { imposte: number; contributi: number; carico: number };
   /**
    * La differenza fra i due: **negativa quando il concordato fa risparmiare**.
@@ -980,14 +1004,82 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     quotaSostitutivaCpb: cpb?.sostitutiva?.base ?? 0,
     impostaSostitutivaCpb: cpb?.sostitutiva?.imposta ?? 0,
   });
-  /* Lo stesso conto come se non avessi aderito. Senza CPB sono lo stesso oggetto. */
+  /*
+    ─────────────────────────────────────────────────────────────────────────
+    Il reddito effettivo dell'anno intero, e i due lati del confronto
+    ─────────────────────────────────────────────────────────────────────────
+
+    Il reddito concordato è un numero **annuo**. Il reddito effettivo che tutto
+    il resto del prospetto calcola è il progressivo da gennaio a oggi. Metterli
+    nella stessa sottrazione dava uno scostamento che a gennaio vale −99 % e a
+    dicembre un altro numero, senza che niente fosse cambiato davvero: è il
+    difetto che `redditoAnnuale` chiude.
+
+    Per il **confronto** servono quindi due lati omogenei, tutti e due
+    sull'anno intero:
+
+    - il reddito effettivo **stimato**, col ritmo dei mesi chiusi steso su
+      dodici — la stessa regola della Pianificazione;
+    - i contributi di **competenza** da tutte e due le parti (`versamentiContributi: 0`):
+      quello che è già uscito dal conto riguarda la cassa di quest'anno, non
+      quanto l'anno costerà, e lasciarlo su un lato solo avrebbe fatto
+      sembrare il concordato più conveniente di quanto è.
+
+    I numeri del prospetto — imposte dovute, contributi, carico — restano
+    quelli di prima: rispondono a un'altra domanda, e sono giusti così.
+  */
+  const mensiliRedditoEffettivo = Array.from({ length: 12 }, () => 0);
+  const meseDi = (data: string) => Number(data.slice(5, 7)) - 1;
+  for (const f of incassateNellAnno) {
+    if (!f.dataIncasso) continue;
+    mensiliRedditoEffettivo[meseDi(f.dataIncasso)] += round2(f.ricavoRilevante * f.quotaIncassata);
+  }
+  for (const s of storniCassaNellAnno) mensiliRedditoEffettivo[meseDi(s.data)] -= s.importo;
+  for (const c of pagatiNellAnno) {
+    if (!c.dataPagamento) continue;
+    mensiliRedditoEffettivo[meseDi(c.dataPagamento)] -= c.costoDeducibile;
+  }
+  const effettivoAnnuale = redditoAnnuale({
+    mensili: mensiliRedditoEffettivo,
+    anno,
+    oggi,
+  });
+
+  /*
+    Lo stesso conto come se non avessi aderito, sul reddito stimato a fine
+    anno. Senza concordato non si fa: il carico è uno, ed è quello del
+    prospetto.
+  */
   const caricoSenzaCpb = cpbAttivo
     ? caricoFiscale({
         ...comune,
-        redditoImponibileLordo: redditoLordo,
-        baseContributiva: redditoLordo,
+        redditoPerDetrazioni: effettivoAnnuale.stimato,
+        versamentiContributi: 0,
+        redditoImponibileLordo: effettivoAnnuale.stimato,
+        baseContributiva: effettivoAnnuale.stimato,
         quotaSostitutivaCpb: 0,
         impostaSostitutivaCpb: 0,
+      })
+    : carico;
+  /*
+    E il lato con il concordato, sullo stesso orizzonte: stessa funzione,
+    stesse detrazioni, stessi contributi di competenza. L'unica differenza
+    fra i due è il reddito su cui si calcolano le imposte, che è esattamente
+    la cosa che il concordato cambia.
+  */
+  const caricoConCpbAnnuale = cpbAttivo
+    ? caricoFiscale({
+        ...comune,
+        redditoPerDetrazioni: effettivoAnnuale.stimato,
+        versamentiContributi: 0,
+        redditoImponibileLordo: redditoBaseImposte,
+        baseContributiva: baseContributivaCpb(
+          imp.gestione,
+          cpb.redditoConcordato,
+          effettivoAnnuale.stimato,
+        ),
+        quotaSostitutivaCpb: cpb?.sostitutiva?.base ?? 0,
+        impostaSostitutivaCpb: cpb?.sostitutiva?.imposta ?? 0,
       })
     : carico;
 
@@ -1319,22 +1411,30 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     concordato: cpb
       ? {
           esito: cpb,
-          redditoEffettivo: redditoLordo,
+          redditoEffettivo: effettivoAnnuale,
           redditoConcordato: cpb.redditoConcordato,
-          scostamento: scostamentoDalConcordato(redditoLordo, cpb.redditoConcordato),
-          oltreSogliaCessazione: scostamentoDaSegnalare(redditoLordo, cpb.redditoConcordato),
+          scostamento: scostamentoDalConcordato(effettivoAnnuale.stimato, cpb.redditoConcordato),
+          /*
+            L'avviso si accende sulla stima, e solo se la stima regge. Con meno
+            di tre mesi con dati resta spento: nominare una causa di cessazione
+            a febbraio, sulla base di gennaio, sarebbe un allarme costruito su
+            un mese solo.
+          */
+          oltreSogliaCessazione:
+            effettivoAnnuale.mesiConDati >= MESI_MINIMI_PER_PROIETTARE
+            && scostamentoDaSegnalare(effettivoAnnuale.stimato, cpb.redditoConcordato),
           baseContributiva,
           conCpb: {
-            imposte: carico.totaleImposte,
-            contributi: carico.contributi.totale,
-            carico: carico.caricoTotale,
+            imposte: caricoConCpbAnnuale.totaleImposte,
+            contributi: caricoConCpbAnnuale.contributi.totale,
+            carico: caricoConCpbAnnuale.caricoTotale,
           },
           senzaCpb: {
             imposte: caricoSenzaCpb.totaleImposte,
             contributi: caricoSenzaCpb.contributi.totale,
             carico: caricoSenzaCpb.caricoTotale,
           },
-          effetto: round2(carico.caricoTotale - caricoSenzaCpb.caricoTotale),
+          effetto: round2(caricoConCpbAnnuale.caricoTotale - caricoSenzaCpb.caricoTotale),
           maggiorazioneAcconto: maggiorazioneCpb,
           maggiorazioneDaVersare,
         }

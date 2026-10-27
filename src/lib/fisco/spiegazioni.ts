@@ -297,11 +297,19 @@ export function prospettoDettagliato(
       formato: "euro",
       formula:
         `Dalla proposta dell'Agenzia per il biennio ${cpb.esito.biennio}. Su questo si pagano IRPEF e addizionali, `
-        + `non sul reddito effettivo di ${euro(cpb.redditoEffettivo)}.`,
+        + `non sul reddito effettivo, che a oggi è di ${euro(cpb.redditoEffettivo.aOggi)}.`,
+      /*
+        Il confronto è con la **stima a fine anno**, non con il progressivo: il
+        concordato è un numero annuo, e un progressivo di tre mesi messo a
+        fianco direbbe uno scostamento che cambia tutti i giorni per conto suo.
+      */
       nota:
-        cpb.scostamento >= 0
-          ? `Il reddito effettivo lo supera del ${percentuale(Math.abs(cpb.scostamento), 1)}: l'eccedenza non è tassata.`
-          : `Il reddito effettivo è più basso del ${percentuale(Math.abs(cpb.scostamento), 1)}: le imposte si pagano comunque sul concordato.`,
+        `${cpb.redditoEffettivo.fonte === "consuntivo" ? "A consuntivo" : "Stimato a fine anno"} il reddito effettivo è `
+        + `${euro(cpb.redditoEffettivo.stimato)}: ${
+          cpb.scostamento >= 0
+            ? `supera il concordato del ${percentuale(Math.abs(cpb.scostamento), 1)}, e l'eccedenza non è tassata.`
+            : `è più basso del ${percentuale(Math.abs(cpb.scostamento), 1)}, e le imposte si pagano comunque sul concordato.`
+        }${cpb.redditoEffettivo.affidabile ? "" : " La stima poggia su meno di tre mesi con dati."}`,
     });
     if (cpb.esito.sostitutivaApplicata && cpb.esito.sostitutiva) {
       reddito.push({

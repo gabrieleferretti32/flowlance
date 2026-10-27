@@ -62,6 +62,9 @@ export function CardConcordato({ cpb }: { cpb: ConcordatoProspetto }) {
   */
   const risparmio = cpb.effetto < 0;
   const paghiDiPiu = cpb.effetto > 0;
+  const consuntivo = cpb.redditoEffettivo.fonte === "consuntivo";
+  /* Meno di tre mesi con dati: il numero si mostra, e si dice quanto pesa. */
+  const stimaDebole = !consuntivo && !cpb.redditoEffettivo.affidabile;
 
   return (
     <Card>
@@ -72,16 +75,36 @@ export function CardConcordato({ cpb }: { cpb: ConcordatoProspetto }) {
           quello effettivo.
         </CardSottotitolo>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-3">
+        {/*
+          Quattro voci e non tre: il reddito effettivo è **due numeri**.
+
+          «A oggi» è quello che hai prodotto finora, ed è il numero che si
+          ritrova in tutto il resto dell'app. «Stimato a fine anno» è quello che
+          si confronta con il concordato, perché il concordato è un numero
+          annuo. Mostrarne uno solo era il difetto: a ottobre la card diceva
+          −46 % di scostamento mettendo dieci mesi contro dodici.
+        */}
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <Voce
             etichetta="Reddito concordato"
             valore={euro(cpb.redditoConcordato)}
-            nota="dalla proposta dell'Agenzia"
+            nota="dalla proposta dell'Agenzia, per l'anno intero"
           />
           <Voce
-            etichetta="Reddito effettivo"
-            valore={euro(cpb.redditoEffettivo)}
-            nota="ricavi incassati meno costi pagati, a oggi"
+            etichetta="Effettivo a oggi"
+            valore={euro(cpb.redditoEffettivo.aOggi)}
+            nota="ricavi incassati meno costi pagati, da gennaio"
+          />
+          <Voce
+            etichetta={
+              consuntivo ? "Effettivo a consuntivo" : "Effettivo stimato a fine anno"
+            }
+            valore={euro(cpb.redditoEffettivo.stimato)}
+            nota={
+              consuntivo
+                ? "l'anno è chiuso: è quello che hai prodotto"
+                : `dal ritmo dei ${cpb.redditoEffettivo.mesiChiusi} mesi chiusi, steso su dodici`
+            }
           />
           <Voce
             etichetta="Scostamento"
@@ -94,6 +117,12 @@ export function CardConcordato({ cpb }: { cpb: ConcordatoProspetto }) {
             tono={cpb.oltreSogliaCessazione ? "attenzione" : "neutro"}
           />
         </div>
+
+        <p className="mt-3 text-etichetta text-inchiostro-tenue">
+          {consuntivo
+            ? "Il confronto usa il consuntivo dell'anno: l'anno è chiuso, non c'è niente da stimare."
+            : "Il confronto — scostamento ed effetto — usa la stima a fine anno, non il progressivo: il reddito concordato è un numero annuo, e due orizzonti diversi nella stessa sottrazione darebbero una percentuale che cambia da sola ogni mese."}
+        </p>
 
         <CardInterna className="mt-4 p-4">
           <p className="text-etichetta text-inchiostro-tenue">Effetto del concordato</p>
@@ -111,8 +140,13 @@ export function CardConcordato({ cpb }: { cpb: ConcordatoProspetto }) {
               ? "in meno fra imposte e contributi, rispetto a quanto pagheresti senza aver aderito"
               : paghiDiPiu
                 ? "in più fra imposte e contributi, rispetto a quanto pagheresti senza aver aderito"
-                : "nessuna differenza, a oggi, rispetto a quanto pagheresti senza aver aderito"}
+                : "nessuna differenza, rispetto a quanto pagheresti senza aver aderito"}
           </p>
+          {stimaDebole && (
+            <p className="mt-1 text-etichetta font-medium text-[#B8791A]">
+              stima poco affidabile: pochi mesi di dati
+            </p>
+          )}
           {/*
             I due totali in chiaro sotto la differenza: una differenza che non
             mostra gli addendi è un numero che bisogna credere sulla parola, e
@@ -120,7 +154,8 @@ export function CardConcordato({ cpb }: { cpb: ConcordatoProspetto }) {
           */}
           <p className="mt-2 text-etichetta text-inchiostro-tenue">
             {euro(cpb.conCpb.carico)} con il concordato · {euro(cpb.senzaCpb.carico)} senza.
-            Imposte e contributi, da tutte e due le parti.
+            Imposte e contributi {consuntivo ? "dell'anno" : "sull'anno intero, stimati"}, da tutte
+            e due le parti.
           </p>
         </CardInterna>
 

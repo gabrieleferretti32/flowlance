@@ -152,7 +152,10 @@ export function documentoProspetto(
       },
       {
         etichetta: "Reddito concordato",
-        valore: `${euro(cpb.redditoConcordato)} — le imposte si calcolano su questo, non sul reddito effettivo (${euro(cpb.redditoEffettivo)})`,
+        valore:
+          `${euro(cpb.redditoConcordato)} — le imposte si calcolano su questo, non sul reddito effettivo `
+          + `(${euro(cpb.redditoEffettivo.aOggi)} a oggi, `
+          + `${euro(cpb.redditoEffettivo.stimato)} ${cpb.redditoEffettivo.fonte === "consuntivo" ? "a consuntivo" : "stimato a fine anno"})`,
       },
     );
     if (cpb.esito.sostitutivaApplicata && cpb.esito.sostitutiva) {

@@ -1213,6 +1213,48 @@ di versare sul maggiore, per non perdere contribuzione: quella scelta qui non
 c'è, e l'app mostrerà sempre il contributo calcolato sul concordato. **Da
 verificare**, soprattutto da chi è vicino al minimale.
 
+**Il reddito effettivo del confronto è una stima, e il metodo è semplice.**
+Il reddito concordato è un numero **annuo**; quello che il prospetto calcola è
+il progressivo da gennaio a oggi. Confrontarli direttamente dava uno
+scostamento che a gennaio vale −99 % e a ottobre un altro, senza che niente
+fosse cambiato: scostamento, avviso del 30 % ed «effetto del concordato» usano
+quindi il reddito effettivo **dell'anno intero**, proiettato se l'anno è in
+corso e consuntivo se è chiuso.
+
+La proiezione è quella che l'app usa già nella Pianificazione: il ritmo dei
+**mesi chiusi** steso su dodici. Tre cose che quel metodo non sa:
+
+- **non conosce la stagionalità.** Chi incassa d'estate e a settembre guarda la
+  card si vede proiettare un anno migliore del vero; chi fattura a dicembre, il
+  contrario. È il limite di ogni media, ed è il motivo per cui la card scrive
+  da dove viene il numero — «dal ritmo dei N mesi chiusi, steso su dodici» —
+  invece di presentarlo come un fatto;
+- **non sa che una partita IVA aperta a luglio lavora sei mesi su dodici.** I
+  mesi chiusi sono quelli del calendario, non quelli di attività: per chi apre
+  in corso d'anno la stima esce **bassa**. Sul concordato la direzione è la più
+  prudente delle due — fa sembrare lo scostamento peggiore, non migliore — ma
+  resta una stima storta, e va saputo;
+- **il mese in corso non entra nel ritmo**, perché non è ancora un mese. Entra
+  invece nel progressivo «a oggi», che la card mostra accanto. I due numeri
+  quindi non si deducono l'uno dall'altro, ed è voluto.
+
+Sotto i **tre mesi con dati** la proiezione non si considera attendibile:
+l'avviso del 30 % resta spento e accanto all'effetto compare «stima poco
+affidabile: pochi mesi di dati». Un mese con dati è un mese chiuso in cui è
+successo qualcosa; i mesi vuoti restano nel denominatore del ritmo, perché uno
+zero è un dato, ma non contano come mesi guardati. La regola vale anche su un
+anno chiuso con pochi mesi dentro: lì il numero è un fatto e non una stima, ma
+un avviso costruito su due mesi resta un avviso costruito su due mesi.
+
+**I due lati dell'«effetto» sono tutti e due sull'anno intero, e sono stime.**
+Con il concordato le imposte sono già annue; senza, si calcolano sul reddito
+stimato. Da tutte e due le parti i contributi dedotti sono quelli di
+**competenza** e non quelli già versati: il versato riguarda la cassa di
+quest'anno, non quanto l'anno costa, e tenerne conto su un lato solo avrebbe
+fatto sembrare il concordato più conveniente di quanto è. Per questo i due
+importi della card **non coincidono** con il «Carico totale» del cruscotto, che
+è progressivo: rispondono a domande diverse, e la card lo scrive.
+
 **Cause di cessazione e di decadenza: solo segnalate, mai applicate.** Se il
 reddito effettivo scende sotto il concordato di oltre il 30 %, il cruscotto lo
 dice — «in presenza di circostanze eccezionali potrebbe esserci una causa di
