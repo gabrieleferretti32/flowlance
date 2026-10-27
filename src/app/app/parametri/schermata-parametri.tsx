@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Guscio } from "@/components/guscio/guscio";
 import { AvvisoParametri } from "@/components/fisco/avviso-parametri";
+import { SezioneConcordato } from "./sezione-concordato";
 import {
   confermaEredita,
   dichiaraComune,
@@ -165,6 +166,16 @@ export function SchermataParametri() {
             </CardCorpo>
           </Card>
         )}
+
+        {/*
+          Il concordato prima delle aliquote, e non in fondo.
+
+          Non è una preferenza di ordine: se c'è, decide **su quale reddito**
+          tutte le righe sotto si applicano. Un'addizionale confermata con cura
+          sopra un reddito sbagliato è un numero preciso su una base falsa, ed è
+          il genere di errore che si scopre dal commercialista.
+        */}
+        <SezioneConcordato impostazioni={imp} anno={anno} />
 
         {campi.map((c) => (
           <SchedaParametro

@@ -14,6 +14,7 @@ import type { Prospetto } from "./motore";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
 import { derivato } from "./derivati/registro";
 import { round2 } from "./aritmetica";
+import { euro } from "@/lib/format";
 
 export type Adempimento = {
   id: string;
@@ -102,6 +103,16 @@ export function scadenzeAnno(
     non si vede.
   */
   const rataArtigiani = round2((derivato("contributiFissi", imp, par).valore ?? 0) / 4);
+  /*
+    La maggiorazione del concordato viene dal prospetto di **quest'anno**, non
+    da quello precedente come il resto dell'acconto.
+
+    Non è una dimenticanza: l'acconto ordinario si calcola sui numeri dell'anno
+    prima, la maggiorazione sul reddito concordato di quest'anno — che l'anno
+    prima non esisteva ancora. Sono due conti con due fonti, e si sommano in
+    una rata sola il 30 novembre.
+  */
+  const maggiorazioneCpb = prospetto.concordato?.maggiorazioneAcconto ?? 0;
   const trimestre = (indice: number) => iva.trimestri[indice]?.totaleDaVersare ?? 0;
   const mese = (indice: number) => iva.mesi[indice]?.totaleDaVersare ?? 0;
 
@@ -176,13 +187,24 @@ export function scadenzeAnno(
       titolo: precedente?.acconti.accontoUnico
         ? `Acconto unico di imposte e contributi per il ${imp.anno}`
         : `Secondo acconto di imposte e contributi per il ${imp.anno}`,
-      importo: precedente ? precedente.acconti.secondo : null,
-      nota: precedente
-        ? undefined
-        : `Si calcola sui numeri del ${imp.anno - 1}, che non c'è.`,
-      // Senza l'anno prima la voce resta in elenco senza importo: dire che una
-      // scadenza non esiste sarebbe peggio che dire che non se ne sa l'importo.
-      quando: () => !precedente || precedente.acconti.dovuti,
+      importo: precedente
+        ? round2(precedente.acconti.secondo + maggiorazioneCpb)
+        : maggiorazioneCpb > 0
+          ? maggiorazioneCpb
+          : null,
+      nota:
+        maggiorazioneCpb > 0
+          ? `Compresa la maggiorazione del concordato, ${euro(maggiorazioneCpb)}: il 10 % della differenza fra il reddito concordato e quello dell'anno precedente rettificato, dovuta al primo anno di adesione.`
+          : precedente
+            ? undefined
+            : `Si calcola sui numeri del ${imp.anno - 1}, che non c'è.`,
+      /*
+        Senza l'anno prima la voce resta in elenco senza importo: dire che una
+        scadenza non esiste sarebbe peggio che dire che non se ne sa l'importo.
+        Con la maggiorazione del concordato, invece, un importo c'è anche al
+        primo anno di attività — ed è dovuto.
+      */
+      quando: () => !precedente || precedente.acconti.dovuti || maggiorazioneCpb > 0,
     },
     {
       id: "lipe-3t", mese: 11, giorno: 30, categoria: "dichiarazione",

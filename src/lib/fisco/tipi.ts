@@ -411,6 +411,18 @@ export type Impostazioni = {
   nettoDesiderato: number | null;
   percentualeAccantonamento: number;
   costiFissiAnnui: number | null;
+
+  /**
+   * Il concordato preventivo biennale, se si è aderito.
+   *
+   * Opzionale perché gli archivi scritti prima che questo blocco esistesse non
+   * ce l'hanno, e la loro assenza vuol dire esattamente quello che diceva
+   * allora: non ho aderito. La migrazione lo riempie con i valori predefiniti,
+   * `concordatoPredefinito()` in `cpb.ts`, e il motore tratta `undefined` come
+   * «non aderito» senza bisogno che la migrazione sia già passata — un backup
+   * importato in una scheda appena aperta non può contare su di lei.
+   */
+  concordato?: Concordato;
 };
 
 /** Fattura come sta nel database: solo campi inseriti, mai derivati. */
@@ -590,4 +602,67 @@ export type CostoCalcolato = Costo & {
   /** Uscita di cassa che resta davvero a carico, al netto dell'IVA recuperabile. */
   costoNetto: number;
   stato: "pagato" | "daPagare";
+};
+
+// ————————————————————————————————————————————————————————————
+// Concordato preventivo biennale
+// ————————————————————————————————————————————————————————————
+
+/**
+ * I bienni per cui l'Agenzia ha formulato proposte.
+ *
+ * Non è un intervallo qualunque: il concordato si accetta **a bienni chiusi**,
+ * e il reddito concordato è definito per i due anni di quel biennio e per
+ * nessun altro. Un elenco chiuso invece di due numeri liberi perché un anno
+ * scritto a mano è un anno che prima o poi non coincide con nessuna proposta.
+ */
+export type BiennioCpb = "2024-2025" | "2025-2026" | "2026-2027";
+
+/**
+ * Primo ingresso o rinnovo senza interruzione.
+ *
+ * Cambia una cosa sola, e pesa: la maggiorazione del 10 % sulla seconda rata
+ * di acconto si paga al **primo** anno di adesione, non a chi rinnova senza
+ * interruzione (art. 20 D.Lgs. 13/2024). Chiederlo è l'unico modo di saperlo:
+ * l'app non conosce i bienni precedenti di chi installa oggi.
+ */
+export type TipoAdesioneCpb = "primoIngresso" | "rinnovo";
+
+/**
+ * Il blocco «Concordato preventivo» delle impostazioni di un anno.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché i redditi sono `null` e non zero
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il reddito concordato arriva dalla proposta dell'Agenzia e quello
+ * dell'anno precedente «rettificato» dalla dichiarazione: due numeri che
+ * l'app non può calcolare e non deve indovinare. Zero sarebbe un valore
+ * plausibile e falso — un concordato da zero euro azzererebbe l'IRPEF — e
+ * `null` è l'unico modo di distinguere «non l'ho ancora scritto» da «è zero».
+ *
+ * Il blocco esiste solo in regime ordinario: dal 2025 i forfettari sono
+ * esclusi dal concordato (art. 7-bis L. 88/2026 secondo il brief normativo).
+ * Il campo resta nel modello anche per loro — toglierlo cambiando regime
+ * vorrebbe dire perdere i dati di chi torna in ordinario — ma il motore non
+ * lo guarda.
+ */
+export type Concordato = {
+  aderito: boolean;
+  biennio: BiennioCpb;
+  tipoAdesione: TipoAdesioneCpb;
+  /**
+   * Quando si è aderito, in ISO. Serve a una cosa sola: capire se vale il
+   * tetto degli 85.000 € sull'imposta sostitutiva, che non si applica a chi
+   * ha aderito ai primi due bienni entro il 12 giugno 2025.
+   */
+  dataAdesione: string | null;
+  /** Il reddito concordato **di quest'anno**, dalla proposta dell'Agenzia. */
+  redditoConcordato: number | null;
+  /** Il reddito dell'anno precedente, rettificato ai sensi degli artt. 15-16. */
+  redditoPrecedenteRettificato: number | null;
+  /** Il voto ISA dell'anno precedente al biennio: da 1 a 10, decimali ammessi. */
+  votoIsa: number | null;
+  /** L'opzione per l'imposta sostitutiva sul maggior reddito concordato. */
+  sostitutiva: boolean;
 };

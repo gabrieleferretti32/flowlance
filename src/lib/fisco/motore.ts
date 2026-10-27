@@ -13,6 +13,13 @@ import {
   addizionaleRegionaleDi,
 } from "./addizionali";
 import { detrazioneLavoroAutonomo } from "./detrazioni";
+import {
+  baseContributivaCpb,
+  scostamentoDalConcordato,
+  scostamentoDaSegnalare,
+  valutaConcordato,
+  type EsitoConcordato,
+} from "./cpb";
 import { derivato } from "./derivati/registro";
 import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
@@ -119,6 +126,39 @@ export type Acconti = {
   secondoDaVersare: number;
 };
 
+/** Che cosa il concordato fa al prospetto di un anno. */
+export type ConcordatoProspetto = {
+  /** Quello che il blocco delle impostazioni dice, già valutato per quest'anno. */
+  esito: EsitoConcordato;
+  /** Il reddito che hai prodotto davvero: ricavi meno costi deducibili. */
+  redditoEffettivo: number;
+  /** Il reddito su cui si pagano le imposte: quello della proposta. */
+  redditoConcordato: number;
+  /** Quanto l'effettivo si discosta dal concordato, in frazione. Negativo: sotto. */
+  scostamento: number;
+  /** Sotto il concordato di oltre il 30 %: si segnala, non si applica niente. */
+  oltreSogliaCessazione: boolean;
+  /** La base su cui sono stati calcolati i contributi. */
+  baseContributiva: number;
+  /** Imposte e contributi come sono stati calcolati davvero. */
+  conCpb: { imposte: number; contributi: number; carico: number };
+  /** Gli stessi, come se non avessi aderito. */
+  senzaCpb: { imposte: number; contributi: number; carico: number };
+  /**
+   * La differenza fra i due: **negativa quando il concordato fa risparmiare**.
+   *
+   * Il segno è quello del costo, non quello del vantaggio, perché è un carico:
+   * «meno 2.000 €» si legge come duemila euro in meno da pagare. Girarlo
+   * avrebbe voluto dire una card che mostra un numero positivo quando le cose
+   * vanno bene e un motore che ne calcola uno negativo.
+   */
+  effetto: number;
+  /** La maggiorazione del 10 % sulla seconda rata, al primo anno di adesione. */
+  maggiorazioneAcconto: number;
+  /** Quanto ne resta da versare, visti gli F24 già registrati per l'anno. */
+  maggiorazioneDaVersare: number;
+};
+
 export type Prospetto = {
   anno: number;
   regime: Impostazioni["regime"];
@@ -208,6 +248,20 @@ export type Prospetto = {
   contributiCassa: number;
   totaleContributi: number;
   accreditoIntero: boolean | null;
+
+  /**
+   * D-bis · Il concordato preventivo biennale.
+   *
+   * `null` quando non c'è: forfettario, o nessuna adesione. Non un oggetto con
+   * tutti zero — che a schermo si distingue male da un'adesione senza numeri —
+   * ma l'assenza, che è esattamente la condizione di quasi tutti.
+   *
+   * Dentro c'è anche il conto **senza** concordato, e non è ridondanza: è
+   * l'unica risposta possibile alla domanda «mi è convenuto?», e calcolarla
+   * fuori di qui significherebbe rifare la catena delle imposte in una
+   * schermata.
+   */
+  concordato: ConcordatoProspetto | null;
 
   /** E · Sintesi e accantonamento */
   caricoTotale: number;
@@ -371,6 +425,161 @@ export function contributiPrevidenziali(
   const aliquotaCassa = derivato("aliquotaSoggettivaCassa", imp, par).valore;
   const cassa = aliquotaCassa === null ? 0 : round2(positiva * aliquotaCassa);
   return { separata, artigiani, cassa, totale: somma(separata, artigiani, cassa) };
+}
+
+/**
+ * Imposte e contributi di un reddito, una volta sola.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché è una funzione e non il corpo del motore
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Da quando c'è il concordato preventivo, questo conto si fa **due volte**: sul
+ * reddito che fa testo — il concordato, per chi ha aderito — e sul reddito
+ * effettivo, che serve a dire quanto è costato aderire. La differenza fra i due
+ * è un numero che il cruscotto mostra, e calcolarla con due formule diverse
+ * vorrebbe dire inventarla: basta che una delle due dimentichi un'addizionale
+ * e il «risparmio» mostrato diventa quello di un'altra persona.
+ *
+ * Quindi una funzione sola, chiamata due volte con due redditi. Senza
+ * concordato la seconda chiamata non si fa nemmeno: il carico è uno, ed è
+ * questo.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * I tre redditi che non sono lo stesso reddito
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * - `redditoImponibileLordo` forma la base IRPEF: concordato o effettivo.
+ * - `redditoPerDetrazioni` è il reddito **complessivo** da cui scende la
+ *   detrazione dell'art. 13, e resta quello effettivo anche sotto concordato.
+ * - `baseContributiva` è quella dei contributi, che per le casse private non
+ *   segue il concordato: vedi `baseContributivaCpb`.
+ *
+ * Erano un numero solo, e in tre punti del motore si leggeva `redditoLordo`.
+ * Tenerli separati è la ragione per cui il concordato non ha dovuto riscrivere
+ * la catena di calcolo: l'ha solo chiamata con numeri diversi.
+ */
+export type CaricoFiscale = {
+  contributi: { separata: number; artigiani: number; cassa: number; totale: number };
+  contributiDedotti: number;
+  imponibile: number;
+  impostaSostitutiva: number;
+  /** L'imposta sostitutiva del concordato, se l'opzione è attiva. */
+  impostaSostitutivaCpb: number;
+  irpefLorda: number;
+  detrazioni: number;
+  detrazioneAutonomo: number;
+  detrazioniTotali: number;
+  detrazioniApplicate: number;
+  irpefNetta: number;
+  addizionaleRegionale: number;
+  addizionaleComunale: number;
+  totaleImposte: number;
+  /** Imposte più contributi: il confronto fra due scenari si fa su questo. */
+  caricoTotale: number;
+};
+
+export function caricoFiscale(p: {
+  imp: Impostazioni;
+  par: ParametriAnno;
+  /** Il reddito che forma la base imponibile delle imposte. */
+  redditoImponibileLordo: number;
+  /** Il reddito complessivo per detrazioni e deduzioni: sempre l'effettivo. */
+  redditoPerDetrazioni: number;
+  baseContributiva: number;
+  oneriDeducibili: number;
+  /** Contributi usciti dal conto nell'anno: se ce ne sono, comandano loro. */
+  versamentiContributi: number;
+  /**
+   * La quota di reddito concordato tassata con l'imposta sostitutiva: esce
+   * dalla base IRPEF e dalle addizionali, che la sostitutiva sostituisce.
+   */
+  quotaSostitutivaCpb?: number;
+  impostaSostitutivaCpb?: number;
+}): CaricoFiscale {
+  const { imp, par } = p;
+  const forfettario = imp.regime === "forfettario";
+
+  const contributi = contributiPrevidenziali(p.baseContributiva, imp, par);
+  const contributiDedotti =
+    p.versamentiContributi > 0 ? p.versamentiContributi : contributi.totale;
+
+  /*
+    La quota a sostitutiva esce dalla base: su di lei l'IRPEF e le addizionali
+    non si pagano, è esattamente il senso dell'opzione. Quello che resta del
+    concordato segue la strada di sempre.
+  */
+  const quotaSostitutivaCpb = nonNegativo(p.quotaSostitutivaCpb ?? 0);
+  const impostaSostitutivaCpb = nonNegativo(p.impostaSostitutivaCpb ?? 0);
+  const imponibile = round2(
+    nonNegativo(
+      p.redditoImponibileLordo - quotaSostitutivaCpb - contributiDedotti - p.oneriDeducibili,
+    ),
+  );
+
+  // L'aliquota si deriva dalla data di apertura, non si legge da un campo: la
+  // regola dei cinque anni è un conto, e i conti li fa il motore.
+  const sostitutiva = derivato("aliquotaSostitutiva", imp, par);
+  const impostaSostitutiva = forfettario ? round2(imponibile * sostitutiva.valore) : 0;
+  const irpefLorda = forfettario ? 0 : irpefScaglioni(imponibile, imp.scaglioniIrpef);
+  const detrazioni = forfettario ? 0 : imp.detrazioniPersonali;
+  /*
+    La detrazione dell'art. 13 spetta d'ufficio a chi ha redditi di lavoro
+    autonomo: non si dichiara, non dipende da spese, e senza di lei l'IRPEF
+    usciva più alta del vero per ogni reddito sotto i 50.000 €.
+
+    Si calcola sul reddito **complessivo** — il reddito lordo, prima della
+    deduzione dei contributi — non sull'imponibile: sono due numeri diversi e
+    scambiarli sposta la detrazione senza che si veda.
+  */
+  const detrazioneAutonomo = forfettario
+    ? 0
+    : detrazioneLavoroAutonomo(p.redditoPerDetrazioni, par.detrazioneLavoroAutonomo).importo;
+  const detrazioniTotali = round2(detrazioni + detrazioneAutonomo);
+  // Incapienza: l'eccedenza si perde, non si rimborsa e non si riporta.
+  const detrazioniApplicate = forfettario ? 0 : round2(Math.min(detrazioniTotali, irpefLorda));
+  const irpefNetta = forfettario ? 0 : round2(nonNegativo(irpefLorda - detrazioniTotali));
+  /*
+    Le addizionali seguono l'IRPEF: sono dovute solo se l'IRPEF, al netto delle
+    detrazioni, risulta dovuta (art. 50 D.Lgs. 446/1997 per la regionale, art. 1
+    D.Lgs. 360/1998 per la comunale). Con la detrazione dell'art. 13 che azzera
+    l'imposta, un'addizionale che resta in piedi è un importo da versare che
+    non esiste — e nessuno lo verificherebbe, perché è piccolo e plausibile.
+  */
+  const irpefDovuta = !forfettario && irpefNetta > 0;
+  // Aliquota unica o scaglioni, e la soglia di esenzione: la regola sta in un
+  // posto solo, perché qui e nel confronto fra regimi deve dare lo stesso conto.
+  const addizionaleRegionale = irpefDovuta
+    ? addizionaleDovuta(imponibile, addizionaleRegionaleDi(imp, par))
+    : 0;
+  const addizionaleComunale = irpefDovuta
+    ? addizionaleDovuta(imponibile, addizionaleComunaleDi(imp, par))
+    : 0;
+  const totaleImposte = somma(
+    impostaSostitutiva,
+    impostaSostitutivaCpb,
+    irpefNetta,
+    addizionaleRegionale,
+    addizionaleComunale,
+  );
+
+  return {
+    contributi,
+    contributiDedotti,
+    imponibile,
+    impostaSostitutiva,
+    impostaSostitutivaCpb,
+    irpefLorda,
+    detrazioni,
+    detrazioneAutonomo,
+    detrazioniTotali,
+    detrazioniApplicate,
+    irpefNetta,
+    addizionaleRegionale,
+    addizionaleComunale,
+    totaleImposte,
+    caricoTotale: somma(totaleImposte, contributi.totale),
+  };
 }
 
 /**
@@ -703,10 +912,6 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     ? round2(ricaviRilevanti * coefficiente)
     : round2(ricaviRilevanti - costiDeducibiliPagati);
 
-  const baseContributiva = redditoLordo;
-  const contributi = contributiPrevidenziali(baseContributiva, imp, par);
-  const contributiCompetenza = contributi.totale;
-
   /*
     Principio di cassa: si deducono i contributi effettivamente versati
     nell'anno. Se l'utente non ha ancora registrato F24 si ricade sulla
@@ -723,60 +928,86 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
       .filter((v) => v.tipo === "contributi" && annoDi(v.data) === anno)
       .map((v) => v.importo),
   );
-  const usaVersamenti = versamentiContributi > 0;
-  const contributiDedotti = usaVersamenti ? versamentiContributi : contributiCompetenza;
 
   const oneriDeducibili = forfettario
     ? 0
     : round2(Math.min(imp.fondoPensione, par.tettoFondoPensione));
 
-  const imponibile = round2(nonNegativo(redditoLordo - contributiDedotti - oneriDeducibili));
+  /*
+    ─────────────────────────────────────────────────────────────────────────
+    Il concordato preventivo, e i due conti che si fanno da qui in avanti
+    ─────────────────────────────────────────────────────────────────────────
+
+    Chi ha aderito paga sul reddito **concordato**, non su quello effettivo. Il
+    reddito effettivo però non sparisce: resta la base dei contributi delle
+    casse private, resta il reddito complessivo da cui dipendono le detrazioni,
+    e resta il termine di paragone — «quanto mi è costato aderire» è una
+    domanda a cui il cruscotto deve saper rispondere con un numero.
+
+    Perciò il carico si calcola **due volte**, con la stessa funzione: una sul
+    reddito che fa testo e una sul reddito effettivo. Due funzioni diverse
+    sarebbero divergute al primo ritocco di un'aliquota, e la differenza fra
+    le due è esattamente il numero che il cruscotto mostra — calcolarla con
+    due formule diverse vorrebbe dire inventarla.
+  */
+  const cpb = valutaConcordato(imp, anno);
+  const cpbAttivo = cpb !== null && cpb.attivo;
+  const redditoBaseImposte = cpbAttivo ? cpb.redditoConcordato : redditoLordo;
+  const baseContributiva = cpbAttivo
+    ? baseContributivaCpb(imp.gestione, cpb.redditoConcordato, redditoLordo)
+    : redditoLordo;
+
+  const comune = {
+    imp,
+    par,
+    /*
+      Le detrazioni e le deduzioni guardano il reddito **effettivo**, anche
+      quando le imposte guardano il concordato: la norma tiene il reddito
+      effettivo rilevante «ai fini della spettanza di deduzioni, detrazioni e
+      benefici». È il comportamento di prima — la funzione riceve lo stesso
+      numero che riceveva — e sta in APPROSSIMAZIONI.md fra le cose da
+      verificare, perché è il punto del concordato su cui le letture divergono.
+    */
+    redditoPerDetrazioni: redditoLordo,
+    oneriDeducibili,
+    versamentiContributi,
+  };
+
+  const carico = caricoFiscale({
+    ...comune,
+    redditoImponibileLordo: redditoBaseImposte,
+    baseContributiva,
+    quotaSostitutivaCpb: cpb?.sostitutiva?.base ?? 0,
+    impostaSostitutivaCpb: cpb?.sostitutiva?.imposta ?? 0,
+  });
+  /* Lo stesso conto come se non avessi aderito. Senza CPB sono lo stesso oggetto. */
+  const caricoSenzaCpb = cpbAttivo
+    ? caricoFiscale({
+        ...comune,
+        redditoImponibileLordo: redditoLordo,
+        baseContributiva: redditoLordo,
+        quotaSostitutivaCpb: 0,
+        impostaSostitutivaCpb: 0,
+      })
+    : carico;
+
+  const contributi = carico.contributi;
+  const contributiCompetenza = contributi.totale;
+  const usaVersamenti = versamentiContributi > 0;
+  const contributiDedotti = carico.contributiDedotti;
+  const imponibile = carico.imponibile;
 
   // — C · Imposte ————————————————————————————————————
-  // L'aliquota si deriva dalla data di apertura, non si legge da un campo: la
-  // regola dei cinque anni è un conto, e i conti li fa il motore.
-  const sostitutiva = derivato("aliquotaSostitutiva", imp, par);
-  const impostaSostitutiva = forfettario ? round2(imponibile * sostitutiva.valore) : 0;
-  const irpefLorda = forfettario ? 0 : irpefScaglioni(imponibile, imp.scaglioniIrpef);
-  const detrazioni = forfettario ? 0 : imp.detrazioniPersonali;
-  /*
-    La detrazione dell'art. 13 spetta d'ufficio a chi ha redditi di lavoro
-    autonomo: non si dichiara, non dipende da spese, e senza di lei l'IRPEF
-    usciva più alta del vero per ogni reddito sotto i 50.000 €.
-
-    Si calcola sul reddito **complessivo** — il reddito lordo, prima della
-    deduzione dei contributi — non sull'imponibile: sono due numeri diversi e
-    scambiarli sposta la detrazione senza che si veda.
-  */
-  const detrazioneAutonomo = forfettario
-    ? 0
-    : detrazioneLavoroAutonomo(redditoLordo, par.detrazioneLavoroAutonomo).importo;
-  const detrazioniTotali = round2(detrazioni + detrazioneAutonomo);
-  // Incapienza: l'eccedenza si perde, non si rimborsa e non si riporta.
-  const detrazioniApplicate = forfettario ? 0 : round2(Math.min(detrazioniTotali, irpefLorda));
-  const irpefNetta = forfettario ? 0 : round2(nonNegativo(irpefLorda - detrazioniTotali));
-  /*
-    Le addizionali seguono l'IRPEF: sono dovute solo se l'IRPEF, al netto delle
-    detrazioni, risulta dovuta (art. 50 D.Lgs. 446/1997 per la regionale, art. 1
-    D.Lgs. 360/1998 per la comunale). Con la detrazione dell'art. 13 che azzera
-    l'imposta, un'addizionale che resta in piedi è un importo da versare che
-    non esiste — e nessuno lo verificherebbe, perché è piccolo e plausibile.
-  */
-  const irpefDovuta = !forfettario && irpefNetta > 0;
-  // Aliquota unica o scaglioni, e la soglia di esenzione: la regola sta in un
-  // posto solo, perché qui e nel confronto fra regimi deve dare lo stesso conto.
-  const addizionaleRegionale = irpefDovuta
-    ? addizionaleDovuta(imponibile, addizionaleRegionaleDi(imp, par))
-    : 0;
-  const addizionaleComunale = irpefDovuta
-    ? addizionaleDovuta(imponibile, addizionaleComunaleDi(imp, par))
-    : 0;
-  const totaleImposte = somma(
-    impostaSostitutiva,
-    irpefNetta,
-    addizionaleRegionale,
-    addizionaleComunale,
-  );
+  const impostaSostitutiva = carico.impostaSostitutiva;
+  const irpefLorda = carico.irpefLorda;
+  const detrazioni = carico.detrazioni;
+  const detrazioneAutonomo = carico.detrazioneAutonomo;
+  const detrazioniTotali = carico.detrazioniTotali;
+  const detrazioniApplicate = carico.detrazioniApplicate;
+  const irpefNetta = carico.irpefNetta;
+  const addizionaleRegionale = carico.addizionaleRegionale;
+  const addizionaleComunale = carico.addizionaleComunale;
+  const totaleImposte = carico.totaleImposte;
 
   /*
     Le ritenute seguono la fattura, e una nota di credito riconciliata segue la
@@ -864,14 +1095,50 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   const dopoVersamenti = nonNegativo(totaleDovuto - giaVersato);
   const creditoSuSaldo = Math.min(creditoAnnoPrecedente, dopoVersamenti);
   const saldoResiduo = round2(dopoVersamenti - creditoSuSaldo);
+
+  /*
+    La maggiorazione del concordato è un **acconto di quest'anno**, non una
+    tassa in più.
+
+    Al primo anno di adesione l'acconto con il metodo storico è commisurato al
+    reddito dell'anno prima, che il concordato ha superato: la maggiorazione del
+    10 % colma quella differenza e si versa con la seconda rata, il 30 novembre
+    di quest'anno. A saldo si scomputa come ogni altro acconto.
+
+    Sta quindi fra gli acconti dovuti per l'anno — così il già versato la copre
+    nell'ordine in cui si versa, che è la logica che il prospetto applica da
+    sempre — e **non** dentro `totaleDovuto`: lì sarebbe una seconda tassazione
+    dello stesso reddito.
+  */
+  const maggiorazioneCpb = cpb?.maggiorazioneAcconto ?? 0;
+  const accontiOrdinariPerLAnno = somma(
+    ingresso.accontiDelPrecedente?.primo ?? 0,
+    ingresso.accontiDelPrecedente?.secondo ?? 0,
+  );
+  const accontiDovutiPerLAnno = round2(accontiOrdinariPerLAnno + maggiorazioneCpb);
+  /*
+    Quello che è stato versato oltre gli acconti ordinari ha già pagato la
+    maggiorazione: è l'ordine in cui si versa, lo stesso con cui il prospetto
+    scomputa il già versato dagli acconti.
+  */
+  const maggiorazioneDaVersare = round2(
+    nonNegativo(maggiorazioneCpb - nonNegativo(giaVersato - accontiOrdinariPerLAnno)),
+  );
   /*
     Tre basi, tre regole. L'acconto dell'IRPEF si commisura al rigo
     «differenza» della dichiarazione — l'imposta netta meno le ritenute già
     subite — non al totale delle imposte: le addizionali hanno una vita loro,
     e la regionale un acconto non ce l'ha proprio.
   */
+  /*
+    L'imposta sostitutiva del concordato entra nella base dell'acconto come
+    ogni altra imposta dovuta. È la lettura più cara delle due possibili — si
+    anticipa di più — ed è quella prudente: un acconto calcolato per difetto si
+    scopre a giugno dell'anno dopo, quando il denaro è già stato speso.
+  */
   const baseAccontoImposta = nonNegativo(
-    (forfettario ? impostaSostitutiva : irpefNetta) - ritenuteSubite,
+    (forfettario ? impostaSostitutiva : irpefNetta + carico.impostaSostitutivaCpb)
+      - ritenuteSubite,
   );
   const acconti = calcolaAcconti(
     {
@@ -920,7 +1187,17 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     Il carico totale e il netto disponibile restano quelli di competenza: sono
     giusti, e rispondono a un'altra domanda.
   */
-  const fabbisognoDaAccantonare = round2(nonNegativo(saldoResiduo - creditoImposta));
+  /*
+    E la maggiorazione del concordato si mette da parte come tutto il resto.
+
+    Non entra in `saldoResiduo` — non è dovuta in più, è dovuta **prima** — ma
+    il 30 novembre deve esserci sul conto, e l'accantonamento è esattamente la
+    cosa che serve a farcela trovare. Si conta solo la parte non ancora
+    versata: gli F24 registrati la coprono come coprono gli acconti.
+  */
+  const fabbisognoDaAccantonare = round2(
+    nonNegativo(saldoResiduo - creditoImposta) + maggiorazioneDaVersare,
+  );
   /*
     Il fabbisogno dell'anno intero, che è un'altra domanda ancora.
 
@@ -937,7 +1214,7 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     esattamente ciò che l'accantonamento serviva a coprire.
   */
   const fabbisognoAnnuo = round2(
-    nonNegativo(totaleDovuto - creditoAnnoPrecedente - creditoImposta),
+    nonNegativo(totaleDovuto - creditoAnnoPrecedente - creditoImposta) + maggiorazioneCpb,
   );
   const percentualeDaAccantonare = rapporto(fabbisognoAnnuo, ricaviRilevanti);
   const accantonamentoAnnuo = round2(ricaviRilevanti * imp.percentualeAccantonamento);
@@ -968,10 +1245,6 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     la natura del singolo F24 — quindi si scomputa il versato dagli acconti
     dovuti: è l'ordine in cui si versa, e l'approssimazione è dichiarata.
   */
-  const accontiDovutiPerLAnno = somma(
-    ingresso.accontiDelPrecedente?.primo ?? 0,
-    ingresso.accontiDelPrecedente?.secondo ?? 0,
-  );
   const accontiAncoraDaVersare = round2(
     Math.min(nonNegativo(accontiDovutiPerLAnno - giaVersato), saldoResiduo),
   );
@@ -1042,6 +1315,30 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     contributiCassa: contributi.cassa,
     totaleContributi: contributiCompetenza,
     accreditoIntero: accreditoIntero(baseContributiva, imp, par),
+
+    concordato: cpb
+      ? {
+          esito: cpb,
+          redditoEffettivo: redditoLordo,
+          redditoConcordato: cpb.redditoConcordato,
+          scostamento: scostamentoDalConcordato(redditoLordo, cpb.redditoConcordato),
+          oltreSogliaCessazione: scostamentoDaSegnalare(redditoLordo, cpb.redditoConcordato),
+          baseContributiva,
+          conCpb: {
+            imposte: carico.totaleImposte,
+            contributi: carico.contributi.totale,
+            carico: carico.caricoTotale,
+          },
+          senzaCpb: {
+            imposte: caricoSenzaCpb.totaleImposte,
+            contributi: caricoSenzaCpb.contributi.totale,
+            carico: caricoSenzaCpb.caricoTotale,
+          },
+          effetto: round2(carico.caricoTotale - caricoSenzaCpb.caricoTotale),
+          maggiorazioneAcconto: maggiorazioneCpb,
+          maggiorazioneDaVersare,
+        }
+      : null,
 
     caricoTotale,
     pressione,

@@ -4,6 +4,7 @@
  * legge restano quelli marcati «da rivedere ogni gennaio».
  */
 import { conValoreProposto } from "./parametri-utente";
+import { concordatoPredefinito } from "./cpb";
 import { derivato } from "./derivati/registro";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "./tipi";
 
@@ -75,6 +76,9 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
     nettoDesiderato: null,
     percentualeAccantonamento: 0.3,
     costiFissiAnnui: null,
+    // Non aderito, che è la condizione di quasi tutti: il concordato riguarda
+    // i soli soggetti ISA, e lo si sceglie una volta ogni due anni.
+    concordato: concordatoPredefinito(par.anno),
   };
 }
 
@@ -145,6 +149,24 @@ export function impostazioniDaPrecedente(
     dichiarati: [...(precedente.dichiarati ?? [])],
     ereditati: [...(precedente.dichiarati ?? [])],
     ereditatiDa: precedente.anno,
+    /*
+      Il concordato si eredita, **ma non i suoi due redditi**.
+
+      L'adesione copre due anni: il secondo anno del biennio parte da aderito,
+      con lo stesso biennio, lo stesso tipo di adesione e lo stesso voto ISA —
+      sono fatti di quell'adesione, non risposte da ridare. I due redditi no:
+      il concordato del secondo anno è un altro numero della stessa proposta, e
+      portare avanti quello del primo anno vorrebbe dire tassare l'anno nuovo
+      su una cifra che nessuno ha mai letto. Restano vuoti, il motore non
+      applica il concordato finché non ci sono, e la schermata lo dice.
+    */
+    concordato: precedente.concordato
+      ? {
+          ...precedente.concordato,
+          redditoConcordato: null,
+          redditoPrecedenteRettificato: null,
+        }
+      : concordatoPredefinito(anno),
     // Il saldo iniziale non si eredita: arriva dal riporto della chiusura.
     saldoInizialeAttivita: 0,
     saldoInizialePersonale: 0,

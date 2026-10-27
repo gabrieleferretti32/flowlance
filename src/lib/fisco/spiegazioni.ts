@@ -278,12 +278,52 @@ export function prospettoDettagliato(
       nota: "È uno degli svantaggi del regime: il fondo pensione resta un costo senza risparmio fiscale.",
     });
   }
+  /*
+    Il concordato, fra il reddito effettivo e l'imponibile.
+
+    Sta qui e non in una sezione sua perché è esattamente il punto in cui il
+    numero cambia strada: il reddito effettivo resta sopra, scritto, e la riga
+    successiva dice su quale altro reddito si pagheranno le imposte. Un
+    prospetto che mostrasse solo il concordato lascerebbe chi legge senza il
+    termine di paragone — e il commercialista senza il dato che gli serve per
+    verificare lo scostamento.
+  */
+  const cpb = p.concordato;
+  if (cpb && cpb.esito.attivo) {
+    reddito.push({
+      id: "cpb-concordato",
+      etichetta: `Reddito concordato ${cpb.esito.biennio}`,
+      valore: cpb.redditoConcordato,
+      formato: "euro",
+      formula:
+        `Dalla proposta dell'Agenzia per il biennio ${cpb.esito.biennio}. Su questo si pagano IRPEF e addizionali, `
+        + `non sul reddito effettivo di ${euro(cpb.redditoEffettivo)}.`,
+      nota:
+        cpb.scostamento >= 0
+          ? `Il reddito effettivo lo supera del ${percentuale(Math.abs(cpb.scostamento), 1)}: l'eccedenza non è tassata.`
+          : `Il reddito effettivo è più basso del ${percentuale(Math.abs(cpb.scostamento), 1)}: le imposte si pagano comunque sul concordato.`,
+    });
+    if (cpb.esito.sostitutivaApplicata && cpb.esito.sostitutiva) {
+      reddito.push({
+        id: "cpb-maggior-reddito",
+        etichetta: "Di cui maggior reddito concordato, a imposta sostitutiva",
+        valore: -cpb.esito.sostitutiva.base,
+        formato: "euro",
+        formula:
+          `${euro(cpb.redditoConcordato)} di concordato meno ${euro(cpb.esito.redditoPrecedenteRettificato)} `
+          + "di reddito dell'anno precedente rettificato. Esce dalla base IRPEF: su questa quota si paga l'imposta sostitutiva.",
+      });
+    }
+  }
   reddito.push({
     id: "imponibile",
     etichetta: "Reddito imponibile",
     valore: p.imponibile,
     formato: "euro",
-    formula: `${euro(p.redditoLordo)} − ${euro(p.contributiDedotti)} di contributi${p.oneriDeducibili > 0 ? ` − ${euro(p.oneriDeducibili)} di oneri` : ""}, mai sotto zero.`,
+    formula:
+      cpb && cpb.esito.attivo
+        ? `${euro(cpb.redditoConcordato)} di reddito concordato${cpb.esito.sostitutiva ? ` − ${euro(cpb.esito.sostitutiva.base)} a sostitutiva` : ""} − ${euro(p.contributiDedotti)} di contributi${p.oneriDeducibili > 0 ? ` − ${euro(p.oneriDeducibili)} di oneri` : ""}, mai sotto zero.`
+        : `${euro(p.redditoLordo)} − ${euro(p.contributiDedotti)} di contributi${p.oneriDeducibili > 0 ? ` − ${euro(p.oneriDeducibili)} di oneri` : ""}, mai sotto zero.`,
     totale: true,
   });
 
@@ -318,6 +358,19 @@ export function prospettoDettagliato(
       formato: "euro",
       formula: descriviScaglioni(p.imponibile, imp),
     });
+    if (cpb?.esito.sostitutiva) {
+      const s = cpb.esito.sostitutiva;
+      imposte.push({
+        id: "cpb-sostitutiva",
+        etichetta: "Imposta sostitutiva sul maggior reddito concordato",
+        valore: s.imposta,
+        formato: "euro",
+        formula: s.tettoApplicato
+          ? `${euro(s.quotaAgevolata)} × ${percentuale(s.aliquota, 0)} (voto ISA ${cpb.esito.votoIsa}) + ${euro(s.quotaOltreTetto)} × ${percentuale(0.43, 0)} sulla parte oltre gli 85.000 €.`
+          : `${euro(s.base)} × ${percentuale(s.aliquota, 0)}, l'aliquota del voto ISA ${cpb.esito.votoIsa}.`,
+        nota: "Sostituisce IRPEF e addizionali su quella quota: la parte restante del concordato resta a IRPEF ordinaria.",
+      });
+    }
     // Spetta d'ufficio: si scrive sempre, anche quando è zero, perché il
     // motivo per cui non spetta è un'informazione quanto l'importo.
     const art13 = detrazioneLavoroAutonomo(p.redditoLordo, par.detrazioneLavoroAutonomo);
@@ -742,6 +795,29 @@ export function prospettoDettagliato(
       formato: "euro",
       formula: `Le ritenute subite (${euro(p.ritenuteSubite)}) superano le imposte dell'anno (${euro(p.totaleImposte)}): la differenza non si versa, si recupera. Si compensa in F24 con altre imposte e contributi a partire dalla presentazione della dichiarazione dei redditi ${prossimo}, oppure si chiede a rimborso nella dichiarazione stessa.`,
       nota: `Fino a ${euro(par.sogliaVistoCompensazione)} l'anno la compensazione è libera; oltre serve il visto di conformità. Quello che non usi non si perde: entra nel riporto al ${prossimo}, dove copre prima il saldo e poi gli acconti.`,
+    });
+  }
+
+  /*
+    La maggiorazione del concordato è una riga a sé, e in questa sezione.
+
+    Non si somma alle due rate qui sotto: quelle sono gli acconti **per
+    l'anno prossimo**, calcolati sui numeri di quest'anno; la maggiorazione si
+    versa il 30 novembre di **quest'anno**, con la seconda rata dell'acconto
+    che è stato calcolato l'anno scorso. Sommarla lì avrebbe spostato un
+    versamento di dodici mesi.
+  */
+  if (cpb && cpb.maggiorazioneAcconto > 0) {
+    acconti.push({
+      id: "cpb-maggiorazione",
+      etichetta: `Maggiorazione dell'acconto per l'adesione al concordato (30 novembre ${p.anno})`,
+      valore: cpb.maggiorazioneAcconto,
+      formato: "euro",
+      formula: `${percentuale(0.1, 0)} di ${euro(cpb.esito.maggiorReddito)}, la differenza fra il reddito concordato e quello dell'anno precedente rettificato. Si paga al primo anno di adesione, con il metodo storico.`,
+      nota:
+        cpb.maggiorazioneDaVersare > 0
+          ? `Di questi, ${euro(cpb.maggiorazioneDaVersare)} non risultano ancora versati: entrano nell'accantonamento di quest'anno.`
+          : "Gli F24 registrati per quest'anno la coprono già.",
     });
   }
 
