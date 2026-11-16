@@ -15,11 +15,13 @@ import { parametriDi, parametriSonoDellAnno } from "@/lib/fisco/parametri";
 import {
   GESTIONI,
   type BiennioCpb,
+  type Cassa,
   type Concordato,
   type Gestione,
   type ScaglioneIrpef,
 } from "@/lib/fisco/tipi";
 import { concordatoPredefinito, elencoBienni, votoIsaValido } from "@/lib/fisco/cpb";
+import { cassaPredefinita } from "@/lib/fisco/cassa";
 import type { MappaturaColonne } from "@/lib/finanze/rendiconto";
 import {
   COLLEZIONI,
@@ -159,6 +161,123 @@ function leggiConcordato(v: unknown, anno: number): Concordato {
     votoIsa: votoScritto !== null && votoIsaValido(votoScritto) ? votoScritto : null,
     sostitutiva: booleano(v.sostitutiva),
   };
+}
+
+/**
+ * Il blocco della cassa professionale.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Tre forme di archivio, e cosa deve succedere a ognuna
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * 1. **Il blocco c'è** (archivi da qui in avanti): si legge campo per campo.
+ *    Un'aliquota fuori da 0-100 % o un importo negativo si scartano con un
+ *    avviso che li nomina, come per il concordato: un contributo calcolato su
+ *    un dato storto sbaglia le imposte di un anno intero.
+ *
+ * 2. **Il blocco non c'è e la gestione non è una cassa**: è il caso di quasi
+ *    tutti gli archivi scritti prima, e vale esattamente quello che valeva —
+ *    Gestione Separata. Blocco vuoto, nessun avviso: segnalare l'assenza di
+ *    una cosa che non poteva esserci sarebbe rumore su ogni import.
+ *
+ * 3. **Il blocco non c'è ma la gestione è «cassa»**: qui c'è un giudizio da
+ *    dare, e lo spiega il paragrafo che segue.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché il 15 % non si porta avanti e il 4 % sì
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * L'archivio vecchio ha due numeri sciolti: `aliquotaSoggettivaCassa`, che
+ * valeva 0,15 per ripiego, e `aliquotaIntegrativaCassa`, che valeva 0,04.
+ *
+ * Il soggettivo si recupera **solo se era dichiarato** — solo se l'anno lo
+ * elenca in `dichiarati`. Altrimenti quel 15 % è la media dell'app, un numero
+ * che non era di nessuno, e portarlo avanti vorrebbe dire continuare a
+ * calcolare contributi precisi su un'aliquota inventata, con l'aggravante che
+ * adesso l'app saprebbe fare di meglio: lasciarlo vuoto accende l'avviso che
+ * chiede il dato vero.
+ *
+ * L'integrativo invece si recupera **se la rivalsa era attiva**, perché quello
+ * era il solo interruttore che lo faceva addebitare in fattura: con la rivalsa
+ * accesa quel 4 % stava sulle fatture emesse, e cambiarlo cambierebbe i totali
+ * di documenti già mandati ai clienti. Con la rivalsa spenta in fattura non
+ * c'era niente, e un'aliquota nuova inventerebbe un addebito che nessuno ha
+ * mai fatto.
+ *
+ * Minimi e quote fisse non esistevano: restano a zero, che è la sola cosa
+ * vera che si può dire di un dato che l'archivio non conteneva.
+ */
+function leggiCassa(
+  v: unknown,
+  riga: Record<string, unknown>,
+  gestione: Gestione,
+  dichiarati: string[],
+  anno: number,
+  avvisi: string[],
+): Cassa {
+  const vuota = cassaPredefinita();
+
+  if (!oggetto(v)) {
+    if (gestione !== "cassa") return vuota;
+    const integrativaVecchia = booleano(riga.rivalsaAttiva)
+      ? numeroOpzionale(riga.aliquotaIntegrativaCassa)
+      : null;
+    const soggettivaVecchia = dichiarati.includes("aliquotaSoggettivaCassa")
+      ? numeroOpzionale(riga.aliquotaSoggettivaCassa)
+      : null;
+    if (soggettivaVecchia === null) {
+      avvisi.push(
+        `Impostazioni ${anno}: la gestione è una cassa professionale ma l'archivio non ne porta i dati. ` +
+          `Nome, aliquote e minimi restano da compilare nei Parametri, e fino a lì i contributi della cassa valgono zero.`,
+      );
+    }
+    return {
+      ...vuota,
+      aliquotaSoggettivo: aliquotaLetta(soggettivaVecchia),
+      aliquotaIntegrativo: aliquotaLetta(integrativaVecchia),
+    };
+  }
+
+  const scartati: string[] = [];
+  const aliq = (valore: unknown, nome: string): number | null => {
+    const n = numeroOpzionale(valore);
+    if (n === null) return null;
+    if (n < 0 || n > 1) {
+      scartati.push(nome);
+      return null;
+    }
+    return n;
+  };
+  const importo = (valore: unknown, nome: string): number => {
+    const n = numero(valore, 0);
+    if (n < 0) {
+      scartati.push(nome);
+      return 0;
+    }
+    return n;
+  };
+
+  const letta: Cassa = {
+    nome: testo(v.nome),
+    aliquotaSoggettivo: aliq(v.aliquotaSoggettivo, "l'aliquota del soggettivo"),
+    minimoSoggettivo: importo(v.minimoSoggettivo, "il minimo del soggettivo"),
+    aliquotaIntegrativo: aliq(v.aliquotaIntegrativo, "l'aliquota dell'integrativo"),
+    minimoIntegrativo: importo(v.minimoIntegrativo, "il minimo dell'integrativo"),
+    contributiFissi: importo(v.contributiFissi, "i contributi fissi"),
+  };
+  if (scartati.length > 0) {
+    avvisi.push(
+      `Impostazioni ${anno}: nella cassa professionale ${scartati.join(", ")} ` +
+        `${scartati.length === 1 ? "non è un valore accettabile" : "non sono valori accettabili"} e ` +
+        `${scartati.length === 1 ? "torna" : "tornano"} al valore vuoto. Ricompila i Parametri: finché manca l'aliquota del soggettivo i contributi valgono zero.`,
+    );
+  }
+  return letta;
+}
+
+/** Un'aliquota che viene da un archivio: fuori da 0-100 % non è un'aliquota. */
+function aliquotaLetta(v: number | null): number | null {
+  return v === null || v < 0 || v > 1 ? null : v;
 }
 
 function leggiScaglioni(v: unknown): ScaglioneIrpef[] | null {
@@ -661,8 +780,10 @@ function costruisciConvalidaImpostazioni(
     massimaleGs: preso("massimaleGs", par.massimaleGestioneSeparata),
     minimaleGs: preso("minimaleGs", par.minimaleAnnuo),
     contributiFissi: numero(riga.contributiFissi),
-    aliquotaSoggettivaCassa: fraZeroEUno(riga.aliquotaSoggettivaCassa, 0.15),
-    aliquotaIntegrativaCassa: fraZeroEUno(riga.aliquotaIntegrativaCassa, 0.04),
+    // Assente negli archivi di prima. Vedi `leggiCassa`: l'assenza vale
+    // «Gestione Separata», e i due numeri sciolti di allora si recuperano solo
+    // dove tenerli non cambia un documento già emesso.
+    cassa: leggiCassa(riga.cassa, riga, gestione, dichiarati, anno, avvisi),
     rivalsaAttiva: booleano(riga.rivalsaAttiva),
     aliquotaRivalsa: preso("aliquotaRivalsa", par.aliquotaRivalsaInps, fraZeroEUno),
     ritenutaAttiva: booleano(riga.ritenutaAttiva),

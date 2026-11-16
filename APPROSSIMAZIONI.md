@@ -94,11 +94,8 @@ c'è nello scadenzario, l'importo no.
 
 ## Contributi
 
-**Cassa professionale: una sola aliquota, dichiarata dall'utente.** Ogni cassa
-ha regolamento proprio — minimi, massimali, scaglioni, contributo di maternità.
-L'app applica l'aliquota soggettiva che l'utente dichiara nei Parametri, e per
-le casse **non calcola nessun acconto**: le scadenze le decide il regolamento
-della cassa, non l'INPS.
+**Cassa professionale.** Ha una sezione sua, più sotto: *Cassa professionale
+configurabile*.
 
 **Artigiani e commercianti: quello che l'app calcola e quello che non chiede.**
 Le due gestioni sono distinte, con le loro aliquote e i loro contributi fissi;
@@ -146,8 +143,8 @@ professionista abbia o no un'altra copertura previdenziale; l'app usa quella
 dichiarata nelle impostazioni, senza verificarne il presupposto.
 
 **Nessun minimo contributivo per i professionisti.** È corretto per la Gestione
-Separata, dove il minimale serve solo all'accredito. Non lo è per tutte le
-casse.
+Separata, dove il minimale serve solo all'accredito. Per le casse private il
+minimo c'è e si configura: vedi *Cassa professionale configurabile*.
 
 ## IVA
 
@@ -1293,6 +1290,99 @@ calcola l'acconto in via previsionale segue un'altra strada, e l'app non la
 modella: lo dice qui perché il numero mostrato, in quel caso, non è il suo.
 
 ---
+
+## Cassa professionale configurabile
+
+Chi è iscritto a una cassa privata — avvocati, ingegneri, architetti, psicologi,
+geometri — non versa alla Gestione Separata. Flowlance calcola i suoi contributi
+a partire da **sei numeri che scrive l'utente**: nome della cassa, aliquota e
+minimo annuo del soggettivo, aliquota e minimo annuo dell'integrativo, quote
+fisse annue. Non è il motore di nessuna cassa in particolare, e questa sezione
+dice dove si ferma.
+
+**Nessuno scaglione e nessun tetto di reddito.** L'aliquota del soggettivo è
+**una e piatta** su tutto il reddito. Le casse vere non funzionano così: la
+Forense ha un'aliquota ridotta oltre un tetto di reddito, Inarcassa ha un
+massimale, altre hanno scaglioni. Su un reddito alto il contributo che l'app
+calcola è quindi **più alto del dovuto**, perché applica l'aliquota piena anche
+alla parte che la cassa agevola. È la direzione prudente, ma è uno scarto che
+cresce col reddito.
+
+**Nessuna riduzione per i primi anni o per i giovani.** Quasi tutte le casse
+riducono il soggettivo e il minimo nei primi anni di iscrizione, o sotto una
+certa età. L'app non le conosce e non le chiede: chi ne ha diritto scrive
+l'aliquota e il minimo già ridotti nei Parametri, e li aggiorna quando scadono.
+Nessun automatismo li fa scadere, ed è lo stesso difetto che l'app ha già
+chiuso per l'imposta sostitutiva del forfettario — lì i cinque anni si contano
+dalla data di apertura, qui non c'è una data da cui contare.
+
+**Nessuna scadenza di versamento.** Rate, acconti e saldi cambiano da cassa a
+cassa, e l'app non ne tiene l'elenco. Quindi: nessuna scadenza datata nello
+scadenzario, nessun acconto contributivo calcolato, e una riga informativa senza
+data che lo dice. Nella quota da mettere da parte i contributi della cassa
+entrano **distribuiti in parti uguali sui mesi che restano** — la divisione più
+prudente fra quelle possibili quando non si sa il giorno.
+
+**Nessuna regola particolare di nessuna cassa.** Il contributo di maternità, i
+contributi minimi modulari, le quote d'iscrizione, i supplementari volontari,
+le regole dei pensionati che continuano a esercitare: non ci sono. Le quote
+dovute comunque si scrivono nel campo «contributi fissi annui», che è un
+importo e non una regola.
+
+**I valori li scrive l'utente, e l'app non li verifica.** Non esiste un elenco
+delle casse con le loro aliquote dentro Flowlance, e nemmeno una tabella da
+tenere aggiornata ogni gennaio. L'app controlla solo che i numeri siano numeri
+possibili — aliquote fra 0 % e 100 %, importi non negativi — e che ci siano:
+senza l'aliquota del soggettivo i contributi **restano zero**, e tre punti lo
+dicono (la scheda nei Parametri, il semaforo del cruscotto, il prospetto).
+Prima di questo blocco l'app teneva una media del 15 % e la usava: un contributo
+calcolato al centesimo su un'aliquota che non era di nessuno.
+
+**Il trattamento IVA e fiscale dell'integrativo è da confermare col
+commercialista.** L'app applica queste regole:
+
+- l'integrativo si addebita in fattura **al posto** della rivalsa INPS del 4 %,
+  e non passa dall'interruttore della rivalsa: con una cassa non è una scelta;
+- **non è reddito**: non entra nei compensi, non conta per la soglia del
+  forfettario, non subisce ritenuta d'acconto;
+- in regime ordinario **concorre alla base imponibile IVA**: l'IVA si calcola su
+  compensi più integrativo;
+- entra nell'imponibile su cui si misura la soglia del bollo, come la rivalsa;
+- si versa alla cassa per intero, e il prospetto lo tiene in una sezione sua
+  perché non è un costo del professionista.
+
+Sono le regole generali. Casi particolari — operazioni fuori campo IVA, reverse
+charge, clienti esteri — non sono stati verificati su una fonte primaria, perché
+dall'ambiente in cui questo codice è stato scritto nessun sito istituzionale è
+raggiungibile.
+
+**L'integrativo si conta per competenza, non per cassa.** L'obbligo nasce
+dall'**emissione** della fattura, non dall'incasso: contarlo per cassa
+dichiarerebbe meno del dovuto ogni volta che una fattura di dicembre viene
+incassata a gennaio. È la lettura che sbaglia nella direzione meno costosa, ma
+il regolamento di una cassa potrebbe dire diversamente.
+
+**La differenza sul minimo dell'integrativo è un costo mostrato, non dedotto.**
+Se le fatture dell'anno non arrivano al minimo, la differenza la mette il
+professionista: l'app la mostra come costo in una riga sua, e **non** la deduce
+dal reddito. Se sia deducibile è una delle cose da confermare col
+commercialista; non dedurla è la scelta prudente.
+
+**Con il concordato preventivo i contributi restano sul reddito effettivo.** Il
+concordato è un patto con l'Agenzia delle Entrate, e il regolamento di una cassa
+privata non lo conosce. Le imposte seguono il reddito concordato, i contributi
+della cassa no — su tutto: soggettivo, minimo e quote fisse. Vale anche per il
+minimo, che si confronta col contributo calcolato sull'effettivo.
+
+**Il soggettivo e le quote fisse si deducono come i contributi INPS**: dal
+reddito complessivo in ordinario, dal reddito forfettario in forfettario. È il
+trattamento che l'app applicava già ai contributi della Separata, esteso senza
+cambiarlo.
+
+**Il minimo del soggettivo è un pavimento, non una franchigia.** Chi sta sotto
+paga il minimo **per intero**, non la differenza. È la regola che quasi tutte le
+casse applicano; una cassa che facesse diversamente andrebbe configurata con il
+minimo a zero.
 
 ## La quota di accantonamento del mese
 

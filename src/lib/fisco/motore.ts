@@ -24,6 +24,13 @@ import {
   type RedditoAnnuale,
 } from "./cpb";
 import { derivato } from "./derivati/registro";
+import {
+  cassaDi,
+  integrativoAnnuo,
+  valutaCassa,
+  type AvvisoCassa,
+  type EsitoCassa,
+} from "./cassa";
 import { eGestioneCommerciale } from "./tipi";
 import { impostaProgressiva } from "./scaglioni";
 import { aliquota, interoIt } from "../format";
@@ -183,6 +190,43 @@ export type ConcordatoProspetto = {
   maggiorazioneDaVersare: number;
 };
 
+/**
+ * Quello che una cassa professionale produce in un anno, voce per voce.
+ *
+ * Due numeri potrebbero bastare — quanto devi, quanto giri — e non bastano: la
+ * domanda vera di chi guarda è «perché il contributo è questo?», e la risposta
+ * sta nei pezzi. Il soggettivo calcolato accanto al minimo dice se il minimo ha
+ * fatto da pavimento; l'integrativo fatturato accanto al suo minimo dice se c'è
+ * una differenza da mettere di tasca propria.
+ */
+export type CassaProspetto = {
+  nome: string;
+  /** C'è l'aliquota del soggettivo: senza, i contributi sono zero e lo si dice. */
+  configurata: boolean;
+  aliquotaSoggettivo: number | null;
+  aliquotaIntegrativo: number | null;
+  /** Il reddito su cui si calcola il soggettivo: con la cassa è sempre l'effettivo. */
+  baseSoggettivo: number;
+  /** Aliquota per reddito, prima del confronto con il minimo. */
+  soggettivoCalcolato: number;
+  minimoSoggettivo: number;
+  /** Quello che si versa: il maggiore fra il calcolato e il minimo. */
+  soggettivo: number;
+  /** Il minimo ha fatto da pavimento: il reddito dell'anno non lo raggiungeva. */
+  soggettivoAlMinimo: boolean;
+  contributiFissi: number;
+  /** Soggettivo più fisse: la parte deducibile, quella che paghi tu. */
+  dovutoSulReddito: number;
+  /** Addebitato in fattura nell'anno, al netto delle note di credito. */
+  integrativoFatturato: number;
+  minimoIntegrativo: number;
+  /** Quello che la cassa vuole: il maggiore fra fatturato e minimo. */
+  integrativoDaVersare: number;
+  /** La differenza che resta a carico tuo, quando il minimo non è coperto. */
+  integrativoACarico: number;
+  avvisi: AvvisoCassa[];
+};
+
 export type Prospetto = {
   anno: number;
   regime: Impostazioni["regime"];
@@ -272,6 +316,25 @@ export type Prospetto = {
   contributiCassa: number;
   totaleContributi: number;
   accreditoIntero: boolean | null;
+
+  /**
+   * D-ter · La cassa professionale, quando ce n'è una.
+   *
+   * `null` per chi versa all'INPS: non un oggetto di zeri, che a schermo si
+   * distingue male da una cassa configurata male. Le due metà vanno lette
+   * insieme e non si sommano mai:
+   *
+   * - `soggettivo` e `contributiFissi` sono **tuoi**: escono dal tuo reddito, e
+   *   si deducono come i contributi INPS;
+   * - `integrativoDaVersare` l'hai **incassato dai clienti** in fattura e lo
+   *   giri alla cassa. Non è un costo e non è un ricavo: attraversa il conto.
+   *
+   * L'unica eccezione è `integrativoACarico`: se le fatture dell'anno non
+   * arrivano al minimo dell'integrativo, la differenza la metti tu, e quella è
+   * un costo vero. Sta in una voce sua perché sommarla all'integrativo
+   * nasconderebbe l'unico pezzo che pesa davvero.
+   */
+  cassa: CassaProspetto | null;
 
   /**
    * D-bis · Il concordato preventivo biennale.
@@ -423,11 +486,36 @@ export function contributiCommerciali(
   );
 }
 
+/**
+ * I contributi previdenziali, qualunque sia la gestione.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * La cassa professionale: tre pezzi, non uno
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il contributo che pesa sul reddito è **soggettivo più quote fisse**, e il
+ * soggettivo non è una semplice percentuale: sotto il minimo annuo si versa il
+ * minimo, per intero. Prima qui c'era una moltiplicazione e basta — reddito per
+ * aliquota — e su un anno magro restituiva un numero molto più basso del vero,
+ * senza che niente lo dicesse. È il difetto peggiore in un prospetto: un totale
+ * plausibile che nessuno ricontrolla.
+ *
+ * Il terzo pezzo, l'integrativo, **non è qui**: non si calcola sul reddito ma
+ * sui compensi fatturati, lo addebita il cliente in fattura e non è un costo
+ * del professionista. Sta nel prospetto, dove si sanno i documenti.
+ */
 export function contributiPrevidenziali(
   base: number,
   imp: Impostazioni,
   par: ParametriAnno,
-): { separata: number; artigiani: number; cassa: number; totale: number } {
+): {
+  separata: number;
+  artigiani: number;
+  cassa: number;
+  totale: number;
+  /** Di cosa è fatto il contributo della cassa, per chi deve mostrarlo. */
+  dettaglioCassa: EsitoCassa | null;
+} {
   const positiva = nonNegativo(base);
   /*
     La condizione «questa gestione versa qui» non si ripete: sta dentro il
@@ -446,9 +534,21 @@ export function contributiPrevidenziali(
   // Il nome del campo resta `artigiani` perché è la voce del prospetto, e
   // rinominarla romperebbe ogni schermata per un guadagno nullo.
   const artigiani = contributiCommerciali(positiva, imp, par);
-  const aliquotaCassa = derivato("aliquotaSoggettivaCassa", imp, par).valore;
-  const cassa = aliquotaCassa === null ? 0 : round2(positiva * aliquotaCassa);
-  return { separata, artigiani, cassa, totale: somma(separata, artigiani, cassa) };
+  /*
+    Il soggettivo col suo minimo, più le quote fisse. `null` quando la gestione
+    non è una cassa, che non è «zero contributi»: è «questa voce non esiste per
+    questa persona», e il prospetto la tiene fuori invece di mostrare una riga
+    da zero euro a chi versa all'INPS.
+  */
+  const dettaglioCassa = valutaCassa(imp, { redditoImponibile: positiva });
+  const cassa = dettaglioCassa?.dovutoSulReddito ?? 0;
+  return {
+    separata,
+    artigiani,
+    cassa,
+    totale: somma(separata, artigiani, cassa),
+    dettaglioCassa,
+  };
 }
 
 /**
@@ -484,7 +584,13 @@ export function contributiPrevidenziali(
  * la catena di calcolo: l'ha solo chiamata con numeri diversi.
  */
 export type CaricoFiscale = {
-  contributi: { separata: number; artigiani: number; cassa: number; totale: number };
+  contributi: {
+    separata: number;
+    artigiani: number;
+    cassa: number;
+    totale: number;
+    dettaglioCassa: EsitoCassa | null;
+  };
   contributiDedotti: number;
   imponibile: number;
   impostaSostitutiva: number;
@@ -897,6 +1003,33 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
   const fatturatoEmesso = round2(
     somma(...emesseNellAnno.map((f) => f.ricavoRilevante)) - stornoEmesso,
   );
+
+  /*
+    Il contributo integrativo addebitato nell'anno, al netto delle note.
+
+    ─────────────────────────────────────────────────────────────────────────
+    Per competenza, e non per cassa: la scelta prudente fra le due
+    ─────────────────────────────────────────────────────────────────────────
+
+    L'integrativo si deve alla cassa perché la fattura è stata **emessa**, non
+    perché il cliente ha pagato: è l'addebito che lo genera. Contarlo per cassa
+    vorrebbe dire dichiarare meno di quanto si deve ogni volta che una fattura
+    di dicembre viene incassata a gennaio, e un contributo dichiarato per
+    difetto si scopre quando la cassa lo chiede, con la sanzione attaccata.
+    Sta in APPROSSIMAZIONI.md: ogni cassa ha il suo regolamento, e questa è la
+    lettura che sbaglia nella direzione meno costosa.
+
+    Le note di credito scendono qui con lo stesso criterio — data documento —
+    perché una nota che storna compensi storna l'integrativo su quei compensi.
+    `calcolaNota` lo calcola sull'imponibile stornato, quindi la proporzione è
+    esatta per costruzione e non c'è una seconda regola da tenere allineata.
+  */
+  const integrativoFatturato = round2(
+    nonNegativo(
+      somma(...emesseNellAnno.map((f) => f.integrativaCassa))
+        - somma(...rn.perCompetenza.map((n) => n.integrativaCassa)),
+    ),
+  );
   /*
     Il «da incassare» è al netto delle note agganciate a quelle fatture: una
     fattura da 2.500 già stornata per 1.000 non vale 2.500 di incasso atteso, e
@@ -1084,6 +1217,44 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     : carico;
 
   const contributi = carico.contributi;
+  /*
+    La cassa dell'anno, messa insieme da due pezzi che vengono da due posti e
+    non devono ricalcolarsi a vicenda.
+
+    Il soggettivo è **quello che il motore ha davvero usato**: arriva da
+    `contributi.dettaglioCassa`, cioè dallo stesso oggetto che ha dedotto i
+    contributi dal reddito. Ricalcolarlo qui per mostrarlo sarebbe la forma
+    esatta del difetto che questo progetto inseguie da mesi — un valore
+    mostrato e uno usato che non si parlano.
+
+    L'integrativo invece il motore non lo sa, perché dipende dai documenti: si
+    calcola qui, una volta, e passa dalla stessa funzione che decide il minimo.
+  */
+  const integrativoDellAnno =
+    contributi.dettaglioCassa !== null && contributi.dettaglioCassa.valida
+      ? integrativoAnnuo(integrativoFatturato, cassaDi(imp))
+      : null;
+  const cassaDellAnno: CassaProspetto | null =
+    contributi.dettaglioCassa === null
+      ? null
+      : {
+          nome: contributi.dettaglioCassa.nome,
+          configurata: contributi.dettaglioCassa.configurata,
+          aliquotaSoggettivo: derivato("aliquotaSoggettivaCassa", imp, par).valore,
+          aliquotaIntegrativo: cassaDi(imp).aliquotaIntegrativo,
+          baseSoggettivo: baseContributiva,
+          soggettivoCalcolato: contributi.dettaglioCassa.soggettivo.calcolato,
+          minimoSoggettivo: contributi.dettaglioCassa.soggettivo.minimo,
+          soggettivo: contributi.dettaglioCassa.soggettivo.applicato,
+          soggettivoAlMinimo: contributi.dettaglioCassa.soggettivo.alMinimo,
+          contributiFissi: contributi.dettaglioCassa.contributiFissi,
+          dovutoSulReddito: contributi.dettaglioCassa.dovutoSulReddito,
+          integrativoFatturato: integrativoDellAnno?.fatturato ?? 0,
+          minimoIntegrativo: integrativoDellAnno?.minimo ?? 0,
+          integrativoDaVersare: integrativoDellAnno?.daVersare ?? 0,
+          integrativoACarico: integrativoDellAnno?.aCarico ?? 0,
+          avvisi: contributi.dettaglioCassa.avvisi,
+        };
   const contributiCompetenza = contributi.totale;
   const usaVersamenti = versamentiContributi > 0;
   const contributiDedotti = carico.contributiDedotti;
@@ -1407,6 +1578,8 @@ export function calcolaProspetto(ingresso: IngressoMotore): Prospetto {
     contributiCassa: contributi.cassa,
     totaleContributi: contributiCompetenza,
     accreditoIntero: accreditoIntero(baseContributiva, imp, par),
+
+    cassa: cassaDellAnno,
 
     concordato: cpb
       ? {

@@ -209,7 +209,9 @@ export function situazioneDelMese(ing: IngressoMese): SituazioneMese {
       conto dell'attività, sul conto personale non ci sono mai stati.
     */
     fiscoNonVersato:
-      chiPaga === "attivita" ? 0 : quota.imposte.daAccantonare + quota.iva.daAccantonare,
+      chiPaga === "attivita"
+        ? 0
+        : quota.imposte.daAccantonare + quota.iva.daAccantonare + quota.cassa.daAccantonare,
   });
 
   const effettivo = limiteEffettivo(dalMese.resta, tetto.tetto - riga.speso);

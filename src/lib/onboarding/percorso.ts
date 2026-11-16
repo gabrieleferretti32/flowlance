@@ -19,6 +19,7 @@
  */
 import { aliquota, euro, interoIt, percentuale } from "@/lib/format";
 import { derivato } from "@/lib/fisco/derivati/registro";
+import { previdenzaNelTesto } from "@/lib/fisco/cassa";
 import type { Prospetto } from "@/lib/fisco/motore";
 import type { Impostazioni, ParametriAnno } from "@/lib/fisco/tipi";
 
@@ -219,7 +220,7 @@ export const PASSI: Passo[] = [
     domanda: "Dove versi i contributi?",
     perche:
       "I contributi pesano quanto le imposte, spesso di più, e si calcolano in modi diversi. Nella Gestione Separata INPS sono una percentuale del reddito, senza minimo: se guadagni poco versi poco. Artigiani e commercianti hanno un contributo fisso dovuto comunque, più una percentuale sulla parte di reddito eccedente il minimale — e sono due gestioni diverse: i commercianti versano lo 0,48 % in più per l'indennizzo di cessazione. Le casse professionali hanno regole proprie e un contributo integrativo che si addebita in fattura e non fa reddito.",
-    seSalti: (c) => `Resta ${nomeGestione(c.impostazioni.gestione)}.`,
+    seSalti: (c) => `Resta ${previdenzaNelTesto(c.impostazioni)}.`,
     effetto: (c) =>
       c.prospetto.redditoLordo > 0
         ? `Sul tuo reddito lordo di ${euro(c.prospetto.redditoLordo)} i contributi sono ${euro(c.prospetto.totaleContributi)}.`
@@ -311,13 +312,6 @@ export const PASSI: Passo[] = [
     ordine: 90,
   },
 ];
-
-function nomeGestione(g: Impostazioni["gestione"]): string {
-  if (g === "separata") return "la Gestione Separata INPS";
-  if (g === "artigiani") return "la gestione artigiani";
-  if (g === "commercianti") return "la gestione commercianti";
-  return "una cassa professionale";
-}
 
 /** I passi di un contesto, nell'ordine, già filtrati su cosa ha senso mostrare. */
 export function passiDi(contesto: ContestoPercorso, c: ContestoCalcolo): Passo[] {

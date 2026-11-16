@@ -67,8 +67,16 @@ import type { Impostazioni, ParametriAnno, VersamentoF24 } from "./tipi";
 /** Le categorie di scadenza che l'accantonamento finanzia. */
 const FINANZIATE: Adempimento["categoria"][] = ["imposte", "contributi"];
 
-/** Quale delle due metà: il fisco sul reddito, o l'IVA dei clienti. */
-export type Componente = "imposte" | "iva";
+/**
+ * Quale delle tre parti: il fisco sul reddito, l'IVA dei clienti, la cassa.
+ *
+ * La terza è arrivata con le casse professionali, e sta a sé per una ragione
+ * che non è di stile: **non ha date**. Ogni cassa ha il suo calendario di
+ * versamento, l'app non li conosce e non li inventa, quindi la sua parte non
+ * si può distribuire sulle scadenze come le altre due — si stende uniforme sui
+ * mesi che restano. Vedi `quotaCassa`.
+ */
+export type Componente = "imposte" | "iva" | "cassa";
 
 export type VoceQuota = {
   componente: Componente;
@@ -124,6 +132,13 @@ export type QuotaAccantonamento = {
   alMese: number;
   imposte: ParteQuota;
   iva: ParteQuota;
+  /**
+   * La cassa professionale: contributi senza data, stesi uniformi sui mesi.
+   *
+   * Parte vuota per chi versa all'INPS — lì i contributi hanno le loro
+   * scadenze e stanno dentro `imposte`, dov'erano.
+   */
+  cassa: ParteQuota;
   metodo: MetodoQuota;
   /** Frasi da mostrare accanto al numero. Vuoto quando non c'è niente da dire. */
   avvisi: string[];
@@ -383,11 +398,24 @@ function conFondo(q: QuotaAccantonamento, fondo: FondoTasse | null): QuotaAccant
 
   const imposte = alleggerita(q.imposte);
   const iva = alleggerita(q.iva);
+  /*
+    La parte della cassa il fondo non la alleggerisce, e non è una dimenticanza.
+
+    `alleggerita` lavora sulle **voci**: toglie dal fondo quanto copre ogni
+    scadenza, in ordine di data. La cassa non ha voci perché non ha date, e
+    senza una data non c'è un posto in cui metterla in quella fila. Coprirla
+    «per prima» o «per ultima» sarebbe una scelta inventata, e in un verso
+    farebbe sparire dalla quota del mese contributi che la cassa potrebbe
+    chiedere a maggio. Resta intera: è la direzione prudente dello sbaglio —
+    si mette da parte un po' di più, non un po' di meno.
+  */
+  const cassa = q.cassa;
   return {
     ...q,
-    alMese: round2(imposte.alMese + iva.alMese),
+    alMese: round2(imposte.alMese + iva.alMese + cassa.alMese),
     imposte,
     iva,
+    cassa,
     fondo: {
       dichiarato: round2(fondo.importo),
       dichiaratoIl: fondo.dichiaratoIl,
@@ -398,8 +426,75 @@ function conFondo(q: QuotaAccantonamento, fondo: FondoTasse | null): QuotaAccant
   };
 }
 
+/**
+ * La cassa professionale: tutto quello che le va versato, steso uniforme.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché uniforme e non sulle scadenze
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Le altre due parti si distribuiscono sulle scadenze perché le scadenze si
+ * sanno: il 30 giugno e il 30 novembre sono di legge, uguali per tutti. Le date
+ * di versamento di una cassa no — Forense, Inarcassa ed ENPAM hanno calendari
+ * diversi, e un'app che ne inventasse uno direbbe a qualcuno di avere tempo
+ * fino a ottobre quando la sua cassa chiede a maggio. Quindi nessuna data, e la
+ * divisione più prudente fra quelle possibili: in parti uguali sui mesi che
+ * restano. Lo scadenzario tiene una voce senza data che lo dice.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Due pezzi, e il secondo non è nel fabbisogno
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Il **soggettivo più le quote fisse** stanno già dentro
+ * `fabbisognoDaAccantonare`: sono contributi di competenza, entrano in
+ * `totaleDovuto` come quelli INPS. Vanno quindi *spostati* da `imposte` a qui,
+ * non aggiunti — sommarli due volte chiederebbe il doppio.
+ *
+ * L'**integrativo da versare** no: non è un costo, quindi non è in nessun
+ * totale del prospetto. Ma è denaro che sta sul conto e non è tuo — l'hai
+ * addebitato ai clienti e lo giri alla cassa — ed è esattamente l'argomento per
+ * cui l'IVA è dentro questa quota: una quota che lo escludesse lascerebbe
+ * spendere i contributi dei clienti. Quindi si aggiunge.
+ *
+ * La differenza sul minimo dell'integrativo, quando c'è, è già dentro
+ * `integrativoDaVersare`: è l'unico pezzo dell'integrativo che paghi tu, e va
+ * messo da parte come il resto.
+ */
+function quotaCassa(
+  prospetto: Prospetto,
+  fabbisognoImposte: number,
+  oggi: string,
+): { cassa: ParteQuota; imposteResidue: number } {
+  const c = prospetto.cassa;
+  if (c === null) return { cassa: VUOTA, imposteResidue: fabbisognoImposte };
+
+  /*
+    Quanto del contributo sul reddito è davvero dentro il fabbisogno.
+
+    Non `dovutoSulReddito` così com'è: il fabbisogno è un **residuo**, già al
+    netto di quello che hai versato e del credito riportato, e può essere più
+    piccolo del contributo dell'anno. Prendere il contributo pieno lascerebbe
+    `imposteResidue` negativo, cioè chiederebbe di accantonare per la cassa
+    denaro che la cassa ha già incassato.
+  */
+  const sulReddito = round2(Math.min(nonNegativo(c.dovutoSulReddito), fabbisognoImposte));
+  const daAccantonare = round2(sulReddito + nonNegativo(c.integrativoDaVersare));
+  if (daAccantonare === 0) return { cassa: VUOTA, imposteResidue: fabbisognoImposte };
+
+  return {
+    cassa: {
+      alMese: round2(daAccantonare / mesiRimastiNellAnno(oggi)),
+      daAccantonare,
+      voci: [],
+    },
+    imposteResidue: round2(fabbisognoImposte - sulReddito),
+  };
+}
+
 export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
-  const daAccantonare = round2(nonNegativo(ing.prospetto.fabbisognoDaAccantonare));
+  const fabbisogno = round2(nonNegativo(ing.prospetto.fabbisognoDaAccantonare));
+  const { cassa, imposteResidue } = quotaCassa(ing.prospetto, fabbisogno, ing.oggi);
+  const daAccantonare = imposteResidue;
   const avvisi: string[] = [];
 
   const tutte = scadenzeAnno(
@@ -425,9 +520,10 @@ export function quotaAccantonamento(ing: IngressoQuota): QuotaAccantonamento {
   const chiudi = (imposte: ParteQuota, metodo: MetodoQuota): QuotaAccantonamento =>
     conFondo(
       {
-        alMese: round2(imposte.alMese + iva.alMese),
+        alMese: round2(imposte.alMese + iva.alMese + cassa.alMese),
         imposte,
         iva,
+        cassa,
         metodo,
         avvisi,
         fondo: null,

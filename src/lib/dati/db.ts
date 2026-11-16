@@ -1,5 +1,6 @@
 import Dexie, { type EntityTable } from "dexie";
 import { concordatoPredefinito } from "@/lib/fisco/cpb";
+import { cassaPredefinita } from "@/lib/fisco/cassa";
 import type {
   ChiusuraAnno,
   Cliente,
@@ -55,7 +56,7 @@ import type {
  * «non aderito»: è quello che quegli archivi erano, scritto a chiare lettere
  * invece che lasciato all'assenza del campo.
  */
-export const VERSIONE_SCHEMA = 13;
+export const VERSIONE_SCHEMA = 14;
 
 /**
  * Lo schema IndexedDB.
@@ -239,7 +240,60 @@ export class DatabaseFinanze extends Dexie {
           if (i.concordato === undefined) i.concordato = concordatoPredefinito(i.anno);
         });
     });
+    /*
+      Versione 14: il blocco della cassa professionale nelle impostazioni.
+
+      Come la 13, un campo in più su righe che esistono già, e come la 13 non
+      cambia un numero: `cassaDi()` tratta l'assenza come «cassa non
+      configurata», perché un backup importato in una scheda appena aperta non
+      può contare sul fatto che questa migrazione sia passata.
+
+      I due numeri sciolti di prima — `aliquotaSoggettivaCassa` e
+      `aliquotaIntegrativaCassa` — si recuperano con la stessa regola che
+      applica l'import di un backup, e per la stessa ragione: il 15 % del
+      soggettivo era una media dell'app, e portarlo avanti vorrebbe dire
+      continuare a calcolare un contributo preciso su un'aliquota che non era di
+      nessuno; il 4 % dell'integrativo, quando la rivalsa era attiva, stava
+      invece sulle fatture già emesse, e cambiarlo cambierebbe i totali di
+      documenti già mandati. Il commento lungo sta in `leggiCassa`, in
+      `src/lib/dati/backup.ts`: qui è la stessa decisione, scritta una seconda
+      volta perché i due percorsi d'ingresso sono due.
+
+      I vecchi campi si cancellano dalla riga: restarci vorrebbe dire due
+      sorgenti per lo stesso dato, e la seconda non la leggerebbe più nessuno.
+    */
+    this.version(14).upgrade(async (tx) => {
+      await tx
+        .table("impostazioni")
+        .toCollection()
+        .modify((i: Record<string, unknown>) => {
+          if (i.cassa === undefined) {
+            const inCassa = i.gestione === "cassa";
+            const dichiarati = Array.isArray(i.dichiarati) ? (i.dichiarati as unknown[]) : [];
+            const soggettiva =
+              inCassa && dichiarati.includes("aliquotaSoggettivaCassa")
+                ? aliquotaDaArchivio(i.aliquotaSoggettivaCassa)
+                : null;
+            const integrativa =
+              inCassa && i.rivalsaAttiva === true
+                ? aliquotaDaArchivio(i.aliquotaIntegrativaCassa)
+                : null;
+            i.cassa = {
+              ...cassaPredefinita(),
+              aliquotaSoggettivo: soggettiva,
+              aliquotaIntegrativo: integrativa,
+            };
+          }
+          delete i.aliquotaSoggettivaCassa;
+          delete i.aliquotaIntegrativaCassa;
+        });
+    });
   }
+}
+
+/** Un'aliquota che viene dall'archivio: fuori da 0-100 % non è un'aliquota. */
+function aliquotaDaArchivio(v: unknown): number | null {
+  return typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 1 ? v : null;
 }
 
 let istanza: DatabaseFinanze | null = null;

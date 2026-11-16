@@ -3,6 +3,7 @@
  * Se trovi un valore calcolato dentro il database, è un bug.
  */
 import { round2 } from "./aritmetica";
+import { addebitaIntegrativo, cassaDi, eCassa, integrativoSu } from "./cassa";
 import type {
   Costo,
   CostoCalcolato,
@@ -62,15 +63,37 @@ export function calcolaFattura(
 ): FatturaCalcolata {
   const forfettario = imp.regime === "forfettario";
   const aliquotaIvaApplicata = forfettario ? 0 : (fattura.aliquotaIva ?? imp.aliquotaIva);
-  const iva = round2(fattura.imponibile * aliquotaIvaApplicata);
 
-  const inCassa = imp.gestione === "cassa";
+  /*
+    La rivalsa INPS e il contributo integrativo si escludono a vicenda.
+
+    La rivalsa del 4 % è la maggiorazione che la Gestione Separata **permette**
+    di addebitare, e l'interruttore `rivalsaAttiva` esiste perché addebitarla o
+    no è una scelta da concordare col cliente. L'integrativo della cassa non è
+    una scelta: il regolamento della cassa lo impone, si addebita e si gira alla
+    cassa per intero. Per questo non passa da quell'interruttore — ci passava, e
+    voleva dire che chi aveva una cassa e la rivalsa spenta emetteva fatture
+    senza l'integrativo che era obbligato ad addebitare.
+  */
+  const integrativaCassa = addebitaIntegrativo(imp)
+    ? integrativoSu(fattura.imponibile, cassaDi(imp))
+    : 0;
   const rivalsa =
-    imp.rivalsaAttiva && !inCassa ? round2(fattura.imponibile * imp.aliquotaRivalsa) : 0;
-  const integrativaCassa =
-    imp.rivalsaAttiva && inCassa
-      ? round2(fattura.imponibile * imp.aliquotaIntegrativaCassa)
-      : 0;
+    imp.rivalsaAttiva && !eCassa(imp) ? round2(fattura.imponibile * imp.aliquotaRivalsa) : 0;
+
+  /*
+    L'IVA si calcola **anche sull'integrativo**, e non sulla rivalsa.
+
+    Non è una simmetria mancata: sono due cose diverse. Il contributo
+    integrativo concorre a formare la base imponibile IVA dell'operazione,
+    quindi in ordinario l'IVA si applica su compensi più integrativo; la
+    rivalsa INPS invece resta fuori. Prima l'IVA stava sul solo imponibile, e
+    con una cassa attiva la fattura usciva con l'IVA calcolata per difetto —
+    un documento sbagliato, non un numero sbagliato a schermo.
+
+    In forfettario `aliquotaIvaApplicata` è zero e la riga non cambia niente.
+  */
+  const iva = round2((fattura.imponibile + integrativaCassa) * aliquotaIvaApplicata);
 
   const imponibileConMaggiorazioni = fattura.imponibile + rivalsa + integrativaCassa;
   const bollo =
@@ -79,8 +102,12 @@ export function calcolaFattura(
       : 0;
   const bolloACarico = imp.bolloAddebitato ? 0 : bollo;
 
-  // La ritenuta d'acconto non si applica ai forfettari e non colpisce
-  // il contributo integrativo della cassa.
+  /*
+    La ritenuta d'acconto non si applica ai forfettari e **non colpisce
+    l'integrativo**: non è compenso del professionista, è una somma che
+    attraversa la fattura per finire alla cassa. La rivalsa invece sì, perché
+    quella è reddito suo.
+  */
   const ritenuta =
     imp.ritenutaAttiva && !forfettario
       ? round2((fattura.imponibile + rivalsa) * imp.aliquotaRitenuta)

@@ -57,6 +57,7 @@ import {
   FATTURE_FIXTURE,
   OGGI_FIXTURE,
   impostazioniForfettario,
+  impostazioniConCassa,
   impostazioniOrdinario,
 } from "./fixture";
 import { PARAMETRI_2026 } from "./parametri/2026";
@@ -358,7 +359,7 @@ describe("i contributi", () => {
     regolamento di una cassa non lo conosce. 6.520 × 15 % = 978 €.
   */
   it("la cassa professionale resta sul reddito effettivo", () => {
-    const base: Impostazioni = { ...impostazioniOrdinario(), gestione: "cassa" };
+    const base: Impostazioni = impostazioniConCassa();
     const p = prospettoDi(conCpb({ redditoConcordato: 40_000 }, base));
     expect(p.baseContributiva).toBe(6_520);
     expect(p.contributiCassa).toBe(978);

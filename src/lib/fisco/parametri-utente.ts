@@ -3,15 +3,29 @@
  *
  * Non sono parametri di legge — quelli stanno in `parametri/<anno>.ts` e valgono
  * per tutti — e non sono scelte di comodo. Sono numeri che dipendono da dove
- * vivi e a quale cassa versi: l'addizionale del tuo comune, i contributi fissi
- * della tua gestione, l'aliquota della tua cassa professionale. L'app un valore
- * ce l'ha, altrimenti non potrebbe calcolare niente, ma è una media: presentarlo
+ * vivi e da come versi i contributi: l'addizionale del tuo comune, i contributi
+ * fissi della tua gestione, le ore che riesci a fatturare. L'app un valore ce
+ * l'ha, altrimenti non potrebbe calcolare niente, ma è una media: presentarlo
  * come «la tua aliquota» è la bugia da cui nasce questo modulo.
  *
  * Da qui discendono tre cose: la schermata che li chiede, la marcatura
  * «predefinito» ovunque compaiano, e il blocco dell'export del prospetto quando
  * un'aliquota che entra nell'IRPEF non è mai stata confermata. Un documento che
  * finisce dal commercialista non deve contenere numeri che nessuno ha detto.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Cosa **non** sta qui: la cassa professionale
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * L'aliquota soggettiva della cassa è passata di qui per un po', e non ci sta
+ * bene per due ragioni. La prima è di forma: questo elenco regge **un numero
+ * per campo**, letto da `imp[campo]`, e una cassa sono sei dati che hanno senso
+ * solo insieme — nome, due aliquote, due minimi, le quote fisse. La seconda è
+ * di sostanza: il meccanismo di qui serve a marcare «predefinito» un valore che
+ * l'app ha inventato, e della cassa l'app non inventa niente. O l'aliquota c'è,
+ * e allora è quella giusta, o non c'è, e allora i contributi sono zero e la
+ * schermata lo dice. Il blocco sta in `cassa.ts`, con la sua sezione nei
+ * Parametri.
  */
 import { aliquota, analizzaNumero, euro, interoIt } from "@/lib/format";
 import { frazioneDaPercentuale } from "./aritmetica";
@@ -22,7 +36,6 @@ export type CampoUtente =
   | "addizionaleRegionale"
   | "addizionaleComunale"
   | "contributiFissi"
-  | "aliquotaSoggettivaCassa"
   | "giorniLavorativi"
   | "oreFatturabiliGiorno";
 
@@ -149,21 +162,6 @@ export const CAMPI_UTENTE: DefinizioneCampo[] = [
     pertinente: (imp) => eGestioneCommerciale(imp.gestione),
     minimo: 0,
     massimo: 20_000,
-  },
-  {
-    campo: "aliquotaSoggettivaCassa",
-    etichetta: "Aliquota soggettiva della cassa",
-    nelTesto: "l'aliquota della tua cassa",
-    aCosaServe:
-      "Il contributo soggettivo che versi alla tua cassa professionale sul reddito. Ogni cassa ha la sua: Forense, Inarcassa, ENPAM e le altre non si somigliano.",
-    doveTrovarlo:
-      "Sul sito della tua cassa, nel regolamento dei contributi, o nell'ultimo modello reddituale che hai inviato.",
-    incideSu: "imposte",
-    formato: "percentuale",
-    nellIrpef: false,
-    pertinente: (imp) => imp.gestione === "cassa",
-    minimo: 0,
-    massimo: 0.3,
   },
   {
     campo: "giorniLavorativi",

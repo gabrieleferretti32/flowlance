@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Guscio } from "@/components/guscio/guscio";
 import { AvvisoParametri } from "@/components/fisco/avviso-parametri";
+import { SezioneCassa } from "./sezione-cassa";
 import { SezioneConcordato } from "./sezione-concordato";
 import {
   confermaEredita,
@@ -96,9 +97,12 @@ export function SchermataParametri() {
             <CardTitolo>I numeri che dipendono da te</CardTitolo>
             <CardSottotitolo>
               Le aliquote nazionali le sa l&apos;app e si aggiornano da sole. Queste no:
-              cambiano con la regione in cui vivi, il comune, la cassa a cui versi. Finché non
-              le confermi il calcolo gira su una media — deve girare, altrimenti l&apos;app non
-              direbbe niente — e ovunque compaiano sono marcate come predefinite.
+              cambiano con la regione in cui vivi, con il comune, con quanto riesci a
+              fatturare. Finché non le confermi il calcolo gira su una media — deve girare,
+              altrimenti l&apos;app non direbbe niente — e ovunque compaiano sono marcate come
+              predefinite. I numeri della cassa professionale, qui sopra, fanno eccezione:
+              quelli nessuna media li può sostituire, e senza di loro i contributi restano a
+              zero.
             </CardSottotitolo>
 
             {bloccanti.length > 0 ? (
@@ -176,6 +180,13 @@ export function SchermataParametri() {
           il genere di errore che si scopre dal commercialista.
         */}
         <SezioneConcordato impostazioni={imp} anno={anno} />
+
+        {/*
+          La cassa dopo il concordato e prima delle aliquote, per la stessa
+          ragione di ordine: i contributi della cassa si deducono dal reddito su
+          cui tutte le righe sotto si applicano.
+        */}
+        <SezioneCassa impostazioni={imp} anno={anno} />
 
         {campi.map((c) => (
           <SchedaParametro

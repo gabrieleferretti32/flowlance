@@ -382,8 +382,20 @@ export type Impostazioni = {
    * aveva modo di sapere che quel campo lo doveva toccare.
    */
   contributiFissi: number;
-  aliquotaSoggettivaCassa: number;
-  aliquotaIntegrativaCassa: number;
+
+  /**
+   * La cassa professionale, quando la gestione è `cassa`.
+   *
+   * Opzionale perché gli archivi scritti prima di questo blocco non ce l'hanno:
+   * la migrazione lo riempie, e `cassaDi()` tratta l'assenza come «cassa non
+   * configurata» senza che la migrazione debba essere già passata — un backup
+   * importato in una scheda appena aperta non può contarci.
+   *
+   * Prima qui c'erano due numeri sciolti, `aliquotaSoggettivaCassa` e
+   * `aliquotaIntegrativaCassa`, e uno dei due aveva una media dell'app come
+   * valore: il 15 % che non era di nessuno. Vedi `cassa.ts`.
+   */
+  cassa?: Cassa;
 
   rivalsaAttiva: boolean;
   aliquotaRivalsa: number;
@@ -665,4 +677,47 @@ export type Concordato = {
   votoIsa: number | null;
   /** L'opzione per l'imposta sostitutiva sul maggior reddito concordato. */
   sostitutiva: boolean;
+};
+
+// ————————————————————————————————————————————————————————————
+// Cassa professionale
+// ————————————————————————————————————————————————————————————
+
+/**
+ * I parametri della cassa professionale di chi la usa.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché i numeri non li sa l'app, e perché sono `null`
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Le casse private sono una ventina e non si somigliano: Forense, Inarcassa,
+ * ENPAM, ENPAP, Geometri hanno aliquote, minimi e scaglioni diversi, e li
+ * cambiano con i loro regolamenti. Un'app local-first che ne tenesse una
+ * tabella mostrerebbe fra due anni, come «la tua aliquota», un numero di due
+ * anni fa — ed è il modo più efficace di sbagliare.
+ *
+ * Qui dentro ci sono quindi **i parametri della tua cassa**, scritti da te.
+ *
+ * Le due aliquote sono `null` finché non le si dichiara, e non zero: zero
+ * sarebbe un'aliquota vera, e un contributo di zero euro calcolato su una
+ * cassa che non è stata configurata si legge come una buona notizia. `null`
+ * invece ferma il calcolo e lo dice — la stessa scelta della tariffa oraria e
+ * del reddito concordato.
+ *
+ * I tre importi sono numeri e non `null`: zero è il loro valore vero quando
+ * non ci sono. Una cassa senza minimo esiste; un'aliquota che non c'è, no.
+ */
+export type Cassa = {
+  /** Il nome, per le schermate: «Cassa Forense», «Inarcassa». Libero. */
+  nome: string;
+  /** Il contributo soggettivo, in frazione: 0,16 vuol dire 16 %. */
+  aliquotaSoggettivo: number | null;
+  /** Il minimo annuo del soggettivo: si versa comunque, anche sotto. */
+  minimoSoggettivo: number;
+  /** L'integrativo che si addebita in fattura, in frazione. */
+  aliquotaIntegrativo: number | null;
+  /** Il minimo annuo dell'integrativo: la differenza resta a carico tuo. */
+  minimoIntegrativo: number;
+  /** Quote fisse annue — la maternità, per esempio — dovute comunque. */
+  contributiFissi: number;
 };
