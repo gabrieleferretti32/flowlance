@@ -12,6 +12,7 @@
  */
 import { data, euro } from "@/lib/format";
 import { round2 } from "./aritmetica";
+import { addebitaIntegrativo, cassaDi, integrativoSu } from "./cassa";
 import { annoDi } from "./documenti";
 import type { DateDocumento } from "./competenza";
 import type { Fattura, Impostazioni, NotaCredito } from "./tipi";
@@ -25,6 +26,20 @@ export type StatoNota = "rimborsata" | "daRimborsare";
 
 export type NotaCalcolata = NotaCredito & {
   aliquotaIvaApplicata: number;
+  /**
+   * Il contributo integrativo che la nota storna. Positivo, come tutto il resto.
+   *
+   * Una nota che toglie 1.000 € di compensi toglie anche l'integrativo su quei
+   * 1.000 €: l'addebito al cliente scende, e scende quello che si gira alla
+   * cassa. Essendo una percentuale dell'imponibile stornato, lo storno è
+   * proporzionale per costruzione — non c'è una seconda regola da tenere
+   * allineata alla prima.
+   *
+   * Abbiamo già avuto una ritenuta che non seguiva le note di credito. Non è
+   * un difetto che si trova guardando un totale: i due numeri, presi da soli,
+   * sono entrambi plausibili.
+   */
+  integrativaCassa: number;
   /** L'IVA che la nota toglie dal debito. Positiva: il segno lo dà il verso. */
   iva: number;
   totale: number;
@@ -51,7 +66,15 @@ export function calcolaNota(n: NotaCredito, imp: Impostazioni): NotaCalcolata {
   // backup scritto a mano potrebbero portarne una col meno. Meglio normalizzare
   // qui che sommare uno storno che aumenta il fatturato.
   const imponibile = round2(Math.abs(n.imponibile));
-  const iva = round2(imponibile * aliquota);
+  /*
+    L'integrativo segue la nota, e l'IVA si calcola sulla somma dei due — le
+    stesse due regole della fattura, applicate allo storno. Scriverle qui una
+    seconda volta è il prezzo di avere due documenti con la stessa struttura e
+    campi diversi; un test confronta i due percorsi sullo stesso imponibile,
+    perché è la coppia che prima o poi si scolla.
+  */
+  const integrativaCassa = addebitaIntegrativo(imp) ? integrativoSu(imponibile, cassaDi(imp)) : 0;
+  const iva = round2((imponibile + integrativaCassa) * aliquota);
 
   const riconciliato = round2(
     (n.riconciliazioni ?? []).reduce((a, r) => a + Math.abs(r.imponibile), 0),
@@ -62,8 +85,9 @@ export function calcolaNota(n: NotaCredito, imp: Impostazioni): NotaCalcolata {
     ...n,
     imponibile,
     aliquotaIvaApplicata: aliquota,
+    integrativaCassa,
     iva,
-    totale: round2(imponibile + iva),
+    totale: round2(imponibile + integrativaCassa + iva),
     riconciliato,
     residuo,
     riconciliataDelTutto: residuo === 0,

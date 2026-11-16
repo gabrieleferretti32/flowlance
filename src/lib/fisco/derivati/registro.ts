@@ -36,6 +36,7 @@
 import { aliquota, euro, num } from "@/lib/format";
 import { eGestioneCommerciale, type Impostazioni, type ParametriAnno } from "../tipi";
 import { dichiarato } from "../parametri-utente";
+import { cassaDi, nomeCassa } from "../cassa";
 import type { Derivato } from "./tipi";
 
 /**
@@ -330,14 +331,29 @@ const coefficienteRedditivita: VoceRegistro<number> = {
 /**
  * L'aliquota soggettiva della cassa professionale.
  *
- * L'app ne tiene una del 15 % perché senza un numero non calcolerebbe niente,
- * ma non è di nessuno: Forense, Inarcassa ed ENPAM hanno regolamenti diversi e
- * scaglioni diversi. È la stessa bugia delle addizionali, con la stessa
- * risposta — l'origine dice `media`, e il motivo dice dove sta la propria.
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché qui non c'è più nessuna media
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Fino a poco fa questa voce, in mancanza di meglio, restituiva 0,15 con
+ * origine `media`. Forense, Inarcassa ed ENPAM non si somigliano, quindi quel
+ * 15 % non era di nessuno — ma il motore ci moltiplicava sopra il reddito
+ * vero, e ne usciva un contributo al centesimo su un'aliquota inventata. Un
+ * numero preciso e falso è peggio di nessun numero: nessuno riapre una
+ * domanda a cui sembra che l'app abbia già risposto.
+ *
+ * Adesso le aliquote stanno nel blocco `cassa` delle impostazioni, le scrive
+ * chi le conosce, e in mancanza valgono `null`: il contributo è zero e la
+ * schermata dice che manca il dato. La voce resta nel registro per la ragione
+ * per cui il registro esiste — il semaforo, il prospetto e il motore chiedono
+ * tutti e tre lo stesso numero con la stessa frase accanto.
  */
 const aliquotaSoggettivaCassa: VoceRegistro<number | null> = {
   etichetta: "Aliquota soggettiva della cassa",
-  possiede: ["aliquotaSoggettivaCassa"],
+  // Niente: il dato sta in un blocco, come il concordato, e il blocco si legge
+  // dal suo modulo. Non è un campo grezzo che qualcuno possa moltiplicare per
+  // sbaglio senza passare da qui.
+  possiede: [],
   calcola: (imp) => {
     if (imp.gestione !== "cassa") {
       return {
@@ -348,19 +364,21 @@ const aliquotaSoggettivaCassa: VoceRegistro<number | null> = {
         scavalcato: false,
       };
     }
-    const valore = imp.aliquotaSoggettivaCassa;
-    if (dichiarato(imp, "aliquotaSoggettivaCassa")) {
+    const c = cassaDi(imp);
+    if (c.aliquotaSoggettivo === null) {
       return {
-        valore,
-        origine: { tipo: "dichiarato", campo: "aliquotaSoggettivaCassa" },
-        motivo: `${aliquota(valore)}: l'aliquota che hai dichiarato per la tua cassa.`,
+        valore: null,
+        origine: { tipo: "dedotto", da: "quello che hai scritto nella sezione della cassa" },
+        motivo:
+          "Manca: hai scelto la cassa professionale ma non hai scritto l'aliquota del contributo soggettivo, "
+          + "quindi i contributi restano a zero. La trovi nel regolamento dei contributi della tua cassa, o nell'ultimo modello reddituale che hai inviato.",
         scavalcato: false,
       };
     }
     return {
-      valore,
-      origine: { tipo: "media" },
-      motivo: `${aliquota(valore)}: una media dell'app, non la tua. La tua sta nel regolamento dei contributi della cassa, o nell'ultimo modello reddituale che hai inviato.`,
+      valore: c.aliquotaSoggettivo,
+      origine: { tipo: "dedotto", da: "quello che hai scritto nella sezione della cassa" },
+      motivo: `${aliquota(c.aliquotaSoggettivo)}: l'aliquota del contributo soggettivo che hai scritto per ${nomeCassa(c)}.`,
       scavalcato: false,
     };
   },

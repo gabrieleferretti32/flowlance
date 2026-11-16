@@ -3,6 +3,7 @@
  * quell'anno. L'utente le sovrascrive dal pannello di controllo; i valori di
  * legge restano quelli marcati «da rivedere ogni gennaio».
  */
+import { cassaDi, cassaPredefinita } from "./cassa";
 import { conValoreProposto } from "./parametri-utente";
 import { concordatoPredefinito } from "./cpb";
 import { derivato } from "./derivati/registro";
@@ -52,10 +53,16 @@ export function impostazioniPredefinite(par: ParametriAnno): Impostazioni {
       dell'anno, e questo campo serve solo a scavalcarlo nei casi agevolati.
     */
     contributiFissi: par.artigianiCommercianti.artigiani.fissi,
-    // Stessa costante del minimale della Gestione Separata: la legge ne
-    // pubblica una sola, e nel modello arriva da un campo solo.
-    aliquotaSoggettivaCassa: 0.15,
-    aliquotaIntegrativaCassa: 0.04,
+    /*
+      La cassa professionale, vuota: nessuna aliquota e nessun minimo.
+
+      Prima qui c'erano un 15 % e un 4 %, e il 15 % era una media dell'app che
+      il motore usava davvero. Chi scegliesse «cassa» senza compilare niente si
+      ritrovava un contributo calcolato al centesimo su un'aliquota che non era
+      la sua. Vuoto vuol dire vuoto: il contributo resta zero e la schermata
+      dice perché. Vedi `cassa.ts`.
+    */
+    cassa: cassaPredefinita(),
 
     rivalsaAttiva: false,
     aliquotaRivalsa: par.aliquotaRivalsaInps,
@@ -145,7 +152,13 @@ export function impostazioniDaPrecedente(
     scaglioniAddizionaleComunale: precedente.scaglioniAddizionaleComunale ?? null,
     esenzioneAddizionaleComunale: precedente.esenzioneAddizionaleComunale ?? 0,
     contributiFissi: precedente.contributiFissi,
-    aliquotaSoggettivaCassa: precedente.aliquotaSoggettivaCassa,
+    /*
+      La cassa si eredita intera: nome, aliquote, minimi e quote fisse sono i
+      dati della propria cassa, non risposte da ridare ogni gennaio. Cambiano
+      quando la cassa li cambia, e allora si correggono a mano — come il
+      coefficiente di redditività, che si eredita per la stessa ragione.
+    */
+    cassa: { ...cassaDi(precedente) },
     dichiarati: [...(precedente.dichiarati ?? [])],
     ereditati: [...(precedente.dichiarati ?? [])],
     ereditatiDa: precedente.anno,

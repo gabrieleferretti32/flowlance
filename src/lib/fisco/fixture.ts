@@ -5,7 +5,7 @@
  */
 import { impostazioniPredefinite } from "./impostazioni";
 import { PARAMETRI_2026 } from "./parametri/2026";
-import type { Costo, Fattura, Impostazioni } from "./tipi";
+import type { Cassa, Costo, Fattura, Impostazioni } from "./tipi";
 
 export const OGGI_FIXTURE = "2026-09-01";
 
@@ -89,6 +89,36 @@ export function impostazioniForfettario(): Impostazioni {
     regime: "forfettario",
     coefficienteRedditivita: 0.78,
     gestione: "separata",
+  };
+}
+
+/**
+ * Una cassa professionale con numeri tondi, per i test.
+ *
+ * Il 15 % non è una media di niente: è il numero che rende i conti dei test
+ * ricontrollabili a mente, e che prima era il ripiego dell'app — tenerlo qui
+ * fa sì che i casi scritti allora continuino a valere gli stessi euro. I due
+ * minimi a zero perché il minimo va provato dove è il minimo a essere in
+ * prova, non in ogni altro test.
+ */
+export function cassaProva(modifiche: Partial<Cassa> = {}): Cassa {
+  return {
+    nome: "Cassa Forense",
+    aliquotaSoggettivo: 0.15,
+    minimoSoggettivo: 0,
+    aliquotaIntegrativo: 0.04,
+    minimoIntegrativo: 0,
+    contributiFissi: 0,
+    ...modifiche,
+  };
+}
+
+/** L'ordinario, ma iscritto a una cassa invece che alla Gestione Separata. */
+export function impostazioniConCassa(modifiche: Partial<Cassa> = {}): Impostazioni {
+  return {
+    ...impostazioniOrdinario(),
+    gestione: "cassa",
+    cassa: cassaProva(modifiche),
   };
 }
 

@@ -15,6 +15,7 @@ import { dataEstesa, euro, interoIt, percentuale } from "@/lib/format";
 import { esportazioneProspettoConsentita, type EsitoEsportazione } from "./chiusura";
 import { prospettoDettagliato, type SezioneProspetto } from "./spiegazioni";
 import { nomeRegione } from "./regioni";
+import { nomePrevidenza } from "./cassa";
 import { derivato, etichettaDi, sostitutivaAgevolata } from "./derivati/registro";
 import type { Prospetto } from "./motore";
 import type { Impostazioni, ParametriAnno } from "./tipi";
@@ -52,13 +53,6 @@ export const NOTA_GESTIONALE =
   "dell'attività, che in regime ordinario concorrono a formare il reddito complessivo e possono spostare " +
   "lo scaglione IRPEF. Gli importi seguono il principio di cassa per le imposte e la data del documento " +
   "per l'IVA. I numeri definitivi restano quelli del commercialista.";
-
-function nomeGestione(g: Impostazioni["gestione"]): string {
-  if (g === "separata") return "Gestione Separata INPS";
-  if (g === "artigiani") return "Artigiani";
-  if (g === "commercianti") return "Commercianti";
-  return "Cassa professionale";
-}
 
 /**
  * Costruisce il documento.
@@ -165,7 +159,7 @@ export function documentoProspetto(
       });
     }
   }
-  parametri.push({ etichetta: "Previdenza", valore: nomeGestione(imp.gestione) });
+  parametri.push({ etichetta: "Previdenza", valore: nomePrevidenza(imp) });
   /*
     Le due righe compaiono se le due voci esistono, non se la gestione si
     chiama «separata»: la condizione è dentro il valore, la stessa che il motore
@@ -187,9 +181,24 @@ export function documentoProspetto(
       },
     );
   }
+  /*
+    Con una cassa la rivalsa INPS **non esiste**: in fattura c'è il contributo
+    integrativo, che non è una scelta ma un obbligo del regolamento della cassa.
+    Scrivere «senza rivalsa» a chi ha una cassa sarebbe vero e fuorviante — fa
+    pensare a un'opzione spenta — e scrivere «rivalsa 4 %» a chi ha
+    l'interruttore acceso sarebbe falso: quel 4 % è l'integrativo.
+  */
+  const inFattura =
+    p.cassa !== null
+      ? p.cassa.aliquotaIntegrativo === null
+        ? "nessun contributo integrativo in fattura"
+        : `contributo integrativo ${percentuale(p.cassa.aliquotaIntegrativo, 2)}`
+      : imp.rivalsaAttiva
+        ? `rivalsa ${percentuale(imp.aliquotaRivalsa, 0)}`
+        : "senza rivalsa";
   parametri.push({
-    etichetta: "Rivalsa e ritenuta",
-    valore: `${imp.rivalsaAttiva ? `rivalsa ${percentuale(imp.aliquotaRivalsa, 0)}` : "senza rivalsa"} · ${
+    etichetta: p.cassa !== null ? "Addebiti in fattura" : "Rivalsa e ritenuta",
+    valore: `${inFattura} · ${
       imp.ritenutaAttiva && !forfettario
         ? `ritenuta ${percentuale(imp.aliquotaRitenuta, 0)}`
         : "senza ritenuta"

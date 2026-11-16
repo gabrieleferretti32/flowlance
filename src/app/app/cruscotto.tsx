@@ -30,7 +30,7 @@ import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
 import { periodoIvaCorrente } from "@/lib/fisco/iva";
 import { prossimeScadenze, scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
-import { nomeGestione } from "@/lib/fisco/tipi";
+import { nomePrevidenza } from "@/lib/fisco/cassa";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { aliquota, coloreDaNome, data as fmtData, euro, percentuale } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -146,7 +146,7 @@ export function Cruscotto() {
 
   const titolo = calcolo?.impostazioni.nome?.trim() || "Cruscotto";
   const descrizione = calcolo
-    ? `Anno ${anno} · regime ${calcolo.impostazioni.regime} · ${nomeGestione(calcolo.impostazioni.gestione)}`
+    ? `Anno ${anno} · regime ${calcolo.impostazioni.regime} · ${nomePrevidenza(calcolo.impostazioni)}`
     : undefined;
 
   if (!calcolo || !analisi) {
@@ -197,12 +197,25 @@ export function Cruscotto() {
     diversi. `round2` e non una somma qualunque: è la stessa aritmetica del
     foglio che produce le quote.
   */
+  /*
+    La terza parte si filtra su un'altra condizione, e la differenza non è un
+    dettaglio: la cassa professionale **non ha voci**, perché non ha date — ogni
+    cassa ha il suo calendario di versamento e l'app non ne inventa uno. Un
+    filtro su `voci.length > 0` la farebbe sparire dalla ripartizione mentre il
+    numero grande la comprende, e la card non sommerebbe: è la famiglia di
+    difetti che questo progetto inseguie da mesi, con la differenza che qui si
+    vedrebbe subito.
+  */
   const ripartizione = (
     [
       ["Imposte e contributi", analisi.quota.imposte],
       ["IVA", analisi.quota.iva],
+      [
+        p.cassa === null ? "Cassa" : p.cassa.nome,
+        analisi.quota.cassa,
+      ],
     ] as const
-  ).filter(([, parte]) => parte.voci.length > 0);
+  ).filter(([, parte]) => parte.voci.length > 0 || parte.daAccantonare > 0);
   /* La prima scadenza che deve ancora arrivare: quelle passate non sono «la
      prossima», sono un arretrato, e hanno la loro riga. */
   const prossimaQuota =
@@ -446,7 +459,7 @@ export function Cruscotto() {
                       </p>
                     );
                   })()}
-                {(analisi.quota.imposte.voci.length > 0 || analisi.quota.iva.voci.length > 0) && (
+                {ripartizione.length > 0 && (
                   <details className="group">
                     <summary className="cursor-pointer list-none text-inchiostro-tenue [&::-webkit-details-marker]:hidden">
                       {/* Un comando, non un'etichetta: «scadenza per scadenza»
@@ -475,6 +488,13 @@ export function Cruscotto() {
                                 : `${v.mesiMancanti} ${v.mesiMancanti === 1 ? "mese" : "mesi"}`}
                             </p>
                           ))}
+                          {/* Senza date non si elenca niente: si dice perché. */}
+                          {parte.voci.length === 0 && (
+                            <p>
+                              {euro(parte.daAccantonare)} in tutto, divisi in parti uguali sui mesi
+                              che restano: le date di versamento dipendono dalla tua cassa.
+                            </p>
+                          )}
                         </div>
                       ))}
                       {analisi.quota.avvisi.map((a) => (

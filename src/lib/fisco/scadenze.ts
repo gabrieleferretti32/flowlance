@@ -268,6 +268,51 @@ export function scadenzeAnno(
     .sort((a, b) => a.data.localeCompare(b.data) || a.id.localeCompare(b.id));
 }
 
+/**
+ * Gli adempimenti che esistono ma **non hanno una data**.
+ *
+ * ─────────────────────────────────────────────────────────────────────────
+ * Perché non sono `Adempimento` con una data inventata
+ * ─────────────────────────────────────────────────────────────────────────
+ *
+ * Un `Adempimento` ha una data, e tutto quello che gli sta attorno ci conta:
+ * l'ordinamento, il «prossime quattro», la spunta, la distribuzione della quota
+ * d'accantonamento. Dare al contributo di una cassa una data qualsiasi — il 31
+ * dicembre, oggi, il 30 giugno come le imposte — vorrebbe dire scrivere a
+ * schermo una scadenza che nessuna cassa ha fissato, e chi la legge ci
+ * organizza i pagamenti. È il difetto che questo progetto rifiuta nella sua
+ * forma più diretta: una misura che conferma invece di una che rompe.
+ *
+ * Quindi un tipo a parte, che non finge di essere una scadenza: una riga
+ * informativa, senza data e senza importo, che dice dove andare a cercarla.
+ */
+export type AdempimentoSenzaData = {
+  id: string;
+  titolo: string;
+  /** Una riga che dice perché la data non c'è e dove si trova. */
+  testo: string;
+};
+
+/**
+ * Le righe informative dello scadenzario, per questa configurazione.
+ *
+ * Una sola, oggi: i contributi della cassa professionale. Ogni cassa ha il suo
+ * calendario — rate, acconti e saldi non si somigliano — e l'app non ne tiene
+ * l'elenco. Vedi APPROSSIMAZIONI.md.
+ */
+export function adempimentiSenzaData(imp: Impostazioni): AdempimentoSenzaData[] {
+  if (imp.gestione !== "cassa") return [];
+  return [
+    {
+      id: "contributi-cassa",
+      titolo: "Contributi cassa: le date di versamento dipendono dalla tua cassa",
+      testo:
+        "Flowlance calcola quanto devi, non quando: rate, acconti e saldi cambiano da cassa a cassa. "
+        + "Le trovi sul sito della tua cassa. Nella quota da mettere da parte i contributi della cassa sono distribuiti in parti uguali sui mesi che restano.",
+    },
+  ];
+}
+
 /** Le prossime scadenze a partire dalla data indicata. */
 export function prossimeScadenze(
   scadenze: Adempimento[],

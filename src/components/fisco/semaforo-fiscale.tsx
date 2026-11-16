@@ -240,9 +240,23 @@ function dettaglioContributi(p: Prospetto, imp: Impostazioni, par: ParametriAnno
     const regole = par.artigianiCommercianti;
     return `Fissi più ${percentuale(regole[imp.gestione].aliquota, 2)} sul reddito oltre il minimale di ${euro(regole.minimale)}.`;
   }
-  const cassa = derivato("aliquotaSoggettivaCassa", imp, par).valore;
-  if (cassa !== null) {
-    return `${euro(p.baseContributiva)} × ${percentuale(cassa, 2)} di contributo soggettivo.`;
+  /*
+    Con una cassa la frase dice il conto che è stato fatto davvero, e i casi
+    sono tre, non uno: il minimo che fa da pavimento, l'aliquota che morde
+    normalmente, e l'aliquota che manca. Il terzo è quello che conta: zero euro
+    di contributi accanto a «hai una cassa» è una cifra che sembra una risposta,
+    e senza questa riga nessuno riaprirebbe la domanda.
+  */
+  if (p.cassa !== null) {
+    const c = p.cassa;
+    if (!c.configurata) {
+      return `Zero: manca l'aliquota del contributo soggettivo di ${c.nome}. Scrivila nei Parametri.`;
+    }
+    const soggettivo = c.soggettivoAlMinimo
+      ? `il minimo annuo di ${euro(c.minimoSoggettivo)} (l'aliquota darebbe ${euro(c.soggettivoCalcolato)})`
+      : `${euro(c.baseSoggettivo)} × ${percentuale(c.aliquotaSoggettivo ?? 0, 2)} di contributo soggettivo`;
+    const fissi = c.contributiFissi > 0 ? `, più ${euro(c.contributiFissi)} di contributi fissi` : "";
+    return `${c.nome}: ${soggettivo}${fissi}.`;
   }
   const aliquotaGs = derivato("aliquotaGestioneSeparata", imp, par).valore;
   const massimaleGs = derivato("massimaleGs", imp, par).valore;

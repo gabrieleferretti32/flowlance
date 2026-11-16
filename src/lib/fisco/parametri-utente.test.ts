@@ -42,14 +42,22 @@ describe("i parametri che solo l'utente conosce", () => {
     expect(inForfettario).not.toContain("addizionaleComunale");
     expect(campiPertinenti(ordinario).map((c) => c.campo)).toContain("addizionaleComunale");
 
-    // I contributi fissi sono degli artigiani, l'aliquota soggettiva di chi ha
-    // una cassa: chiederli a chi sta in Gestione Separata sarebbe rumore.
+    // I contributi fissi sono degli artigiani: chiederli a chi sta in Gestione
+    // Separata sarebbe rumore.
     expect(inForfettario).not.toContain("contributiFissi");
     expect(
       campiPertinenti({ ...base, gestione: "artigiani" }).map((c) => c.campo),
     ).toContain("contributiFissi");
-    expect(campiPertinenti({ ...base, gestione: "cassa" }).map((c) => c.campo)).toContain(
-      "aliquotaSoggettivaCassa",
+    /*
+      La cassa professionale **non chiede niente da qui**, e non è una
+      dimenticanza: i suoi sei dati hanno senso solo insieme, questo elenco
+      regge un numero per campo letto da `imp[campo]`, e non c'è nessun valore
+      di legge da marcare «predefinito» perché l'app non ne inventa nessuno.
+      Stanno nel blocco `cassa`, con la loro sezione nei Parametri. Il test
+      resta per impedire che ci tornino di soppiatto.
+    */
+    expect(campiPertinenti({ ...base, gestione: "cassa" }).map((c) => c.campo)).toEqual(
+      campiPertinenti({ ...base, gestione: "separata" }).map((c) => c.campo),
     );
   });
 

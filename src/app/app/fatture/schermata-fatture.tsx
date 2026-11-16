@@ -48,7 +48,8 @@ import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { usePreferenze } from "@/lib/stato/preferenze";
 import { useRichiesta } from "@/lib/stato/comandi";
 import { dentroPeriodo, etichettaPeriodo } from "@/lib/periodo";
-import { data as fmtData, euro, iniziali, coloreDaNome } from "@/lib/format";
+import { aliquota, data as fmtData, euro, iniziali, coloreDaNome } from "@/lib/format";
+import { cassaDi } from "@/lib/fisco/cassa";
 import { fatturaGrezza } from "@/lib/fisco/documenti";
 import { stornoPerFattura } from "@/lib/fisco/note";
 import type { FatturaCalcolata } from "@/lib/fisco/tipi";
@@ -119,6 +120,13 @@ export function SchermataFatture() {
 
   const ordinario = calcolo?.impostazioni.regime === "ordinario";
   const mostraIva = ordinario;
+  /*
+    L'aliquota dell'integrativo serve solo all'etichetta: «Contributo
+    integrativo 4 %» accanto a una cifra dice da dove viene, e un'etichetta
+    muta su una riga che compare solo con una cassa non la spiegherebbe. La
+    cifra la calcola `calcolaFattura`, qui non si moltiplica niente.
+  */
+  const aliquotaIntegrativo = calcolo ? cassaDi(calcolo.impostazioni).aliquotaIntegrativo : null;
 
   const righe = React.useMemo(() => {
     const tutte = calcolo?.prospetto.fattureCalcolate ?? [];
@@ -417,7 +425,16 @@ export function SchermataFatture() {
                       <TabellaCella
                         numerica
                         className="whitespace-nowrap font-medium"
-                        title={f.bollo > 0 ? `Compreso il bollo di ${euro(f.bollo)}` : undefined}
+                        title={
+                          [
+                            f.integrativaCassa > 0
+                              ? `Compreso il contributo integrativo di ${euro(f.integrativaCassa)}`
+                              : null,
+                            f.bollo > 0 ? `Compreso il bollo di ${euro(f.bollo)}` : null,
+                          ]
+                            .filter(Boolean)
+                            .join(" · ") || undefined
+                        }
                       >
                         {euro(f.totale)}
                       </TabellaCella>
@@ -488,6 +505,14 @@ export function SchermataFatture() {
                         etichetta: "Netto dopo le note",
                         valore: euro(storni.get(f.id)?.netto ?? f.imponibile),
                         mostra: (storni.get(f.id)?.stornato ?? 0) > 0,
+                      },
+                      {
+                        etichetta:
+                          aliquotaIntegrativo === null
+                            ? "Contributo integrativo"
+                            : `Contributo integrativo ${aliquota(aliquotaIntegrativo)}`,
+                        valore: euro(f.integrativaCassa),
+                        mostra: f.integrativaCassa > 0,
                       },
                       { etichetta: "IVA", valore: euro(f.iva), mostra: f.iva > 0 },
                       { etichetta: "Ritenuta", valore: euro(f.ritenuta), mostra: f.ritenuta > 0 },

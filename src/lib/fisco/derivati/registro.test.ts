@@ -46,11 +46,16 @@ function matrice(): { nome: string; imp: Impostazioni; par: ParametriAnno }[] {
     }
 
     /*
-      I casi in cui l'utente ha risposto, uno per gestione che ha qualcosa da
-      dichiarare. Due e non uno: `aliquotaSoggettivaCassa` si dichiara solo in
-      cassa e `contributiFissi` solo fra i commercianti, e un caso solo avrebbe
-      lasciato metà delle voci a non provare mai il ramo «dichiarato» — che è
-      esattamente il ramo dove si scavalca un valore di legge.
+      Il caso in cui l'utente ha risposto: i contributi fissi dei commercianti,
+      che è l'unico campo di `CAMPI_UTENTE` in cui una dichiarazione **scavalca
+      un valore di legge** — il ramo che senza un caso dedicato non girerebbe
+      mai.
+
+      Fino a poco fa ce n'erano due, perché anche l'aliquota soggettiva della
+      cassa si dichiarava da qui. Ora le aliquote della cassa stanno nel loro
+      blocco e non hanno un valore di legge da scavalcare: il caso con la cassa
+      resta qui sotto, per provare che la voce si calcola, ma non passa più dal
+      meccanismo dei campi dichiarati.
     */
     let commerciante: Impostazioni = { ...base, gestione: "commercianti" };
     commerciante = conValoreDichiarato(commerciante, "contributiFissi", 2_940.88);
@@ -60,9 +65,26 @@ function matrice(): { nome: string; imp: Impostazioni; par: ParametriAnno }[] {
     commerciante = conValoreDichiarato(commerciante, "oreFatturabiliGiorno", 6);
     casi.push({ nome: `${anno} · commerciante, tutto dichiarato`, imp: commerciante, par });
 
-    let inCassa: Impostazioni = { ...base, gestione: "cassa" };
-    inCassa = conValoreDichiarato(inCassa, "aliquotaSoggettivaCassa", 0.145);
-    casi.push({ nome: `${anno} · cassa, aliquota dichiarata`, imp: inCassa, par });
+    const inCassa: Impostazioni = {
+      ...base,
+      gestione: "cassa",
+      cassa: {
+        nome: "Cassa Forense",
+        aliquotaSoggettivo: 0.145,
+        minimoSoggettivo: 3_355,
+        aliquotaIntegrativo: 0.04,
+        minimoIntegrativo: 850,
+        contributiFissi: 0,
+      },
+    };
+    casi.push({ nome: `${anno} · cassa, aliquote compilate`, imp: inCassa, par });
+    /*
+      E la cassa **scelta e non compilata**: è lo stato di chi ha appena
+      cambiato gestione, e la voce deve dire «manca» invece di restituire un
+      numero. Prima di questo caso il registro non lo provava mai, perché il
+      ripiego del 15 % lo rendeva impossibile.
+    */
+    casi.push({ nome: `${anno} · cassa, da compilare`, imp: { ...base, gestione: "cassa" }, par });
 
     /*
       Un gruppo ATECO che l'elenco dell'anno non conosce: è la riga arrivata da
@@ -82,8 +104,10 @@ const CASI = matrice();
 
 describe("il registro dei valori derivati", () => {
   it("copre una matrice larga, altrimenti non sta verificando granché", () => {
-    // 3 anni × 2 regimi × 4 gestioni × 2 × 3 aperture, più tre casi a mano per anno.
-    expect(CASI.length).toBe(3 * (2 * 4 * 2 * 3 + 3));
+    // 3 anni × 2 regimi × 4 gestioni × 2 × 3 aperture, più quattro casi a mano
+    // per anno: il commerciante con tutto dichiarato, la cassa compilata, la
+    // cassa scelta e da compilare, e il gruppo ATECO sconosciuto.
+    expect(CASI.length).toBe(3 * (2 * 4 * 2 * 3 + 4));
     expect(NOMI_DERIVATI.length).toBeGreaterThan(0);
   });
 
@@ -114,11 +138,19 @@ describe("il registro dei valori derivati", () => {
         for (const c of CASI) {
           const d = derivato(nome as NomeDerivato, c.imp, c.par);
           /*
-            Dove la voce non si applica non c'è un numero da citare, ma il
-            motivo deve dirlo: un `null` senza spiegazione è un buco muto.
+            Dove non c'è un numero non c'è niente da citare, ma il motivo deve
+            dire **perché**: un `null` senza spiegazione è un buco muto.
+
+            Le ragioni ammesse sono due, e sono due cose diverse. «Non si
+            applica» è la voce che per questa persona non esiste: il contributo
+            soggettivo di chi versa all'INPS. «Manca» è la voce che esisterebbe
+            e il cui dato non c'è ancora: l'aliquota di una cassa appena scelta.
+            Accettare solo la prima spingerebbe a scrivere «non si applica» su
+            un dato che si applica benissimo e che va soltanto compilato — cioè
+            a dare la risposta sbagliata per far passare il test.
           */
           if (d.valore === null) {
-            expect(d.motivo, `${nome} · ${c.nome}`).toMatch(/non si applica/i);
+            expect(d.motivo, `${nome} · ${c.nome}`).toMatch(/non si applica|^manca/i);
             continue;
           }
           /*

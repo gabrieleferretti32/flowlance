@@ -131,6 +131,38 @@ export function impostazioniSimulate(ing: IngressoSimulatore): Impostazioni {
       anni.
     */
     dataAperturaPiva: ing.annoAperturaPiva ? `${ing.annoAperturaPiva}-01-01` : null,
+    /*
+      La cassa della simulazione: 15 % di soggettivo e 4 % di integrativo,
+      senza minimi.
+
+      ─────────────────────────────────────────────────────────────────────
+      Perché qui un'aliquota rappresentativa va bene, e nell'app no
+      ─────────────────────────────────────────────────────────────────────
+
+      Dentro l'app le aliquote della cassa non si inventano: chi usa Flowlance
+      ha **una** cassa, quella giusta la sa lui, e un 15 % di ripiego gli
+      calcolerebbe un contributo preciso e falso che nessuno riaprirebbe più.
+      Per questo il blocco `cassa` nasce vuoto e il contributo resta zero
+      finché qualcuno non lo compila.
+
+      Qui la domanda è un'altra. Il simulatore pubblico risponde a «quanto
+      pagherei, più o meno?» a chi non ha ancora aperto niente, e la riga che
+      mostra scrive l'aliquota per esteso — «6.520,00 € × 15,00 %» — accanto
+      alla pagina che dice, nero su bianco, che ogni cassa ha regole proprie e
+      che l'app non le conosce. Un ordine di grandezza dichiarato è esattamente
+      ciò che serve; uno zero, in questa pagina, non risponderebbe a niente.
+
+      Sono gli stessi due numeri che il simulatore usava prima che le casse
+      diventassero configurabili: la pagina pubblica non cambia di un euro.
+    */
+    cassa: {
+      nome: "Cassa professionale",
+      aliquotaSoggettivo: 0.15,
+      minimoSoggettivo: 0,
+      aliquotaIntegrativo: 0.04,
+      minimoIntegrativo: 0,
+      contributiFissi: 0,
+    },
   };
 }
 

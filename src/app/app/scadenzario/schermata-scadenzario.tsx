@@ -13,7 +13,7 @@ import { chiaveSpunta, spuntaAdempimento } from "@/lib/dati/azioni";
 import { useCalcoloAnno, useDati } from "@/lib/dati/hooks";
 import { giorniAllaData } from "@/lib/fisco/calendario";
 import { parametriDi } from "@/lib/fisco/parametri";
-import { scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
+import { adempimentiSenzaData, scadenzeAnno, type Adempimento } from "@/lib/fisco/scadenze";
 import { spunteSenzaF24 } from "@/lib/fisco/accantonamento";
 import { gestioneNelTesto } from "@/lib/fisco/tipi";
 import { usePreferenze } from "@/lib/stato/preferenze";
@@ -180,6 +180,25 @@ export function SchermataScadenzario() {
               </ul>
             </Card>
           </section>
+        ))}
+
+        {/*
+          Gli adempimenti **senza data**, in fondo e fuori dai mesi.
+
+          Non dentro il calendario, e non con una data inventata: i contributi
+          di una cassa professionale si devono, ma quando lo decide il
+          regolamento della cassa, non la legge. Dargli il 30 giugno o il 31
+          dicembre vorrebbe dire scrivere una scadenza che nessuno ha fissato, e
+          chi la legge ci organizza i pagamenti. Niente spunta, per la stessa
+          ragione: non c'è un giorno rispetto a cui dire «fatto».
+        */}
+        {adempimentiSenzaData(calcolo.impostazioni).map((a) => (
+          <Card key={a.id}>
+            <CardCorpo className="py-4">
+              <p className="text-etichetta font-medium">{a.titolo}</p>
+              <p className="mt-1 text-etichetta text-inchiostro-tenue">{a.testo}</p>
+            </CardCorpo>
+          </Card>
         ))}
 
         <Card>

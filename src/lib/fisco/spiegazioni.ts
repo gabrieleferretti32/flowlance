@@ -126,7 +126,9 @@ export function prospettoDettagliato(
     formula:
       p.rivalsaIncassata > 0
         ? `${euro(p.compensiIncassati)} di compensi più ${euro(p.rivalsaIncassata)} di rivalsa.`
-        : "Coincidono con i compensi incassati: non applichi la rivalsa in fattura.",
+        : p.cassa !== null
+          ? "Coincidono con i compensi incassati: con una cassa professionale la rivalsa INPS non si applica, e il contributo integrativo non è tuo reddito."
+          : "Coincidono con i compensi incassati: non applichi la rivalsa in fattura.",
     totale: true,
   });
 
@@ -523,7 +525,6 @@ export function prospettoDettagliato(
   const aliquotaGs = derivato("aliquotaGestioneSeparata", imp, par);
   const massimaleGs = derivato("massimaleGs", imp, par);
   const minimaleGs = derivato("minimaleGs", imp, par);
-  const soggettivaCassa = derivato("aliquotaSoggettivaCassa", imp, par);
   if (aliquotaGs.valore !== null && massimaleGs.valore !== null && minimaleGs.valore !== null) {
     contributi.push({
       id: "gestione-separata",
@@ -576,17 +577,47 @@ export function prospettoDettagliato(
           ? ` Oltre il massimale di ${euro(regole.massimale)} non si versa: il reddito eccedente non è imponibile.`
           : ""),
     });
-  } else if (soggettivaCassa.valore !== null) {
+  } else if (p.cassa !== null) {
+    const c = p.cassa;
+    /*
+      Il soggettivo, e **il minimo accanto**.
+
+      La formula dice il conto che è stato fatto davvero, non quello che si
+      farebbe di solito: quando il minimo ha fatto da pavimento, la riga lo
+      nomina e mostra il calcolo per aliquota che è stato scartato. Senza, un
+      reddito di 9.000 € e un contributo di 3.000 € stanno uno sotto l'altro
+      senza che nessuno capisca da dove esce il secondo — e un minimo che morde
+      è esattamente la cosa che chi legge non si aspetta.
+    */
     contributi.push({
+      // L'id resta `cassa`: lo cerca per nome il simulatore pubblico, che da
+      // qui prende la riga da mostrare. Rinominarlo l'avrebbe fatta sparire
+      // dalla pagina in silenzio, ed è il difetto che `simulatore.test.ts`
+      // esiste per trovare — infatti l'ha trovato.
       id: "cassa",
-      etichetta: "Contributo soggettivo di cassa",
-      valore: p.contributiCassa,
+      etichetta: "Contributo soggettivo",
+      valore: c.soggettivo,
       formato: "euro",
-      // Ogni cassa professionale ha le sue aliquote: Forense, Inarcassa e le
-      // altre non si somigliano. Il 15 % è un punto di partenza, non la tua.
-      formula: `${euro(p.baseContributiva)} × ${percentuale(soggettivaCassa.valore, 0)}, ${noteDelValore(imp, "aliquotaSoggettivaCassa")}.`,
-      nota: `Il contributo integrativo del ${percentuale(imp.aliquotaIntegrativaCassa, 0)} si addebita in fattura al cliente e non concorre al tuo reddito.`,
+      formula: c.configurata
+        ? c.soggettivoAlMinimo
+          ? `Il minimo annuo di ${euro(c.minimoSoggettivo)}: l'aliquota darebbe ${euro(c.soggettivoCalcolato)} (${euro(c.baseSoggettivo)} × ${percentuale(c.aliquotaSoggettivo ?? 0, 2)}), e sotto il minimo si versa il minimo.`
+          : `${euro(c.baseSoggettivo)} × ${percentuale(c.aliquotaSoggettivo ?? 0, 2)}`
+            + (c.minimoSoggettivo > 0 ? `, sopra il minimo annuo di ${euro(c.minimoSoggettivo)}.` : ".")
+        : "Zero: manca l'aliquota del contributo soggettivo della tua cassa.",
+      nota: c.configurata
+        ? "Si deduce dal reddito come i contributi INPS. Scaglioni, riduzioni per i primi anni di iscrizione e agevolazioni non sono calcolati: vedi le approssimazioni dichiarate."
+        : "Scrivi l'aliquota nei Parametri, nella sezione della previdenza: la trovi sul sito della tua cassa.",
     });
+    if (c.contributiFissi > 0) {
+      contributi.push({
+        id: "cassa-fissi",
+        etichetta: "Contributi fissi della cassa",
+        valore: c.contributiFissi,
+        formato: "euro",
+        formula: "L'importo annuo che hai scritto nei Parametri.",
+        nota: "Sono le quote dovute comunque — la maternità, per esempio. Si deducono come il soggettivo.",
+      });
+    }
   }
   contributi.push({
     id: "totale-contributi",
@@ -600,9 +631,73 @@ export function prospettoDettagliato(
     id: "contributi",
     lettera: "D",
     titolo: "Contributi previdenziali",
-    sottotitolo: nomeGestione(imp.gestione),
+    // Con una cassa il nome della cassa, non «Cassa professionale»: chi legge
+    // il prospetto deve riconoscere la sua.
+    sottotitolo: p.cassa === null ? nomeGestione(imp.gestione) : p.cassa.nome,
     righe: contributi,
   });
+
+  /*
+    ─────────────────────────────────────────────────────────────────────────
+    D-bis · L'integrativo, in una sezione sua
+    ─────────────────────────────────────────────────────────────────────────
+
+    Non è una riga della sezione D, e la ragione è aritmetica prima che
+    concettuale: la sezione D chiude con «Totale contributi», che è quello che
+    **ti costa** — soggettivo più quote fisse. L'integrativo non ti costa: lo
+    hai addebitato al cliente in fattura e lo giri alla cassa. Metterlo lì
+    dentro farebbe una colonna che non somma, e su un documento che finisce dal
+    commercialista una colonna che non torna è un errore anche quando ogni
+    singolo numero è giusto.
+
+    L'unica parte che costa è la differenza sul minimo, e sta in una riga sua.
+  */
+  if (p.cassa !== null && p.cassa.aliquotaIntegrativo !== null) {
+    const c = p.cassa;
+    const integrativo: RigaProspetto[] = [
+      {
+        id: "cassa-integrativo-fatturato",
+        etichetta: "Addebitato in fattura nell'anno",
+        valore: c.integrativoFatturato,
+        formato: "euro",
+        formula: `${percentuale(c.aliquotaIntegrativo ?? 0, 2)} sui compensi fatturati nell'anno, al netto delle note di credito.`,
+        nota: "Non è tuo reddito: non entra nei compensi, non conta per la soglia del forfettario e non subisce ritenuta d'acconto. In regime ordinario ci si applica l'IVA.",
+      },
+    ];
+    if (c.minimoIntegrativo > 0) {
+      integrativo.push({
+        id: "cassa-integrativo-minimo",
+        etichetta: "Minimo annuo dell'integrativo",
+        valore: c.minimoIntegrativo,
+        formato: "euro",
+        formula: "L'importo che hai scritto nei Parametri.",
+      });
+    }
+    if (c.integrativoACarico > 0) {
+      integrativo.push({
+        id: "cassa-integrativo-carico",
+        etichetta: "Differenza a tuo carico",
+        valore: c.integrativoACarico,
+        formato: "euro",
+        formula: `${euro(c.minimoIntegrativo)} di minimo meno ${euro(c.integrativoFatturato)} addebitati in fattura.`,
+        nota: "Questa parte la metti tu: nessun cliente l'ha pagata. È l'unico pezzo dell'integrativo che è un costo.",
+      });
+    }
+    integrativo.push({
+      id: "cassa-integrativo-totale",
+      etichetta: "Integrativo da versare alla cassa",
+      valore: c.integrativoDaVersare,
+      formato: "euro",
+      totale: true,
+    });
+    sezioni.push({
+      id: "cassa-integrativo",
+      lettera: "D-bis",
+      titolo: "Contributo integrativo",
+      sottotitolo: `${c.nome}: quello che incassi dai clienti e giri alla cassa`,
+      righe: integrativo,
+    });
+  }
 
   // — E · Sintesi ————————————————————————————————
   sezioni.push({

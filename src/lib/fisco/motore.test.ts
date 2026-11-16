@@ -6,6 +6,7 @@ import {
   COSTI_FIXTURE,
   FATTURE_FIXTURE,
   OGGI_FIXTURE,
+  cassaProva,
   impostazioniForfettario,
   impostazioniOrdinario,
 } from "./fixture";
@@ -534,7 +535,7 @@ describe("acconti dentro il prospetto, gestione per gestione", () => {
   });
 
   it("con una cassa professionale non si inventa un acconto contributivo", () => {
-    const p = con({ gestione: "cassa" });
+    const p = con({ gestione: "cassa", cassa: cassaProva() });
     expect(p.contributiCassa).toBeGreaterThan(0);
     expect(p.acconti.contributi.primo).toBe(0);
     expect(p.acconti.contributi.secondo).toBe(0);
@@ -799,10 +800,24 @@ describe("casi limite", () => {
   });
 
   it("il contributo integrativo della cassa non concorre al reddito", () => {
+    /*
+      L'integrativo non passa più da `rivalsaAttiva`: con una cassa non è una
+      scelta, è un obbligo del regolamento. L'interruttore resta acceso in
+      questo caso per provare l'altra metà della regola — con una cassa la
+      rivalsa INPS non si applica nemmeno quando l'interruttore è su.
+    */
     const imp: Impostazioni = {
       ...impostazioniOrdinario(),
       gestione: "cassa",
       rivalsaAttiva: true,
+      cassa: {
+        nome: "Cassa Forense",
+        aliquotaSoggettivo: 0.15,
+        minimoSoggettivo: 0,
+        aliquotaIntegrativo: 0.04,
+        minimoIntegrativo: 0,
+        contributiFissi: 0,
+      },
     };
     const p = prospettoCon(imp);
     const f = p.fattureCalcolate[0];
@@ -810,7 +825,7 @@ describe("casi limite", () => {
     expect(f.rivalsa).toBe(0);
     expect(f.ricavoRilevante).toBe(3000);
     expect(p.ricaviRilevanti).toBe(7500);
-    expect(p.contributiCassa).toBe(round2(p.redditoLordo * imp.aliquotaSoggettivaCassa));
+    expect(p.contributiCassa).toBe(round2(p.redditoLordo * 0.15));
   });
 
   it("il bollo non addebitato diventa un costo a carico", () => {
